@@ -1,6 +1,8 @@
 # 구현 계획
 
-- [ ] 1. 프로젝트 구조 및 기본 설정 구성
+- [x] 1. 프로젝트 구조 및 기본 설정 구성
+
+
   - 프로젝트 디렉토리 구조 생성 (src, tests, static 폴더)
   - requirements.txt 파일 생성 (aiohttp, aiosqlite 등 의존성)
   - 기본 설정 파일 및 환경 변수 설정
