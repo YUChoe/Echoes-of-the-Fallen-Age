@@ -1,1 +1,30 @@
-# 게임 로직 모듈
+"""
+게임 로직 모듈
+
+핵심 데이터 모델과 게임 로직을 제공합니다.
+"""
+
+from .models import Player, Character, Room, GameObject, Session
+from .repositories import (
+    PlayerRepository,
+    CharacterRepository,
+    RoomRepository,
+    GameObjectRepository,
+    ModelManager
+)
+
+__all__ = [
+    # 모델
+    'Player',
+    'Character',
+    'Room',
+    'GameObject',
+    'Session',
+
+    # 리포지토리
+    'PlayerRepository',
+    'CharacterRepository',
+    'RoomRepository',
+    'GameObjectRepository',
+    'ModelManager'
+]
