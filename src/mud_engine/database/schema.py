@@ -1,0 +1,180 @@
+"""
+데이터베이스 스키마 정의 및 생성 스크립트
+"""
+
+import logging
+from typing import List
+
+logger = logging.getLogger(__name__)
+
+# 데이터베이스 스키마 정의
+DATABASE_SCHEMA: List[str] = [
+    """
+    -- 플레이어 테이블
+    CREATE TABLE IF NOT EXISTS players (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        email TEXT,
+        preferred_locale TEXT DEFAULT 'en',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP
+    );
+    """,
+
+    """
+    -- 캐릭터 테이블
+    CREATE TABLE IF NOT EXISTS characters (
+        id TEXT PRIMARY KEY,
+        player_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        current_room_id TEXT,
+        inventory TEXT DEFAULT '[]', -- JSON 형태로 저장
+        stats TEXT DEFAULT '{}', -- JSON 형태로 저장
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+    );
+    """,
+
+    """
+    -- 방 테이블
+    CREATE TABLE IF NOT EXISTS rooms (
+        id TEXT PRIMARY KEY,
+        name_en TEXT NOT NULL,
+        name_ko TEXT NOT NULL,
+        description_en TEXT,
+        description_ko TEXT,
+        exits TEXT DEFAULT '{}', -- JSON 형태로 저장 (방향: 목적지_방_ID)
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+
+    """
+    -- 게임 객체 테이블
+    CREATE TABLE IF NOT EXISTS game_objects (
+        id TEXT PRIMARY KEY,
+        name_en TEXT NOT NULL,
+        name_ko TEXT NOT NULL,
+        description_en TEXT,
+        description_ko TEXT,
+        object_type TEXT NOT NULL, -- 'item', 'npc', 'furniture' 등
+        location_type TEXT NOT NULL, -- 'room', 'inventory'
+        location_id TEXT, -- room_id 또는 character_id
+        properties TEXT DEFAULT '{}', -- JSON 형태로 저장
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+
+    """
+    -- 다국어 텍스트 테이블
+    CREATE TABLE IF NOT EXISTS translations (
+        key TEXT NOT NULL,
+        locale TEXT NOT NULL,
+        value TEXT NOT NULL,
+        PRIMARY KEY (key, locale)
+    );
+    """,
+
+    """
+    -- 인덱스 생성
+    CREATE INDEX IF NOT EXISTS idx_players_username ON players(username);
+    CREATE INDEX IF NOT EXISTS idx_characters_player_id ON characters(player_id);
+    CREATE INDEX IF NOT EXISTS idx_characters_current_room ON characters(current_room_id);
+    CREATE INDEX IF NOT EXISTS idx_game_objects_location ON game_objects(location_type, location_id);
+    CREATE INDEX IF NOT EXISTS idx_translations_key ON translations(key);
+    """
+]
+
+# 초기 데이터
+INITIAL_DATA: List[str] = [
+    """
+    -- 기본 방 생성
+    INSERT OR IGNORE INTO rooms (id, name_en, name_ko, description_en, description_ko, exits) VALUES
+    ('room_001', 'Town Square', '마을 광장',
+     'A bustling town square with a fountain in the center. People gather here to chat and trade.',
+     '중앙에 분수가 있는 번화한 마을 광장입니다. 사람들이 모여 대화하고 거래를 합니다.',
+     '{"north": "room_002", "east": "room_003"}'),
+    ('room_002', 'North Street', '북쪽 거리',
+     'A quiet street leading north from the town square. Small shops line both sides.',
+     '마을 광장에서 북쪽으로 이어지는 조용한 거리입니다. 양쪽에 작은 상점들이 늘어서 있습니다.',
+     '{"south": "room_001"}'),
+    ('room_003', 'East Market', '동쪽 시장',
+     'A busy marketplace filled with merchants selling various goods.',
+     '다양한 상품을 파는 상인들로 가득한 번화한 시장입니다.',
+     '{"west": "room_001"}');
+    """,
+
+    """
+    -- 기본 번역 텍스트
+    INSERT OR IGNORE INTO translations (key, locale, value) VALUES
+    ('welcome_message', 'en', 'Welcome to the MUD Engine!'),
+    ('welcome_message', 'ko', 'MUD 엔진에 오신 것을 환영합니다!'),
+    ('login_prompt', 'en', 'Please enter your username:'),
+    ('login_prompt', 'ko', '사용자명을 입력하세요:'),
+    ('password_prompt', 'en', 'Please enter your password:'),
+    ('password_prompt', 'ko', '비밀번호를 입력하세요:'),
+    ('invalid_credentials', 'en', 'Invalid username or password.'),
+    ('invalid_credentials', 'ko', '잘못된 사용자명 또는 비밀번호입니다.'),
+    ('command_not_found', 'en', 'Command not found. Type "help" for available commands.'),
+    ('command_not_found', 'ko', '명령어를 찾을 수 없습니다. "help"를 입력하여 사용 가능한 명령어를 확인하세요.');
+    """
+]
+
+
+async def create_database_schema(db_connection) -> None:
+    """
+    데이터베이스 스키마를 생성합니다.
+
+    Args:
+        db_connection: aiosqlite 데이터베이스 연결 객체
+    """
+    logger.info("데이터베이스 스키마 생성 시작")
+
+    try:
+        # 스키마 생성
+        for schema_sql in DATABASE_SCHEMA:
+            await db_connection.executescript(schema_sql)
+
+        # 초기 데이터 삽입
+        for data_sql in INITIAL_DATA:
+            await db_connection.executescript(data_sql)
+
+        await db_connection.commit()
+        logger.info("데이터베이스 스키마 생성 완료")
+
+    except Exception as e:
+        logger.error(f"데이터베이스 스키마 생성 실패: {e}")
+        await db_connection.rollback()
+        raise
+
+
+async def verify_schema(db_connection) -> bool:
+    """
+    데이터베이스 스키마가 올바르게 생성되었는지 확인합니다.
+
+    Args:
+        db_connection: aiosqlite 데이터베이스 연결 객체
+
+    Returns:
+        bool: 스키마 검증 성공 여부
+    """
+    expected_tables = ['players', 'characters', 'rooms', 'game_objects', 'translations']
+
+    try:
+        cursor = await db_connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )
+        existing_tables = [row[0] for row in await cursor.fetchall()]
+
+        for table in expected_tables:
+            if table not in existing_tables:
+                logger.error(f"테이블 '{table}'이 존재하지 않습니다")
+                return False
+
+        logger.info("데이터베이스 스키마 검증 완료")
+        return True
+
+    except Exception as e:
+        logger.error(f"스키마 검증 실패: {e}")
+        return False
