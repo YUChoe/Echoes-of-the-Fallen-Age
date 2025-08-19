@@ -7,6 +7,8 @@
 from .manager import I18nManager, get_i18n_manager, close_i18n_manager, get_text, add_translation
 from .locale_service import LocaleService, get_locale_service, close_locale_service, set_user_locale, get_user_locale, get_text_for_user
 from .utils import TranslationFileManager, create_default_translation_files, validate_translation_key, format_direction_name
+from .default_translations import get_default_translations, get_core_translation_keys, validate_default_translations
+from .translation_manager import TranslationManager
 
 __all__ = [
     # 매니저
@@ -28,5 +30,13 @@ __all__ = [
     'TranslationFileManager',
     'create_default_translation_files',
     'validate_translation_key',
-    'format_direction_name'
+    'format_direction_name',
+
+    # 기본 번역
+    'get_default_translations',
+    'get_core_translation_keys',
+    'validate_default_translations',
+
+    # 번역 관리
+    'TranslationManager'
 ]

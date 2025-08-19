@@ -107,55 +107,28 @@ class I18nManager:
 
     def _load_default_translations(self) -> None:
         """기본 번역 텍스트 로드 (fallback)"""
-        default_translations = {
-            'en': {
-                'welcome_message': 'Welcome to the MUD Engine!',
-                'login_prompt': 'Please enter your username:',
-                'password_prompt': 'Please enter your password:',
-                'invalid_credentials': 'Invalid username or password.',
-                'command_not_found': 'Command not found. Type "help" for available commands.',
-                'room_exits': 'Exits: {exits}',
-                'inventory_empty': 'Your inventory is empty.',
-                'item_not_found': 'Item not found.',
-                'player_joined': '{player} has joined the game.',
-                'player_left': '{player} has left the game.',
-                'say_format': '{player} says: {message}',
-                'tell_format': '{player} tells you: {message}',
-                'look_room': 'You are in {room_name}. {room_description}',
-                'move_success': 'You move {direction}.',
-                'move_failed': 'You cannot go that way.',
-                'get_success': 'You take the {item}.',
-                'get_failed': 'You cannot take that.',
-                'drop_success': 'You drop the {item}.',
-                'drop_failed': 'You are not carrying that.',
-                'help_commands': 'Available commands: look, go <direction>, say <message>, tell <player> <message>, get <item>, drop <item>, inventory, who, help, quit'
-            },
-            'ko': {
-                'welcome_message': 'MUD 엔진에 오신 것을 환영합니다!',
-                'login_prompt': '사용자명을 입력하세요:',
-                'password_prompt': '비밀번호를 입력하세요:',
-                'invalid_credentials': '잘못된 사용자명 또는 비밀번호입니다.',
-                'command_not_found': '명령어를 찾을 수 없습니다. "help"를 입력하여 사용 가능한 명령어를 확인하세요.',
-                'room_exits': '출구: {exits}',
-                'inventory_empty': '인벤토리가 비어있습니다.',
-                'item_not_found': '아이템을 찾을 수 없습니다.',
-                'player_joined': '{player}님이 게임에 참여했습니다.',
-                'player_left': '{player}님이 게임을 떠났습니다.',
-                'say_format': '{player}님이 말합니다: {message}',
-                'tell_format': '{player}님이 당신에게 말합니다: {message}',
-                'look_room': '당신은 {room_name}에 있습니다. {room_description}',
-                'move_success': '{direction}쪽으로 이동했습니다.',
-                'move_failed': '그쪽으로 갈 수 없습니다.',
-                'get_success': '{item}을(를) 가져왔습니다.',
-                'get_failed': '그것을 가져올 수 없습니다.',
-                'drop_success': '{item}을(를) 떨어뜨렸습니다.',
-                'drop_failed': '그것을 가지고 있지 않습니다.',
-                'help_commands': '사용 가능한 명령어: look, go <방향>, say <메시지>, tell <플레이어> <메시지>, get <아이템>, drop <아이템>, inventory, who, help, quit'
-            }
-        }
+        try:
+            from .default_translations import get_default_translations
 
-        self._translations = default_translations
-        logger.info("기본 번역 텍스트 로드 완료")
+            self._translations = get_default_translations()
+            logger.info("기본 번역 텍스트 로드 완료")
+
+        except ImportError as e:
+            logger.error(f"기본 번역 모듈 로드 실패: {e}")
+            # 최소한의 하드코딩된 번역 (비상용)
+            self._translations = {
+                'en': {
+                    'system_error': 'System error occurred.',
+                    'translation_missing': 'Translation missing: {key}',
+                    'welcome': 'Welcome!'
+                },
+                'ko': {
+                    'system_error': '시스템 오류가 발생했습니다.',
+                    'translation_missing': '번역 누락: {key}',
+                    'welcome': '환영합니다!'
+                }
+            }
+            logger.warning("최소한의 비상용 번역 텍스트 사용")
 
     def get_text(self, key: str, locale: str = None, **kwargs) -> str:
         """
