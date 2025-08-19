@@ -126,6 +126,51 @@ async def main():
             print(f"⚠️  모델 테스트 중 오류: {e}")
             logger.warning(f"모델 테스트 오류: {e}")
 
+        # 다국어 시스템 테스트
+        print("🌍 다국어 시스템 테스트 중...")
+        logger.info("다국어 시스템 테스트 시작")
+
+        try:
+            from .i18n import get_i18n_manager, get_locale_service, create_default_translation_files
+
+            # 기본 번역 파일 생성
+            print("📝 기본 번역 파일 생성 중...")
+            file_created = create_default_translation_files()
+            if file_created:
+                print("✅ 기본 번역 파일 생성 완료")
+            else:
+                print("⚠️  기본 번역 파일 생성 실패 (이미 존재할 수 있음)")
+
+            # I18nManager 초기화
+            i18n_manager = await get_i18n_manager()
+            print("✅ I18nManager 초기화 완료")
+
+            # 번역 테스트
+            welcome_en = i18n_manager.get_text('welcome_message', 'en')
+            welcome_ko = i18n_manager.get_text('welcome_message', 'ko')
+
+            print(f"🇺🇸 영어: {welcome_en}")
+            print(f"🇰🇷 한국어: {welcome_ko}")
+
+            # 포맷팅 테스트
+            formatted_text = i18n_manager.get_text('player_joined', 'ko', player='데모사용자')
+            print(f"📝 포맷팅 테스트: {formatted_text}")
+
+            # LocaleService 테스트
+            locale_service = get_locale_service()
+            locale_service.set_user_locale('demo_user', 'ko')
+
+            user_text = await locale_service.get_text_for_user('demo_user', 'server_ready')
+            print(f"👤 사용자별 텍스트: {user_text}")
+
+            # 번역 통계
+            stats = i18n_manager.get_translation_stats()
+            print(f"📊 번역 통계: {stats['total_keys']}개 키, {len(stats['locale_stats'])}개 로케일")
+
+        except Exception as e:
+            print(f"⚠️  다국어 시스템 테스트 중 오류: {e}")
+            logger.warning(f"다국어 시스템 테스트 오류: {e}")
+
         print("🚀 MUD Engine 준비 완료!")
         logger.info("MUD Engine 초기화 완료")
 
