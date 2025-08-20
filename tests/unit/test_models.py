@@ -3,6 +3,7 @@
 """
 
 import json
+import time
 import pytest
 from datetime import datetime
 
@@ -377,6 +378,7 @@ class TestSession:
 
         # 활동 업데이트
         old_activity = session.last_activity
+        time.sleep(0.001)
         session.update_activity()
         assert session.last_activity > old_activity
 

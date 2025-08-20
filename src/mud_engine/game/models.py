@@ -244,41 +244,32 @@ class Room(BaseModel):
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Room':
         """딕셔너리에서 모델 생성"""
-        # 데이터베이스 컬럼명을 모델 필드명으로 변환
-        converted_data = {}
+        # 데이터베이스 컬럼명이나 JSON 문자열을 모델 필드로 변환
+        converted_data = data.copy()
 
-        for key, value in data.items():
-            if key == 'name_en' or key == 'name_ko':
-                # name_en, name_ko를 name 딕셔너리로 변환
-                if 'name' not in converted_data:
-                    converted_data['name'] = {}
-                locale = 'en' if key == 'name_en' else 'ko'
-                converted_data['name'][locale] = value
-            elif key == 'description_en' or key == 'description_ko':
-                # description_en, description_ko를 description 딕셔너리로 변환
-                if 'description' not in converted_data:
-                    converted_data['description'] = {}
-                locale = 'en' if key == 'description_en' else 'ko'
-                converted_data['description'][locale] = value
-            elif key == 'exits':
-                # exits JSON 문자열을 딕셔너리로 변환
-                if isinstance(value, str):
-                    try:
-                        converted_data[key] = json.loads(value)
-                    except (json.JSONDecodeError, TypeError):
-                        converted_data[key] = {}
-                else:
-                    converted_data[key] = value or {}
-            else:
-                converted_data[key] = value
+        # name, description, exits가 JSON 문자열인 경우 딕셔너리로 변환
+        for key in ['name', 'description', 'exits']:
+            value = converted_data.get(key)
+            if isinstance(value, str):
+                try:
+                    converted_data[key] = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    converted_data[key] = {}
 
-        # 필수 필드 기본값 설정
+        # DB 컬럼명 (name_en, name_ko 등)을 딕셔너리 필드로 통합
         if 'name' not in converted_data:
             converted_data['name'] = {}
         if 'description' not in converted_data:
             converted_data['description'] = {}
-        if 'exits' not in converted_data:
-            converted_data['exits'] = {}
+
+        if 'name_en' in converted_data:
+            converted_data['name']['en'] = converted_data.pop('name_en')
+        if 'name_ko' in converted_data:
+            converted_data['name']['ko'] = converted_data.pop('name_ko')
+        if 'description_en' in converted_data:
+            converted_data['description']['en'] = converted_data.pop('description_en')
+        if 'description_ko' in converted_data:
+            converted_data['description']['ko'] = converted_data.pop('description_ko')
 
         return cls(**converted_data)
 
