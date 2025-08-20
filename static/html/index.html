@@ -1,15 +1,152 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Echoes of the Fallen Age</title>
+    <title>Echoes of the Fallen Age - MUD 게임</title>
+
+    <!-- Pico.css CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+
+    <!-- 커스텀 스타일 -->
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <h1>Welcome to Echoes of the Fallen Age</h1>
-    <div id="game-output"></div>
-    <input type="text" id="command-input" placeholder="Enter command...">
+    <div class="container">
+        <!-- 헤더 -->
+        <header>
+            <nav>
+                <ul>
+                    <li><strong>🏰 Echoes of the Fallen Age</strong></li>
+                </ul>
+                <ul>
+                    <li><a href="#" id="theme-toggle">🌙</a></li>
+                    <li><a href="#" id="help-btn">도움말</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <!-- 메인 컨텐츠 -->
+        <main>
+            <!-- 로그인/회원가입 섹션 -->
+            <section id="auth-section">
+                <article>
+                    <header>
+                        <h2>🎮 게임 접속</h2>
+                    </header>
+
+                    <div class="grid">
+                        <!-- 로그인 폼 -->
+                        <div>
+                            <h3>로그인</h3>
+                            <form id="login-form" autocomplete="on">
+                                <input type="text" id="login-username" placeholder="사용자명" autocomplete="username" required>
+                                <input type="password" id="login-password" placeholder="비밀번호" autocomplete="current-password" required>
+                                <button type="submit">로그인</button>
+                            </form>
+                        </div>
+
+                        <!-- 회원가입 폼 -->
+                        <div>
+                            <h3>회원가입</h3>
+                            <form id="register-form" autocomplete="off">
+                                <input type="text" id="register-username" placeholder="사용자명" autocomplete="off" required>
+                                <input type="password" id="register-password" placeholder="비밀번호" autocomplete="new-password" required>
+                                <button type="submit" class="secondary">회원가입</button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <!-- 게임 섹션 -->
+            <section id="game-section" style="display: none;">
+                <div class="grid">
+                    <!-- 게임 출력 -->
+                    <div style="grid-column: span 2;">
+                        <article>
+                            <header>
+                                <h3>🌍 게임 월드</h3>
+                                <div id="connection-status" class="badge">연결됨</div>
+                            </header>
+                            <div id="game-output"></div>
+                        </article>
+                    </div>
+
+                    <!-- 사이드바 -->
+                    <div>
+                        <article>
+                            <header>
+                                <h4>📊 상태</h4>
+                            </header>
+                            <div id="player-stats">
+                                <p><strong>플레이어:</strong> <span id="player-name">-</span></p>
+                                <p><strong>위치:</strong> <span id="player-location">-</span></p>
+                                <p><strong>레벨:</strong> <span id="player-level">1</span></p>
+                            </div>
+                        </article>
+
+                        <article>
+                            <header>
+                                <h4>🎯 빠른 명령어</h4>
+                            </header>
+                            <div class="quick-commands">
+                                <button class="outline secondary" onclick="sendCommand('look')">둘러보기</button>
+                                <button class="outline secondary" onclick="sendCommand('inventory')">인벤토리</button>
+                                <button class="outline secondary" onclick="sendCommand('help')">도움말</button>
+                                <button class="outline secondary" onclick="sendCommand('quit')">종료</button>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+
+                <!-- 명령어 입력 -->
+                <article>
+                    <div class="grid">
+                        <input type="text" id="command-input" placeholder="명령어를 입력하세요... (예: look, go north, say hello)" disabled>
+                        <button id="send-btn" disabled>전송</button>
+                    </div>
+                </article>
+            </section>
+        </main>
+
+        <!-- 푸터 -->
+        <footer>
+            <small>
+                🎮 Echoes of the Fallen Age v0.1.0 |
+                <a href="#" id="about-link">게임 정보</a> |
+                <span id="server-status">서버 상태: <span class="status-indicator">●</span></span>
+            </small>
+        </footer>
+    </div>
+
+    <!-- 모달 -->
+    <dialog id="help-modal">
+        <article>
+            <header>
+                <button aria-label="Close" rel="prev" onclick="closeModal()"></button>
+                <h3>🎮 게임 도움말</h3>
+            </header>
+            <div>
+                <h4>기본 명령어</h4>
+                <ul>
+                    <li><code>look</code> - 주변을 둘러봅니다</li>
+                    <li><code>go [방향]</code> - 지정된 방향으로 이동합니다</li>
+                    <li><code>say [메시지]</code> - 다른 플레이어에게 말합니다</li>
+                    <li><code>inventory</code> - 소지품을 확인합니다</li>
+                    <li><code>help</code> - 도움말을 표시합니다</li>
+                    <li><code>quit</code> - 게임을 종료합니다</li>
+                </ul>
+
+                <h4>이동 명령어</h4>
+                <p>north, south, east, west, up, down, northeast, northwest, southeast, southwest</p>
+            </div>
+            <footer>
+                <button onclick="closeModal()">닫기</button>
+            </footer>
+        </article>
+    </dialog>
+
     <script src="/static/js/main.js"></script>
 </body>
 </html>

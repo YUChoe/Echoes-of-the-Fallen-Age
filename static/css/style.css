@@ -1,0 +1,193 @@
+/* MUD 게임 커스텀 스타일 (Pico.css 확장) */
+
+/* 게임 출력 영역 */
+#game-output {
+    background-color: var(--pico-card-background-color);
+    border: 1px solid var(--pico-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 1rem;
+    height: 400px;
+    overflow-y: auto;
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: var(--pico-color);
+}
+
+/* 스크롤바 스타일링 */
+#game-output::-webkit-scrollbar {
+    width: 8px;
+}
+
+#game-output::-webkit-scrollbar-track {
+    background: var(--pico-card-background-color);
+}
+
+#game-output::-webkit-scrollbar-thumb {
+    background: var(--pico-border-color);
+    border-radius: 4px;
+}
+
+#game-output::-webkit-scrollbar-thumb:hover {
+    background: var(--pico-primary);
+}
+
+/* 명령어 입력 */
+#command-input {
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+    font-size: 0.875rem;
+}
+
+/* 연결 상태 배지 */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: var(--pico-border-radius);
+    background-color: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+}
+
+.badge.connected {
+    background-color: #28a745;
+}
+
+.badge.disconnected {
+    background-color: #dc3545;
+}
+
+/* 플레이어 상태 */
+#player-stats p {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* 빠른 명령어 버튼 */
+.quick-commands {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: 1fr 1fr;
+}
+
+.quick-commands button {
+    font-size: 0.75rem;
+    padding: 0.5rem;
+}
+
+/* 메시지 타입별 색상 */
+.message-error {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.message-success {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.message-info {
+    color: #17a2b8;
+    font-weight: 600;
+}
+
+.message-warning {
+    color: #ffc107;
+    font-weight: 600;
+}
+
+.message-system {
+    color: var(--pico-muted-color);
+    font-style: italic;
+}
+
+.message-player {
+    color: var(--pico-primary);
+    font-weight: 500;
+}
+
+.message-npc {
+    color: #6f42c1;
+    font-weight: 500;
+}
+
+/* 서버 상태 표시 */
+.status-indicator {
+    font-size: 0.75rem;
+}
+
+.status-indicator.online {
+    color: #28a745;
+}
+
+.status-indicator.offline {
+    color: #dc3545;
+}
+
+/* 테마 토글 버튼 */
+#theme-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    #game-output {
+        height: 300px;
+    }
+
+    .quick-commands {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* 로딩 상태 */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* 커스텀 스크롤 영역 */
+.scroll-area {
+    scrollbar-width: thin;
+    scrollbar-color: var(--pico-border-color) var(--pico-card-background-color);
+}
+
+/* 게임 텍스트 강조 */
+.highlight {
+    background-color: var(--pico-primary);
+    color: var(--pico-primary-inverse);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+}
+
+/* 명령어 힌트 */
+.command-hint {
+    font-size: 0.75rem;
+    color: var(--pico-muted-color);
+    margin-top: 0.25rem;
+}
+
+/* 게임 로그 타임스탬프 */
+.timestamp {
+    color: var(--pico-muted-color);
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+}
