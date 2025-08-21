@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 
 from .database import get_database_manager, close_database_manager
 from .game.managers import PlayerManager
-from .server.server import MudServer
+from .game.repositories import PlayerRepository
+from .server import MudServer
 
 
 def setup_logging():
@@ -44,7 +45,7 @@ async def main():
 
         # 관리자 클래스 초기화
         logger.info("게임 관리자 클래스 초기화 중...")
-        player_repo = db_manager.get_repository("players")
+        player_repo = PlayerRepository(db_manager)
         player_manager = PlayerManager(player_repo)
         logger.info("게임 관리자 클래스 초기화 완료.")
 
@@ -67,7 +68,7 @@ async def main():
         logger.info("MUD Engine 종료 절차 시작...")
         if server:
             await server.stop()
-        
+
         await close_database_manager()
         logger.info("MUD Engine이 성공적으로 종료되었습니다.")
         print("👋 MUD Engine 종료.")
