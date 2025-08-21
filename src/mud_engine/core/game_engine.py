@@ -11,6 +11,7 @@ from ..server.session import SessionManager, Session
 from ..game.managers import PlayerManager
 from ..game.models import Player
 from ..database.connection import DatabaseManager
+from ..commands import CommandProcessor, SayCommand, TellCommand, WhoCommand, LookCommand, HelpCommand, QuitCommand
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +41,29 @@ class GameEngine:
         self._running = False
         self._start_time: Optional[datetime] = None
 
+        # 명령어 처리기 초기화
+        self.command_processor = CommandProcessor(self.event_bus)
+        self._setup_commands()
+
         # 이벤트 구독 설정
         self._setup_event_subscriptions()
 
         logger.info("GameEngine 초기화 완료")
+
+    def _setup_commands(self) -> None:
+        """기본 명령어들 설정"""
+        # 기본 명령어들 등록
+        self.command_processor.register_command(SayCommand())
+        self.command_processor.register_command(TellCommand())
+        self.command_processor.register_command(WhoCommand(self.session_manager))
+        self.command_processor.register_command(LookCommand())
+        self.command_processor.register_command(QuitCommand())
+
+        # HelpCommand는 command_processor 참조가 필요
+        help_command = HelpCommand(self.command_processor)
+        self.command_processor.register_command(help_command)
+
+        logger.info("기본 명령어 등록 완료")
 
     def _setup_event_subscriptions(self) -> None:
         """이벤트 구독 설정"""
@@ -222,17 +242,55 @@ class GameEngine:
             await session.send_error("인증되지 않은 사용자입니다.")
             return
 
-        # 플레이어 명령어 이벤트 발행
-        await self.event_bus.publish(Event(
-            event_type=EventType.PLAYER_COMMAND,
-            source=session.session_id,
-            data={
-                "player_id": session.player.id,
-                "username": session.player.username,
-                "command": command,
-                "session_id": session.session_id
-            }
-        ))
+        # 명령어 처리기를 통해 명령어 실행
+        result = await self.command_processor.process_command(session, command)
+
+        # 결과를 세션에 전송
+        await self._send_command_result(session, result)
+
+    async def _send_command_result(self, session: Session, result) -> None:
+        """
+        명령어 실행 결과를 세션에 전송
+
+        Args:
+            session: 세션 객체
+            result: 명령어 실행 결과
+        """
+        from ..commands.base import CommandResultType
+
+        # 기본 메시지 전송
+        if result.result_type == CommandResultType.SUCCESS:
+            await session.send_success(result.message, result.data)
+        elif result.result_type == CommandResultType.ERROR:
+            await session.send_error(result.message)
+        else:
+            await session.send_message({
+                "response": result.message,
+                "type": result.result_type.value,
+                **result.data
+            })
+
+        # 브로드캐스트 처리
+        if result.broadcast and result.broadcast_message:
+            if result.room_only:
+                # 같은 방에만 브로드캐스트 (현재는 전체 브로드캐스트로 구현)
+                await self.broadcast_to_all({
+                    "type": "room_message",
+                    "message": result.broadcast_message,
+                    "timestamp": datetime.now().isoformat()
+                })
+            else:
+                # 전체 브로드캐스트
+                await self.broadcast_to_all({
+                    "type": "broadcast_message",
+                    "message": result.broadcast_message,
+                    "timestamp": datetime.now().isoformat()
+                })
+
+        # 특별한 액션 처리
+        if result.data.get("disconnect"):
+            # quit 명령어 등으로 연결 종료 요청
+            await self.remove_player_session(session, "플레이어 요청으로 종료")
 
     # 이벤트 핸들러들
     async def _on_player_connected(self, event: Event) -> None:
