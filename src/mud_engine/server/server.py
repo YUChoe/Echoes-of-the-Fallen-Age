@@ -12,6 +12,8 @@ from ..game.managers import PlayerManager
 from ..game.models import Player
 from ..utils.exceptions import AuthenticationError
 from .session import SessionManager, Session
+from ..core.game_engine import GameEngine
+from ..core.event_bus import initialize_event_bus, shutdown_event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,8 @@ class MudServer:
     """aiohttp 기반의 MUD 웹 서버"""
 
     def __init__(self, host: str = "localhost", port: int = 8080,
-                 player_manager: Optional[PlayerManager] = None):
+                 player_manager: Optional[PlayerManager] = None,
+                 db_manager: Optional[Any] = None):
         """MudServer 초기화"""
         self.host: str = host
         self.port: int = port
@@ -28,7 +31,9 @@ class MudServer:
         self.runner: Optional[web.AppRunner] = None
         self.site: Optional[web.TCPSite] = None
         self.player_manager: PlayerManager = player_manager
+        self.db_manager = db_manager
         self.session_manager: SessionManager = SessionManager()
+        self.game_engine: Optional[GameEngine] = None
 
         logger.info("MudServer 초기화")
         self._setup_routes()
@@ -80,6 +85,10 @@ class MudServer:
         except asyncio.CancelledError:
             logger.info(f"세션 {session.session_id} WebSocket 핸들러 취소됨")
         finally:
+            # 게임 엔진에 세션 제거 알림
+            if self.game_engine and session.is_authenticated:
+                await self.game_engine.remove_player_session(session, "연결 종료")
+
             # 세션 정리
             await self.session_manager.remove_session(session.session_id, "연결 종료")
 
@@ -110,6 +119,10 @@ class MudServer:
             # 세션에 플레이어 인증 정보 설정
             self.session_manager.authenticate_session(session.session_id, player)
 
+            # 게임 엔진에 플레이어 세션 추가
+            if self.game_engine:
+                await self.game_engine.add_player_session(session, player)
+
             await session.send_success(
                 f"'{username}'님, 환영합니다!",
                 {
@@ -134,6 +147,10 @@ class MudServer:
 
         logger.info(f"플레이어 '{session.player.username}' 명령 수신: {command}")
 
+        # 게임 엔진에 명령어 처리 위임
+        if self.game_engine:
+            await self.game_engine.handle_player_command(session, command)
+
         # 기본 명령어 처리
         if command.lower() == "help":
             await self.handle_help_command(session)
@@ -143,6 +160,8 @@ class MudServer:
             await self.handle_quit_command(session)
         elif command.lower() == "stats":
             await self.handle_stats_command(session)
+        elif command.lower() == "engine":
+            await self.handle_engine_command(session)
         else:
             # 일반 게임 명령어 (추후 구현)
             await session.send_message({
@@ -158,6 +177,7 @@ class MudServer:
 • help - 이 도움말을 표시합니다
 • who - 접속 중인 플레이어 목록을 표시합니다
 • stats - 서버 통계를 표시합니다
+• engine - 게임 엔진 및 이벤트 버스 통계를 표시합니다
 • quit - 게임을 종료합니다
 
 더 많은 명령어가 곧 추가될 예정입니다!
@@ -222,9 +242,60 @@ class MudServer:
             "stats": stats
         })
 
+    async def handle_engine_command(self, session: Session) -> None:
+        """게임 엔진 통계 명령어 처리"""
+        if not self.game_engine:
+            await session.send_error("게임 엔진이 초기화되지 않았습니다.")
+            return
+
+        engine_stats = self.game_engine.get_stats()
+        event_stats = engine_stats.get("event_bus_stats", {})
+
+        response = f"""
+🎮 게임 엔진 통계:
+• 실행 상태: {'실행 중' if engine_stats['running'] else '중지됨'}
+• 가동 시간: {engine_stats.get('uptime_seconds', 0):.1f}초
+• 시작 시간: {engine_stats.get('start_time', 'N/A')}
+
+📡 이벤트 버스:
+• 실행 상태: {'실행 중' if event_stats.get('running') else '중지됨'}
+• 총 구독자: {event_stats.get('total_subscribers', 0)}개
+• 이벤트 히스토리: {event_stats.get('event_history_size', 0)}개
+• 큐 크기: {event_stats.get('queue_size', 0)}개
+
+📋 이벤트 타입별 발생 횟수:
+        """.strip()
+
+        # 이벤트 타입별 카운트 추가
+        event_counts = event_stats.get('event_type_counts', {})
+        if event_counts:
+            for event_type, count in event_counts.items():
+                response += f"\n• {event_type}: {count}회"
+        else:
+            response += "\n• 발생한 이벤트 없음"
+
+        await session.send_message({
+            "response": response,
+            "command": "engine",
+            "engine_stats": engine_stats
+        })
+
     async def start(self) -> None:
         """서버 시작"""
         logger.info(f"서버 시작 중... http://{self.host}:{self.port}")
+
+        # 이벤트 버스 초기화
+        event_bus = await initialize_event_bus()
+
+        # 게임 엔진 초기화
+        if self.player_manager and self.db_manager:
+            self.game_engine = GameEngine(
+                session_manager=self.session_manager,
+                player_manager=self.player_manager,
+                db_manager=self.db_manager,
+                event_bus=event_bus
+            )
+            await self.game_engine.start()
 
         # 세션 관리자 정리 작업 시작
         await self.session_manager.start_cleanup_task()
@@ -242,6 +313,10 @@ class MudServer:
         if self.runner:
             logger.info("서버 종료 중...")
 
+            # 게임 엔진 종료
+            if self.game_engine:
+                await self.game_engine.stop()
+
             # 모든 세션에 종료 알림 전송
             await self.session_manager.broadcast_to_all({
                 "status": "server_shutdown",
@@ -255,6 +330,9 @@ class MudServer:
 
             # 세션 관리자 정리 작업 중지
             await self.session_manager.stop_cleanup_task()
+
+            # 이벤트 버스 종료
+            await shutdown_event_bus()
 
             # 웹 서버 종료
             await self.runner.cleanup()

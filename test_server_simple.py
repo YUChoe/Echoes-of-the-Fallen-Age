@@ -45,7 +45,8 @@ async def test_web_server():
         server = MudServer(
             host="localhost",
             port=8080,
-            player_manager=player_manager
+            player_manager=player_manager,
+            db_manager=db_manager
         )
 
         # 서버 시작
