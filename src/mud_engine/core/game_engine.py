@@ -70,6 +70,13 @@ class GameEngine:
         self.command_processor.register_command(GoCommand())
         self.command_processor.register_command(ExitsCommand())
 
+        # 객체 상호작용 명령어들 등록
+        from ..commands.object_commands import GetCommand, DropCommand, InventoryCommand, ExamineCommand
+        self.command_processor.register_command(GetCommand())
+        self.command_processor.register_command(DropCommand())
+        self.command_processor.register_command(InventoryCommand())
+        self.command_processor.register_command(ExamineCommand())
+
         # 방향별 이동 명령어들 등록
         directions = [
             ('north', ['n']),
@@ -91,7 +98,7 @@ class GameEngine:
         help_command = HelpCommand(self.command_processor)
         self.command_processor.register_command(help_command)
 
-        logger.info("기본 명령어 등록 완료 (이동 명령어 포함)")
+        logger.info("기본 명령어 등록 완료 (이동 및 객체 상호작용 명령어 포함)")
 
     def _setup_event_subscriptions(self) -> None:
         """이벤트 구독 설정"""
