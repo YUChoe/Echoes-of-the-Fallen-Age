@@ -6,7 +6,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Type, TypeVar, Generic
+from typing import Any, Dict, List, Optional, Type, TypeVar, Generic, Union
 from uuid import uuid4
 
 from .connection import DatabaseManager, get_database_manager
@@ -76,9 +76,13 @@ class BaseRepository(Generic[T], ABC):
         """새로운 ID 생성"""
         return str(uuid4())
 
-    def _prepare_data_for_insert(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _prepare_data_for_insert(self, data: Union[Dict[str, Any], BaseModel]) -> Dict[str, Any]:
         """삽입용 데이터 준비"""
-        prepared_data = data.copy()
+        # BaseModel 인스턴스인 경우 딕셔너리로 변환
+        if hasattr(data, 'to_dict'):
+            prepared_data = data.to_dict()
+        else:
+            prepared_data = data.copy()
 
         # ID가 없으면 생성
         if 'id' not in prepared_data or not prepared_data['id']:

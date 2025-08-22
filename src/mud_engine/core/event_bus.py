@@ -27,6 +27,7 @@ class EventType(Enum):
     ROOM_LEFT = "room_left"
     ROOM_MESSAGE = "room_message"
     ROOM_BROADCAST = "room_broadcast"
+    WORLD_UPDATED = "world_updated"
 
     # 객체 관련 이벤트
     OBJECT_CREATED = "object_created"

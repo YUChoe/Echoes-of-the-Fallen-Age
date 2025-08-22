@@ -12,6 +12,7 @@ from .repositories import (
     GameObjectRepository,
     ModelManager
 )
+from .managers import PlayerManager, WorldManager
 
 __all__ = [
     # 모델
@@ -26,5 +27,9 @@ __all__ = [
     'CharacterRepository',
     'RoomRepository',
     'GameObjectRepository',
-    'ModelManager'
+    'ModelManager',
+
+    # 매니저
+    'PlayerManager',
+    'WorldManager'
 ]

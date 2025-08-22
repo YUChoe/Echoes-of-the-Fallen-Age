@@ -8,8 +8,9 @@ from datetime import datetime
 
 from .event_bus import EventBus, Event, EventType, get_event_bus
 from ..server.session import SessionManager, Session
-from ..game.managers import PlayerManager
+from ..game.managers import PlayerManager, WorldManager
 from ..game.models import Player
+from ..game.repositories import RoomRepository, GameObjectRepository
 from ..database.connection import DatabaseManager
 from ..commands import CommandProcessor, SayCommand, TellCommand, WhoCommand, LookCommand, HelpCommand, QuitCommand
 
@@ -38,6 +39,11 @@ class GameEngine:
         self.db_manager = db_manager
         self.event_bus = event_bus or get_event_bus()
 
+        # WorldManager 초기화
+        room_repo = RoomRepository(db_manager)
+        object_repo = GameObjectRepository(db_manager)
+        self.world_manager = WorldManager(room_repo, object_repo)
+
         self._running = False
         self._start_time: Optional[datetime] = None
 
@@ -48,7 +54,7 @@ class GameEngine:
         # 이벤트 구독 설정
         self._setup_event_subscriptions()
 
-        logger.info("GameEngine 초기화 완료")
+        logger.info("GameEngine 초기화 완료 (WorldManager 포함)")
 
     def _setup_commands(self) -> None:
         """기본 명령어들 설정"""
@@ -405,3 +411,300 @@ class GameEngine:
     def is_running(self) -> bool:
         """게임 엔진 실행 상태 반환"""
         return self._running
+
+    # === WorldManager 통합 메서드들 ===
+
+    async def get_room_info(self, room_id: str, locale: str = 'en') -> Optional[Dict[str, Any]]:
+        """
+        방 정보를 조회합니다.
+
+        Args:
+            room_id: 방 ID
+            locale: 언어 설정
+
+        Returns:
+            Dict: 방 정보 (방, 객체, 출구 포함)
+        """
+        try:
+            location_summary = await self.world_manager.get_location_summary(room_id, locale)
+            return location_summary
+        except Exception as e:
+            logger.error(f"방 정보 조회 실패 ({room_id}): {e}")
+            return None
+
+    async def move_player_to_room(self, session: Session, room_id: str) -> bool:
+        """
+        플레이어를 특정 방으로 이동시킵니다.
+
+        Args:
+            session: 플레이어 세션
+            room_id: 목적지 방 ID
+
+        Returns:
+            bool: 이동 성공 여부
+        """
+        if not session.is_authenticated or not session.player:
+            return False
+
+        try:
+            # 방이 존재하는지 확인
+            room = await self.world_manager.get_room(room_id)
+            if not room:
+                await session.send_error("존재하지 않는 방입니다.")
+                return False
+
+            # 이전 방 ID 저장
+            old_room_id = getattr(session, 'current_room_id', None)
+
+            # 세션의 현재 방 업데이트
+            session.current_room_id = room_id
+
+            # 방 퇴장 이벤트 발행 (이전 방이 있는 경우)
+            if old_room_id:
+                await self.event_bus.publish(Event(
+                    event_type=EventType.ROOM_LEFT,
+                    source=session.session_id,
+                    room_id=old_room_id,
+                    data={
+                        "player_id": session.player.id,
+                        "username": session.player.username,
+                        "session_id": session.session_id,
+                        "old_room_id": old_room_id,
+                        "new_room_id": room_id
+                    }
+                ))
+
+            # 방 입장 이벤트 발행
+            await self.event_bus.publish(Event(
+                event_type=EventType.ROOM_ENTERED,
+                source=session.session_id,
+                room_id=room_id,
+                data={
+                    "player_id": session.player.id,
+                    "username": session.player.username,
+                    "session_id": session.session_id,
+                    "room_id": room_id,
+                    "old_room_id": old_room_id
+                }
+            ))
+
+            # 방 정보를 플레이어에게 전송
+            room_info = await self.get_room_info(room_id, session.locale)
+            if room_info:
+                await session.send_message({
+                    "type": "room_info",
+                    "room": {
+                        "id": room_info['room'].id,
+                        "name": room_info['room'].get_localized_name(session.locale),
+                        "description": room_info['room'].get_localized_description(session.locale),
+                        "exits": room_info['exits'],
+                        "objects": [
+                            {
+                                "id": obj.id,
+                                "name": obj.get_localized_name(session.locale),
+                                "type": obj.object_type
+                            }
+                            for obj in room_info['objects']
+                        ]
+                    }
+                })
+
+            logger.info(f"플레이어 {session.player.username}이 방 {room_id}로 이동")
+            return True
+
+        except Exception as e:
+            logger.error(f"플레이어 방 이동 실패 ({session.player.username} -> {room_id}): {e}")
+            await session.send_error("방 이동 중 오류가 발생했습니다.")
+            return False
+
+    async def create_room_realtime(self, room_data: Dict[str, Any], admin_session: Session) -> bool:
+        """
+        실시간으로 새로운 방을 생성합니다.
+
+        Args:
+            room_data: 방 생성 데이터
+            admin_session: 관리자 세션
+
+        Returns:
+            bool: 생성 성공 여부
+        """
+        try:
+            # 방 생성
+            new_room = await self.world_manager.create_room(room_data)
+
+            # 관리자에게 성공 알림
+            await admin_session.send_success(
+                f"새 방이 생성되었습니다: {new_room.get_localized_name('ko')} (ID: {new_room.id})"
+            )
+
+            # 세계 변경 이벤트 발행
+            await self.event_bus.publish(Event(
+                event_type=EventType.WORLD_UPDATED,
+                source=admin_session.session_id,
+                data={
+                    "action": "room_created",
+                    "room_id": new_room.id,
+                    "admin_id": admin_session.player.id if admin_session.player else None
+                }
+            ))
+
+            logger.info(f"실시간 방 생성: {new_room.id} (관리자: {admin_session.player.username if admin_session.player else 'Unknown'})")
+            return True
+
+        except Exception as e:
+            logger.error(f"실시간 방 생성 실패: {e}")
+            await admin_session.send_error(f"방 생성 실패: {str(e)}")
+            return False
+
+    async def update_room_realtime(self, room_id: str, updates: Dict[str, Any], admin_session: Session) -> bool:
+        """
+        실시간으로 방 정보를 수정합니다.
+
+        Args:
+            room_id: 수정할 방 ID
+            updates: 수정 데이터
+            admin_session: 관리자 세션
+
+        Returns:
+            bool: 수정 성공 여부
+        """
+        try:
+            # 방 수정
+            updated_room = await self.world_manager.update_room(room_id, updates)
+            if not updated_room:
+                await admin_session.send_error("존재하지 않는 방입니다.")
+                return False
+
+            # 관리자에게 성공 알림
+            await admin_session.send_success(
+                f"방이 수정되었습니다: {updated_room.get_localized_name('ko')} (ID: {room_id})"
+            )
+
+            # 해당 방에 있는 모든 플레이어에게 변경사항 알림
+            await self.broadcast_to_room(room_id, {
+                "type": "room_updated",
+                "message": "방 정보가 업데이트되었습니다.",
+                "room": {
+                    "id": updated_room.id,
+                    "name": updated_room.name,
+                    "description": updated_room.description,
+                    "exits": updated_room.exits
+                }
+            })
+
+            # 세계 변경 이벤트 발행
+            await self.event_bus.publish(Event(
+                event_type=EventType.WORLD_UPDATED,
+                source=admin_session.session_id,
+                data={
+                    "action": "room_updated",
+                    "room_id": room_id,
+                    "updates": updates,
+                    "admin_id": admin_session.player.id if admin_session.player else None
+                }
+            ))
+
+            logger.info(f"실시간 방 수정: {room_id} (관리자: {admin_session.player.username if admin_session.player else 'Unknown'})")
+            return True
+
+        except Exception as e:
+            logger.error(f"실시간 방 수정 실패 ({room_id}): {e}")
+            await admin_session.send_error(f"방 수정 실패: {str(e)}")
+            return False
+
+    async def create_object_realtime(self, object_data: Dict[str, Any], admin_session: Session) -> bool:
+        """
+        실시간으로 새로운 게임 객체를 생성합니다.
+
+        Args:
+            object_data: 객체 생성 데이터
+            admin_session: 관리자 세션
+
+        Returns:
+            bool: 생성 성공 여부
+        """
+        try:
+            # 객체 생성
+            new_object = await self.world_manager.create_game_object(object_data)
+
+            # 관리자에게 성공 알림
+            await admin_session.send_success(
+                f"새 객체가 생성되었습니다: {new_object.get_localized_name('ko')} (ID: {new_object.id})"
+            )
+
+            # 객체가 방에 배치된 경우 해당 방의 플레이어들에게 알림
+            if new_object.location_type == 'room' and new_object.location_id:
+                await self.broadcast_to_room(new_object.location_id, {
+                    "type": "object_appeared",
+                    "message": f"새로운 객체가 나타났습니다: {new_object.get_localized_name('ko')}",
+                    "object": {
+                        "id": new_object.id,
+                        "name": new_object.name,
+                        "type": new_object.object_type
+                    }
+                })
+
+            # 세계 변경 이벤트 발행
+            await self.event_bus.publish(Event(
+                event_type=EventType.WORLD_UPDATED,
+                source=admin_session.session_id,
+                data={
+                    "action": "object_created",
+                    "object_id": new_object.id,
+                    "admin_id": admin_session.player.id if admin_session.player else None
+                }
+            ))
+
+            logger.info(f"실시간 객체 생성: {new_object.id} (관리자: {admin_session.player.username if admin_session.player else 'Unknown'})")
+            return True
+
+        except Exception as e:
+            logger.error(f"실시간 객체 생성 실패: {e}")
+            await admin_session.send_error(f"객체 생성 실패: {str(e)}")
+            return False
+
+    async def validate_and_repair_world(self, admin_session: Optional[Session] = None) -> Dict[str, Any]:
+        """
+        게임 세계의 무결성을 검증하고 자동으로 수정합니다.
+
+        Args:
+            admin_session: 관리자 세션 (결과 알림용, 선택사항)
+
+        Returns:
+            Dict: 검증 및 수정 결과
+        """
+        try:
+            # 무결성 검증
+            issues = await self.world_manager.validate_world_integrity()
+
+            # 문제가 있는 경우 자동 수정
+            repair_result = {}
+            if any(issues.values()):
+                repair_result = await self.world_manager.repair_world_integrity()
+
+            result = {
+                "validation": issues,
+                "repair": repair_result,
+                "timestamp": datetime.now().isoformat()
+            }
+
+            # 관리자에게 결과 알림
+            if admin_session:
+                total_issues = sum(len(issue_list) for issue_list in issues.values())
+                total_fixed = sum(repair_result.values())
+
+                if total_issues == 0:
+                    await admin_session.send_success("게임 세계 무결성 검증 완료: 문제 없음")
+                else:
+                    await admin_session.send_success(
+                        f"게임 세계 무결성 검증 및 수정 완료: {total_issues}개 문제 발견, {total_fixed}개 수정"
+                    )
+
+            logger.info(f"게임 세계 무결성 검증 및 수정 완료: {result}")
+            return result
+
+        except Exception as e:
+            logger.error(f"게임 세계 무결성 검증 실패: {e}")
+            if admin_session:
+                await admin_session.send_error(f"무결성 검증 실패: {str(e)}")
+            raise

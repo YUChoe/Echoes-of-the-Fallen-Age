@@ -233,12 +233,35 @@ class Room(BaseModel):
         return list(self.exits.keys())
 
     def to_dict(self) -> Dict[str, Any]:
-        """딕셔너리로 변환"""
+        """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""
         data = super().to_dict()
-        # 딕셔너리는 JSON 문자열로 변환
-        for key in ['name', 'description', 'exits']:
-            if isinstance(data.get(key), dict):
-                data[key] = json.dumps(data[key], ensure_ascii=False)
+
+        # name과 description을 개별 컬럼으로 분리하고 원본 제거
+        if 'name' in data:
+            name_dict = data.pop('name')
+            # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
+            if isinstance(name_dict, str):
+                try:
+                    name_dict = json.loads(name_dict)
+                except (json.JSONDecodeError, TypeError):
+                    name_dict = {}
+            data['name_en'] = name_dict.get('en', '') if isinstance(name_dict, dict) else ''
+            data['name_ko'] = name_dict.get('ko', '') if isinstance(name_dict, dict) else ''
+
+        if 'description' in data:
+            desc_dict = data.pop('description')
+            # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
+            if isinstance(desc_dict, str):
+                try:
+                    desc_dict = json.loads(desc_dict)
+                except (json.JSONDecodeError, TypeError):
+                    desc_dict = {}
+            data['description_en'] = desc_dict.get('en', '') if isinstance(desc_dict, dict) else ''
+            data['description_ko'] = desc_dict.get('ko', '') if isinstance(desc_dict, dict) else ''
+
+        # exits는 JSON 문자열로 유지 (BaseModel에서 이미 변환됨)
+        # 추가 처리 불필요
+
         return data
 
     @classmethod
@@ -354,12 +377,35 @@ class GameObject(BaseModel):
         return self.location_type == 'inventory' and self.location_id == character_id
 
     def to_dict(self) -> Dict[str, Any]:
-        """딕셔너리로 변환"""
+        """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""
         data = super().to_dict()
-        # 딕셔너리는 JSON 문자열로 변환
-        for key in ['name', 'description', 'properties']:
-            if isinstance(data.get(key), dict):
-                data[key] = json.dumps(data[key], ensure_ascii=False)
+
+        # name과 description을 개별 컬럼으로 분리하고 원본 제거
+        if 'name' in data:
+            name_dict = data.pop('name')
+            # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
+            if isinstance(name_dict, str):
+                try:
+                    name_dict = json.loads(name_dict)
+                except (json.JSONDecodeError, TypeError):
+                    name_dict = {}
+            data['name_en'] = name_dict.get('en', '') if isinstance(name_dict, dict) else ''
+            data['name_ko'] = name_dict.get('ko', '') if isinstance(name_dict, dict) else ''
+
+        if 'description' in data:
+            desc_dict = data.pop('description')
+            # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
+            if isinstance(desc_dict, str):
+                try:
+                    desc_dict = json.loads(desc_dict)
+                except (json.JSONDecodeError, TypeError):
+                    desc_dict = {}
+            data['description_en'] = desc_dict.get('en', '') if isinstance(desc_dict, dict) else ''
+            data['description_ko'] = desc_dict.get('ko', '') if isinstance(desc_dict, dict) else ''
+
+        # properties는 JSON 문자열로 유지 (BaseModel에서 이미 변환됨)
+        # 추가 처리 불필요
+
         return data
 
     @classmethod
