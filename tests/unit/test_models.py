@@ -231,20 +231,29 @@ class TestRoom:
         """JSON 직렬화 테스트"""
         room = Room(
             name={"en": "Test Room", "ko": "테스트 방"},
-            description={"en": "A test room"},
+            description={"en": "A test room", "ko": "테스트 방"},
             exits={"north": "room-002"}
         )
 
         data = room.to_dict()
 
-        # JSON 문자열로 변환되었는지 확인
-        assert isinstance(data["name"], str)
-        assert isinstance(data["description"], str)
+        # 데이터베이스 스키마에 맞게 개별 컬럼으로 분리되었는지 확인
+        assert isinstance(data["name_en"], str)
+        assert isinstance(data["name_ko"], str)
+        assert isinstance(data["description_en"], str)
+        assert isinstance(data["description_ko"], str)
         assert isinstance(data["exits"], str)
+
+        # 개별 컬럼 값 확인
+        assert data["name_en"] == "Test Room"
+        assert data["name_ko"] == "테스트 방"
+        assert data["description_en"] == "A test room"
+        assert data["description_ko"] == "테스트 방"
 
         # 역직렬화 테스트
         restored = Room.from_dict(data)
         assert restored.name == {"en": "Test Room", "ko": "테스트 방"}
+        assert restored.description == {"en": "A test room", "ko": "테스트 방"}
         assert restored.exits == {"north": "room-002"}
 
 

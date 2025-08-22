@@ -175,35 +175,78 @@ class LookCommand(BaseCommand):
 
     async def _look_around(self, session: Session) -> CommandResult:
         """방 전체 둘러보기"""
-        # TODO: 실제로는 WorldManager를 통해 방 정보를 가져와야 함
-        # 현재는 기본 구현만 제공
+        if not session.is_authenticated or not session.player:
+            return self.create_error_result("인증되지 않은 사용자입니다.")
 
-        username = session.player.username
+        # 현재 방 ID 가져오기
+        current_room_id = getattr(session, 'current_room_id', None)
+        if not current_room_id:
+            return self.create_error_result("현재 위치를 확인할 수 없습니다.")
 
-        response = f"""
-🏰 시작 지역
-고대 문명의 잔해가 남은 신비로운 장소입니다.
-주변에는 오래된 돌기둥들이 서 있고, 바닥에는 이상한 문양이 새겨져 있습니다.
+        # GameEngine을 통해 방 정보 조회
+        game_engine = getattr(session, 'game_engine', None)
+        if not game_engine:
+            return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
-👥 이곳에 있는 사람들:
-• {username} (당신)
+        try:
+            # 방 정보 조회
+            room_info = await game_engine.get_room_info(current_room_id, session.locale)
+            if not room_info:
+                return self.create_error_result("방 정보를 찾을 수 없습니다.")
 
-🚪 출구:
-• 북쪽 (north) - 고대 유적지
-• 남쪽 (south) - 숲속 오솔길
-• 동쪽 (east) - 신비한 호수
-        """.strip()
+            room = room_info['room']
+            objects = room_info['objects']
+            exits = room_info['exits']
 
-        return self.create_success_result(
-            message=response,
-            data={
-                "action": "look",
-                "room_id": "start_room",
-                "room_name": "시작 지역",
-                "players": [username],
-                "exits": ["north", "south", "east"]
-            }
-        )
+            # 방 이름과 설명
+            room_name = room.get_localized_name(session.locale)
+            room_description = room.get_localized_description(session.locale)
+
+            # 응답 메시지 구성
+            response = f"🏰 {room_name}\n{room_description}\n"
+
+            # 방에 있는 객체들
+            if objects:
+                response += "\n📦 이곳에 있는 물건들:\n"
+                for obj in objects:
+                    obj_name = obj.get_localized_name(session.locale)
+                    response += f"• {obj_name}\n"
+
+            # TODO: 같은 방에 있는 다른 플레이어들 표시
+            response += f"\n👥 이곳에 있는 사람들:\n• {session.player.username} (당신)\n"
+
+            # 출구 정보
+            if exits:
+                response += "\n🚪 출구:\n"
+                for direction, target_room_id in exits.items():
+                    # 목적지 방 이름 조회 (선택사항)
+                    try:
+                        target_room = await game_engine.world_manager.get_room(target_room_id)
+                        if target_room:
+                            target_name = target_room.get_localized_name(session.locale)
+                            response += f"• {direction} - {target_name}\n"
+                        else:
+                            response += f"• {direction}\n"
+                    except:
+                        response += f"• {direction}\n"
+            else:
+                response += "\n🚪 이 방에는 출구가 없습니다.\n"
+
+            return self.create_success_result(
+                message=response.strip(),
+                data={
+                    "action": "look",
+                    "room_id": current_room_id,
+                    "room_name": room_name,
+                    "players": [session.player.username],
+                    "exits": list(exits.keys()) if exits else [],
+                    "objects": [obj.get_localized_name(session.locale) for obj in objects]
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"방 둘러보기 중 오류: {e}")
+            return self.create_error_result("방 정보를 조회하는 중 오류가 발생했습니다.")
 
     async def _look_at(self, session: Session, target: str) -> CommandResult:
         """특정 대상 살펴보기"""
@@ -284,3 +327,178 @@ class QuitCommand(BaseCommand):
                 "disconnect": True
             }
         )
+
+
+class MoveCommand(BaseCommand):
+    """이동 명령어 (방향별)"""
+
+    def __init__(self, direction: str, aliases: List[str] = None):
+        self.direction = direction
+        super().__init__(
+            name=direction,
+            aliases=aliases or [],
+            description=f"{direction} 방향으로 이동합니다",
+            usage=direction
+        )
+
+    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+        if not session.is_authenticated or not session.player:
+            return self.create_error_result("인증되지 않은 사용자입니다.")
+
+        # 현재 방 ID 가져오기 (세션에서 또는 캐릭터에서)
+        current_room_id = getattr(session, 'current_room_id', None)
+        if not current_room_id:
+            return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+
+        # GameEngine을 통해 이동 처리
+        from ..core.game_engine import GameEngine
+        game_engine = getattr(session, 'game_engine', None)
+        if not game_engine:
+            return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+
+        try:
+            # 현재 방 정보 조회
+            current_room = await game_engine.world_manager.get_room(current_room_id)
+            if not current_room:
+                return self.create_error_result("현재 방을 찾을 수 없습니다.")
+
+            # 해당 방향으로 출구가 있는지 확인
+            target_room_id = current_room.get_exit(self.direction)
+            if not target_room_id:
+                return self.create_error_result(f"{self.direction} 방향으로는 갈 수 없습니다.")
+
+            # 목적지 방 존재 확인
+            target_room = await game_engine.world_manager.get_room(target_room_id)
+            if not target_room:
+                return self.create_error_result("목적지 방을 찾을 수 없습니다.")
+
+            # 플레이어 이동 처리
+            success = await game_engine.move_player_to_room(session, target_room_id)
+            if not success:
+                return self.create_error_result("이동에 실패했습니다.")
+
+            # 이동 성공 메시지
+            room_name = target_room.get_localized_name(session.locale)
+            player_message = f"🚶 {self.direction} 방향으로 이동했습니다."
+
+            # 이전 방의 다른 플레이어들에게 알림
+            leave_message = f"🚶 {session.player.username}님이 {self.direction} 방향으로 떠났습니다."
+
+            # 새 방의 다른 플레이어들에게 알림
+            enter_message = f"🚶 {session.player.username}님이 도착했습니다."
+
+            return self.create_success_result(
+                message=player_message,
+                data={
+                    "action": "move",
+                    "direction": self.direction,
+                    "from_room": current_room_id,
+                    "to_room": target_room_id,
+                    "room_name": room_name,
+                    "leave_message": leave_message,
+                    "enter_message": enter_message
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"이동 명령어 실행 중 오류: {e}")
+            return self.create_error_result("이동 중 오류가 발생했습니다.")
+
+
+class GoCommand(BaseCommand):
+    """go 명령어 (방향 지정)"""
+
+    def __init__(self):
+        super().__init__(
+            name="go",
+            aliases=["move", "walk"],
+            description="지정한 방향으로 이동합니다",
+            usage="go <방향>"
+        )
+
+    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+        if not self.validate_args(args, min_args=1):
+            return self.create_error_result(
+                "이동할 방향을 지정해주세요.\n사용법: go <방향>\n"
+                "사용 가능한 방향: north, south, east, west, up, down, northeast, northwest, southeast, southwest"
+            )
+
+        direction = args[0].lower()
+        valid_directions = {
+            'north', 'south', 'east', 'west', 'up', 'down',
+            'northeast', 'northwest', 'southeast', 'southwest',
+            'n', 's', 'e', 'w', 'u', 'd', 'ne', 'nw', 'se', 'sw'
+        }
+
+        # 축약형을 전체 이름으로 변환
+        direction_map = {
+            'n': 'north', 's': 'south', 'e': 'east', 'w': 'west',
+            'u': 'up', 'd': 'down', 'ne': 'northeast', 'nw': 'northwest',
+            'se': 'southeast', 'sw': 'southwest'
+        }
+
+        if direction in direction_map:
+            direction = direction_map[direction]
+
+        if direction not in valid_directions:
+            return self.create_error_result(
+                f"'{args[0]}'은(는) 올바른 방향이 아닙니다.\n"
+                "사용 가능한 방향: north, south, east, west, up, down, northeast, northwest, southeast, southwest"
+            )
+
+        # MoveCommand를 임시로 생성하여 실행
+        move_command = MoveCommand(direction)
+        return await move_command.execute(session, [])
+
+
+class ExitsCommand(BaseCommand):
+    """출구 확인 명령어"""
+
+    def __init__(self):
+        super().__init__(
+            name="exits",
+            aliases=["ex", "directions"],
+            description="현재 방의 출구를 확인합니다",
+            usage="exits"
+        )
+
+    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+        if not session.is_authenticated or not session.player:
+            return self.create_error_result("인증되지 않은 사용자입니다.")
+
+        # 현재 방 ID 가져오기
+        current_room_id = getattr(session, 'current_room_id', None)
+        if not current_room_id:
+            return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+
+        # GameEngine을 통해 방 정보 조회
+        from ..core.game_engine import GameEngine
+        game_engine = getattr(session, 'game_engine', None)
+        if not game_engine:
+            return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+
+        try:
+            current_room = await game_engine.world_manager.get_room(current_room_id)
+            if not current_room:
+                return self.create_error_result("현재 방을 찾을 수 없습니다.")
+
+            exits = current_room.get_available_exits()
+            if not exits:
+                return self.create_info_result("🚪 이 방에는 출구가 없습니다.")
+
+            # 출구 목록 생성
+            exit_list = ", ".join(exits)
+            message = f"🚪 사용 가능한 출구: {exit_list}"
+
+            return self.create_success_result(
+                message=message,
+                data={
+                    "action": "exits",
+                    "exits": exits,
+                    "room_id": current_room_id
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"출구 확인 명령어 실행 중 오류: {e}")
+            return self.create_error_result("출구 정보를 확인하는 중 오류가 발생했습니다.")

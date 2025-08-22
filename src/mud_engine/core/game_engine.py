@@ -12,7 +12,7 @@ from ..game.managers import PlayerManager, WorldManager
 from ..game.models import Player
 from ..game.repositories import RoomRepository, GameObjectRepository
 from ..database.connection import DatabaseManager
-from ..commands import CommandProcessor, SayCommand, TellCommand, WhoCommand, LookCommand, HelpCommand, QuitCommand
+# CommandProcessor는 지연 import로 처리 (순환 import 방지)
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,8 @@ class GameEngine:
         self._running = False
         self._start_time: Optional[datetime] = None
 
-        # 명령어 처리기 초기화
+        # 명령어 처리기 초기화 (지연 import)
+        from ..commands import CommandProcessor
         self.command_processor = CommandProcessor(self.event_bus)
         self._setup_commands()
 
@@ -65,11 +66,32 @@ class GameEngine:
         self.command_processor.register_command(LookCommand())
         self.command_processor.register_command(QuitCommand())
 
+        # 이동 관련 명령어들 등록
+        self.command_processor.register_command(GoCommand())
+        self.command_processor.register_command(ExitsCommand())
+
+        # 방향별 이동 명령어들 등록
+        directions = [
+            ('north', ['n']),
+            ('south', ['s']),
+            ('east', ['e']),
+            ('west', ['w']),
+            ('up', ['u']),
+            ('down', ['d']),
+            ('northeast', ['ne']),
+            ('northwest', ['nw']),
+            ('southeast', ['se']),
+            ('southwest', ['sw'])
+        ]
+
+        for direction, aliases in directions:
+            self.command_processor.register_command(MoveCommand(direction, aliases))
+
         # HelpCommand는 command_processor 참조가 필요
         help_command = HelpCommand(self.command_processor)
         self.command_processor.register_command(help_command)
 
-        logger.info("기본 명령어 등록 완료")
+        logger.info("기본 명령어 등록 완료 (이동 명령어 포함)")
 
     def _setup_event_subscriptions(self) -> None:
         """이벤트 구독 설정"""
@@ -130,6 +152,14 @@ class GameEngine:
             session: 세션 객체
             player: 플레이어 객체
         """
+        # 세션에 게임 엔진 참조 설정
+        session.game_engine = self
+        session.locale = player.preferred_locale
+
+        # 플레이어를 기본 방으로 이동 (room_001: 마을 광장)
+        default_room_id = "room_001"
+        await self.move_player_to_room(session, default_room_id)
+
         # 플레이어 연결 이벤트 발행
         await self.event_bus.publish(Event(
             event_type=EventType.PLAYER_CONNECTED,
@@ -211,12 +241,12 @@ class GameEngine:
             }
         ))
 
-        # 실제 브로드캐스트 수행
+        # 실제 브로드캐스트 수행 - 해당 방에 있는 플레이어들만 대상
         count = 0
         for session in self.session_manager.get_authenticated_sessions().values():
-            if session.player and session.session_id != exclude_session:
-                # TODO: 플레이어가 해당 방에 있는지 확인하는 로직 필요
-                # 현재는 모든 인증된 세션에 전송
+            if (session.player and
+                session.session_id != exclude_session and
+                getattr(session, 'current_room_id', None) == room_id):
                 if await session.send_message(message):
                     count += 1
 
@@ -487,6 +517,23 @@ class GameEngine:
                     "old_room_id": old_room_id
                 }
             ))
+
+            # 이전 방의 다른 플레이어들에게 퇴장 알림
+            if old_room_id:
+                leave_message = {
+                    "type": "room_message",
+                    "message": f"🚶 {session.player.username}님이 떠났습니다.",
+                    "timestamp": datetime.now().isoformat()
+                }
+                await self.broadcast_to_room(old_room_id, leave_message, exclude_session=session.session_id)
+
+            # 새 방의 다른 플레이어들에게 입장 알림
+            enter_message = {
+                "type": "room_message",
+                "message": f"🚶 {session.player.username}님이 도착했습니다.",
+                "timestamp": datetime.now().isoformat()
+            }
+            await self.broadcast_to_room(room_id, enter_message, exclude_session=session.session_id)
 
             # 방 정보를 플레이어에게 전송
             room_info = await self.get_room_info(room_id, session.locale)

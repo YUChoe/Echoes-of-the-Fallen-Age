@@ -3,7 +3,7 @@
 
 from .processor import CommandProcessor
 from .base import BaseCommand, CommandResult
-from .basic_commands import SayCommand, TellCommand, WhoCommand, LookCommand, HelpCommand, QuitCommand
+from .basic_commands import SayCommand, TellCommand, WhoCommand, LookCommand, HelpCommand, QuitCommand, MoveCommand, GoCommand, ExitsCommand
 
 __all__ = [
     "CommandProcessor",
@@ -14,5 +14,8 @@ __all__ = [
     "WhoCommand",
     "LookCommand",
     "HelpCommand",
-    "QuitCommand"
+    "QuitCommand",
+    "MoveCommand",
+    "GoCommand",
+    "ExitsCommand"
 ]

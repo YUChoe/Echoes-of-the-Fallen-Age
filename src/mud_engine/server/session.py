@@ -38,6 +38,11 @@ class Session:
         self.user_agent: Optional[str] = None
         self.metadata: Dict[str, Any] = {}
 
+        # 게임 관련 속성
+        self.current_room_id: Optional[str] = None
+        self.locale: str = "en"  # 기본 언어 설정
+        self.game_engine: Optional[Any] = None  # GameEngine 참조
+
         logger.info(f"새 세션 생성: {self.session_id}")
 
     def authenticate(self, player: Player) -> None:
