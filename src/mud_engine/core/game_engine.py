@@ -48,18 +48,35 @@ class GameEngine:
         self._start_time: Optional[datetime] = None
 
         # 명령어 처리기 초기화 (지연 import)
-        from ..commands import CommandProcessor
-        self.command_processor = CommandProcessor(self.event_bus)
-        self._setup_commands()
+        try:
+            from ..commands import CommandProcessor
+            self.command_processor = CommandProcessor(self.event_bus)
+            logger.info("CommandProcessor 초기화 완료")
+
+            self._setup_commands()
+            logger.info("명령어 설정 완료")
+        except Exception as e:
+            logger.error(f"명령어 처리기 초기화 실패: {e}", exc_info=True)
+            raise
 
         # 이벤트 구독 설정
-        self._setup_event_subscriptions()
+        try:
+            self._setup_event_subscriptions()
+            logger.info("이벤트 구독 설정 완료")
+        except Exception as e:
+            logger.error(f"이벤트 구독 설정 실패: {e}", exc_info=True)
+            raise
 
         logger.info("GameEngine 초기화 완료 (WorldManager 포함)")
 
     def _setup_commands(self) -> None:
         """기본 명령어들 설정"""
-        # 기본 명령어들 등록
+        # 기본 명령어들 import 및 등록
+        from ..commands.basic_commands import (
+            SayCommand, TellCommand, WhoCommand, LookCommand, QuitCommand,
+            GoCommand, ExitsCommand, MoveCommand, HelpCommand
+        )
+
         self.command_processor.register_command(SayCommand())
         self.command_processor.register_command(TellCommand())
         self.command_processor.register_command(WhoCommand(self.session_manager))
@@ -98,7 +115,19 @@ class GameEngine:
         help_command = HelpCommand(self.command_processor)
         self.command_processor.register_command(help_command)
 
-        logger.info("기본 명령어 등록 완료 (이동 및 객체 상호작용 명령어 포함)")
+        # 관리자 명령어들 등록
+        from ..commands.admin_commands import (
+            CreateRoomCommand, EditRoomCommand, CreateExitCommand,
+            CreateObjectCommand, KickPlayerCommand, AdminListCommand
+        )
+        self.command_processor.register_command(CreateRoomCommand())
+        self.command_processor.register_command(EditRoomCommand())
+        self.command_processor.register_command(CreateExitCommand())
+        self.command_processor.register_command(CreateObjectCommand())
+        self.command_processor.register_command(KickPlayerCommand())
+        self.command_processor.register_command(AdminListCommand())
+
+        logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자 명령어 포함)")
 
     def _setup_event_subscriptions(self) -> None:
         """이벤트 구독 설정"""
@@ -178,6 +207,10 @@ class GameEngine:
                 "ip_address": session.ip_address
             }
         ))
+
+        # 플레이어를 기본 채널에 자동 참여 (chat_manager가 있는 경우)
+        if hasattr(self, 'chat_manager') and self.chat_manager:
+            self.chat_manager.subscribe_to_channel(player.id, "ooc")
 
         # 플레이어 로그인 이벤트 발행
         await self.event_bus.publish(Event(
@@ -273,23 +306,29 @@ class GameEngine:
         """
         return await self.session_manager.broadcast_to_all(message, authenticated_only)
 
-    async def handle_player_command(self, session: Session, command: str) -> None:
+    async def handle_player_command(self, session: Session, command: str):
         """
         플레이어 명령어 처리
 
         Args:
             session: 세션 객체
             command: 명령어
+
+        Returns:
+            명령어 실행 결과
         """
         if not session.is_authenticated or not session.player:
             await session.send_error("인증되지 않은 사용자입니다.")
-            return
+            return None
 
         # 명령어 처리기를 통해 명령어 실행
         result = await self.command_processor.process_command(session, command)
 
         # 결과를 세션에 전송
         await self._send_command_result(session, result)
+
+        # 결과 반환 (관리자 명령어 응답 처리용)
+        return result
 
     async def _send_command_result(self, session: Session, result) -> None:
         """
@@ -901,3 +940,254 @@ class GameEngine:
             if admin_session:
                 await admin_session.send_error(f"무결성 검증 실패: {str(e)}")
             raise
+
+    def _setup_chat_event_handlers(self):
+        """채팅 이벤트 핸들러 설정"""
+        if not self.event_bus:
+            return
+
+        # 채팅 메시지 이벤트 핸들러
+        self.event_bus.subscribe("chat_message", self._handle_chat_message)
+        self.event_bus.subscribe("room_chat_message", self._handle_room_chat_message)
+        self.event_bus.subscribe("private_message", self._handle_private_message)
+
+        logger.info("채팅 이벤트 핸들러 등록 완료")
+
+    async def _handle_chat_message(self, event_data: Dict[str, Any]):
+        """채팅 메시지 이벤트 처리"""
+        try:
+            channel = event_data.get("channel")
+            message_data = event_data.get("message")
+
+            if not channel or not message_data:
+                return
+
+            # 채널 구독자들에게 메시지 전송
+            chat_message = {
+                "type": "chat_message",
+                "channel": channel,
+                "message": message_data,
+                "timestamp": datetime.now().isoformat()
+            }
+
+            # OOC 채널의 경우 모든 온라인 플레이어에게 전송
+            if channel == "ooc":
+                await self.session_manager.broadcast_to_all(chat_message)
+            else:
+                # 다른 채널의 경우 구독자만
+                channel_obj = self.chat_manager.channels.get(channel)
+                if channel_obj:
+                    for player_id in channel_obj.members:
+                        session = self._find_session_by_player_id(player_id)
+                        if session:
+                            await session.send_message(chat_message)
+
+        except Exception as e:
+            logger.error(f"채팅 메시지 이벤트 처리 실패: {e}")
+
+    async def _handle_room_chat_message(self, event_data: Dict[str, Any]):
+        """방 채팅 메시지 이벤트 처리"""
+        try:
+            room_id = event_data.get("room_id")
+            message_data = event_data.get("message")
+
+            if not room_id or not message_data:
+                return
+
+            # 같은 방의 플레이어들에게 메시지 전송
+            room_message = {
+                "type": "room_chat_message",
+                "room_id": room_id,
+                "message": message_data,
+                "timestamp": datetime.now().isoformat()
+            }
+
+            # 방에 있는 모든 플레이어에게 전송
+            for session in self.session_manager.sessions.values():
+                if (hasattr(session, 'current_room_id') and
+                    session.current_room_id == room_id):
+                    await session.send_message(room_message)
+
+        except Exception as e:
+            logger.error(f"방 채팅 메시지 이벤트 처리 실패: {e}")
+
+    async def _handle_private_message(self, event_data: Dict[str, Any]):
+        """개인 메시지 이벤트 처리"""
+        try:
+            player_ids = event_data.get("player_ids", [])
+            message_data = event_data.get("message")
+
+            if not player_ids or not message_data:
+                return
+
+            # 개인 메시지
+            private_message = {
+                "type": "private_message",
+                "message": message_data,
+                "timestamp": datetime.now().isoformat()
+            }
+
+            # 지정된 플레이어들에게 메시지 전송
+            for player_id in player_ids:
+                session = self._find_session_by_player_id(player_id)
+                if session:
+                    await session.send_message(private_message)
+
+        except Exception as e:
+            logger.error(f"개인 메시지 이벤트 처리 실패: {e}")
+
+    def _find_session_by_player_id(self, player_id: str) -> Optional['Session']:
+        """플레이어 ID로 세션 찾기"""
+        for session in self.session_manager.sessions.values():
+            if session.player and session.player.id == player_id:
+                return session
+        return None
+
+    # === 관리자 기능 메서드들 ===
+
+    async def create_room_realtime(self, room_data: Dict[str, Any], admin_session: Session) -> bool:
+        """
+        실시간으로 새로운 방을 생성합니다.
+
+        Args:
+            room_data: 방 생성 데이터
+            admin_session: 관리자 세션
+
+        Returns:
+            bool: 생성 성공 여부
+        """
+        try:
+            # 방 생성
+            new_room = await self.world_manager.create_room(room_data)
+
+            # 관리자에게 성공 알림
+            await admin_session.send_success(
+                f"새 방이 생성되었습니다: {new_room.get_localized_name('ko')} (ID: {new_room.id})"
+            )
+
+            # 세계 변경 이벤트 발행
+            await self.event_bus.publish(Event(
+                event_type=EventType.WORLD_UPDATED,
+                source=admin_session.session_id,
+                data={
+                    "action": "room_created",
+                    "room_id": new_room.id,
+                    "admin_id": admin_session.player.id if admin_session.player else None
+                }
+            ))
+
+            logger.info(f"실시간 방 생성: {new_room.id} (관리자: {admin_session.player.username if admin_session.player else 'Unknown'})")
+            return True
+
+        except Exception as e:
+            logger.error(f"실시간 방 생성 실패: {e}")
+            await admin_session.send_error(f"방 생성 실패: {str(e)}")
+            return False
+
+    async def update_room_realtime(self, room_id: str, updates: Dict[str, Any], admin_session: Session) -> bool:
+        """
+        실시간으로 방 정보를 수정합니다.
+
+        Args:
+            room_id: 수정할 방 ID
+            updates: 수정 데이터
+            admin_session: 관리자 세션
+
+        Returns:
+            bool: 수정 성공 여부
+        """
+        try:
+            # 방 수정
+            updated_room = await self.world_manager.update_room(room_id, updates)
+            if not updated_room:
+                await admin_session.send_error("존재하지 않는 방입니다.")
+                return False
+
+            # 관리자에게 성공 알림
+            await admin_session.send_success(
+                f"방이 수정되었습니다: {updated_room.get_localized_name('ko')} (ID: {room_id})"
+            )
+
+            # 해당 방에 있는 모든 플레이어에게 변경사항 알림
+            await self.broadcast_to_room(room_id, {
+                "type": "room_updated",
+                "message": "방 정보가 업데이트되었습니다.",
+                "room": {
+                    "id": updated_room.id,
+                    "name": updated_room.name,
+                    "description": updated_room.description,
+                    "exits": updated_room.exits
+                }
+            })
+
+            # 세계 변경 이벤트 발행
+            await self.event_bus.publish(Event(
+                event_type=EventType.WORLD_UPDATED,
+                source=admin_session.session_id,
+                data={
+                    "action": "room_updated",
+                    "room_id": room_id,
+                    "updates": updates,
+                    "admin_id": admin_session.player.id if admin_session.player else None
+                }
+            ))
+
+            logger.info(f"실시간 방 수정: {room_id} (관리자: {admin_session.player.username if admin_session.player else 'Unknown'})")
+            return True
+
+        except Exception as e:
+            logger.error(f"실시간 방 수정 실패 ({room_id}): {e}")
+            await admin_session.send_error(f"방 수정 실패: {str(e)}")
+            return False
+
+    async def create_object_realtime(self, object_data: Dict[str, Any], admin_session: Session) -> bool:
+        """
+        실시간으로 새로운 게임 객체를 생성합니다.
+
+        Args:
+            object_data: 객체 생성 데이터
+            admin_session: 관리자 세션
+
+        Returns:
+            bool: 생성 성공 여부
+        """
+        try:
+            # 객체 생성
+            new_object = await self.world_manager.create_game_object(object_data)
+
+            # 관리자에게 성공 알림
+            await admin_session.send_success(
+                f"새 객체가 생성되었습니다: {new_object.get_localized_name('ko')} (ID: {new_object.id})"
+            )
+
+            # 객체가 생성된 방에 있는 플레이어들에게 알림
+            if new_object.location_type == "room" and new_object.location_id:
+                await self.broadcast_to_room(new_object.location_id, {
+                    "type": "object_created",
+                    "message": f"새로운 객체가 나타났습니다: {new_object.get_localized_name('ko')}",
+                    "object": {
+                        "id": new_object.id,
+                        "name": new_object.name,
+                        "type": new_object.object_type
+                    }
+                })
+
+            # 세계 변경 이벤트 발행
+            await self.event_bus.publish(Event(
+                event_type=EventType.WORLD_UPDATED,
+                source=admin_session.session_id,
+                data={
+                    "action": "object_created",
+                    "object_id": new_object.id,
+                    "location_id": new_object.location_id,
+                    "admin_id": admin_session.player.id if admin_session.player else None
+                }
+            ))
+
+            logger.info(f"실시간 객체 생성: {new_object.id} (관리자: {admin_session.player.username if admin_session.player else 'Unknown'})")
+            return True
+
+        except Exception as e:
+            logger.error(f"실시간 객체 생성 실패: {e}")
+            await admin_session.send_error(f"객체 생성 실패: {str(e)}")
+            return False

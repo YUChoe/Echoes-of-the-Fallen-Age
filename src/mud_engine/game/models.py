@@ -22,6 +22,7 @@ class Player(BaseModel):
     password_hash: str = ""
     email: Optional[str] = None
     preferred_locale: str = "en"
+    is_admin: bool = False
     created_at: datetime = field(default_factory=datetime.now)
     last_login: Optional[datetime] = None
 
@@ -302,6 +303,16 @@ class Room(BaseModel):
         if 'description_ko' in converted_data:
             converted_data['description']['ko'] = converted_data.pop('description_ko')
 
+        # 날짜 필드 처리 (문자열을 datetime 객체로 변환)
+        for date_field in ['created_at', 'updated_at']:
+            if date_field in converted_data and isinstance(converted_data[date_field], str):
+                try:
+                    from datetime import datetime
+                    converted_data[date_field] = datetime.fromisoformat(converted_data[date_field].replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    # 파싱 실패 시 현재 시간으로 설정
+                    converted_data[date_field] = datetime.now()
+
         return cls(**converted_data)
 
 
@@ -454,6 +465,16 @@ class GameObject(BaseModel):
             converted_data['description'] = {}
         if 'properties' not in converted_data:
             converted_data['properties'] = {}
+
+        # 날짜 필드 처리 (문자열을 datetime 객체로 변환)
+        for date_field in ['created_at']:
+            if date_field in converted_data and isinstance(converted_data[date_field], str):
+                try:
+                    from datetime import datetime
+                    converted_data[date_field] = datetime.fromisoformat(converted_data[date_field].replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    # 파싱 실패 시 현재 시간으로 설정
+                    converted_data[date_field] = datetime.now()
 
         return cls(**converted_data)
 

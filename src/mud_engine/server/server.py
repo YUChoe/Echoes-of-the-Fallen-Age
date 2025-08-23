@@ -45,6 +45,12 @@ class MudServer:
         self.app.router.add_get("/", self.handle_index)
         self.app.router.add_get("/api/config", self.handle_config)
         self.app.router.add_get("/ws", self.websocket_handler)
+
+        # 관리자 API 라우트
+        self.app.router.add_get("/api/admin/rooms", self.handle_admin_rooms)
+        self.app.router.add_get("/api/admin/objects", self.handle_admin_objects)
+        self.app.router.add_get("/api/admin/players", self.handle_admin_players)
+
         self.app.router.add_static("/static/", path="static", name="static")
         logger.info("라우팅 설정 완료")
 
@@ -129,7 +135,11 @@ class MudServer:
             player = await self.player_manager.create_account(username, password)
             await session.send_success(
                 f"계정 '{username}'이(가) 생성되었습니다. 로그인해주세요.",
-                {"action": "register_success", "username": username}
+                {
+                    "action": "register_success",
+                    "username": username,
+                    "is_admin": player.is_admin
+                }
             )
             logger.info(f"✅ 회원가입 성공: 사용자명='{username}', 플레이어ID={player.id}")
 
@@ -151,7 +161,8 @@ class MudServer:
                     "action": "login_success",
                     "username": username,
                     "player_id": player.id,
-                    "session_id": session.session_id
+                    "session_id": session.session_id,
+                    "is_admin": player.is_admin
                 }
             )
             logger.info(f"✅ 로그인 성공: 사용자명='{username}', 플레이어ID={player.id}, 세션ID={session.session_id[:8]}...")
@@ -162,6 +173,7 @@ class MudServer:
     async def handle_game_command(self, session: Session, data: dict) -> None:
         """인증된 사용자의 게임 관련 명령을 처리합니다."""
         command = data.get("command", "").strip()
+        admin_action = data.get("admin_action")  # 관리자 명령어 액션
 
         if not command:
             await session.send_error("명령어가 비어있습니다.", "EMPTY_COMMAND")
@@ -171,7 +183,21 @@ class MudServer:
 
         # 게임 엔진에 명령어 처리 위임
         if self.game_engine:
-            await self.game_engine.handle_player_command(session, command)
+            result = await self.game_engine.handle_player_command(session, command)
+
+            # 관리자 명령어인 경우 특별한 응답 처리
+            if admin_action and hasattr(result, 'result_type'):
+                from ..commands.base import CommandResultType
+
+                success = result.result_type == CommandResultType.SUCCESS
+                await session.send_message({
+                    "type": "admin_response",
+                    "admin_action": admin_action,
+                    "success": success,
+                    "message": result.message,
+                    "timestamp": session.last_activity.isoformat()
+                })
+                return
 
         # 기본 명령어 처리
         if command.lower() == "help":
@@ -376,3 +402,216 @@ class MudServer:
             "session_manager": self.session_manager.get_stats(),
             "is_running": self.runner is not None and not self.runner.closed
         }
+
+    # === 관리자 API 핸들러들 ===
+
+    async def handle_admin_rooms(self, request: web.Request) -> web.Response:
+        """관리자 방 목록 조회 API"""
+        try:
+            # 관리자 권한 확인 (간단한 구현)
+            # 실제로는 세션 기반 인증이 필요하지만, 여기서는 기본 구현
+
+            if not self.game_engine or not self.game_engine.world_manager:
+                return web.json_response(
+                    {"error": "게임 엔진이 초기화되지 않았습니다"},
+                    status=500
+                )
+
+            # 모든 방 목록 조회
+            rooms = await self.game_engine.world_manager.get_all_rooms()
+
+            # 방 정보를 JSON 형태로 변환
+            rooms_data = []
+            for room in rooms:
+                room_data = {
+                    "id": room.id,
+                    "name": room.name,
+                    "description": room.description,
+                    "exits": room.exits,
+                    "created_at": self._format_datetime(room.created_at),
+                    "updated_at": self._format_datetime(room.updated_at)
+                }
+
+                # 방에 있는 객체 수 조회
+                try:
+                    objects_in_room = await self.game_engine.world_manager.get_room_objects(room.id)
+                    room_data["object_count"] = len(objects_in_room)
+                except:
+                    room_data["object_count"] = 0
+
+                rooms_data.append(room_data)
+
+            return web.json_response({
+                "success": True,
+                "rooms": rooms_data,
+                "total": len(rooms_data)
+            })
+
+        except Exception as e:
+            logger.error(f"방 목록 조회 API 오류: {e}", exc_info=True)
+            return web.json_response(
+                {"error": f"방 목록 조회 실패: {str(e)}"},
+                status=500
+            )
+
+    async def handle_admin_objects(self, request: web.Request) -> web.Response:
+        """관리자 객체 목록 조회 API"""
+        try:
+            if not self.game_engine or not self.game_engine.world_manager:
+                return web.json_response(
+                    {"error": "게임 엔진이 초기화되지 않았습니다"},
+                    status=500
+                )
+
+            # 모든 객체 목록 조회 (repository를 통해)
+            all_objects = await self.game_engine.world_manager._object_repo.get_all()
+
+            # 객체 정보를 JSON 형태로 변환
+            objects_data = []
+            for obj in all_objects:
+                obj_data = {
+                    "id": obj.id,
+                    "name": obj.name,
+                    "description": obj.description,
+                    "object_type": obj.object_type,
+                    "location_type": obj.location_type,
+                    "location_id": obj.location_id,
+                    "properties": obj.properties,
+                    "created_at": self._format_datetime(obj.created_at)
+                }
+
+                # 위치 정보 추가
+                if obj.location_type == "room" and obj.location_id:
+                    try:
+                        room = await self.game_engine.world_manager.get_room(obj.location_id)
+                        if room:
+                            obj_data["location_name"] = room.get_localized_name('ko')
+                        else:
+                            obj_data["location_name"] = f"알 수 없는 방 ({obj.location_id})"
+                    except:
+                        obj_data["location_name"] = f"오류 ({obj.location_id})"
+                elif obj.location_type == "inventory":
+                    obj_data["location_name"] = f"플레이어 인벤토리 ({obj.location_id})"
+                else:
+                    obj_data["location_name"] = "알 수 없음"
+
+                objects_data.append(obj_data)
+
+            return web.json_response({
+                "success": True,
+                "objects": objects_data,
+                "total": len(objects_data)
+            })
+
+        except Exception as e:
+            logger.error(f"객체 목록 조회 API 오류: {e}", exc_info=True)
+            return web.json_response(
+                {"error": f"객체 목록 조회 실패: {str(e)}"},
+                status=500
+            )
+
+    async def handle_admin_players(self, request: web.Request) -> web.Response:
+        """관리자 플레이어 목록 조회 API"""
+        try:
+            if not self.game_engine:
+                return web.json_response(
+                    {"error": "게임 엔진이 초기화되지 않았습니다"},
+                    status=500
+                )
+
+            # 현재 접속 중인 플레이어들
+            authenticated_sessions = self.session_manager.get_authenticated_sessions()
+            online_players = []
+
+            for session in authenticated_sessions.values():
+                if session.player:
+                    player_data = {
+                        "id": session.player.id,
+                        "username": session.player.username,
+                        "is_admin": session.player.is_admin,
+                        "preferred_locale": session.player.preferred_locale,
+                        "session_id": session.session_id,
+                        "ip_address": session.ip_address,
+                        "connected_at": session.created_at.isoformat(),
+                        "last_activity": session.last_activity.isoformat(),
+                        "current_room_id": getattr(session, 'current_room_id', None),
+                        "status": "online"
+                    }
+
+                    # 현재 방 이름 추가
+                    if hasattr(session, 'current_room_id') and session.current_room_id:
+                        try:
+                            room = await self.game_engine.world_manager.get_room(session.current_room_id)
+                            if room:
+                                player_data["current_room_name"] = room.get_localized_name('ko')
+                            else:
+                                player_data["current_room_name"] = "알 수 없는 방"
+                        except:
+                            player_data["current_room_name"] = "오류"
+                    else:
+                        player_data["current_room_name"] = "없음"
+
+                    online_players.append(player_data)
+
+            # 전체 플레이어 목록 (데이터베이스에서)
+            try:
+                all_players_data = await self._get_all_players_from_db()
+            except Exception as e:
+                logger.error(f"전체 플레이어 조회 오류: {e}")
+                all_players_data = []
+
+            return web.json_response({
+                "success": True,
+                "online_players": online_players,
+                "online_count": len(online_players),
+                "all_players": all_players_data,
+                "total_players": len(all_players_data)
+            })
+
+        except Exception as e:
+            logger.error(f"플레이어 목록 조회 API 오류: {e}", exc_info=True)
+            return web.json_response(
+                {"error": f"플레이어 목록 조회 실패: {str(e)}"},
+                status=500
+            )
+
+    async def _get_all_players_from_db(self) -> list:
+        """데이터베이스에서 모든 플레이어 정보 조회"""
+        try:
+            # PlayerRepository를 통해 모든 플레이어 조회
+            all_players = await self.player_manager._player_repo.get_all()
+
+            players_data = []
+            for player in all_players:
+                player_data = {
+                    "id": player.id,
+                    "username": player.username,
+                    "is_admin": player.is_admin,
+                    "preferred_locale": player.preferred_locale,
+                    "created_at": self._format_datetime(player.created_at),
+                    "last_login": self._format_datetime(player.last_login),
+                    "status": "offline"  # 기본값, 온라인 플레이어는 위에서 처리
+                }
+                players_data.append(player_data)
+
+            return players_data
+
+        except Exception as e:
+            logger.error(f"데이터베이스 플레이어 조회 오류: {e}")
+            return []
+
+    def _format_datetime(self, dt) -> Optional[str]:
+        """datetime 객체를 안전하게 ISO 형식 문자열로 변환"""
+        if dt is None:
+            return None
+
+        # 이미 문자열인 경우 그대로 반환
+        if isinstance(dt, str):
+            return dt
+
+        # datetime 객체인 경우 isoformat() 호출
+        if hasattr(dt, 'isoformat'):
+            return dt.isoformat()
+
+        # 기타 경우 문자열로 변환
+        return str(dt)

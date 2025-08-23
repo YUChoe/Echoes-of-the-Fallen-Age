@@ -82,7 +82,156 @@
             <div class="status-bar">
                 <span id="connectionStatus" class="status">연결됨</span>
                 <span id="playerInfo" class="player-info"></span>
+                <button id="adminBtn" class="btn admin small" style="display: none;">관리자</button>
                 <button id="logoutBtn" class="btn secondary small">로그아웃</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 관리자 모달 -->
+    <div id="adminModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔧 관리자 패널</h2>
+                <button id="closeAdminModal" class="close-btn">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="admin-tabs">
+                    <button class="tab-btn active" data-tab="rooms">방 관리</button>
+                    <button class="tab-btn" data-tab="objects">객체 관리</button>
+                    <button class="tab-btn" data-tab="players">플레이어 관리</button>
+                </div>
+
+                <!-- 방 관리 탭 -->
+                <div id="roomsTab" class="tab-content active">
+                    <div class="admin-section">
+                        <h3>방 목록</h3>
+                        <button id="refreshRooms" class="btn secondary">목록 새로고침</button>
+                        <div id="roomsList" class="data-list">
+                            <!-- 방 목록이 여기에 표시됨 -->
+                        </div>
+                    </div>
+
+                    <div class="admin-section">
+                        <h3>새 방 생성</h3>
+                        <form id="createRoomForm" class="admin-form">
+                            <div class="form-row">
+                                <input type="text" id="roomId" placeholder="방 ID (예: room_005)" required>
+                                <input type="text" id="roomName" placeholder="방 이름" required>
+                            </div>
+                            <textarea id="roomDescription" placeholder="방 설명 (선택사항)" rows="2"></textarea>
+                            <button type="submit" class="btn primary">방 생성</button>
+                        </form>
+                    </div>
+
+                    <div class="admin-section">
+                        <h3>방 편집</h3>
+                        <form id="editRoomForm" class="admin-form">
+                            <div class="form-row">
+                                <input type="text" id="editRoomId" placeholder="방 ID" required>
+                                <select id="editProperty" required>
+                                    <option value="">편집할 속성 선택</option>
+                                    <option value="name">이름</option>
+                                    <option value="description">설명</option>
+                                </select>
+                            </div>
+                            <input type="text" id="editValue" placeholder="새 값" required>
+                            <button type="submit" class="btn primary">방 편집</button>
+                        </form>
+                    </div>
+
+                    <div class="admin-section">
+                        <h3>출구 생성</h3>
+                        <form id="createExitForm" class="admin-form">
+                            <div class="form-row">
+                                <input type="text" id="fromRoom" placeholder="출발 방 ID" required>
+                                <select id="direction" required>
+                                    <option value="">방향 선택</option>
+                                    <option value="north">북쪽</option>
+                                    <option value="south">남쪽</option>
+                                    <option value="east">동쪽</option>
+                                    <option value="west">서쪽</option>
+                                    <option value="up">위쪽</option>
+                                    <option value="down">아래쪽</option>
+                                    <option value="northeast">북동쪽</option>
+                                    <option value="northwest">북서쪽</option>
+                                    <option value="southeast">남동쪽</option>
+                                    <option value="southwest">남서쪽</option>
+                                </select>
+                                <input type="text" id="toRoom" placeholder="도착 방 ID" required>
+                            </div>
+                            <button type="submit" class="btn primary">출구 생성</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 객체 관리 탭 -->
+                <div id="objectsTab" class="tab-content">
+                    <div class="admin-section">
+                        <h3>객체 목록</h3>
+                        <button id="refreshObjects" class="btn secondary">목록 새로고침</button>
+                        <div id="objectsList" class="data-list">
+                            <!-- 객체 목록이 여기에 표시됨 -->
+                        </div>
+                    </div>
+
+                    <div class="admin-section">
+                        <h3>새 객체 생성</h3>
+                        <form id="createObjectForm" class="admin-form">
+                            <div class="form-row">
+                                <input type="text" id="objectId" placeholder="객체 ID (예: sword001)" required>
+                                <input type="text" id="objectName" placeholder="객체 이름" required>
+                            </div>
+                            <div class="form-row">
+                                <select id="objectType" required>
+                                    <option value="">객체 타입 선택</option>
+                                    <option value="item">일반 아이템</option>
+                                    <option value="weapon">무기</option>
+                                    <option value="armor">방어구</option>
+                                    <option value="food">음식</option>
+                                    <option value="book">책</option>
+                                    <option value="key">열쇠</option>
+                                    <option value="treasure">보물</option>
+                                    <option value="furniture">가구</option>
+                                    <option value="container">상자/컨테이너</option>
+                                </select>
+                                <input type="text" id="objectLocation" placeholder="위치 ID (현재 방 기본)">
+                            </div>
+                            <button type="submit" class="btn primary">객체 생성</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 플레이어 관리 탭 -->
+                <div id="playersTab" class="tab-content">
+                    <div class="admin-section">
+                        <h3>플레이어 목록</h3>
+                        <div class="form-row">
+                            <button id="refreshPlayers" class="btn secondary">목록 새로고침</button>
+                            <select id="playerFilter">
+                                <option value="all">전체 플레이어</option>
+                                <option value="online">온라인만</option>
+                                <option value="offline">오프라인만</option>
+                                <option value="admin">관리자만</option>
+                            </select>
+                        </div>
+                        <div id="playersList" class="data-list">
+                            <!-- 플레이어 목록이 여기에 표시됨 -->
+                        </div>
+                    </div>
+
+                    <div class="admin-section">
+                        <h3>플레이어 추방</h3>
+                        <form id="kickPlayerForm" class="admin-form">
+                            <div class="form-row">
+                                <input type="text" id="kickUsername" placeholder="플레이어명" required>
+                                <input type="text" id="kickReason" placeholder="추방 사유 (선택사항)">
+                            </div>
+                            <button type="submit" class="btn danger">플레이어 추방</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

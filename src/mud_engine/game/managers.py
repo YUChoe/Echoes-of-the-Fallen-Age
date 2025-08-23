@@ -66,6 +66,7 @@ class WorldManager:
 
         Args:
             room_data: 방 생성 데이터
+                - id: str - 방 ID
                 - name: Dict[str, str] - 다국어 방 이름 {'en': 'name', 'ko': '이름'}
                 - description: Dict[str, str] - 다국어 방 설명
                 - exits: Dict[str, str] - 출구 정보 {'north': 'room_id'}
@@ -76,6 +77,7 @@ class WorldManager:
         try:
             # Room 모델 생성 (유효성 검증 포함)
             room = Room(
+                id=room_data.get('id'),
                 name=room_data.get('name', {}),
                 description=room_data.get('description', {}),
                 exits=room_data.get('exits', {}),
@@ -83,8 +85,8 @@ class WorldManager:
                 updated_at=datetime.now()
             )
 
-            # 데이터베이스에 저장
-            created_room = await self._room_repo.create(room)
+            # 데이터베이스에 저장 (Room 객체를 딕셔너리로 변환)
+            created_room = await self._room_repo.create(room.to_dict())
             logger.info(f"새 방 생성됨: {created_room.id}")
             return created_room
 
@@ -109,11 +111,22 @@ class WorldManager:
                 logger.warning(f"수정하려는 방이 존재하지 않음: {room_id}")
                 return None
 
-            # 업데이트 시간 추가
-            updates['updated_at'] = datetime.now()
+            # Room 객체에 업데이트 적용
+            for key, value in updates.items():
+                if hasattr(existing_room, key):
+                    if key == 'exits' and isinstance(value, dict):
+                        # 출구는 기존 출구와 병합
+                        existing_exits = existing_room.exits.copy()
+                        existing_exits.update(value)
+                        setattr(existing_room, key, existing_exits)
+                    else:
+                        setattr(existing_room, key, value)
 
-            # 데이터베이스 업데이트
-            updated_room = await self._room_repo.update(room_id, updates)
+            # 업데이트 시간 설정
+            existing_room.updated_at = datetime.now()
+
+            # 데이터베이스 업데이트 (Room 객체를 딕셔너리로 변환)
+            updated_room = await self._room_repo.update(room_id, existing_room.to_dict())
             if updated_room:
                 logger.info(f"방 정보 수정됨: {room_id}")
 
@@ -122,6 +135,8 @@ class WorldManager:
         except Exception as e:
             logger.error(f"방 수정 실패 ({room_id}): {e}")
             raise
+
+
 
     async def delete_room(self, room_id: str) -> bool:
         """방을 삭제합니다.
@@ -267,6 +282,7 @@ class WorldManager:
         try:
             # GameObject 모델 생성 (유효성 검증 포함)
             game_object = GameObject(
+                id=object_data.get('id'),
                 name=object_data.get('name', {}),
                 description=object_data.get('description', {}),
                 object_type=object_data.get('object_type', 'item'),
@@ -276,8 +292,8 @@ class WorldManager:
                 created_at=datetime.now()
             )
 
-            # 데이터베이스에 저장
-            created_object = await self._object_repo.create(game_object)
+            # 데이터베이스에 저장 (GameObject 객체를 딕셔너리로 변환)
+            created_object = await self._object_repo.create(game_object.to_dict())
             logger.info(f"새 게임 객체 생성됨: {created_object.id}")
             return created_object
 
@@ -294,8 +310,13 @@ class WorldManager:
                 logger.warning(f"수정하려는 객체가 존재하지 않음: {object_id}")
                 return None
 
-            # 데이터베이스 업데이트
-            updated_object = await self._object_repo.update(object_id, updates)
+            # GameObject 객체에 업데이트 적용
+            for key, value in updates.items():
+                if hasattr(existing_object, key):
+                    setattr(existing_object, key, value)
+
+            # 데이터베이스 업데이트 (GameObject 객체를 딕셔너리로 변환)
+            updated_object = await self._object_repo.update(object_id, existing_object.to_dict())
             if updated_object:
                 logger.info(f"게임 객체 정보 수정됨: {object_id}")
 

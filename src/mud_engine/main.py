@@ -52,7 +52,7 @@ async def main():
         # 서버 초기화 및 시작
         host = os.getenv("SERVER_HOST", "127.0.0.1")
         port = int(os.getenv("SERVER_PORT", "8080"))
-        server = MudServer(host, port, player_manager)
+        server = MudServer(host, port, player_manager, db_manager)
         await server.start()
 
         print(f"🌐 서버가 http://{host}:{port} 에서 실행 중입니다.")

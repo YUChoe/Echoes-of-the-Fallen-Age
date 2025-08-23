@@ -17,6 +17,7 @@ DATABASE_SCHEMA: List[str] = [
         password_hash TEXT NOT NULL,
         email TEXT,
         preferred_locale TEXT DEFAULT 'en',
+        is_admin BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_login TIMESTAMP
     );
@@ -145,6 +146,37 @@ async def create_database_schema(db_connection) -> None:
 
     except Exception as e:
         logger.error(f"데이터베이스 스키마 생성 실패: {e}")
+        await db_connection.rollback()
+        raise
+
+
+async def migrate_database(db_connection) -> None:
+    """
+    데이터베이스 마이그레이션을 수행합니다.
+
+    Args:
+        db_connection: aiosqlite 데이터베이스 연결 객체
+    """
+    logger.info("데이터베이스 마이그레이션 시작")
+
+    try:
+        # is_admin 컬럼이 존재하는지 확인
+        cursor = await db_connection.execute("PRAGMA table_info(players)")
+        columns = await cursor.fetchall()
+        column_names = [col[1] for col in columns]
+
+        if 'is_admin' not in column_names:
+            logger.info("is_admin 컬럼 추가 중...")
+            await db_connection.execute(
+                "ALTER TABLE players ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"
+            )
+            await db_connection.commit()
+            logger.info("is_admin 컬럼 추가 완료")
+
+        logger.info("데이터베이스 마이그레이션 완료")
+
+    except Exception as e:
+        logger.error(f"데이터베이스 마이그레이션 실패: {e}")
         await db_connection.rollback()
         raise
 
