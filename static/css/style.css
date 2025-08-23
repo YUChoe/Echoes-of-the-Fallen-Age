@@ -121,17 +121,67 @@
 }
 
 /* 빠른 명령어 */
-.quick-commands {
+.quick_commands {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--spacing-small);
 }
 
-.quick-cmd {
+.cmd_btn {
     padding: 0.5rem;
     font-size: 0.85em;
     margin: 0;
 }
+
+/* 동적 버튼 영역 */
+.dynamic_buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: var(--spacing-small);
+    margin: var(--spacing-small) 0;
+    padding: var(--spacing-small);
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: var(--border-radius);
+}
+
+.dynamic_btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8em;
+    margin: 0;
+    background: var(--pico-color-blue-50);
+    border: 1px solid var(--pico-color-blue-300);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dynamic_btn:hover {
+    background: var(--pico-color-blue-500);
+    color: white;
+    border-color: var(--pico-color-blue-600);
+}
+
+.dynamic_btn.exit {
+    background: var(--pico-color-green-50);
+    border-color: var(--pico-color-green-300);
+}
+
+.dynamic_btn.exit:hover {
+    background: var(--pico-color-green-500);
+    border-color: var(--pico-color-green-600);
+}
+
+.dynamic_btn.object {
+    background: var(--pico-color-amber-50);
+    border-color: var(--pico-color-amber-300);
+}
+
+.dynamic_btn.object:hover {
+    background: var(--pico-color-amber-500);
+    border-color: var(--pico-color-amber-600);
+}
+
+
 
 /* 플레이어 상태 */
 #player-stats p {
@@ -296,16 +346,23 @@
 
 /* 반응형 디자인 */
 @media (max-width: 768px) {
-    .quick-commands {
+    .quick_commands {
         grid-template-columns: 1fr;
     }
 
-    #gameOutput {
-        height: 300px;
+    .dynamic_buttons {
+        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
     }
 
-    .game-controls {
-        flex-direction: column;
+    #game_output {
+        height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .dynamic_btn {
+        padding: 0.3rem 0.4rem;
+        font-size: 0.75em;
     }
 }
 

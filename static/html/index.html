@@ -8,10 +8,10 @@
 </head>
 <body>
     <!-- 로그인 화면 -->
-    <div id="login_screen" class="screen active">
+    <div id="loginScreen" class="screen active">
         <div class="container">
             <h1>Echoes of the Fallen Age</h1>
-            <form id="login_form" class="form">
+            <form id="loginForm" class="form">
                 <div class="field">
                     <label for="username">사용자명</label>
                     <input type="text" id="username" name="username" required>
@@ -22,62 +22,67 @@
                 </div>
                 <div class="actions">
                     <button type="submit" class="btn primary">로그인</button>
-                    <button type="button" id="register_btn" class="btn secondary">회원가입</button>
+                    <button type="button" id="registerBtn" class="btn secondary">회원가입</button>
                 </div>
             </form>
-            <div id="login_message" class="message hidden"></div>
+            <div id="loginMessage" class="message hidden"></div>
         </div>
     </div>
 
     <!-- 회원가입 화면 -->
-    <div id="register_screen" class="screen">
+    <div id="registerScreen" class="screen">
         <div class="container">
             <h1>회원가입</h1>
-            <form id="register_form" class="form">
+            <form id="registerForm" class="form">
                 <div class="field">
-                    <label for="reg_username">사용자명</label>
-                    <input type="text" id="reg_username" name="username" required>
-                    <small id="username_help">로딩 중...</small>
+                    <label for="regUsername">사용자명</label>
+                    <input type="text" id="regUsername" name="username" required>
+                    <small id="usernameHelp">로딩 중...</small>
                 </div>
                 <div class="field">
-                    <label for="reg_password">비밀번호</label>
-                    <input type="password" id="reg_password" name="password" required>
-                    <small id="password_help">로딩 중...</small>
+                    <label for="regPassword">비밀번호</label>
+                    <input type="password" id="regPassword" name="password" required>
+                    <small id="passwordHelp">로딩 중...</small>
                 </div>
                 <div class="actions">
                     <button type="submit" class="btn primary">회원가입</button>
-                    <button type="button" id="login_btn" class="btn secondary">로그인으로 돌아가기</button>
+                    <button type="button" id="loginBtn" class="btn secondary">로그인으로 돌아가기</button>
                 </div>
             </form>
-            <div id="register_message" class="message hidden"></div>
+            <div id="registerMessage" class="message hidden"></div>
         </div>
     </div>
 
     <!-- 게임 화면 -->
-    <div id="game_screen" class="screen">
-        <div class="game_container">
-            <div class="game_output" id="game_output">
+    <div id="gameScreen" class="screen">
+        <div class="game-container">
+            <div class="game-output" id="gameOutput">
                 <!-- 게임 메시지들이 여기에 표시됨 -->
             </div>
 
-            <div class="game_input_area">
-                <div class="quick_commands">
-                    <button class="cmd_btn" data-cmd="look">둘러보기</button>
-                    <button class="cmd_btn" data-cmd="inventory">인벤토리</button>
-                    <button class="cmd_btn" data-cmd="help">도움말</button>
-                    <button class="cmd_btn" data-cmd="who">접속자</button>
+            <div class="game-input-area">
+                <div class="quick-commands">
+                    <button class="cmd-btn" data-cmd="look">둘러보기</button>
+                    <button class="cmd-btn" data-cmd="inventory">인벤토리</button>
+                    <button class="cmd-btn" data-cmd="help">도움말</button>
+                    <button class="cmd-btn" data-cmd="who">접속자</button>
                 </div>
 
-                <div class="input_container">
-                    <input type="text" id="command_input" placeholder="명령어를 입력하세요..." autocomplete="off">
-                    <button id="send_btn" class="btn primary">전송</button>
+                <!-- 동적 버튼 영역 (출구와 객체) -->
+                <div class="dynamic-buttons" id="dynamicButtons" style="display: none;">
+                    <!-- 동적으로 생성되는 버튼들 -->
+                </div>
+
+                <div class="input-container">
+                    <input type="text" id="commandInput" placeholder="명령어를 입력하세요..." autocomplete="off">
+                    <button id="sendBtn" class="btn primary">전송</button>
                 </div>
             </div>
 
-            <div class="status_bar">
-                <span id="connection_status" class="status">연결됨</span>
-                <span id="player_info" class="player_info"></span>
-                <button id="logout_btn" class="btn secondary small">로그아웃</button>
+            <div class="status-bar">
+                <span id="connectionStatus" class="status">연결됨</span>
+                <span id="playerInfo" class="player-info"></span>
+                <button id="logoutBtn" class="btn secondary small">로그아웃</button>
             </div>
         </div>
     </div>

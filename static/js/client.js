@@ -16,6 +16,9 @@ class MudClient {
             password: { min_length: 6 }
         };
 
+        // 하이브리드 인터페이스 관련
+        this.currentRoomId = null;
+
         this.init();
     }
 
@@ -44,29 +47,29 @@ class MudClient {
         console.log('updateValidationMessages 호출됨, 현재 설정:', this.config);
 
         // 사용자명 유효성 검사 메시지 업데이트
-        const usernameHelp = document.getElementById('username_help');
+        const usernameHelp = document.getElementById('usernameHelp');
         if (usernameHelp) {
             const message = `${this.config.username.min_length}-${this.config.username.max_length}자, 영문자와 숫자만 사용 가능`;
             usernameHelp.textContent = message;
             console.log('사용자명 도움말 업데이트:', message);
         } else {
-            console.error('username_help 요소를 찾을 수 없습니다');
+            console.error('usernameHelp 요소를 찾을 수 없습니다');
         }
 
         // 비밀번호 유효성 검사 메시지 업데이트
-        const passwordHelp = document.getElementById('password_help');
+        const passwordHelp = document.getElementById('passwordHelp');
         if (passwordHelp) {
             const message = `최소 ${this.config.password.min_length}자 이상`;
             passwordHelp.textContent = message;
             console.log('비밀번호 도움말 업데이트:', message);
         } else {
-            console.error('password_help 요소를 찾을 수 없습니다');
+            console.error('passwordHelp 요소를 찾을 수 없습니다');
         }
     }
 
     setupEventListeners() {
         // 로그인 폼
-        const loginForm = document.getElementById('login_form');
+        const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -75,7 +78,7 @@ class MudClient {
         }
 
         // 회원가입 버튼
-        const registerBtn = document.getElementById('register_btn');
+        const registerBtn = document.getElementById('registerBtn');
         if (registerBtn) {
             registerBtn.addEventListener('click', () => {
                 this.showScreen('register');
@@ -83,7 +86,7 @@ class MudClient {
         }
 
         // 회원가입 폼
-        const registerForm = document.getElementById('register_form');
+        const registerForm = document.getElementById('registerForm');
         if (registerForm) {
             registerForm.addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -92,7 +95,7 @@ class MudClient {
         }
 
         // 로그인으로 돌아가기 버튼
-        const loginBtn = document.getElementById('login_btn');
+        const loginBtn = document.getElementById('loginBtn');
         if (loginBtn) {
             loginBtn.addEventListener('click', () => {
                 this.showScreen('login');
@@ -100,7 +103,7 @@ class MudClient {
         }
 
         // 게임 명령어 입력
-        const commandInput = document.getElementById('command_input');
+        const commandInput = document.getElementById('commandInput');
         if (commandInput) {
             commandInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
@@ -116,7 +119,7 @@ class MudClient {
         }
 
         // 전송 버튼
-        const sendBtn = document.getElementById('send_btn');
+        const sendBtn = document.getElementById('sendBtn');
         if (sendBtn) {
             sendBtn.addEventListener('click', () => {
                 this.sendCommand();
@@ -124,7 +127,7 @@ class MudClient {
         }
 
         // 빠른 명령어 버튼들
-        document.querySelectorAll('.cmd_btn').forEach(btn => {
+        document.querySelectorAll('.cmd-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const cmd = btn.dataset.cmd;
                 this.sendCommand(cmd);
@@ -132,7 +135,7 @@ class MudClient {
         });
 
         // 로그아웃 버튼
-        const logoutBtn = document.getElementById('logout_btn');
+        const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
                 this.logout();
@@ -147,7 +150,7 @@ class MudClient {
         });
 
         // 선택된 화면 표시
-        const targetScreen = document.getElementById(screenName + '_screen');
+        const targetScreen = document.getElementById(screenName + 'Screen');
         if (targetScreen) {
             targetScreen.classList.add('active');
             this.currentScreen = screenName;
@@ -155,7 +158,7 @@ class MudClient {
 
         // 화면별 초기화
         if (screenName === 'game') {
-            const commandInput = document.getElementById('command_input');
+            const commandInput = document.getElementById('commandInput');
             if (commandInput) {
                 commandInput.focus();
             }
@@ -222,8 +225,8 @@ class MudClient {
     }
 
     async handleRegister() {
-        const username = document.getElementById('reg_username').value.trim();
-        const password = document.getElementById('reg_password').value;
+        const username = document.getElementById('regUsername').value.trim();
+        const password = document.getElementById('regPassword').value;
 
         if (!username || !password) {
             this.showMessage('사용자명과 비밀번호를 입력해주세요.', 'error', 'register');
@@ -280,6 +283,12 @@ class MudClient {
             }
         } else if (data.response) {
             this.addGameMessage(data.response, data.message_type || 'system');
+        } else if (data.type === 'ui_update') {
+            this.updateUI(data.ui);
+        } else if (data.type === 'room_info') {
+            this.addGameMessage(`📍 ${data.room.name}`, 'system');
+            this.addGameMessage(data.room.description, 'info');
+            this.currentRoomId = data.room.id;
         }
     }
 
@@ -290,7 +299,7 @@ class MudClient {
     }
 
     sendCommand(command = null) {
-        const input = document.getElementById('command_input');
+        const input = document.getElementById('commandInput');
         const cmd = command || (input ? input.value.trim() : '');
 
         if (!cmd) return;
@@ -315,15 +324,15 @@ class MudClient {
         });
 
         // 게임 출력에 명령어 표시
-        this.addGameMessage(`> ${cmd}`, 'player');
+        this.addGameMessage(`> ${cmd}`, 'command');
     }
 
     addGameMessage(message, type = 'system') {
-        const output = document.getElementById('game_output');
+        const output = document.getElementById('gameOutput');
         if (!output) return;
 
         const messageDiv = document.createElement('div');
-        messageDiv.className = `game_message ${type}`;
+        messageDiv.className = `game-message ${type}`;
 
         // 타임스탬프 추가
         const timestamp = new Date().toLocaleTimeString();
@@ -333,7 +342,7 @@ class MudClient {
         output.scrollTop = output.scrollHeight;
 
         // 메시지가 너무 많으면 오래된 것 제거
-        const messages = output.querySelectorAll('.game_message');
+        const messages = output.querySelectorAll('.game-message');
         if (messages.length > 1000) {
             messages[0].remove();
         }
@@ -348,7 +357,7 @@ class MudClient {
     showPreviousCommand() {
         if (this.historyIndex > 0) {
             this.historyIndex--;
-            const input = document.getElementById('command_input');
+            const input = document.getElementById('commandInput');
             if (input) {
                 input.value = this.commandHistory[this.historyIndex];
             }
@@ -356,7 +365,7 @@ class MudClient {
     }
 
     showNextCommand() {
-        const input = document.getElementById('command_input');
+        const input = document.getElementById('commandInput');
         if (!input) return;
 
         if (this.historyIndex < this.commandHistory.length - 1) {
@@ -369,7 +378,7 @@ class MudClient {
     }
 
     updateConnectionStatus(status, isConnected) {
-        const statusElement = document.getElementById('connection_status');
+        const statusElement = document.getElementById('connectionStatus');
         if (statusElement) {
             statusElement.textContent = status;
             statusElement.className = `status ${isConnected ? 'connected' : 'disconnected'}`;
@@ -377,14 +386,14 @@ class MudClient {
     }
 
     updatePlayerInfo(username) {
-        const playerInfo = document.getElementById('player_info');
+        const playerInfo = document.getElementById('playerInfo');
         if (playerInfo) {
             playerInfo.textContent = `플레이어: ${username}`;
         }
     }
 
     showMessage(message, type, screen) {
-        const messageElement = document.getElementById(`${screen}_message`);
+        const messageElement = document.getElementById(`${screen}Message`);
         if (messageElement) {
             messageElement.textContent = message;
             messageElement.className = `message ${type}`;
@@ -406,13 +415,13 @@ class MudClient {
         this.showScreen('login');
 
         // 폼 초기화
-        const loginForm = document.getElementById('login_form');
+        const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.reset();
         }
 
         // 게임 출력 초기화
-        const gameOutput = document.getElementById('game_output');
+        const gameOutput = document.getElementById('gameOutput');
         if (gameOutput) {
             gameOutput.innerHTML = '';
         }
@@ -420,6 +429,72 @@ class MudClient {
         this.commandHistory = [];
         this.historyIndex = -1;
     }
+
+    // === 하이브리드 인터페이스 메서드들 ===
+
+    setupQuickCommandButtons() {
+        document.querySelectorAll('.cmd_btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const cmd = btn.dataset.cmd;
+                this.sendCommand(cmd);
+            });
+        });
+    }
+
+    updateUI(uiData) {
+        console.log('UI 업데이트:', uiData);
+
+        if (uiData.buttons) {
+            this.updateQuickButtons(uiData.buttons);
+        }
+
+        if (uiData.room_id) {
+            this.currentRoomId = uiData.room_id;
+        }
+    }
+
+    updateQuickButtons(buttons) {
+        const dynamicContainer = document.getElementById('dynamicButtons');
+        if (!dynamicContainer) return;
+
+        // 기존 버튼들 제거
+        dynamicContainer.innerHTML = '';
+
+        let hasButtons = false;
+
+        // 출구 버튼들 추가
+        if (buttons.exits && buttons.exits.length > 0) {
+            buttons.exits.forEach(exit => {
+                const btn = document.createElement('button');
+                btn.className = 'dynamic-btn exit';
+                btn.textContent = `${exit.icon} ${exit.text}`;
+                btn.addEventListener('click', () => {
+                    this.sendCommand(exit.command);
+                });
+                dynamicContainer.appendChild(btn);
+                hasButtons = true;
+            });
+        }
+
+        // 객체 버튼들 추가
+        if (buttons.objects && buttons.objects.length > 0) {
+            buttons.objects.forEach(obj => {
+                const btn = document.createElement('button');
+                btn.className = 'dynamic-btn object';
+                btn.textContent = `${obj.icon} ${obj.text}`;
+                btn.addEventListener('click', () => {
+                    this.sendCommand(obj.command);
+                });
+                dynamicContainer.appendChild(btn);
+                hasButtons = true;
+            });
+        }
+
+        // 버튼이 있으면 컨테이너 표시, 없으면 숨김
+        dynamicContainer.style.display = hasButtons ? 'flex' : 'none';
+    }
+
+
 }
 
 // 클라이언트 초기화

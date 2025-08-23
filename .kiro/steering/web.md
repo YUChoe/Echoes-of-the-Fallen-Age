@@ -1,6 +1,6 @@
-# Web Client 규칙 
+# Web Client 규칙
 
-## 기본 규칙 
+## 기본 규칙
 - **현대적인 디자인**: Pico.css 프레임워크 적용으로 미니멀한 인터페이스
 - **반응형 디자인**: 모바일, 태블릿, 데스크톱 모든 기기에서 최적화
 - HTML id, name 네이밍은 snake_case
@@ -32,3 +32,5 @@
 - **CSS Grid/Flexbox**: 반응형 레이아웃
 
 
+## 주의
+- 만약, `web-client-ui` 에 대한 specs 가 따로 정의 되어 있다면 웹클라이언트 만들때는 `web-client-ui` 의 task 와 reqirements 를 사용 할 것

@@ -84,6 +84,23 @@ class Session:
             logger.error(f"세션 {self.session_id} 메시지 전송 실패: {e}")
             return False
 
+    async def send_ui_update(self, ui_data: Dict[str, Any]) -> bool:
+        """
+        클라이언트에게 UI 업데이트 정보 전송
+
+        Args:
+            ui_data: UI 업데이트 데이터
+
+        Returns:
+            bool: 전송 성공 여부
+        """
+        ui_message = {
+            "type": "ui_update",
+            "ui": ui_data,
+            "timestamp": datetime.now().isoformat()
+        }
+        return await self.send_message(ui_message)
+
     async def send_error(self, error_message: str, error_code: Optional[str] = None) -> bool:
         """
         클라이언트에게 오류 메시지 전송
@@ -298,7 +315,8 @@ class SessionManager:
             logger.info(f"🚪 세션 종료: 플레이어='{session.player.username}', 이유='{reason}', IP={session.ip_address}")
 
         # 세션 제거
-        del self.sessions[session_id]
+        if session_id in self.sessions:
+            del self.sessions[session_id]
 
         logger.info(f"세션 {session_id[:8]}... 제거: {reason} (남은 세션: {len(self.sessions)}개)")
         return True

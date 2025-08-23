@@ -11,13 +11,10 @@
     --success-color: #16a34a;
     --error-color: #dc2626;
     --warning-color: #d97706;
-    --info-color: #0ea5e9;
     --bg-color: #ffffff;
     --text-color: #1f2937;
     --border-color: #e5e7eb;
     --input-bg: #f9fafb;
-    --game-bg: #1f2937;
-    --game-text: #f9fafb;
 }
 
 body {
@@ -48,14 +45,6 @@ body {
     min-height: 100vh;
 }
 
-h1 {
-    text-align: center;
-    margin-bottom: 2rem;
-    color: var(--primary-color);
-    font-size: 2rem;
-    font-weight: 600;
-}
-
 /* 폼 스타일 */
 .form {
     background: white;
@@ -73,7 +62,6 @@ h1 {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: var(--text-color);
 }
 
 .field input {
@@ -83,7 +71,6 @@ h1 {
     border-radius: 4px;
     background-color: var(--input-bg);
     font-size: 1rem;
-    transition: border-color 0.2s;
 }
 
 .field input:focus {
@@ -113,10 +100,7 @@ h1 {
     font-size: 1rem;
     cursor: pointer;
     transition: all 0.2s;
-    font-weight: 500;
-    text-decoration: none;
-    display: inline-block;
-    text-align: center;
+    flex: 1;
 }
 
 .btn.primary {
@@ -140,45 +124,41 @@ h1 {
 .btn.small {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
-}
-
-.btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+    flex: none;
 }
 
 /* 게임 화면 */
-.game_container {
+.game-container {
     display: flex;
     flex-direction: column;
     height: 100vh;
 }
 
-.game_output {
+.game-output {
     flex: 1;
     padding: 1rem;
     overflow-y: auto;
-    background-color: var(--game-bg);
-    color: var(--game-text);
+    background-color: #1f2937;
+    color: #f9fafb;
     font-family: 'Courier New', monospace;
     font-size: 0.875rem;
     line-height: 1.5;
 }
 
-.game_input_area {
+.game-input-area {
     padding: 1rem;
     background-color: var(--input-bg);
     border-top: 1px solid var(--border-color);
 }
 
-.quick_commands {
+.quick-commands {
     display: flex;
     gap: 0.5rem;
     margin-bottom: 1rem;
     flex-wrap: wrap;
 }
 
-.cmd_btn {
+.cmd-btn {
     padding: 0.5rem 1rem;
     background-color: white;
     border: 1px solid var(--border-color);
@@ -188,18 +168,60 @@ h1 {
     transition: all 0.2s;
 }
 
-.cmd_btn:hover {
+.cmd-btn:hover {
     background-color: var(--primary-color);
     color: white;
-    border-color: var(--primary-color);
 }
 
-.input_container {
+/* 동적 버튼 영역 */
+.dynamic-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.dynamic-btn {
+    padding: 0.4rem 0.8rem;
+    background-color: #e0f2fe;
+    border: 1px solid #0284c7;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.dynamic-btn:hover {
+    background-color: #0284c7;
+    color: white;
+}
+
+.dynamic-btn.exit {
+    background-color: #dcfce7;
+    border-color: #16a34a;
+}
+
+.dynamic-btn.exit:hover {
+    background-color: #16a34a;
+    color: white;
+}
+
+.dynamic-btn.object {
+    background-color: #fef3c7;
+    border-color: #d97706;
+}
+
+.dynamic-btn.object:hover {
+    background-color: #d97706;
+    color: white;
+}
+
+.input-container {
     display: flex;
     gap: 0.5rem;
 }
 
-.input_container input {
+.input-container input {
     flex: 1;
     padding: 0.75rem;
     border: 1px solid var(--border-color);
@@ -207,13 +229,13 @@ h1 {
     font-size: 1rem;
 }
 
-.input_container input:focus {
+.input-container input:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-.status_bar {
+.status-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -221,22 +243,6 @@ h1 {
     background-color: var(--input-bg);
     border-top: 1px solid var(--border-color);
     font-size: 0.875rem;
-}
-
-.status {
-    font-weight: 500;
-}
-
-.status.connected {
-    color: var(--success-color);
-}
-
-.status.disconnected {
-    color: var(--error-color);
-}
-
-.player_info {
-    color: var(--text-color);
 }
 
 /* 메시지 스타일 */
@@ -259,89 +265,70 @@ h1 {
     border: 1px solid #fecaca;
 }
 
-.message.info {
-    background-color: #dbeafe;
-    color: var(--info-color);
-    border: 1px solid #bfdbfe;
-}
-
 .message.hidden {
     display: none;
 }
 
 /* 게임 메시지 타입 */
-.game_message {
+.game-message {
     margin-bottom: 0.5rem;
-    word-wrap: break-word;
 }
 
-.game_message.system {
+.game-message.system {
     color: #60a5fa;
 }
 
-.game_message.error {
+.game-message.error {
     color: #f87171;
 }
 
-.game_message.success {
+.game-message.success {
     color: #4ade80;
 }
 
-.game_message.chat {
+.game-message.chat {
     color: #fbbf24;
 }
 
-.game_message.player {
+.game-message.command {
     color: #a78bfa;
-    font-weight: 500;
+    font-weight: bold;
 }
 
 .timestamp {
     color: #9ca3af;
     font-size: 0.8em;
-    margin-right: 0.5rem;
+}
+
+/* 상태 표시 */
+.status.connected {
+    color: var(--success-color);
+}
+
+.status.disconnected {
+    color: var(--error-color);
 }
 
 /* 반응형 */
 @media (max-width: 768px) {
     .container {
         padding: 1rem;
-        max-width: 100%;
     }
 
     .actions {
         flex-direction: column;
     }
 
-    .quick_commands {
+    .quick-commands {
         justify-content: center;
     }
 
-    .status_bar {
+    .status-bar {
         flex-direction: column;
         gap: 0.5rem;
-        text-align: center;
     }
 
-    .game_output {
-        font-size: 0.8rem;
+    .input-container {
+        flex-direction: column;
     }
-}
-
-/* 스크롤바 스타일 */
-.game_output::-webkit-scrollbar {
-    width: 8px;
-}
-
-.game_output::-webkit-scrollbar-track {
-    background: #374151;
-}
-
-.game_output::-webkit-scrollbar-thumb {
-    background: #6b7280;
-    border-radius: 4px;
-}
-
-.game_output::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
 }
