@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from ..database.repository import BaseModel
+from ..config import Config
 
 
 @dataclass
@@ -48,8 +49,15 @@ class Player(BaseModel):
     @staticmethod
     def is_valid_username(username: str) -> bool:
         """사용자명 유효성 검사"""
-        if not username or len(username) < 3 or len(username) > 20:
+        if not username:
             return False
+
+        min_length = Config.USERNAME_MIN_LENGTH
+        max_length = Config.USERNAME_MAX_LENGTH
+
+        if len(username) < min_length or len(username) > max_length:
+            return False
+
         return re.match(r'^[a-zA-Z0-9_]+$', username) is not None
 
     @staticmethod

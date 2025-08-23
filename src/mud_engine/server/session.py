@@ -293,10 +293,14 @@ class SessionManager:
         # WebSocket 연결 종료
         await session.close(message=reason)
 
+        # 로그아웃 로깅 (인증된 세션인 경우)
+        if session.player:
+            logger.info(f"🚪 세션 종료: 플레이어='{session.player.username}', 이유='{reason}', IP={session.ip_address}")
+
         # 세션 제거
         del self.sessions[session_id]
 
-        logger.info(f"세션 {session_id} 제거: {reason} (남은 세션: {len(self.sessions)}개)")
+        logger.info(f"세션 {session_id[:8]}... 제거: {reason} (남은 세션: {len(self.sessions)}개)")
         return True
 
     def get_session(self, session_id: str) -> Optional[Session]:

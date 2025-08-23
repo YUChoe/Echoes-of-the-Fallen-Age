@@ -49,9 +49,11 @@ class AuthService:
             raise AuthenticationError(f"사용자 이름 '{username}'이(가) 이미 존재합니다.")
 
         hashed_password: str = self.hash_password(password)
-        new_player: Player = await self._player_repo.create(
-            username=username, password_hash=hashed_password
-        )
+        player_data = {
+            'username': username,
+            'password_hash': hashed_password
+        }
+        new_player: Player = await self._player_repo.create(player_data)
         return new_player
 
     async def authenticate(self, username: str, password: str) -> Player:

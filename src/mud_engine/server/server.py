@@ -14,6 +14,7 @@ from ..utils.exceptions import AuthenticationError
 from .session import SessionManager, Session
 from ..core.game_engine import GameEngine
 from ..core.event_bus import initialize_event_bus, shutdown_event_bus
+from ..config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class MudServer:
         """서버 라우팅 설정"""
         logger.info("라우팅 설정 중...")
         self.app.router.add_get("/", self.handle_index)
+        self.app.router.add_get("/api/config", self.handle_config)
         self.app.router.add_get("/ws", self.websocket_handler)
         self.app.router.add_static("/static/", path="static", name="static")
         logger.info("라우팅 설정 완료")
@@ -49,6 +51,23 @@ class MudServer:
     async def handle_index(self, request: web.Request) -> web.Response:
         """메인 페이지 핸들러"""
         return web.FileResponse("static/html/index.html")
+
+    async def handle_config(self, request: web.Request) -> web.Response:
+        """클라이언트 설정 정보 제공"""
+        config_data = {
+            "username": {
+                "min_length": Config.USERNAME_MIN_LENGTH,
+                "max_length": Config.USERNAME_MAX_LENGTH
+            },
+            "password": {
+                "min_length": Config.PASSWORD_MIN_LENGTH
+            },
+            "locale": {
+                "default": Config.DEFAULT_LOCALE,
+                "supported": Config.SUPPORTED_LOCALES
+            }
+        }
+        return web.json_response(config_data)
 
     async def websocket_handler(self, request: web.Request) -> web.WebSocketResponse:
         """웹소켓 연결 및 메시지 처리 핸들러"""
@@ -74,6 +93,7 @@ class MudServer:
                     except json.JSONDecodeError:
                         await session.send_error("잘못된 JSON 형식입니다.", "INVALID_JSON")
                     except AuthenticationError as e:
+                        logger.warning(f"❌ 인증 실패: IP={session.ip_address}, 오류='{str(e)}'")
                         await session.send_error(str(e), "AUTH_ERROR")
                     except Exception as e:
                         logger.error(f"세션 {session.session_id} 메시지 처리 오류: {e}", exc_info=True)
@@ -105,15 +125,17 @@ class MudServer:
 
         if command == "register":
             # 계정 생성
+            logger.info(f"🆕 회원가입 시도: 사용자명='{username}', IP={session.ip_address}")
             player = await self.player_manager.create_account(username, password)
             await session.send_success(
                 f"계정 '{username}'이(가) 생성되었습니다. 로그인해주세요.",
                 {"action": "register_success", "username": username}
             )
-            logger.info(f"새 계정 생성: {username}")
+            logger.info(f"✅ 회원가입 성공: 사용자명='{username}', 플레이어ID={player.id}")
 
         elif command == "login":
             # 로그인 처리
+            logger.info(f"🔐 로그인 시도: 사용자명='{username}', IP={session.ip_address}")
             player = await self.player_manager.authenticate(username, password)
 
             # 세션에 플레이어 인증 정보 설정
@@ -132,7 +154,7 @@ class MudServer:
                     "session_id": session.session_id
                 }
             )
-            logger.info(f"플레이어 로그인: {username} (세션: {session.session_id})")
+            logger.info(f"✅ 로그인 성공: 사용자명='{username}', 플레이어ID={player.id}, 세션ID={session.session_id[:8]}...")
 
         else:
             raise AuthenticationError("알 수 없는 인증 명령입니다.")
@@ -145,7 +167,7 @@ class MudServer:
             await session.send_error("명령어가 비어있습니다.", "EMPTY_COMMAND")
             return
 
-        logger.info(f"플레이어 '{session.player.username}' 명령 수신: {command}")
+        logger.info(f"🎮 명령어 입력: 플레이어='{session.player.username}', 명령어='{command}', IP={session.ip_address}")
 
         # 게임 엔진에 명령어 처리 위임
         if self.game_engine:
@@ -220,6 +242,7 @@ class MudServer:
 
     async def handle_quit_command(self, session: Session) -> None:
         """종료 명령어 처리"""
+        logger.info(f"🚪 로그아웃: 플레이어='{session.player.username}', 플레이어ID={session.player.id}, IP={session.ip_address}")
         await session.send_success("안전하게 게임을 종료합니다. 안녕히 가세요!")
         await self.session_manager.remove_session(session.session_id, "플레이어 요청으로 종료")
 

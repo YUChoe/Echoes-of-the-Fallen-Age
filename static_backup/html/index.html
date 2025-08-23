@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echoes of the Fallen Age - MUD 게임</title>
+
+    <!-- Pico.css CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- 커스텀 스타일 -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- 로그인 화면 -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <div class="login-header">
+                <h1><i class="fas fa-dungeon"></i> Echoes of the Fallen Age</h1>
+                <p class="subtitle">텍스트 기반 멀티플레이어 어드벤처 게임</p>
+            </div>
+
+            <div class="auth-forms">
+                <!-- 로그인 폼 -->
+                <div id="loginForm" class="auth-form active">
+                    <h2><i class="fas fa-sign-in-alt"></i> 로그인</h2>
+                    <form id="loginFormElement">
+                        <div class="form-group">
+                            <label for="loginUsername"><i class="fas fa-user"></i> 사용자명</label>
+                            <input type="text" id="loginUsername" name="username" placeholder="사용자명" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword"><i class="fas fa-lock"></i> 비밀번호</label>
+                            <input type="password" id="loginPassword" name="password" placeholder="비밀번호" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> 로그인
+                        </button>
+                    </form>
+                    <p class="auth-switch">
+                        계정이 없으신가요? <a href="#" id="showRegister">회원가입</a>
+                    </p>
+                </div>
+
+                <!-- 회원가입 폼 -->
+                <div id="registerForm" class="auth-form">
+                    <h2><i class="fas fa-user-plus"></i> 회원가입</h2>
+                    <form id="registerFormElement">
+                        <div class="form-group">
+                            <label for="registerUsername"><i class="fas fa-user"></i> 사용자명</label>
+                            <input type="text" id="registerUsername" name="username" required>
+                            <small>3-20자, 영문자와 숫자만 사용 가능</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerEmail"><i class="fas fa-envelope"></i> 이메일</label>
+                            <input type="email" id="registerEmail" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPassword"><i class="fas fa-lock"></i> 비밀번호</label>
+                            <input type="password" id="registerPassword" name="password" required>
+                            <small>최소 6자 이상</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPasswordConfirm"><i class="fas fa-lock"></i> 비밀번호 확인</label>
+                            <input type="password" id="registerPasswordConfirm" name="passwordConfirm" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerLocale"><i class="fas fa-globe"></i> 언어</label>
+                            <select id="registerLocale" name="locale">
+                                <option value="ko">한국어</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> 회원가입
+                        </button>
+                    </form>
+                    <p class="auth-switch">
+                        이미 계정이 있으신가요? <a href="#" id="showLogin">로그인</a>
+                    </p>
+                </div>
+            </div>
+
+            <div class="connection-status" id="connectionStatus">
+                <i class="fas fa-circle"></i> 서버 연결 중...
+            </div>
+        </div>
+    </div>
+
+    <!-- 게임 메인 화면 -->
+    <div id="gameScreen" class="screen">
+        <div class="game-container">
+            <!-- 헤더 -->
+            <header class="game-header">
+                <div class="header-left">
+                    <h1><i class="fas fa-dungeon"></i> Echoes of the Fallen Age</h1>
+                </div>
+                <div class="header-right">
+                    <div class="player-info">
+                        <span class="player-name" id="playerName">플레이어</span>
+                        <div class="connection-indicator" id="gameConnectionStatus">
+                            <i class="fas fa-circle connected"></i>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> 로그아웃
+                    </button>
+                </div>
+            </header>
+
+            <!-- 메인 게임 영역 -->
+            <main class="game-main">
+                <div class="game-layout">
+                    <!-- 게임 출력 영역 -->
+                    <div class="game-output-container">
+                        <div class="output-header">
+                            <h3><i class="fas fa-scroll"></i> 게임 화면</h3>
+                            <div class="output-controls">
+                                <button class="btn btn-small" id="clearOutput" title="화면 지우기">
+                                    <i class="fas fa-eraser"></i>
+                                </button>
+                                <button class="btn btn-small" id="scrollToBottom" title="맨 아래로">
+                                    <i class="fas fa-arrow-down"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="game-output" id="gameOutput">
+                            <div class="welcome-message">
+                                <div class="message-content">
+                                    <i class="fas fa-star"></i>
+                                    <strong>Echoes of the Fallen Age에 오신 것을 환영합니다!</strong>
+                                    <br><br>
+                                    이곳은 고대 마법과 전설이 살아 숨쉬는 신비로운 세계입니다.
+                                    <br>
+                                    명령어를 입력하여 모험을 시작하세요.
+                                    <br><br>
+                                    <em>도움말을 보려면 'help' 명령어를 입력하세요.</em>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 사이드바 -->
+                    <div class="game-sidebar">
+                        <!-- 플레이어 정보 -->
+                        <div class="sidebar-section">
+                            <h4><i class="fas fa-user"></i> 플레이어 정보</h4>
+                            <div class="player-details">
+                                <div class="detail-item">
+                                    <span class="label">이름:</span>
+                                    <span class="value" id="sidebarPlayerName">-</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">위치:</span>
+                                    <span class="value" id="currentLocation">-</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">접속 시간:</span>
+                                    <span class="value" id="sessionTime">00:00:00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 온라인 플레이어 -->
+                        <div class="sidebar-section">
+                            <h4><i class="fas fa-users"></i> 온라인 플레이어</h4>
+                            <div class="online-players" id="onlinePlayers">
+                                <div class="loading">로딩 중...</div>
+                            </div>
+                        </div>
+
+                        <!-- 빠른 명령어 -->
+                        <div class="sidebar-section">
+                            <h4><i class="fas fa-bolt"></i> 빠른 명령어</h4>
+                            <div class="quick-commands">
+                                <button class="quick-cmd" data-cmd="look">둘러보기</button>
+                                <button class="quick-cmd" data-cmd="inventory">인벤토리</button>
+                                <button class="quick-cmd" data-cmd="exits">출구</button>
+                                <button class="quick-cmd" data-cmd="who">접속자</button>
+                                <button class="quick-cmd" data-cmd="help">도움말</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 명령어 입력 영역 -->
+                <div class="command-input-container">
+                    <div class="input-wrapper">
+                        <div class="input-prefix">
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                        <input type="text" id="commandInput" placeholder="명령어를 입력하세요... (예: look, north, say 안녕하세요)" autocomplete="off">
+                        <button class="btn btn-primary" id="sendButton">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="input-help">
+                        <small>
+                            <i class="fas fa-lightbulb"></i>
+                            팁: Tab키로 명령어 자동완성, 위/아래 화살표로 명령어 히스토리
+                        </small>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 로딩 오버레이 -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p>연결 중...</p>
+        </div>
+    </div>
+
+    <!-- 알림 토스트 -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
