@@ -339,6 +339,8 @@ class MudClient {
             this.handleRoomMessage(data);
         } else if (data.type === 'system_message') {
             this.handleSystemMessage(data);
+        } else if (data.type === 'follow_stopped') {
+            this.handleFollowStopped(data);
         }
     }
 
@@ -1223,6 +1225,21 @@ class MudClient {
     handlePlayerStatusChange(data) {
         // 플레이어 상태 변경 처리
         this.addGameMessage(data.message, 'status');
+    }
+
+    handleRoomMessage(data) {
+        // 방 메시지 처리
+        this.addGameMessage(data.message, 'info');
+    }
+
+    handleSystemMessage(data) {
+        // 시스템 메시지 처리
+        this.addGameMessage(data.message, 'system');
+    }
+
+    handleFollowStopped(data) {
+        // 따라가기 중지 처리
+        this.addGameMessage(data.message, 'warning');
     }
 
 }

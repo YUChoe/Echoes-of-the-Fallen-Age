@@ -761,7 +761,7 @@ class GameEngine:
             logger.error(f"방 정보 조회 실패 ({room_id}): {e}", exc_info=True)
             return None
 
-    async def move_player_to_room(self, session: Session, room_id: str) -> bool:
+    async def move_player_to_room(self, session: Session, room_id: str, skip_followers: bool = False) -> bool:
         """
         플레이어를 특정 방으로 이동시킵니다.
 
@@ -837,8 +837,9 @@ class GameEngine:
             }
             await self.broadcast_to_room(room_id, enter_message, exclude_session=session.session_id)
 
-            # 따라가는 플레이어들도 함께 이동
-            await self.handle_player_movement_with_followers(session, room_id)
+            # 따라가는 플레이어들도 함께 이동 (이전 방 ID를 전달) - skip_followers가 False인 경우에만
+            if not skip_followers:
+                await self.handle_player_movement_with_followers(session, room_id, old_room_id)
 
             # 방 플레이어 목록 업데이트 (이전 방과 새 방 모두)
             if old_room_id:
@@ -1375,30 +1376,32 @@ class GameEngine:
 
     # === 따라가기 시스템 지원 메서드 ===
 
-    async def handle_player_movement_with_followers(self, session: Session, new_room_id: str) -> None:
+    async def handle_player_movement_with_followers(self, session: Session, new_room_id: str, old_room_id: Optional[str] = None) -> None:
         """
         플레이어 이동 시 따라가는 플레이어들도 함께 이동시킵니다.
 
         Args:
             session: 이동하는 플레이어의 세션
             new_room_id: 새로운 방 ID
+            old_room_id: 이전 방 ID (따라가는 플레이어들을 찾기 위해 필요)
         """
-        if not session.player:
+        if not session.player or not old_room_id:
             return
 
-        # 이 플레이어를 따라가는 다른 플레이어들 찾기
+        # 이 플레이어를 따라가는 다른 플레이어들 찾기 (이전 방에서)
         followers = []
-        current_room_id = getattr(session, 'current_room_id', None)
-
-        if not current_room_id:
-            return
 
         for other_session in self.session_manager.get_authenticated_sessions().values():
             if (other_session.player and
                 other_session.session_id != session.session_id and
-                getattr(other_session, 'current_room_id', None) == current_room_id and
+                getattr(other_session, 'current_room_id', None) == old_room_id and
                 getattr(other_session, 'following_player', None) == session.player.username):
                 followers.append(other_session)
+
+        if followers:
+            logger.info(f"따라가는 플레이어 {len(followers)}명 발견: {[f.player.username for f in followers]}")
+        else:
+            logger.debug(f"따라가는 플레이어 없음 (리더: {session.player.username}, 이전 방: {old_room_id})")
 
         # 따라가는 플레이어들을 함께 이동
         for follower_session in followers:
@@ -1409,8 +1412,8 @@ class GameEngine:
                     "message": f"👥 {session.player.username}님을 따라 이동합니다..."
                 })
 
-                # 실제 이동 수행
-                success = await self.move_player_to_room(follower_session, new_room_id)
+                # 실제 이동 수행 (무한 재귀 방지를 위해 skip_followers=True)
+                success = await self.move_player_to_room(follower_session, new_room_id, skip_followers=True)
 
                 if success:
                     logger.info(f"따라가기 이동: {follower_session.player.username} -> 방 {new_room_id}")
@@ -1513,56 +1516,7 @@ class GameEngine:
         except Exception as e:
             logger.error(f"플레이어 상태 변경 알림 실패 ({player_id}, {status}): {e}")
 
-    async def handle_player_movement_with_followers(self, leader_session: Session, new_room_id: str) -> None:
-        """
-        플레이어 이동 시 따라가는 플레이어들도 함께 이동시킵니다.
 
-        Args:
-            leader_session: 이동하는 리더 플레이어의 세션
-            new_room_id: 새로운 방 ID
-        """
-        if not leader_session.player:
-            return
-
-        try:
-            leader_name = leader_session.player.username
-            followers_moved = []
-
-            # 모든 세션을 확인해서 이 플레이어를 따라가는 플레이어들 찾기
-            for session in self.session_manager.get_authenticated_sessions().values():
-                if (session.player and
-                    session.session_id != leader_session.session_id and
-                    hasattr(session, 'following_player') and
-                    session.following_player == leader_name):
-
-                    # 같은 방에 있는 경우만 따라가기
-                    if getattr(session, 'current_room_id', None) == getattr(leader_session, 'current_room_id', None):
-                        # 따라가는 플레이어를 새 방으로 이동
-                        success = await self.move_player_to_room(session, new_room_id)
-                        if success:
-                            followers_moved.append(session.player.username)
-
-                            # 따라가는 플레이어에게 알림
-                            await session.send_message({
-                                "type": "follow_movement",
-                                "message": f"👥 {leader_name}님을 따라 이동했습니다.",
-                                "leader": leader_name,
-                                "room_id": new_room_id
-                            })
-
-            # 리더에게 따라온 플레이어들 알림
-            if followers_moved:
-                follower_list = ", ".join(followers_moved)
-                await leader_session.send_message({
-                    "type": "followers_moved",
-                    "message": f"👥 {follower_list}님이 당신을 따라왔습니다.",
-                    "followers": followers_moved
-                })
-
-                logger.info(f"플레이어 따라가기 이동: {leader_name} -> {follower_list} (방 {new_room_id})")
-
-        except Exception as e:
-            logger.error(f"따라가기 이동 처리 실패: {e}")
 
     async def handle_player_disconnect_cleanup(self, session: Session) -> None:
         """

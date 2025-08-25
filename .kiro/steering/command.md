@@ -4,6 +4,7 @@
 - **모든 명령어는 gitbash 환경에서 실행**
 - Windows 환경이지만 bash 명령어 사용 필수
 - PowerShell이나 CMD 사용 금지
+- 백그라운드로 실행하지 말 것
 
 ## 가상 환경 활성화
 ```bash
@@ -63,3 +64,22 @@ rm file_name
 - Windows 네이티브 명령어 (dir, copy, del 등) 사용 금지
 - 모든 경로는 Unix 스타일 슬래시(/) 사용
 - 가상 환경 활성화 후 Python 관련 작업 수행
+
+## 프로세스 관리
+### 포트 충돌 해결
+- **절대 서비스 포트를 변경하지 말 것**
+- 포트 충돌 시 기존 프로세스를 찾아 종료하는 것이 올바른 방법
+- Windows에서 포트 사용 프로세스 확인: `netstat -ano | findstr :8080`
+- 프로세스 종료: `taskkill /PID <프로세스ID> /F`
+
+### 백그라운드 프로세스 관리
+```bash
+# Python 프로세스 확인
+ps aux | grep python
+
+# 특정 프로세스 종료
+kill -9 <프로세스ID>
+
+# 모든 Python 프로세스 종료 (주의해서 사용)
+pkill -f python
+```
