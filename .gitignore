@@ -43,6 +43,8 @@ env/
 *.sqlite
 *.sqlite3
 data/*.db
+date/*.db-shm
+date/*.db-wal
 
 # 로그
 *.log
@@ -60,3 +62,6 @@ Thumbs.db
 # 임시 파일
 *.tmp
 *.temp
+*_backup.py
+test_*.py
+*_test.py

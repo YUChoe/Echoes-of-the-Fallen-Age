@@ -77,9 +77,28 @@ rm file_name
 # Python 프로세스 확인
 ps aux | grep python
 
-# 특정 프로세스 종료
+# 특정 프로세스 종료 (PID 확인 후)
 kill -9 <프로세스ID>
 
 # 모든 Python 프로세스 종료 (주의해서 사용)
 pkill -f python
 ```
+
+### 중단되지 않는 프로세스 처리
+```bash
+# 1. 실행 중인 Python 프로세스 찾기
+ps aux | grep python
+
+# 2. 출력 예시:
+#      1499    1107    1499      20744  cons0     197609 22:18:02 /c/Users/.../python
+
+# 3. PID(첫 번째 숫자)를 사용하여 강제 종료
+kill -9 1499
+
+# 4. Ctrl+C로 중단되지 않는 경우 위 방법 사용
+```
+
+### 프로세스 중단 우선순위
+1. **Ctrl+C** - 정상적인 인터럽트 시그널
+2. **kill -9 <PID>** - 강제 종료 (gitbash에서)
+3. **pkill -f python** - 모든 Python 프로세스 종료 (최후 수단)
