@@ -66,6 +66,21 @@ class GetCommand(BaseCommand):
             if not success:
                 return self.create_error_result("객체를 획득할 수 없습니다.")
 
+            # 객체 획득 이벤트 발행
+            from ..core.event_bus import Event, EventType
+            await game_engine.event_bus.publish(Event(
+                event_type=EventType.OBJECT_PICKED_UP,
+                source=session.session_id,
+                room_id=current_room_id,
+                data={
+                    "player_id": session.player.id,
+                    "player_name": session.player.username,
+                    "object_id": target_object.id,
+                    "object_name": target_object.get_localized_name(session.locale),
+                    "room_id": current_room_id
+                }
+            ))
+
             # 성공 메시지
             obj_name = target_object.get_localized_name(session.locale)
             player_message = f"📦 {obj_name}을(를) 획득했습니다."
@@ -146,6 +161,21 @@ class DropCommand(BaseCommand):
 
             if not success:
                 return self.create_error_result("객체를 버릴 수 없습니다.")
+
+            # 객체 드롭 이벤트 발행
+            from ..core.event_bus import Event, EventType
+            await game_engine.event_bus.publish(Event(
+                event_type=EventType.OBJECT_DROPPED,
+                source=session.session_id,
+                room_id=current_room_id,
+                data={
+                    "player_id": session.player.id,
+                    "player_name": session.player.username,
+                    "object_id": target_object.id,
+                    "object_name": target_object.get_localized_name(session.locale),
+                    "room_id": current_room_id
+                }
+            ))
 
             # 성공 메시지
             obj_name = target_object.get_localized_name(session.locale)

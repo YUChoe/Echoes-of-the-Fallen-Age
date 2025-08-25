@@ -4,6 +4,7 @@
 from .processor import CommandProcessor
 from .base import BaseCommand, CommandResult
 from .basic_commands import SayCommand, TellCommand, WhoCommand, LookCommand, HelpCommand, QuitCommand, MoveCommand, GoCommand, ExitsCommand
+from .interaction_commands import EmoteCommand, GiveCommand, FollowCommand, WhisperCommand, PlayersCommand
 
 __all__ = [
     "CommandProcessor",
@@ -17,5 +18,10 @@ __all__ = [
     "QuitCommand",
     "MoveCommand",
     "GoCommand",
-    "ExitsCommand"
+    "ExitsCommand",
+    "EmoteCommand",
+    "GiveCommand",
+    "FollowCommand",
+    "WhisperCommand",
+    "PlayersCommand"
 ]

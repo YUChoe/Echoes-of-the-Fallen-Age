@@ -297,7 +297,15 @@ class MudClient {
                 }, 500);
 
             } else {
-                this.showMessage(data.message, 'success', this.currentScreen);
+                // 게임 명령어 성공 응답 처리 (look, move 등)
+                if (data.message) {
+                    this.addGameMessage(data.message, 'success');
+                }
+
+                // UI 업데이트가 필요한 경우
+                if (data.data && data.data.ui_update_needed) {
+                    // UI 업데이트 로직
+                }
             }
         } else if (data.response) {
             this.addGameMessage(data.response, data.message_type || 'system');
@@ -315,6 +323,22 @@ class MudClient {
             this.handlePrivateMessage(data);
         } else if (data.type === 'admin_response') {
             this.handleAdminResponse(data);
+        } else if (data.type === 'room_players_update') {
+            this.handleRoomPlayersUpdate(data);
+        } else if (data.type === 'whisper_received') {
+            this.handleWhisperReceived(data);
+        } else if (data.type === 'item_received') {
+            this.handleItemReceived(data);
+        } else if (data.type === 'being_followed') {
+            this.handleBeingFollowed(data);
+        } else if (data.type === 'following_movement') {
+            this.handleFollowingMovement(data);
+        } else if (data.type === 'player_status_change') {
+            this.handlePlayerStatusChange(data);
+        } else if (data.type === 'room_message') {
+            this.handleRoomMessage(data);
+        } else if (data.type === 'system_message') {
+            this.handleSystemMessage(data);
         }
     }
 
@@ -1158,6 +1182,47 @@ class MudClient {
             `[귓속말] ${message.sender_name}: ${message.content}`;
 
         this.addGameMessage(formattedMessage, 'chat');
+    }
+
+    handleRoomMessage(data) {
+        // 방 메시지 처리 (플레이어 이동 알림 등)
+        this.addGameMessage(data.message, 'info');
+    }
+
+    handleSystemMessage(data) {
+        // 시스템 메시지 처리 (로그인/로그아웃 알림 등)
+        this.addGameMessage(data.message, 'system');
+    }
+
+    handleRoomPlayersUpdate(data) {
+        // 방 플레이어 목록 업데이트 처리
+        console.log('방 플레이어 목록 업데이트:', data);
+        // 필요시 UI 업데이트 로직 추가
+    }
+
+    handleWhisperReceived(data) {
+        // 귓속말 수신 처리
+        this.addGameMessage(data.message, 'whisper');
+    }
+
+    handleItemReceived(data) {
+        // 아이템 수신 처리
+        this.addGameMessage(data.message, 'item');
+    }
+
+    handleBeingFollowed(data) {
+        // 따라가기 당하는 상황 처리
+        this.addGameMessage(data.message, 'follow');
+    }
+
+    handleFollowingMovement(data) {
+        // 따라가기 이동 처리
+        this.addGameMessage(data.message, 'follow');
+    }
+
+    handlePlayerStatusChange(data) {
+        // 플레이어 상태 변경 처리
+        this.addGameMessage(data.message, 'status');
     }
 
 }

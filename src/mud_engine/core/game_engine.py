@@ -127,7 +127,17 @@ class GameEngine:
         self.command_processor.register_command(KickPlayerCommand())
         self.command_processor.register_command(AdminListCommand())
 
-        logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자 명령어 포함)")
+        # 플레이어 상호작용 명령어들 등록
+        from ..commands.interaction_commands import (
+            EmoteCommand, GiveCommand, FollowCommand, WhisperCommand, PlayersCommand
+        )
+        self.command_processor.register_command(EmoteCommand())
+        self.command_processor.register_command(GiveCommand())
+        self.command_processor.register_command(FollowCommand())
+        self.command_processor.register_command(WhisperCommand())
+        self.command_processor.register_command(PlayersCommand())
+
+        logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용 명령어 포함)")
 
     def _setup_event_subscriptions(self) -> None:
         """이벤트 구독 설정"""
@@ -142,6 +152,14 @@ class GameEngine:
         self.event_bus.subscribe(EventType.ROOM_ENTERED, self._on_room_entered)
         self.event_bus.subscribe(EventType.ROOM_LEFT, self._on_room_left)
         self.event_bus.subscribe(EventType.ROOM_MESSAGE, self._on_room_message)
+
+        # 플레이어 상호작용 이벤트 구독
+        self.event_bus.subscribe(EventType.PLAYER_ACTION, self._on_player_action)
+        self.event_bus.subscribe(EventType.PLAYER_EMOTE, self._on_player_emote)
+        self.event_bus.subscribe(EventType.PLAYER_GIVE, self._on_player_give)
+        self.event_bus.subscribe(EventType.PLAYER_FOLLOW, self._on_player_follow)
+        self.event_bus.subscribe(EventType.OBJECT_PICKED_UP, self._on_object_picked_up)
+        self.event_bus.subscribe(EventType.OBJECT_DROPPED, self._on_object_dropped)
 
         # 시스템 이벤트 구독
         self.event_bus.subscribe(EventType.SERVER_STARTED, self._on_server_started)
@@ -231,6 +249,9 @@ class GameEngine:
             session: 세션 객체
             reason: 제거 이유
         """
+        # 따라가기 관련 정리 작업 수행
+        await self.handle_player_disconnect_cleanup(session)
+
         if session.player:
             # 플레이어 로그아웃 이벤트 발행
             await self.event_bus.publish(Event(
@@ -466,6 +487,99 @@ class GameEngine:
     async def _on_server_stopping(self, event: Event) -> None:
         """서버 중지 이벤트 핸들러"""
         logger.info("서버 중지 이벤트 수신")
+
+    async def _on_player_action(self, event: Event) -> None:
+        """플레이어 액션 이벤트 핸들러"""
+        data = event.data
+        username = data.get('username')
+        action = data.get('action')
+        room_id = event.room_id
+        logger.debug(f"플레이어 액션: {username} (방 {room_id}) -> {action}")
+
+    async def _on_player_emote(self, event: Event) -> None:
+        """플레이어 감정 표현 이벤트 핸들러"""
+        data = event.data
+        username = data.get('username')
+        emote_text = data.get('emote_text')
+        room_id = event.room_id
+
+        logger.info(f"플레이어 감정 표현: {username} (방 {room_id}) -> {emote_text}")
+
+        # 방 내 다른 플레이어들의 UI 업데이트 (필요시)
+        await self.update_room_player_list(room_id)
+
+    async def _on_player_give(self, event: Event) -> None:
+        """플레이어 아이템 주기 이벤트 핸들러"""
+        data = event.data
+        giver_name = data.get('giver_name')
+        receiver_name = data.get('receiver_name')
+        item_name = data.get('item_name')
+        room_id = event.room_id
+
+        logger.info(f"아이템 전달: {giver_name} -> {receiver_name} ({item_name}) (방 {room_id})")
+
+        # 방 내 모든 플레이어들에게 인벤토리 업데이트 알림
+        inventory_update_message = {
+            "type": "inventory_update",
+            "message": f"🎁 {giver_name}님이 {receiver_name}님에게 '{item_name}'을(를) 주었습니다.",
+            "timestamp": datetime.now().isoformat()
+        }
+
+        await self.broadcast_to_room(room_id, inventory_update_message)
+
+    async def _on_player_follow(self, event: Event) -> None:
+        """플레이어 따라가기 이벤트 핸들러"""
+        data = event.data
+        follower_name = data.get('follower_name')
+        target_name = data.get('target_name')
+        room_id = event.room_id
+
+        logger.info(f"플레이어 따라가기: {follower_name} -> {target_name} (방 {room_id})")
+
+        # 방 내 플레이어 목록 업데이트 (따라가기 상태 반영)
+        await self.update_room_player_list(room_id)
+
+    async def _on_object_picked_up(self, event: Event) -> None:
+        """객체 획득 이벤트 핸들러"""
+        data = event.data
+        username = data.get('username')
+        object_name = data.get('object_name')
+        room_id = event.room_id
+
+        logger.info(f"객체 획득: {username} -> {object_name} (방 {room_id})")
+
+        # 방 내 다른 플레이어들에게 객체 상태 변경 알림
+        pickup_message = {
+            "type": "object_update",
+            "message": f"📦 {username}님이 '{object_name}'을(를) 가져갔습니다.",
+            "action": "picked_up",
+            "player": username,
+            "object": object_name,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        await self.broadcast_to_room(room_id, pickup_message, exclude_session=data.get('session_id'))
+
+    async def _on_object_dropped(self, event: Event) -> None:
+        """객체 드롭 이벤트 핸들러"""
+        data = event.data
+        username = data.get('username')
+        object_name = data.get('object_name')
+        room_id = event.room_id
+
+        logger.info(f"객체 드롭: {username} -> {object_name} (방 {room_id})")
+
+        # 방 내 다른 플레이어들에게 객체 상태 변경 알림
+        drop_message = {
+            "type": "object_update",
+            "message": f"📦 {username}님이 '{object_name}'을(를) 내려놓았습니다.",
+            "action": "dropped",
+            "player": username,
+            "object": object_name,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        await self.broadcast_to_room(room_id, drop_message, exclude_session=data.get('session_id'))
 
     async def _notify_all_players_shutdown(self) -> None:
         """모든 플레이어에게 서버 종료 알림"""
@@ -714,6 +828,14 @@ class GameEngine:
                 "timestamp": datetime.now().isoformat()
             }
             await self.broadcast_to_room(room_id, enter_message, exclude_session=session.session_id)
+
+            # 따라가는 플레이어들도 함께 이동
+            await self.handle_player_movement_with_followers(session, room_id)
+
+            # 방 플레이어 목록 업데이트 (이전 방과 새 방 모두)
+            if old_room_id:
+                await self.update_room_player_list(old_room_id)
+            await self.update_room_player_list(room_id)
 
             # 방 정보를 플레이어에게 전송
             room_info = await self.get_room_info(room_id, session.locale)
@@ -1191,3 +1313,279 @@ class GameEngine:
             logger.error(f"실시간 객체 생성 실패: {e}")
             await admin_session.send_error(f"객체 생성 실패: {str(e)}")
             return False
+
+    # === 플레이어 상호작용 이벤트 핸들러들 ===
+
+    async def _on_player_action(self, event: Event) -> None:
+        """플레이어 액션 이벤트 핸들러"""
+        data = event.data
+        username = data.get('username')
+        action = data.get('action')
+        room_id = event.room_id
+        logger.debug(f"플레이어 액션: {username} (방 {room_id}) -> {action}")
+
+    async def _on_player_emote(self, event: Event) -> None:
+        """플레이어 감정 표현 이벤트 핸들러"""
+        data = event.data
+        username = data.get('username')
+        emote_text = data.get('emote_text')
+        room_id = event.room_id
+        logger.info(f"플레이어 감정 표현: {username} (방 {room_id}) -> {emote_text}")
+
+    async def _on_player_give(self, event: Event) -> None:
+        """플레이어 아이템 주기 이벤트 핸들러"""
+        data = event.data
+        giver_name = data.get('giver_name')
+        receiver_name = data.get('receiver_name')
+        item_name = data.get('item_name')
+        room_id = event.room_id
+        logger.info(f"아이템 전달: {giver_name} -> {receiver_name} ({item_name}) 방 {room_id}")
+
+    async def _on_player_follow(self, event: Event) -> None:
+        """플레이어 따라가기 이벤트 핸들러"""
+        data = event.data
+        follower_name = data.get('follower_name')
+        target_name = data.get('target_name')
+        room_id = event.room_id
+        logger.info(f"플레이어 따라가기: {follower_name} -> {target_name} (방 {room_id})")
+
+    async def _on_object_picked_up(self, event: Event) -> None:
+        """객체 획득 이벤트 핸들러"""
+        data = event.data
+        player_name = data.get('player_name')
+        object_name = data.get('object_name')
+        room_id = event.room_id
+        logger.info(f"객체 획득: {player_name}이(가) {object_name}을(를) 획득 (방 {room_id})")
+
+    async def _on_object_dropped(self, event: Event) -> None:
+        """객체 드롭 이벤트 핸들러"""
+        data = event.data
+        player_name = data.get('player_name')
+        object_name = data.get('object_name')
+        room_id = event.room_id
+        logger.info(f"객체 드롭: {player_name}이(가) {object_name}을(를) 드롭 (방 {room_id})")
+
+    # === 따라가기 시스템 지원 메서드 ===
+
+    async def handle_player_movement_with_followers(self, session: Session, new_room_id: str) -> None:
+        """
+        플레이어 이동 시 따라가는 플레이어들도 함께 이동시킵니다.
+
+        Args:
+            session: 이동하는 플레이어의 세션
+            new_room_id: 새로운 방 ID
+        """
+        if not session.player:
+            return
+
+        # 이 플레이어를 따라가는 다른 플레이어들 찾기
+        followers = []
+        current_room_id = getattr(session, 'current_room_id', None)
+
+        if not current_room_id:
+            return
+
+        for other_session in self.session_manager.get_authenticated_sessions().values():
+            if (other_session.player and
+                other_session.session_id != session.session_id and
+                getattr(other_session, 'current_room_id', None) == current_room_id and
+                getattr(other_session, 'following_player', None) == session.player.username):
+                followers.append(other_session)
+
+        # 따라가는 플레이어들을 함께 이동
+        for follower_session in followers:
+            try:
+                # 따라가는 플레이어에게 알림
+                await follower_session.send_message({
+                    "type": "following_movement",
+                    "message": f"👥 {session.player.username}님을 따라 이동합니다..."
+                })
+
+                # 실제 이동 수행
+                success = await self.move_player_to_room(follower_session, new_room_id)
+
+                if success:
+                    logger.info(f"따라가기 이동: {follower_session.player.username} -> 방 {new_room_id}")
+                else:
+                    # 이동 실패 시 따라가기 중지
+                    if hasattr(follower_session, 'following_player'):
+                        delattr(follower_session, 'following_player')
+
+                    await follower_session.send_error(
+                        f"{session.player.username}님을 따라가지 못했습니다. 따라가기가 중지됩니다."
+                    )
+
+            except Exception as e:
+                logger.error(f"따라가기 이동 실패 ({follower_session.player.username}): {e}")
+                # 오류 시 따라가기 중지
+                if hasattr(follower_session, 'following_player'):
+                    delattr(follower_session, 'following_player')
+
+    # === 실시간 플레이어 목록 업데이트 ===
+
+    async def update_room_player_list(self, room_id: str) -> None:
+        """
+        방의 플레이어 목록을 실시간으로 업데이트합니다.
+
+        Args:
+            room_id: 업데이트할 방 ID
+        """
+        try:
+            # 방에 있는 모든 플레이어들 찾기
+            players_in_room = []
+            for session in self.session_manager.get_authenticated_sessions().values():
+                if (session.player and
+                    getattr(session, 'current_room_id', None) == room_id):
+
+                    player_info = {
+                        "id": session.player.id,
+                        "name": session.player.username,
+                        "session_id": session.session_id,
+                        "following": getattr(session, 'following_player', None)
+                    }
+                    players_in_room.append(player_info)
+
+            # 방에 있는 모든 플레이어들에게 업데이트된 목록 전송
+            update_message = {
+                "type": "room_players_update",
+                "room_id": room_id,
+                "players": players_in_room,
+                "player_count": len(players_in_room)
+            }
+
+            await self.broadcast_to_room(room_id, update_message)
+            logger.debug(f"방 {room_id} 플레이어 목록 업데이트: {len(players_in_room)}명")
+
+        except Exception as e:
+            logger.error(f"방 플레이어 목록 업데이트 실패 ({room_id}): {e}")
+
+    # === 플레이어 상태 변경 알림 ===
+
+    async def notify_player_status_change(self, player_id: str, status: str, data: Dict[str, Any] = None) -> None:
+        """
+        플레이어 상태 변경을 다른 플레이어들에게 알립니다.
+
+        Args:
+            player_id: 상태가 변경된 플레이어 ID
+            status: 상태 ('online', 'offline', 'busy', 'away' 등)
+            data: 추가 데이터
+        """
+        try:
+            # 상태 변경 이벤트 발행
+            await self.event_bus.publish(Event(
+                event_type=EventType.PLAYER_STATUS_CHANGED,
+                source=player_id,
+                data={
+                    "player_id": player_id,
+                    "status": status,
+                    "timestamp": datetime.now().isoformat(),
+                    **(data or {})
+                }
+            ))
+
+            # 전체 플레이어들에게 상태 변경 알림 (선택적)
+            if status in ['online', 'offline']:
+                player_session = None
+                for session in self.session_manager.get_authenticated_sessions().values():
+                    if session.player and session.player.id == player_id:
+                        player_session = session
+                        break
+
+                if player_session:
+                    status_message = {
+                        "type": "player_status_change",
+                        "message": f"🔄 {player_session.player.username}님이 {status} 상태가 되었습니다.",
+                        "player_name": player_session.player.username,
+                        "status": status,
+                        "timestamp": datetime.now().isoformat()
+                    }
+
+                    await self.broadcast_to_all(status_message)
+
+        except Exception as e:
+            logger.error(f"플레이어 상태 변경 알림 실패 ({player_id}, {status}): {e}")
+
+    async def handle_player_movement_with_followers(self, leader_session: Session, new_room_id: str) -> None:
+        """
+        플레이어 이동 시 따라가는 플레이어들도 함께 이동시킵니다.
+
+        Args:
+            leader_session: 이동하는 리더 플레이어의 세션
+            new_room_id: 새로운 방 ID
+        """
+        if not leader_session.player:
+            return
+
+        try:
+            leader_name = leader_session.player.username
+            followers_moved = []
+
+            # 모든 세션을 확인해서 이 플레이어를 따라가는 플레이어들 찾기
+            for session in self.session_manager.get_authenticated_sessions().values():
+                if (session.player and
+                    session.session_id != leader_session.session_id and
+                    hasattr(session, 'following_player') and
+                    session.following_player == leader_name):
+
+                    # 같은 방에 있는 경우만 따라가기
+                    if getattr(session, 'current_room_id', None) == getattr(leader_session, 'current_room_id', None):
+                        # 따라가는 플레이어를 새 방으로 이동
+                        success = await self.move_player_to_room(session, new_room_id)
+                        if success:
+                            followers_moved.append(session.player.username)
+
+                            # 따라가는 플레이어에게 알림
+                            await session.send_message({
+                                "type": "follow_movement",
+                                "message": f"👥 {leader_name}님을 따라 이동했습니다.",
+                                "leader": leader_name,
+                                "room_id": new_room_id
+                            })
+
+            # 리더에게 따라온 플레이어들 알림
+            if followers_moved:
+                follower_list = ", ".join(followers_moved)
+                await leader_session.send_message({
+                    "type": "followers_moved",
+                    "message": f"👥 {follower_list}님이 당신을 따라왔습니다.",
+                    "followers": followers_moved
+                })
+
+                logger.info(f"플레이어 따라가기 이동: {leader_name} -> {follower_list} (방 {new_room_id})")
+
+        except Exception as e:
+            logger.error(f"따라가기 이동 처리 실패: {e}")
+
+    async def handle_player_disconnect_cleanup(self, session: Session) -> None:
+        """
+        플레이어 연결 해제 시 따라가기 관련 정리 작업
+
+        Args:
+            session: 연결 해제된 플레이어의 세션
+        """
+        if not session.player:
+            return
+
+        try:
+            disconnected_player = session.player.username
+
+            # 이 플레이어를 따라가던 다른 플레이어들의 따라가기 해제
+            for other_session in self.session_manager.get_authenticated_sessions().values():
+                if (other_session.player and
+                    hasattr(other_session, 'following_player') and
+                    other_session.following_player == disconnected_player):
+
+                    # 따라가기 해제
+                    delattr(other_session, 'following_player')
+
+                    # 알림 전송
+                    await other_session.send_message({
+                        "type": "follow_stopped",
+                        "message": f"👥 {disconnected_player}님이 연결을 해제하여 따라가기가 중지되었습니다.",
+                        "reason": "player_disconnected"
+                    })
+
+            logger.info(f"플레이어 연결 해제 정리 완료: {disconnected_player}")
+
+        except Exception as e:
+            logger.error(f"플레이어 연결 해제 정리 실패: {e}")

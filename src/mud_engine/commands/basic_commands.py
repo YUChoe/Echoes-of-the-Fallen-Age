@@ -212,8 +212,26 @@ class LookCommand(BaseCommand):
                     obj_name = obj.get_localized_name(session.locale)
                     response += f"• {obj_name}\n"
 
-            # TODO: 같은 방에 있는 다른 플레이어들 표시
-            response += f"\n👥 이곳에 있는 사람들:\n• {session.player.username} (당신)\n"
+            # 같은 방에 있는 플레이어들 표시
+            players_in_room = []
+
+            for other_session in game_engine.session_manager.get_authenticated_sessions().values():
+                if (other_session.player and
+                    getattr(other_session, 'current_room_id', None) == current_room_id):
+
+                    if other_session.session_id == session.session_id:
+                        players_in_room.append(f"• {other_session.player.username} (당신)")
+                    else:
+                        # 따라가기 상태 확인
+                        following_info = ""
+                        if hasattr(other_session, 'following_player'):
+                            following_info = f" (→ {other_session.following_player}님을 따라가는 중)"
+                        players_in_room.append(f"• {other_session.player.username}{following_info}")
+
+            if players_in_room:
+                response += f"\n👥 이곳에 있는 사람들:\n" + "\n".join(players_in_room) + "\n"
+            else:
+                response += f"\n👥 이곳에 있는 사람들:\n• {session.player.username} (당신)\n"
 
             # 출구 정보
             if exits:
@@ -232,13 +250,20 @@ class LookCommand(BaseCommand):
             else:
                 response += "\n🚪 이 방에는 출구가 없습니다.\n"
 
+            # 플레이어 목록 데이터 생성
+            player_names = []
+            for other_session in game_engine.session_manager.get_authenticated_sessions().values():
+                if (other_session.player and
+                    getattr(other_session, 'current_room_id', None) == current_room_id):
+                    player_names.append(other_session.player.username)
+
             return self.create_success_result(
                 message=response.strip(),
                 data={
                     "action": "look",
                     "room_id": current_room_id,
                     "room_name": room_name,
-                    "players": [session.player.username],
+                    "players": player_names,
                     "exits": list(exits.keys()) if exits else [],
                     "objects": [obj.get_localized_name(session.locale) for obj in objects]
                 }

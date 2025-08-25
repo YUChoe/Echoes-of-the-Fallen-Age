@@ -34,6 +34,16 @@ class EventType(Enum):
     OBJECT_DESTROYED = "object_destroyed"
     OBJECT_MOVED = "object_moved"
     OBJECT_INTERACTED = "object_interacted"
+    OBJECT_PICKED_UP = "object_picked_up"
+    OBJECT_DROPPED = "object_dropped"
+
+    # 플레이어 상호작용 이벤트
+    PLAYER_ACTION = "player_action"
+    PLAYER_EMOTE = "player_emote"
+    PLAYER_GIVE = "player_give"
+    PLAYER_TRADE = "player_trade"
+    PLAYER_FOLLOW = "player_follow"
+    PLAYER_STATUS_CHANGED = "player_status_changed"
 
     # 시스템 이벤트
     SERVER_STARTED = "server_started"
