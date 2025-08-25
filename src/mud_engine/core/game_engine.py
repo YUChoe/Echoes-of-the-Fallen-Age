@@ -623,6 +623,8 @@ class GameEngine:
             session: 세션 객체
             room_info: 방 정보
         """
+        logger.debug(f"UI 업데이트 전송 시작: 플레이어={session.player.username if session.player else 'Unknown'}")
+
         try:
             # 출구 버튼 생성
             exit_buttons = []
@@ -670,9 +672,10 @@ class GameEngine:
             }
 
             await session.send_ui_update(ui_data)
+            logger.debug(f"UI 업데이트 전송 완료: 플레이어={session.player.username if session.player else 'Unknown'}")
 
         except Exception as e:
-            logger.error(f"UI 업데이트 전송 실패: {e}")
+            logger.error(f"UI 업데이트 전송 실패: {e}", exc_info=True)
 
     def _get_direction_text(self, direction: str, locale: str) -> str:
         """방향 텍스트 반환"""
@@ -750,10 +753,12 @@ class GameEngine:
             Dict: 방 정보 (방, 객체, 출구 포함)
         """
         try:
+            logger.debug(f"방 정보 조회 시작: room_id={room_id}, locale={locale}")
             location_summary = await self.world_manager.get_location_summary(room_id, locale)
+            logger.debug(f"방 정보 조회 완료: room_id={room_id}")
             return location_summary
         except Exception as e:
-            logger.error(f"방 정보 조회 실패 ({room_id}): {e}")
+            logger.error(f"방 정보 조회 실패 ({room_id}): {e}", exc_info=True)
             return None
 
     async def move_player_to_room(self, session: Session, room_id: str) -> bool:
@@ -771,9 +776,12 @@ class GameEngine:
             return False
 
         try:
+            logger.debug(f"플레이어 이동 시작: {session.player.username} -> {room_id}")
+
             # 방이 존재하는지 확인
             room = await self.world_manager.get_room(room_id)
             if not room:
+                logger.warning(f"존재하지 않는 방으로 이동 시도: {room_id} (플레이어: {session.player.username})")
                 await session.send_error("존재하지 않는 방입니다.")
                 return False
 

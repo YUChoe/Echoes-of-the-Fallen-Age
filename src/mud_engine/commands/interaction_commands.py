@@ -24,7 +24,10 @@ class EmoteCommand(BaseCommand):
         )
 
     async def execute(self, session: Session, args: List[str]) -> CommandResult:
+        logger.debug(f"EmoteCommand 실행: 플레이어={session.player.username}, args={args}")
+
         if not args:
+            logger.warning(f"EmoteCommand: 빈 인수 - 플레이어={session.player.username}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
                 message="표현할 감정이나 행동을 입력해주세요. 예: emote 웃는다"
@@ -32,6 +35,8 @@ class EmoteCommand(BaseCommand):
 
         emote_text = " ".join(args)
         player_name = session.player.username
+
+        logger.info(f"플레이어 감정 표현: {player_name} -> {emote_text}")
 
         # 이벤트 발행
         await session.game_engine.event_bus.publish(Event(
@@ -70,7 +75,10 @@ class GiveCommand(BaseCommand):
         )
 
     async def execute(self, session: Session, args: List[str]) -> CommandResult:
+        logger.debug(f"GiveCommand 실행: 플레이어={session.player.username}, args={args}")
+
         if len(args) < 2:
+            logger.warning(f"GiveCommand: 잘못된 인수 개수 - 플레이어={session.player.username}, args={args}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
                 message="사용법: give <아이템명> <플레이어명>"
@@ -78,6 +86,8 @@ class GiveCommand(BaseCommand):
 
         item_name = args[0]
         target_player_name = args[1]
+
+        logger.info(f"아이템 주기 시도: {session.player.username} -> {target_player_name} ({item_name})")
 
         # 대상 플레이어 찾기 (같은 방에 있는 플레이어만)
         target_session = None
@@ -99,6 +109,7 @@ class GiveCommand(BaseCommand):
                 break
 
         if not target_session:
+            logger.warning(f"GiveCommand: 대상 플레이어를 찾을 수 없음 - {target_player_name} (방: {current_room_id})")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
                 message=f"{target_player_name}님을 이 방에서 찾을 수 없습니다."
@@ -115,6 +126,7 @@ class GiveCommand(BaseCommand):
                     break
 
             if not target_object:
+                logger.warning(f"GiveCommand: 아이템을 찾을 수 없음 - {item_name} (플레이어: {session.player.username})")
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
                     message=f"'{item_name}' 아이템을 인벤토리에서 찾을 수 없습니다."
@@ -126,6 +138,7 @@ class GiveCommand(BaseCommand):
             )
 
             if not success:
+                logger.error(f"GiveCommand: 아이템 이동 실패 - {item_name} ({session.player.username} -> {target_player_name})")
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
                     message="아이템 전달에 실패했습니다."
@@ -165,7 +178,7 @@ class GiveCommand(BaseCommand):
             )
 
         except Exception as e:
-            logger.error(f"아이템 주기 실패: {e}")
+            logger.error(f"아이템 주기 실패: {e}", exc_info=True)
             return CommandResult(
                 result_type=CommandResultType.ERROR,
                 message="아이템 전달 중 오류가 발생했습니다."
@@ -184,7 +197,10 @@ class FollowCommand(BaseCommand):
         )
 
     async def execute(self, session: Session, args: List[str]) -> CommandResult:
+        logger.debug(f"FollowCommand 실행: 플레이어={session.player.username}, args={args}")
+
         if not args:
+            logger.warning(f"FollowCommand: 빈 인수 - 플레이어={session.player.username}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
                 message="사용법: follow <플레이어명> 또는 follow stop"
@@ -196,11 +212,13 @@ class FollowCommand(BaseCommand):
                 followed_player = session.following_player
                 delattr(session, 'following_player')
 
+                logger.info(f"따라가기 중지: {session.player.username} (대상: {followed_player})")
                 return CommandResult(
                     result_type=CommandResultType.SUCCESS,
                     message=f"{followed_player}님 따라가기를 중지했습니다."
                 )
             else:
+                logger.warning(f"FollowCommand: 따라가는 플레이어 없음 - {session.player.username}")
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
                     message="현재 따라가고 있는 플레이어가 없습니다."
@@ -233,6 +251,8 @@ class FollowCommand(BaseCommand):
 
         # 따라가기 설정
         session.following_player = target_session.player.username
+
+        logger.info(f"따라가기 시작: {session.player.username} -> {target_session.player.username} (방: {current_room_id})")
 
         # 이벤트 발행
         await session.game_engine.event_bus.publish(Event(
@@ -274,7 +294,10 @@ class WhisperCommand(BaseCommand):
         )
 
     async def execute(self, session: Session, args: List[str]) -> CommandResult:
+        logger.debug(f"WhisperCommand 실행: 플레이어={session.player.username}, args={args}")
+
         if len(args) < 2:
+            logger.warning(f"WhisperCommand: 잘못된 인수 개수 - 플레이어={session.player.username}, args={args}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
                 message="사용법: whisper <플레이어명> <메시지>"
@@ -282,6 +305,8 @@ class WhisperCommand(BaseCommand):
 
         target_player_name = args[0]
         message = " ".join(args[1:])
+
+        logger.info(f"귓속말 시도: {session.player.username} -> {target_player_name}")
         current_room_id = getattr(session, 'current_room_id', None)
 
         if not current_room_id:
@@ -338,9 +363,12 @@ class PlayersCommand(BaseCommand):
         )
 
     async def execute(self, session: Session, args: List[str]) -> CommandResult:
+        logger.debug(f"PlayersCommand 실행: 플레이어={session.player.username}")
+
         current_room_id = getattr(session, 'current_room_id', None)
 
         if not current_room_id:
+            logger.error(f"PlayersCommand: 현재 방 정보 없음 - 플레이어={session.player.username}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
                 message="현재 방 정보를 찾을 수 없습니다."
@@ -360,6 +388,7 @@ class PlayersCommand(BaseCommand):
                 players_in_room.append(player_info)
 
         if not players_in_room:
+            logger.info(f"PlayersCommand: 빈 방 - {current_room_id}")
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
                 message="이 방에는 아무도 없습니다."
@@ -379,6 +408,8 @@ class PlayersCommand(BaseCommand):
             player_list.append(player_text)
 
         message = f"📍 현재 방에 있는 플레이어들 ({len(players_in_room)}명):\n" + "\n".join(player_list)
+
+        logger.info(f"PlayersCommand 완료: 방={current_room_id}, 플레이어 수={len(players_in_room)}")
 
         return CommandResult(
             result_type=CommandResultType.SUCCESS,

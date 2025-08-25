@@ -15,16 +15,155 @@ from .server import MudServer
 
 
 def setup_logging():
-    """로깅 설정"""
+    """로깅 설정 - 새로운 포맷 및 파일 관리 규칙 적용"""
+    import logging.handlers
+    from datetime import datetime
+
     log_level = os.getenv("LOG_LEVEL", "INFO")
-    logging.basicConfig(
-        level=getattr(logging, log_level),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler("mud_engine.log", encoding="utf-8")
-        ]
+
+    # 로그 디렉토리 생성
+    os.makedirs('logs', exist_ok=True)
+
+    # 커스텀 포맷터 클래스
+    class MudEngineFormatter(logging.Formatter):
+        def format(self, record):
+            # 시분초.밀리초 형식
+            timestamp = self.formatTime(record, '%H:%M:%S')
+            ms = int(record.created * 1000) % 1000
+            time_with_ms = f"{timestamp}.{ms:03d}"
+
+            # 파일명과 라인 번호
+            filename = record.filename
+            lineno = record.lineno
+            location = f"[{filename}:{lineno}]"
+
+            # 최종 포맷: {시분초.ms} {LEVEL} [{filename.py:line}] {logstring}
+            return f"{time_with_ms} {record.levelname} {location} {record.getMessage()}"
+
+    # 커스텀 로테이팅 핸들러
+    class CustomRotatingHandler(logging.handlers.BaseRotatingHandler):
+        """날짜와 크기 기반 로그 로테이션 핸들러"""
+
+        def __init__(self, filename, maxBytes=200*1024*1024, backupCount=30, encoding='utf-8'):
+            self.maxBytes = maxBytes
+            self.backupCount = backupCount
+            self.current_date = datetime.now().strftime('%Y%m%d')
+            self.file_number = 1
+
+            # 파일명 생성
+            self.base_filename = filename
+            self.current_filename = self._get_current_filename()
+
+            super().__init__(self.current_filename, 'a', encoding=encoding)
+
+        def _get_current_filename(self):
+            """현재 로그 파일명 생성"""
+            today = datetime.now().strftime('%Y%m%d')
+            if today != self.current_date:
+                self.current_date = today
+                self.file_number = 1
+
+            return f"logs/mud_engine-{self.current_date}-{self.file_number:02d}.log"
+
+        def shouldRollover(self, record):
+            """로테이션 필요 여부 확인"""
+            # 날짜 변경 확인
+            today = datetime.now().strftime('%Y%m%d')
+            if today != self.current_date:
+                return True
+
+            # 파일 크기 확인
+            if self.stream is None:
+                self.stream = self._open()
+
+            if self.maxBytes > 0:
+                msg = "%s\n" % self.format(record)
+                self.stream.seek(0, 2)  # EOF로 이동
+                if self.stream.tell() + len(msg) >= self.maxBytes:
+                    return True
+
+            return False
+
+        def doRollover(self):
+            """로그 파일 로테이션 수행"""
+            if self.stream:
+                self.stream.close()
+                self.stream = None
+
+            # 현재 파일 압축
+            import gzip
+            import shutil
+
+            current_file = self.current_filename
+            if os.path.exists(current_file):
+                compressed_file = f"{current_file}.gz"
+                with open(current_file, 'rb') as f_in:
+                    with gzip.open(compressed_file, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                os.remove(current_file)
+
+            # 새 파일명 생성
+            today = datetime.now().strftime('%Y%m%d')
+            if today != self.current_date:
+                self.current_date = today
+                self.file_number = 1
+            else:
+                self.file_number += 1
+
+            self.current_filename = self._get_current_filename()
+            self.baseFilename = self.current_filename
+
+            # 새 스트림 열기
+            if not self.delay:
+                self.stream = self._open()
+
+            # 오래된 로그 파일 정리
+            self._cleanup_old_logs()
+
+        def _cleanup_old_logs(self):
+            """오래된 로그 파일 정리"""
+            log_dir = os.path.dirname(self.current_filename)
+            if not os.path.exists(log_dir):
+                return
+
+            # 로그 파일 목록 가져오기
+            log_files = []
+            for filename in os.listdir(log_dir):
+                if filename.startswith('mud_engine-') and filename.endswith('.log.gz'):
+                    filepath = os.path.join(log_dir, filename)
+                    log_files.append((os.path.getctime(filepath), filepath))
+
+            # 생성 시간 기준 정렬
+            log_files.sort()
+
+            # 백업 개수 초과 시 오래된 파일 삭제
+            while len(log_files) > self.backupCount:
+                _, old_file = log_files.pop(0)
+                try:
+                    os.remove(old_file)
+                except OSError:
+                    pass
+
+    # 포맷터 생성
+    formatter = MudEngineFormatter()
+
+    # 콘솔 핸들러
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
+    # 파일 핸들러 (커스텀 로테이팅)
+    file_handler = CustomRotatingHandler(
+        filename='logs/mud_engine.log',
+        maxBytes=200 * 1024 * 1024,  # 200MB
+        backupCount=30
     )
+    file_handler.setFormatter(formatter)
+
+    # 루트 로거 설정
+    root_logger = logging.getLogger()
+    root_logger.setLevel(getattr(logging, log_level))
+    root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
 
 
 async def main():
