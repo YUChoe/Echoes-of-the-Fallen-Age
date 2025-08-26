@@ -66,6 +66,7 @@
                     <button class="cmd-btn" data-cmd="inventory">인벤토리</button>
                     <button class="cmd-btn" data-cmd="help">도움말</button>
                     <button class="cmd-btn" data-cmd="who">접속자</button>
+                    <button id="statsBtn" class="cmd-btn">📊 능력치</button>
                 </div>
 
                 <!-- 동적 버튼 영역 (출구와 객체) -->
@@ -231,6 +232,125 @@
                             <button type="submit" class="btn danger">플레이어 추방</button>
                         </form>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 능력치 모달 -->
+    <div id="statsModal" class="modal">
+        <div class="modal-content stats-modal-content">
+            <div class="modal-header">
+                <h2>📊 플레이어 능력치</h2>
+                <button id="closeStatsModal" class="close-btn">&times;</button>
+            </div>
+
+            <div class="modal-body stats-modal-body">
+                <div class="stats-grid">
+                    <!-- 기본 정보 -->
+                    <div class="stats-section">
+                        <h3>🎯 기본 정보</h3>
+                        <div class="stat-item">
+                            <span class="stat-label">레벨:</span>
+                            <span class="stat-value" id="statLevel">1</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">경험치:</span>
+                            <span class="stat-value" id="statExp">0 / 100</span>
+                        </div>
+                        <div class="exp-bar">
+                            <div class="exp-fill" id="expFill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- 1차 능력치 -->
+                    <div class="stats-section">
+                        <h3>💪 1차 능력치</h3>
+                        <div class="stat-item">
+                            <span class="stat-label">힘 (STR):</span>
+                            <span class="stat-value" id="statStr">10</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">민첩 (DEX):</span>
+                            <span class="stat-value" id="statDex">10</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">지능 (INT):</span>
+                            <span class="stat-value" id="statInt">10</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">지혜 (WIS):</span>
+                            <span class="stat-value" id="statWis">10</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">체력 (CON):</span>
+                            <span class="stat-value" id="statCon">10</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">매력 (CHA):</span>
+                            <span class="stat-value" id="statCha">10</span>
+                        </div>
+                    </div>
+
+                    <!-- 주요 스탯 -->
+                    <div class="stats-section">
+                        <h3>❤️ 주요 스탯</h3>
+                        <div class="stat-item">
+                            <span class="stat-label">생명력 (HP):</span>
+                            <span class="stat-value" id="statHp">150</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">마나 (MP):</span>
+                            <span class="stat-value" id="statMp">105</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">스태미나 (STA):</span>
+                            <span class="stat-value" id="statSta">150</span>
+                        </div>
+                    </div>
+
+                    <!-- 전투 능력 -->
+                    <div class="stats-section">
+                        <h3>⚔️ 전투 능력</h3>
+                        <div class="stat-item">
+                            <span class="stat-label">공격력 (ATK):</span>
+                            <span class="stat-value" id="statAtk">31</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">방어력 (DEF):</span>
+                            <span class="stat-value" id="statDef">20</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">속도 (SPD):</span>
+                            <span class="stat-value" id="statSpd">25</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">마법저항 (RES):</span>
+                            <span class="stat-value" id="statRes">20</span>
+                        </div>
+                    </div>
+
+                    <!-- 기타 능력치 -->
+                    <div class="stats-section">
+                        <h3>💼 기타</h3>
+                        <div class="stat-item">
+                            <span class="stat-label">운 (LCK):</span>
+                            <span class="stat-value" id="statLck">20</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">영향력 (INF):</span>
+                            <span class="stat-value" id="statInf">25</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">최대 소지무게:</span>
+                            <span class="stat-value" id="statCarryWeight">100kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-actions">
+                    <button class="btn secondary" data-cmd="stats">능력치 새로고침</button>
+                    <button class="btn primary" data-cmd="stats 상세">상세 정보 보기</button>
                 </div>
             </div>
         </div>

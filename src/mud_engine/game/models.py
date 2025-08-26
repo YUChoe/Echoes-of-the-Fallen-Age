@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from ..database.repository import BaseModel
 from ..config import Config
+from .stats import PlayerStats
 
 
 @dataclass
@@ -25,6 +26,9 @@ class Player(BaseModel):
     is_admin: bool = False
     created_at: datetime = field(default_factory=datetime.now)
     last_login: Optional[datetime] = None
+
+    # 능력치 시스템
+    stats: PlayerStats = field(default_factory=PlayerStats)
 
     def __post_init__(self):
         """초기화 후 검증"""
@@ -73,11 +77,63 @@ class Player(BaseModel):
         # 보안상 비밀번호 해시는 일반 직렬화에서 제외
         if 'password_hash' in data:
             del data['password_hash']
+
+        # 능력치 정보 포함
+        if hasattr(self, 'stats') and self.stats:
+            data['stats'] = self.stats.get_all_stats()
+
         return data
 
     def to_dict_with_password(self) -> Dict[str, Any]:
         """비밀번호 해시 포함 딕셔너리 변환 (데이터베이스 저장용)"""
-        return super().to_dict()
+        data = super().to_dict()
+
+        # 능력치를 개별 컬럼으로 분리하여 저장
+        if hasattr(self, 'stats') and self.stats:
+            stats_dict = self.stats.to_dict()
+            for key, value in stats_dict.items():
+                data[f'stat_{key}'] = value
+            # 원본 stats 필드 제거
+            if 'stats' in data:
+                del data['stats']
+
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Player':
+        """딕셔너리에서 모델 생성"""
+        # 능력치 관련 필드를 PlayerStats 객체로 변환
+        stats_data = {}
+        keys_to_remove = []
+
+        for key, value in data.items():
+            if key.startswith('stat_'):
+                stat_key = key[5:]  # 'stat_' 제거
+                stats_data[stat_key] = value
+                keys_to_remove.append(key)
+
+        # 능력치 필드들을 원본 데이터에서 제거
+        for key in keys_to_remove:
+            del data[key]
+
+        # PlayerStats 객체 생성
+        if stats_data:
+            data['stats'] = PlayerStats.from_dict(stats_data)
+        else:
+            data['stats'] = PlayerStats()  # 기본값
+
+        # 날짜 필드 처리
+        for date_field in ['created_at', 'last_login']:
+            if date_field in data and isinstance(data[date_field], str):
+                try:
+                    data[date_field] = datetime.fromisoformat(data[date_field].replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    if date_field == 'created_at':
+                        data[date_field] = datetime.now()
+                    else:
+                        data[date_field] = None
+
+        return cls(**data)
 
 
 @dataclass

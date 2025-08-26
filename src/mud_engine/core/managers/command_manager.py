@@ -38,7 +38,7 @@ class CommandManager:
         # 기본 명령어들 import 및 등록
         from ...commands.basic_commands import (
             SayCommand, TellCommand, WhoCommand, LookCommand, QuitCommand,
-            GoCommand, ExitsCommand, MoveCommand, HelpCommand
+            GoCommand, ExitsCommand, MoveCommand, HelpCommand, StatsCommand
         )
 
         self.command_processor.register_command(SayCommand())
@@ -46,6 +46,7 @@ class CommandManager:
         self.command_processor.register_command(WhoCommand(self.game_engine.session_manager))
         self.command_processor.register_command(LookCommand())
         self.command_processor.register_command(QuitCommand())
+        self.command_processor.register_command(StatsCommand())
 
         # 이동 관련 명령어들 등록
         self.command_processor.register_command(GoCommand())

@@ -19,7 +19,20 @@ DATABASE_SCHEMA: List[str] = [
         preferred_locale TEXT DEFAULT 'en',
         is_admin BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_login TIMESTAMP
+        last_login TIMESTAMP,
+
+        -- 능력치 시스템
+        stat_strength INTEGER DEFAULT 10,
+        stat_dexterity INTEGER DEFAULT 10,
+        stat_intelligence INTEGER DEFAULT 10,
+        stat_wisdom INTEGER DEFAULT 10,
+        stat_constitution INTEGER DEFAULT 10,
+        stat_charisma INTEGER DEFAULT 10,
+        stat_level INTEGER DEFAULT 1,
+        stat_experience INTEGER DEFAULT 0,
+        stat_experience_to_next INTEGER DEFAULT 100,
+        stat_equipment_bonuses TEXT DEFAULT '{}',
+        stat_temporary_effects TEXT DEFAULT '{}'
     );
     """,
 
@@ -150,34 +163,59 @@ async def create_database_schema(db_connection) -> None:
         raise
 
 
-async def migrate_database(db_connection) -> None:
+async def migrate_database(db_manager) -> None:
     """
     데이터베이스 마이그레이션을 수행합니다.
 
     Args:
-        db_connection: aiosqlite 데이터베이스 연결 객체
+        db_manager: DatabaseManager 인스턴스
     """
     logger.info("데이터베이스 마이그레이션 시작")
 
     try:
-        # is_admin 컬럼이 존재하는지 확인
-        cursor = await db_connection.execute("PRAGMA table_info(players)")
+        # 현재 테이블 구조 확인
+        cursor = await db_manager.execute("PRAGMA table_info(players)")
         columns = await cursor.fetchall()
         column_names = [col[1] for col in columns]
 
+        # is_admin 컬럼 추가
         if 'is_admin' not in column_names:
             logger.info("is_admin 컬럼 추가 중...")
-            await db_connection.execute(
+            await db_manager.execute(
                 "ALTER TABLE players ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"
             )
-            await db_connection.commit()
+            await db_manager.commit()
             logger.info("is_admin 컬럼 추가 완료")
+
+        # 능력치 시스템 컬럼들 추가
+        stat_columns = [
+            ('stat_strength', 'INTEGER DEFAULT 10'),
+            ('stat_dexterity', 'INTEGER DEFAULT 10'),
+            ('stat_intelligence', 'INTEGER DEFAULT 10'),
+            ('stat_wisdom', 'INTEGER DEFAULT 10'),
+            ('stat_constitution', 'INTEGER DEFAULT 10'),
+            ('stat_charisma', 'INTEGER DEFAULT 10'),
+            ('stat_level', 'INTEGER DEFAULT 1'),
+            ('stat_experience', 'INTEGER DEFAULT 0'),
+            ('stat_experience_to_next', 'INTEGER DEFAULT 100'),
+            ('stat_equipment_bonuses', "TEXT DEFAULT '{}'"),
+            ('stat_temporary_effects', "TEXT DEFAULT '{}'")
+        ]
+
+        for column_name, column_def in stat_columns:
+            if column_name not in column_names:
+                logger.info(f"{column_name} 컬럼 추가 중...")
+                await db_manager.execute(
+                    f"ALTER TABLE players ADD COLUMN {column_name} {column_def}"
+                )
+                await db_manager.commit()
+                logger.info(f"{column_name} 컬럼 추가 완료")
 
         logger.info("데이터베이스 마이그레이션 완료")
 
     except Exception as e:
         logger.error(f"데이터베이스 마이그레이션 실패: {e}")
-        await db_connection.rollback()
+        await db_manager.rollback()
         raise
 
 

@@ -527,3 +527,138 @@ class ExitsCommand(BaseCommand):
         except Exception as e:
             logger.error(f"출구 확인 명령어 실행 중 오류: {e}")
             return self.create_error_result("출구 정보를 확인하는 중 오류가 발생했습니다.")
+
+
+class StatsCommand(BaseCommand):
+    """능력치 확인 명령어"""
+
+    def __init__(self):
+        super().__init__(
+            name="stats",
+            aliases=["status", "st", "attributes"],
+            description="플레이어의 능력치와 상태를 확인합니다",
+            usage="stats [상세]"
+        )
+
+    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+        if not session.is_authenticated or not session.player:
+            return self.create_error_result("인증되지 않은 사용자입니다.")
+
+        try:
+            player = session.player
+            stats = player.stats
+
+            # 상세 모드 확인
+            detailed = len(args) > 0 and args[0].lower() in ['상세', 'detail', 'detailed', 'full']
+
+            if detailed:
+                # 상세 능력치 표시
+                response = self._format_detailed_stats(player, stats)
+            else:
+                # 기본 능력치 표시
+                response = self._format_basic_stats(player, stats)
+
+            return self.create_success_result(
+                message=response,
+                data={
+                    "action": "stats",
+                    "detailed": detailed,
+                    "stats": stats.get_all_stats(),
+                    "player_name": player.username
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"능력치 확인 명령어 실행 중 오류: {e}")
+            return self.create_error_result("능력치 정보를 확인하는 중 오류가 발생했습니다.")
+
+    def _format_basic_stats(self, player, stats) -> str:
+        """기본 능력치 표시 형식"""
+        from ..game.stats import StatType
+
+        # 기본 정보
+        response = f"""
+📊 {player.username}의 능력치
+
+🎯 기본 정보:
+• 레벨: {stats.level}
+• 경험치: {stats.experience:,} / {stats.experience_to_next:,}
+
+💪 1차 능력치:
+• 힘 (STR): {stats.get_primary_stat(StatType.STR)}
+• 민첩 (DEX): {stats.get_primary_stat(StatType.DEX)}
+• 지능 (INT): {stats.get_primary_stat(StatType.INT)}
+• 지혜 (WIS): {stats.get_primary_stat(StatType.WIS)}
+• 체력 (CON): {stats.get_primary_stat(StatType.CON)}
+• 매력 (CHA): {stats.get_primary_stat(StatType.CHA)}
+
+❤️ 주요 스탯:
+• 생명력 (HP): {stats.get_secondary_stat(StatType.HP)}
+• 마나 (MP): {stats.get_secondary_stat(StatType.MP)}
+• 스태미나 (STA): {stats.get_secondary_stat(StatType.STA)}
+
+⚔️ 전투 능력:
+• 공격력 (ATK): {stats.get_secondary_stat(StatType.ATK)}
+• 방어력 (DEF): {stats.get_secondary_stat(StatType.DEF)}
+• 속도 (SPD): {stats.get_secondary_stat(StatType.SPD)}
+
+💼 기타:
+• 최대 소지무게: {stats.get_max_carry_weight()}kg
+
+💡 상세한 정보를 보려면 'stats 상세'를 입력하세요.
+        """.strip()
+
+        return response
+
+    def _format_detailed_stats(self, player, stats) -> str:
+        """상세 능력치 표시 형식"""
+        from ..game.stats import StatType
+
+        # 장비 보너스 정보
+        equipment_info = ""
+        if stats.equipment_bonuses:
+            equipment_info = "\n🎒 장비 보너스:\n"
+            for stat_name, bonus in stats.equipment_bonuses.items():
+                if bonus > 0:
+                    equipment_info += f"• {stat_name}: +{bonus}\n"
+
+        # 상세 정보
+        response = f"""
+📊 {player.username}의 상세 능력치
+
+🎯 기본 정보:
+• 레벨: {stats.level}
+• 경험치: {stats.experience:,} / {stats.experience_to_next:,}
+• 다음 레벨까지: {stats.experience_to_next - stats.experience:,} EXP
+
+💪 1차 능력치 (기본 스탯):
+• 힘 (STR): {stats.get_primary_stat(StatType.STR)} (기본: {stats.strength})
+• 민첩 (DEX): {stats.get_primary_stat(StatType.DEX)} (기본: {stats.dexterity})
+• 지능 (INT): {stats.get_primary_stat(StatType.INT)} (기본: {stats.intelligence})
+• 지혜 (WIS): {stats.get_primary_stat(StatType.WIS)} (기본: {stats.wisdom})
+• 체력 (CON): {stats.get_primary_stat(StatType.CON)} (기본: {stats.constitution})
+• 매력 (CHA): {stats.get_primary_stat(StatType.CHA)} (기본: {stats.charisma})
+
+❤️ 2차 능력치 (파생 스탯):
+• 생명력 (HP): {stats.get_secondary_stat(StatType.HP)}
+• 마나 (MP): {stats.get_secondary_stat(StatType.MP)}
+• 스태미나 (STA): {stats.get_secondary_stat(StatType.STA)}
+• 공격력 (ATK): {stats.get_secondary_stat(StatType.ATK)}
+• 방어력 (DEF): {stats.get_secondary_stat(StatType.DEF)}
+• 속도 (SPD): {stats.get_secondary_stat(StatType.SPD)}
+• 마법저항 (RES): {stats.get_secondary_stat(StatType.RES)}
+• 운 (LCK): {stats.get_secondary_stat(StatType.LCK)}
+• 영향력 (INF): {stats.get_secondary_stat(StatType.INF)}
+
+💼 기타 정보:
+• 최대 소지무게: {stats.get_max_carry_weight()}kg{equipment_info}
+
+📈 능력치 계산 공식:
+• HP = 100 + (체력 × 5) + (레벨 × 10)
+• MP = 50 + (지능 × 3) + (지혜 × 2) + (레벨 × 5)
+• ATK = 10 + (힘 × 2) + 레벨
+• DEF = 5 + (체력 × 1.5) + (레벨 × 0.5)
+• SPD = 10 + (민첩 × 1.5)
+        """.strip()
+
+        return response
