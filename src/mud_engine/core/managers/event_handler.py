@@ -178,44 +178,44 @@ class EventHandler:
     async def _on_object_picked_up(self, event: Event) -> None:
         """객체 획득 이벤트 핸들러"""
         data = event.data
-        username = data.get('username')
+        player_name = data.get('player_name')  # username -> player_name으로 수정
         object_name = data.get('object_name')
         room_id = event.room_id
 
-        logger.info(f"객체 획득: {username} -> {object_name} (방 {room_id})")
+        logger.info(f"객체 획득: {player_name} -> {object_name} (방 {room_id})")
 
         # 방 내 다른 플레이어들에게 객체 상태 변경 알림
         pickup_message = {
             "type": "object_update",
-            "message": f"📦 {username}님이 '{object_name}'을(를) 가져갔습니다.",
+            "message": f"📦 {player_name}님이 '{object_name}'을(를) 가져갔습니다.",
             "action": "picked_up",
-            "player": username,
+            "player": player_name,
             "object": object_name,
             "timestamp": datetime.now().isoformat()
         }
 
-        await self.game_engine.broadcast_to_room(room_id, pickup_message, exclude_session=data.get('session_id'))
+        await self.game_engine.broadcast_to_room(room_id, pickup_message, exclude_session=event.source)
 
     async def _on_object_dropped(self, event: Event) -> None:
         """객체 드롭 이벤트 핸들러"""
         data = event.data
-        username = data.get('username')
+        player_name = data.get('player_name')  # username -> player_name으로 수정
         object_name = data.get('object_name')
         room_id = event.room_id
 
-        logger.info(f"객체 드롭: {username} -> {object_name} (방 {room_id})")
+        logger.info(f"객체 드롭: {player_name} -> {object_name} (방 {room_id})")
 
         # 방 내 다른 플레이어들에게 객체 상태 변경 알림
         drop_message = {
             "type": "object_update",
-            "message": f"📦 {username}님이 '{object_name}'을(를) 내려놓았습니다.",
+            "message": f"📦 {player_name}님이 '{object_name}'을(를) 내려놓았습니다.",
             "action": "dropped",
-            "player": username,
+            "player": player_name,
             "object": object_name,
             "timestamp": datetime.now().isoformat()
         }
 
-        await self.game_engine.broadcast_to_room(room_id, drop_message, exclude_session=data.get('session_id'))
+        await self.game_engine.broadcast_to_room(room_id, drop_message, exclude_session=event.source)
 
     # === 시스템 이벤트 핸들러들 ===
 

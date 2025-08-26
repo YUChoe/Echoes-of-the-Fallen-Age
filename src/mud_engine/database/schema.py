@@ -76,6 +76,10 @@ DATABASE_SCHEMA: List[str] = [
         location_type TEXT NOT NULL, -- 'room', 'inventory'
         location_id TEXT, -- room_id 또는 character_id
         properties TEXT DEFAULT '{}', -- JSON 형태로 저장
+        weight REAL DEFAULT 1.0, -- 무게 (kg 단위)
+        category TEXT DEFAULT 'misc', -- 카테고리: weapon, armor, consumable, misc
+        equipment_slot TEXT, -- 장비 슬롯: weapon, armor, accessory
+        is_equipped BOOLEAN DEFAULT FALSE, -- 착용 여부
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """,
@@ -207,6 +211,27 @@ async def migrate_database(db_manager) -> None:
                 logger.info(f"{column_name} 컬럼 추가 중...")
                 await db_manager.execute(
                     f"ALTER TABLE players ADD COLUMN {column_name} {column_def}"
+                )
+                await db_manager.commit()
+                logger.info(f"{column_name} 컬럼 추가 완료")
+
+        # game_objects 테이블에 인벤토리 시스템 컬럼들 추가
+        cursor = await db_manager.execute("PRAGMA table_info(game_objects)")
+        game_objects_columns = await cursor.fetchall()
+        game_objects_column_names = [col[1] for col in game_objects_columns]
+
+        inventory_columns = [
+            ('weight', 'REAL DEFAULT 1.0'),
+            ('category', "TEXT DEFAULT 'misc'"),
+            ('equipment_slot', 'TEXT'),
+            ('is_equipped', 'BOOLEAN DEFAULT FALSE')
+        ]
+
+        for column_name, column_def in inventory_columns:
+            if column_name not in game_objects_column_names:
+                logger.info(f"game_objects 테이블에 {column_name} 컬럼 추가 중...")
+                await db_manager.execute(
+                    f"ALTER TABLE game_objects ADD COLUMN {column_name} {column_def}"
                 )
                 await db_manager.commit()
                 logger.info(f"{column_name} 컬럼 추가 완료")

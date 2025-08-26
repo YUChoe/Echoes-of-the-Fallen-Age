@@ -53,11 +53,14 @@ class CommandManager:
         self.command_processor.register_command(ExitsCommand())
 
         # 객체 상호작용 명령어들 등록
-        from ...commands.object_commands import GetCommand, DropCommand, InventoryCommand, ExamineCommand
+        from ...commands.object_commands import GetCommand, DropCommand, InventoryCommand, ExamineCommand, EquipCommand, UnequipCommand, UseCommand
         self.command_processor.register_command(GetCommand())
         self.command_processor.register_command(DropCommand())
         self.command_processor.register_command(InventoryCommand())
         self.command_processor.register_command(ExamineCommand())
+        self.command_processor.register_command(EquipCommand())
+        self.command_processor.register_command(UnequipCommand())
+        self.command_processor.register_command(UseCommand())
 
         # 방향별 이동 명령어들 등록
         directions = [

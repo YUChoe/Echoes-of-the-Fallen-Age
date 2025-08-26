@@ -409,6 +409,47 @@ class WorldManager:
             logger.error(f"타입별 객체 조회 실패 ({object_type}): {e}")
             raise
 
+    async def update_object(self, game_object: GameObject) -> bool:
+        """게임 객체를 업데이트합니다."""
+        try:
+            updated_object = await self._object_repo.update(game_object.id, game_object.to_dict())
+            if updated_object:
+                logger.info(f"게임 객체 업데이트됨: {game_object.id}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"게임 객체 업데이트 실패 ({game_object.id}): {e}")
+            raise
+
+    async def remove_object(self, object_id: str) -> bool:
+        """게임 객체를 제거합니다."""
+        try:
+            success = await self._object_repo.delete(object_id)
+            if success:
+                logger.info(f"게임 객체 제거됨: {object_id}")
+            return success
+        except Exception as e:
+            logger.error(f"게임 객체 제거 실패 ({object_id}): {e}")
+            raise
+
+    async def get_equipped_objects(self, character_id: str) -> List[GameObject]:
+        """특정 캐릭터가 착용 중인 장비들을 조회합니다."""
+        try:
+            inventory_objects = await self.get_inventory_objects(character_id)
+            return [obj for obj in inventory_objects if obj.is_equipped]
+        except Exception as e:
+            logger.error(f"착용 장비 조회 실패 ({character_id}): {e}")
+            raise
+
+    async def get_objects_by_category(self, character_id: str, category: str) -> List[GameObject]:
+        """특정 캐릭터의 인벤토리에서 카테고리별 객체들을 조회합니다."""
+        try:
+            inventory_objects = await self.get_inventory_objects(character_id)
+            return [obj for obj in inventory_objects if obj.category == category]
+        except Exception as e:
+            logger.error(f"카테고리별 객체 조회 실패 ({character_id}, {category}): {e}")
+            raise
+
     # === 위치 추적 시스템 ===
 
     async def track_object_location(self, object_id: str) -> Optional[Dict[str, Any]]:

@@ -99,6 +99,39 @@ class Player(BaseModel):
 
         return data
 
+    def get_max_carry_weight(self) -> float:
+        """최대 소지 가능 무게 계산 (STR 기반)"""
+        if hasattr(self, 'stats') and self.stats:
+            from .stats import StatType
+            base_strength = self.stats.get_primary_stat(StatType.STR)
+            # 기본 공식: STR * 2 + 10 (kg)
+            return base_strength * 2.0 + 10.0
+        return 30.0  # 기본값
+
+    def get_current_carry_weight(self, inventory_objects: List['GameObject']) -> float:
+        """현재 소지 중인 무게 계산"""
+        return sum(obj.weight for obj in inventory_objects)
+
+    def can_carry_more(self, inventory_objects: List['GameObject'], additional_weight: float = 0.0) -> bool:
+        """추가 무게를 들 수 있는지 확인"""
+        current_weight = self.get_current_carry_weight(inventory_objects)
+        max_weight = self.get_max_carry_weight()
+        return (current_weight + additional_weight) <= max_weight
+
+    def get_carry_capacity_info(self, inventory_objects: List['GameObject']) -> Dict[str, Any]:
+        """소지 용량 정보 반환"""
+        current_weight = self.get_current_carry_weight(inventory_objects)
+        max_weight = self.get_max_carry_weight()
+        percentage = (current_weight / max_weight) * 100 if max_weight > 0 else 0
+
+        return {
+            'current_weight': current_weight,
+            'max_weight': max_weight,
+            'percentage': percentage,
+            'available_weight': max_weight - current_weight,
+            'is_overloaded': current_weight > max_weight
+        }
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Player':
         """딕셔너리에서 모델 생성"""
@@ -383,6 +416,10 @@ class GameObject(BaseModel):
     location_type: str = ""  # 'room', 'inventory'
     location_id: Optional[str] = None  # room_id 또는 character_id
     properties: Dict[str, Any] = field(default_factory=dict)
+    weight: float = 1.0  # 무게 (kg 단위)
+    category: str = "misc"  # 카테고리: weapon, armor, consumable, misc
+    equipment_slot: Optional[str] = None  # 장비 슬롯: weapon, armor, accessory
+    is_equipped: bool = False  # 착용 여부
     created_at: datetime = field(default_factory=datetime.now)
 
     def __post_init__(self):
@@ -417,6 +454,21 @@ class GameObject(BaseModel):
         if not isinstance(self.properties, dict):
             raise ValueError("속성은 딕셔너리 형태여야 합니다")
 
+        # 무게 검증
+        if not isinstance(self.weight, (int, float)) or self.weight < 0:
+            raise ValueError("무게는 0 이상의 숫자여야 합니다")
+
+        # 카테고리 검증
+        valid_categories = {'weapon', 'armor', 'consumable', 'misc'}
+        if self.category not in valid_categories:
+            raise ValueError(f"올바르지 않은 카테고리입니다: {self.category}")
+
+        # 장비 슬롯 검증
+        if self.equipment_slot is not None:
+            valid_slots = {'weapon', 'armor', 'accessory'}
+            if self.equipment_slot not in valid_slots:
+                raise ValueError(f"올바르지 않은 장비 슬롯입니다: {self.equipment_slot}")
+
     def get_localized_name(self, locale: str = 'en') -> str:
         """로케일에 따른 객체 이름 반환"""
         return self.name.get(locale, self.name.get('en', self.name.get('ko', 'Unknown Object')))
@@ -450,6 +502,37 @@ class GameObject(BaseModel):
     def is_in_inventory(self, character_id: str) -> bool:
         """특정 캐릭터의 인벤토리에 있는지 확인"""
         return self.location_type == 'inventory' and self.location_id == character_id
+
+    def can_be_equipped(self) -> bool:
+        """장비할 수 있는 아이템인지 확인"""
+        return self.equipment_slot is not None
+
+    def equip(self) -> None:
+        """아이템 착용"""
+        if not self.can_be_equipped():
+            raise ValueError("이 아이템은 착용할 수 없습니다")
+        self.is_equipped = True
+
+    def unequip(self) -> None:
+        """아이템 착용 해제"""
+        self.is_equipped = False
+
+    def get_weight_display(self) -> str:
+        """무게를 표시용 문자열로 반환"""
+        if self.weight < 1.0:
+            return f"{int(self.weight * 1000)}g"
+        else:
+            return f"{self.weight:.1f}kg"
+
+    def get_category_display(self, locale: str = 'en') -> str:
+        """카테고리를 표시용 문자열로 반환"""
+        category_names = {
+            'weapon': {'en': 'Weapon', 'ko': '무기'},
+            'armor': {'en': 'Armor', 'ko': '방어구'},
+            'consumable': {'en': 'Consumable', 'ko': '소모품'},
+            'misc': {'en': 'Miscellaneous', 'ko': '기타'}
+        }
+        return category_names.get(self.category, {}).get(locale, self.category)
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""
