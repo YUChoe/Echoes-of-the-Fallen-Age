@@ -16,9 +16,9 @@ class MessageHandler {
         }
 
         if (data.status === 'success') {
-            if (data.action === 'login_success') {
+            if (data.data && data.data.action === 'login_success') {
                 this.client.authModule.handleLoginSuccess(data);
-            } else if (data.action === 'register_success') {
+            } else if (data.data && data.data.action === 'register_success') {
                 this.client.authModule.handleRegisterSuccess(data);
             } else {
                 // 게임 명령어 성공 응답 처리 (look, move 등)
@@ -26,9 +26,26 @@ class MessageHandler {
                     this.client.gameModule.addGameMessage(data.message, 'success');
                 }
 
+                // 이동 명령어 후 자동 look 실행
+                if (data.data && data.data.action === 'move') {
+                    setTimeout(() => {
+                        this.client.sendCommand('look');
+                    }, 100);
+                }
+
                 // 능력치 명령어 응답 처리
                 if (data.data && data.data.action === 'stats') {
                     this.client.statsModule.updateStatsPanel(data.data);
+                }
+
+                // look 명령어 응답 처리 - 동적 버튼 업데이트
+                if (data.data && data.data.action === 'look') {
+                    this.client.gameModule.updateDynamicButtons(data.data);
+                }
+
+                // 일반적인 동적 버튼 업데이트 (data에 exits나 objects가 있는 경우)
+                if (data.data && (data.data.exits || data.data.objects)) {
+                    this.client.gameModule.updateDynamicButtons(data.data);
                 }
 
                 // UI 업데이트가 필요한 경우

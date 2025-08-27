@@ -176,9 +176,38 @@ body {
 /* 동적 버튼 영역 */
 .dynamic-buttons {
     display: flex;
-    gap: 0.5rem;
+    flex-direction: column;
+    gap: 0.75rem;
     margin-bottom: 1rem;
+}
+
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.group-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 0.25rem;
+}
+
+.button-group > .dynamic-btn {
+    margin-left: 1rem;
+}
+
+.button-group {
+    display: flex;
     flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.button-group .group-label {
+    flex-basis: 100%;
+    margin-bottom: 0.25rem;
 }
 
 .dynamic-btn {
@@ -189,6 +218,7 @@ body {
     cursor: pointer;
     font-size: 0.8rem;
     transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .dynamic-btn:hover {

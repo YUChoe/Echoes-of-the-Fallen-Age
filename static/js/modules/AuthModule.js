@@ -106,7 +106,10 @@ class AuthModule {
     handleLoginSuccess(data) {
         console.log('로그인 성공:', data);
         this.client.isAuthenticated = true;
-        this.client.isAdmin = data.is_admin || false;
+
+        // 서버 응답에서 데이터 추출
+        const loginData = data.data || data;
+        this.client.isAdmin = loginData.is_admin || false;
 
         // 관리자 버튼 표시/숨김
         const adminBtn = document.getElementById('adminBtn');
@@ -115,7 +118,7 @@ class AuthModule {
         }
 
         // 플레이어 정보 업데이트
-        this.client.uiModule.updatePlayerInfo(data.username);
+        this.client.uiModule.updatePlayerInfo(loginData.username);
 
         // 게임 화면으로 전환
         this.client.showScreen('game');
@@ -124,6 +127,11 @@ class AuthModule {
         if (data.message) {
             this.client.gameModule.addGameMessage(data.message, 'success');
         }
+
+        // 로그인 후 자동으로 주변 둘러보기
+        setTimeout(() => {
+            this.client.sendCommand('look');
+        }, 500);
     }
 
     handleRegisterSuccess(data) {

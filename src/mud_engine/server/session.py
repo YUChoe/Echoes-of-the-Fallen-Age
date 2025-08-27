@@ -140,7 +140,7 @@ class Session:
         }
 
         if data:
-            success_data.update(data)
+            success_data["data"] = data
 
         return await self.send_message(success_data)
 

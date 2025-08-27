@@ -59,7 +59,12 @@ class GameModule {
 
         // 타임스탬프 추가
         const timestamp = new Date().toLocaleTimeString();
-        messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${this.client.escapeHtml(message)}`;
+
+        // 줄바꿈 처리: \n을 <br>로 변환
+        const escapedMessage = this.client.escapeHtml(message);
+        const formattedMessage = escapedMessage.replace(/\n/g, '<br>');
+
+        messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${formattedMessage}`;
 
         output.appendChild(messageDiv);
         output.scrollTop = output.scrollHeight;
@@ -78,20 +83,31 @@ class GameModule {
         // 기존 버튼들 제거
         container.innerHTML = '';
 
-        if (!data.buttons || (!data.buttons.exits?.length && !data.buttons.objects?.length)) {
+        // 출구와 객체 정보가 있는지 확인
+        const hasExits = data.exits && data.exits.length > 0;
+        const hasObjects = data.objects && data.objects.length > 0;
+        const hasButtons = data.buttons && (data.buttons.exits?.length || data.buttons.objects?.length);
+
+        if (!hasExits && !hasObjects && !hasButtons) {
             container.style.display = 'none';
             return;
         }
 
         container.style.display = 'block';
 
-        // 출구 버튼들 추가
-        if (data.buttons.exits?.length) {
+        // 출구 버튼들 추가 (data.exits 또는 data.buttons.exits에서)
+        const exits = data.buttons?.exits || (data.exits ? data.exits.map(exit => ({
+            command: exit,
+            text: this.getDirectionText(exit),
+            icon: this.getDirectionIcon(exit)
+        })) : []);
+
+        if (exits.length > 0) {
             const exitsGroup = document.createElement('div');
             exitsGroup.className = 'button-group';
             exitsGroup.innerHTML = '<span class="group-label">🚪 출구:</span>';
 
-            data.buttons.exits.forEach(exit => {
+            exits.forEach(exit => {
                 const btn = document.createElement('button');
                 btn.className = 'dynamic-btn exit';
                 btn.setAttribute('data-cmd', exit.command);
@@ -105,13 +121,19 @@ class GameModule {
             container.appendChild(exitsGroup);
         }
 
-        // 객체 버튼들 추가
-        if (data.buttons.objects?.length) {
+        // 객체 버튼들 추가 (data.objects 또는 data.buttons.objects에서)
+        const objects = data.buttons?.objects || (data.objects ? data.objects.map(obj => ({
+            command: `examine ${obj}`,
+            text: obj,
+            icon: '📦'
+        })) : []);
+
+        if (objects.length > 0) {
             const objectsGroup = document.createElement('div');
             objectsGroup.className = 'button-group';
             objectsGroup.innerHTML = '<span class="group-label">📦 객체:</span>';
 
-            data.buttons.objects.forEach(obj => {
+            objects.forEach(obj => {
                 const btn = document.createElement('button');
                 btn.className = 'dynamic-btn object';
                 btn.setAttribute('data-cmd', obj.command);
@@ -124,6 +146,38 @@ class GameModule {
 
             container.appendChild(objectsGroup);
         }
+    }
+
+    getDirectionText(direction) {
+        const directionMap = {
+            'north': '북쪽',
+            'south': '남쪽',
+            'east': '동쪽',
+            'west': '서쪽',
+            'up': '위쪽',
+            'down': '아래쪽',
+            'northeast': '북동쪽',
+            'northwest': '북서쪽',
+            'southeast': '남동쪽',
+            'southwest': '남서쪽'
+        };
+        return directionMap[direction] || direction;
+    }
+
+    getDirectionIcon(direction) {
+        const iconMap = {
+            'north': '⬆️',
+            'south': '⬇️',
+            'east': '➡️',
+            'west': '⬅️',
+            'up': '🔼',
+            'down': '🔽',
+            'northeast': '↗️',
+            'northwest': '↖️',
+            'southeast': '↘️',
+            'southwest': '↙️'
+        };
+        return iconMap[direction] || '🚪';
     }
 
     // 플레이어 상호작용 메시지 핸들러들

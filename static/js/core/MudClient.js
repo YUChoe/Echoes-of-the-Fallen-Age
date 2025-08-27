@@ -137,10 +137,20 @@ class MudClient {
             const wsUrl = `${protocol}//${window.location.host}/ws`;
 
             console.log('WebSocket 연결 시도:', wsUrl);
+            this.uiModule.updateConnectionStatus('연결 중...', false);
 
             this.ws = new WebSocket(wsUrl);
 
+            // 연결 타임아웃 설정 (5초)
+            const connectionTimeout = setTimeout(() => {
+                if (this.ws.readyState === WebSocket.CONNECTING) {
+                    this.ws.close();
+                    reject(new Error('연결 시간 초과'));
+                }
+            }, 5000);
+
             this.ws.onopen = () => {
+                clearTimeout(connectionTimeout);
                 console.log('WebSocket 연결 성공');
                 this.isConnected = true;
                 this.uiModule.updateConnectionStatus('연결됨', true);
@@ -148,11 +158,17 @@ class MudClient {
             };
 
             this.ws.onmessage = (event) => {
-                this.messageHandler.handleMessage(JSON.parse(event.data));
+                try {
+                    const data = JSON.parse(event.data);
+                    this.messageHandler.handleMessage(data);
+                } catch (error) {
+                    console.error('메시지 파싱 오류:', error, event.data);
+                }
             };
 
-            this.ws.onclose = () => {
-                console.log('WebSocket 연결 종료');
+            this.ws.onclose = (event) => {
+                clearTimeout(connectionTimeout);
+                console.log('WebSocket 연결 종료:', event.code, event.reason);
                 this.isConnected = false;
                 this.uiModule.updateConnectionStatus('연결 끊김', false);
 
@@ -163,15 +179,17 @@ class MudClient {
                     this.isAdmin = false;
                     this.isLoggingOut = false;
                     this.showScreen('login');
-                } else if (this.isAuthenticated) {
-                    // 예상치 못한 연결 끊김인 경우: 재연결 시도
+                } else if (this.isAuthenticated && event.code !== 1000) {
+                    // 예상치 못한 연결 끊김인 경우: 재연결 시도 (정상 종료가 아닌 경우만)
                     console.log('연결 끊김 - 3초 후 재연결 시도');
-                    setTimeout(() => this.connectWebSocket(), 3000);
+                    setTimeout(() => this.connectWebSocket().catch(console.error), 3000);
                 }
             };
 
             this.ws.onerror = (error) => {
+                clearTimeout(connectionTimeout);
                 console.error('WebSocket 오류:', error);
+                this.uiModule.updateConnectionStatus('연결 오류', false);
                 reject(error);
             };
         });
