@@ -105,7 +105,16 @@ class CommandManager:
         self.command_processor.register_command(WhisperCommand())
         self.command_processor.register_command(PlayersCommand())
 
-        logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용 명령어 포함)")
+        # NPC 상호작용 명령어들 등록
+        from ...commands.npc_commands import (
+            TalkCommand, ShopCommand, BuyCommand, SellCommand
+        )
+        self.command_processor.register_command(TalkCommand())
+        self.command_processor.register_command(ShopCommand())
+        self.command_processor.register_command(BuyCommand())
+        self.command_processor.register_command(SellCommand())
+
+        logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용, NPC 상호작용 명령어 포함)")
 
     async def handle_player_command(self, session: 'Session', command: str):
         """

@@ -61,6 +61,7 @@ class MudClient {
         this.gameModule = new GameModule(this);
         this.adminModule = new AdminModule(this);
         this.statsModule = new StatsModule(this);
+        this.npcModule = new NPCModule(this);
         this.uiModule = new UIModule(this);
         this.messageHandler = new MessageHandler(this);
     }

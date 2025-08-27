@@ -6,7 +6,7 @@ import logging
 from typing import Dict, List, Optional
 
 from ..database.repository import BaseRepository
-from .models import Player, Character, Room, GameObject
+from .models import Player, Character, Room, GameObject, NPC
 
 logger = logging.getLogger(__name__)
 
@@ -235,6 +235,80 @@ class GameObjectRepository(BaseRepository[GameObject]):
             raise
 
 
+class NPCRepository(BaseRepository[NPC]):
+    """NPC 리포지토리"""
+
+    def get_table_name(self) -> str:
+        return "npcs"
+
+    def get_model_class(self):
+        return NPC
+
+    async def get_npcs_in_room(self, room_id: str) -> List[NPC]:
+        """특정 방에 있는 NPC들 조회"""
+        try:
+            return await self.find_by(current_room_id=room_id, is_active=True)
+        except Exception as e:
+            logger.error(f"방 내 NPC 조회 실패 ({room_id}): {e}")
+            raise
+
+    async def get_npcs_by_type(self, npc_type: str) -> List[NPC]:
+        """타입별 NPC 조회"""
+        try:
+            return await self.find_by(npc_type=npc_type, is_active=True)
+        except Exception as e:
+            logger.error(f"타입별 NPC 조회 실패 ({npc_type}): {e}")
+            raise
+
+    async def get_merchants(self) -> List[NPC]:
+        """상인 NPC들 조회"""
+        try:
+            return await self.get_npcs_by_type('merchant')
+        except Exception as e:
+            logger.error(f"상인 NPC 조회 실패: {e}")
+            raise
+
+    async def move_npc_to_room(self, npc_id: str, room_id: str) -> Optional[NPC]:
+        """NPC를 특정 방으로 이동"""
+        try:
+            return await self.update(npc_id, {'current_room_id': room_id})
+        except Exception as e:
+            logger.error(f"NPC 이동 실패 ({npc_id} -> {room_id}): {e}")
+            raise
+
+    async def deactivate_npc(self, npc_id: str) -> Optional[NPC]:
+        """NPC 비활성화"""
+        try:
+            return await self.update(npc_id, {'is_active': False})
+        except Exception as e:
+            logger.error(f"NPC 비활성화 실패 ({npc_id}): {e}")
+            raise
+
+    async def activate_npc(self, npc_id: str) -> Optional[NPC]:
+        """NPC 활성화"""
+        try:
+            return await self.update(npc_id, {'is_active': True})
+        except Exception as e:
+            logger.error(f"NPC 활성화 실패 ({npc_id}): {e}")
+            raise
+
+    async def find_npcs_by_name(self, name_pattern: str, locale: str = 'en') -> List[NPC]:
+        """이름 패턴으로 NPC 검색 (부분 일치)"""
+        try:
+            all_npcs = await self.find_by(is_active=True)
+            matching_npcs = []
+
+            for npc in all_npcs:
+                npc_name = npc.get_localized_name(locale).lower()
+                if name_pattern.lower() in npc_name:
+                    matching_npcs.append(npc)
+
+            return matching_npcs
+        except Exception as e:
+            logger.error(f"NPC 이름 검색 실패 ({name_pattern}): {e}")
+            raise
+
+
 class ModelManager:
     """모델 매니저 - 모든 리포지토리를 통합 관리"""
 
@@ -244,6 +318,7 @@ class ModelManager:
         self.characters = CharacterRepository(db_manager)
         self.rooms = RoomRepository(db_manager)
         self.game_objects = GameObjectRepository(db_manager)
+        self.npcs = NPCRepository(db_manager)
 
         logger.info("ModelManager 초기화 완료")
 

@@ -1148,3 +1148,296 @@ I 스타일 */
 .empty-message {
     font-style: italic;
 }
+
+/* NPC 모달 스타일 */
+.npc-modal-content {
+    max-width: 600px;
+    width: 90vw;
+    max-height: 80vh;
+}
+
+.npc-modal-body {
+    padding: 0;
+}
+
+.npc-info {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: #f8fafc;
+}
+
+.npc-portrait {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.npc-avatar {
+    font-size: 3rem;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+}
+
+.npc-details h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-color);
+    font-size: 1.25rem;
+}
+
+.npc-details p {
+    margin: 0;
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.npc-actions {
+    padding: 1.5rem;
+}
+
+.action-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.action-tabs .tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: none;
+    color: var(--secondary-color);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.action-tabs .tab-btn:hover {
+    color: var(--primary-color);
+}
+
+.action-tabs .tab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* 대화 탭 스타일 */
+.dialogue-area {
+    min-height: 200px;
+}
+
+.dialogue-history {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 1rem;
+    background-color: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.dialogue-message {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.dialogue-message.npc {
+    background-color: #e0f2fe;
+    border-left: 3px solid #0284c7;
+}
+
+.dialogue-message.player {
+    background-color: #f0f9ff;
+    border-left: 3px solid var(--primary-color);
+}
+
+.dialogue-message strong {
+    color: var(--text-color);
+}
+
+.dialogue-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* 상점 탭 스타일 */
+.shop-area {
+    min-height: 300px;
+}
+
+.shop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.shop-header h4 {
+    margin: 0;
+    color: var(--text-color);
+}
+
+.player-gold {
+    font-weight: 500;
+    color: var(--success-color);
+}
+
+.shop-items {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+}
+
+.shop-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+    background-color: white;
+    transition: all 0.2s;
+}
+
+.shop-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.item-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.item-icon {
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8fafc;
+    border-radius: 4px;
+}
+
+.item-details h5 {
+    margin: 0 0 0.25rem 0;
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+.item-details p {
+    margin: 0 0 0.5rem 0;
+    color: var(--secondary-color);
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
+
+.item-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--secondary-color);
+}
+
+.item-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.item-price {
+    font-weight: 600;
+    color: var(--success-color);
+    font-size: 1rem;
+}
+
+.shop-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.no-items, .loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--secondary-color);
+    font-style: italic;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .npc-modal-content {
+        width: 95vw;
+        max-height: 90vh;
+    }
+
+    .npc-portrait {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+
+    .npc-avatar {
+        width: 60px;
+        height: 60px;
+        font-size: 2rem;
+    }
+
+    .shop-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .item-actions {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .action-tabs {
+        flex-wrap: wrap;
+    }
+
+    .dialogue-actions, .shop-actions {
+        flex-wrap: wrap;
+    }
+}.dynamic-b
+tn.npc {
+    background-color: #fef3e2;
+    border-color: #f59e0b;
+}
+
+.dynamic-btn.npc:hover {
+    background-color: #f59e0b;
+    color: white;
+}

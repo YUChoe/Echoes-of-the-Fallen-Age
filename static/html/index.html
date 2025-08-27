@@ -356,6 +356,74 @@
         </div>
     </div>
 
+    <!-- NPC 상호작용 모달 -->
+    <div id="npcModal" class="modal">
+        <div class="modal-content npc-modal-content">
+            <div class="modal-header">
+                <h2 id="npcModalTitle">🧙‍♂️ NPC 상호작용</h2>
+                <button id="closeNpcModal" class="close-btn">&times;</button>
+            </div>
+
+            <div class="modal-body npc-modal-body">
+                <div class="npc-info">
+                    <div class="npc-portrait">
+                        <div class="npc-avatar" id="npcAvatar">🧙‍♂️</div>
+                        <div class="npc-details">
+                            <h3 id="npcName">NPC 이름</h3>
+                            <p id="npcDescription">NPC 설명</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="npc-actions">
+                    <div class="action-tabs">
+                        <button class="tab-btn active" data-tab="talk">대화</button>
+                        <button class="tab-btn" data-tab="shop" id="shopTab" style="display: none;">상점</button>
+                    </div>
+
+                    <!-- 대화 탭 -->
+                    <div id="talkTab" class="tab-content active">
+                        <div class="dialogue-area">
+                            <div class="dialogue-history" id="dialogueHistory">
+                                <div class="dialogue-message npc">
+                                    <strong>NPC:</strong> 안녕하세요! 무엇을 도와드릴까요?
+                                </div>
+                            </div>
+                            <div class="dialogue-actions">
+                                <button class="btn primary" onclick="sendNpcCommand('talk')">대화하기</button>
+                                <button class="btn secondary" onclick="sendNpcCommand('examine')">자세히 보기</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 상점 탭 -->
+                    <div id="shopTabContent" class="tab-content">
+                        <div class="shop-area">
+                            <div class="shop-header">
+                                <h4>🛒 상점 목록</h4>
+                                <div class="player-gold">
+                                    <span>💰 보유 골드: </span>
+                                    <span id="playerGold">100</span>
+                                    <span> gold</span>
+                                </div>
+                            </div>
+
+                            <div class="shop-items" id="shopItems">
+                                <!-- 상점 아이템들이 여기에 표시됨 -->
+                                <div class="loading">상점 목록을 불러오는 중...</div>
+                            </div>
+
+                            <div class="shop-actions">
+                                <button class="btn primary" onclick="refreshShop()">목록 새로고침</button>
+                                <button class="btn secondary" onclick="sendNpcCommand('shop')">상점 보기</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 모듈 스크립트들 -->
     <script src="/static/js/utils/MessageHandler.js"></script>
     <script src="/static/js/modules/UIModule.js"></script>
@@ -363,6 +431,7 @@
     <script src="/static/js/modules/GameModule.js"></script>
     <script src="/static/js/modules/AdminModule.js"></script>
     <script src="/static/js/modules/StatsModule.js"></script>
+    <script src="/static/js/modules/NPCModule.js"></script></script>
     <script src="/static/js/core/MudClient.js"></script>
     <script src="/static/js/app.js"></script>
 </body>

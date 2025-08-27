@@ -83,12 +83,13 @@ class GameModule {
         // 기존 버튼들 제거
         container.innerHTML = '';
 
-        // 출구와 객체 정보가 있는지 확인
+        // 출구, 객체, NPC 정보가 있는지 확인
         const hasExits = data.exits && data.exits.length > 0;
         const hasObjects = data.objects && data.objects.length > 0;
-        const hasButtons = data.buttons && (data.buttons.exits?.length || data.buttons.objects?.length);
+        const hasNPCs = data.npcs && data.npcs.length > 0;
+        const hasButtons = data.buttons && (data.buttons.exits?.length || data.buttons.objects?.length || data.buttons.npcs?.length);
 
-        if (!hasExits && !hasObjects && !hasButtons) {
+        if (!hasExits && !hasObjects && !hasNPCs && !hasButtons) {
             container.style.display = 'none';
             return;
         }
@@ -146,6 +147,49 @@ class GameModule {
 
             container.appendChild(objectsGroup);
         }
+
+        // NPC 버튼들 추가
+        const npcs = data.buttons?.npcs || (data.npcs ? data.npcs.map(npc => ({
+            command: `talk ${npc.name}`,
+            text: npc.name,
+            icon: this.getNPCIcon(npc.npc_type),
+            npc_data: npc
+        })) : []);
+
+        if (npcs.length > 0) {
+            const npcsGroup = document.createElement('div');
+            npcsGroup.className = 'button-group';
+            npcsGroup.innerHTML = '<span class="group-label">👤 NPC:</span>';
+
+            npcs.forEach(npc => {
+                const btn = document.createElement('button');
+                btn.className = 'dynamic-btn npc';
+                btn.setAttribute('data-cmd', npc.command);
+                btn.textContent = `${npc.icon} ${npc.text}`;
+                btn.addEventListener('click', () => {
+                    // NPC 모달 열기
+                    if (this.client.npcModule && npc.npc_data) {
+                        this.client.npcModule.openNPCModal(npc.npc_data);
+                    } else {
+                        // 기본 대화 명령어 실행
+                        this.client.sendCommand(npc.command);
+                    }
+                });
+                npcsGroup.appendChild(btn);
+            });
+
+            container.appendChild(npcsGroup);
+        }
+    }
+
+    getNPCIcon(npcType) {
+        const iconMap = {
+            'merchant': '🧙‍♂️',
+            'guard': '🛡️',
+            'quest_giver': '📜',
+            'generic': '👤'
+        };
+        return iconMap[npcType] || '👤';
     }
 
     getDirectionText(direction) {
@@ -269,6 +313,62 @@ class GameModule {
 
     handleFollowingMovementComplete(data) {
         this.addGameMessage(data.message, 'follow');
+    }
+
+    // NPC 관련 메시지 처리
+    handleNPCInteraction(data) {
+        // NPC 상호작용 메시지 처리
+        this.addGameMessage(data.message, 'npc');
+
+        // NPC 모듈로 전달
+        if (this.client.npcModule) {
+            this.client.npcModule.handleNPCMessage(data);
+        }
+    }
+
+    handleShopList(data) {
+        // 상점 목록 메시지 처리
+        if (data.message) {
+            this.addGameMessage(data.message, 'shop');
+        }
+
+        // NPC 모듈로 전달
+        if (this.client.npcModule) {
+            this.client.npcModule.handleNPCMessage({
+                type: 'shop_list',
+                items: data.items,
+                player_gold: data.player_gold
+            });
+        }
+    }
+
+    handleTransactionResult(data) {
+        // 거래 결과 메시지 처리
+        this.addGameMessage(data.message, data.success ? 'success' : 'error');
+
+        // NPC 모듈로 전달
+        if (this.client.npcModule) {
+            this.client.npcModule.handleNPCMessage({
+                type: 'transaction_result',
+                success: data.success,
+                message: data.message,
+                player_gold: data.player_gold
+            });
+        }
+    }
+
+    handleNPCDialogue(data) {
+        // NPC 대화 메시지 처리
+        this.addGameMessage(data.message, 'npc');
+
+        // NPC 모듈로 전달
+        if (this.client.npcModule) {
+            this.client.npcModule.handleNPCMessage({
+                type: 'npc_dialogue',
+                npc_name: data.npc_name,
+                message: data.message
+            });
+        }
     }
 }
 

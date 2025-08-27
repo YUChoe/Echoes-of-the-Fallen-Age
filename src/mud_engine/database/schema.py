@@ -32,7 +32,10 @@ DATABASE_SCHEMA: List[str] = [
         stat_experience INTEGER DEFAULT 0,
         stat_experience_to_next INTEGER DEFAULT 100,
         stat_equipment_bonuses TEXT DEFAULT '{}',
-        stat_temporary_effects TEXT DEFAULT '{}'
+        stat_temporary_effects TEXT DEFAULT '{}',
+
+        -- 경제 시스템
+        gold INTEGER DEFAULT 100
     );
     """,
 
@@ -85,6 +88,25 @@ DATABASE_SCHEMA: List[str] = [
     """,
 
     """
+    -- NPC 테이블
+    CREATE TABLE IF NOT EXISTS npcs (
+        id TEXT PRIMARY KEY,
+        name_en TEXT NOT NULL,
+        name_ko TEXT NOT NULL,
+        description_en TEXT,
+        description_ko TEXT,
+        current_room_id TEXT NOT NULL,
+        npc_type TEXT DEFAULT 'generic', -- 'merchant', 'guard', 'quest_giver', 'generic'
+        dialogue TEXT DEFAULT '{}', -- JSON 형태로 저장 {'en': ['line1'], 'ko': ['대사1']}
+        shop_inventory TEXT DEFAULT '[]', -- JSON 형태로 저장 (아이템 ID 목록)
+        properties TEXT DEFAULT '{}', -- JSON 형태로 저장
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (current_room_id) REFERENCES rooms(id) ON DELETE CASCADE
+    );
+    """,
+
+    """
     -- 다국어 텍스트 테이블
     CREATE TABLE IF NOT EXISTS translations (
         key TEXT NOT NULL,
@@ -101,6 +123,8 @@ DATABASE_SCHEMA: List[str] = [
     CREATE INDEX IF NOT EXISTS idx_characters_current_room ON characters(current_room_id);
     CREATE INDEX IF NOT EXISTS idx_game_objects_location ON game_objects(location_type, location_id);
     CREATE INDEX IF NOT EXISTS idx_translations_key ON translations(key);
+    CREATE INDEX IF NOT EXISTS idx_npcs_room ON npcs(current_room_id);
+    CREATE INDEX IF NOT EXISTS idx_npcs_type ON npcs(npc_type);
     """
 ]
 
@@ -203,7 +227,8 @@ async def migrate_database(db_manager) -> None:
             ('stat_experience', 'INTEGER DEFAULT 0'),
             ('stat_experience_to_next', 'INTEGER DEFAULT 100'),
             ('stat_equipment_bonuses', "TEXT DEFAULT '{}'"),
-            ('stat_temporary_effects', "TEXT DEFAULT '{}'")
+            ('stat_temporary_effects', "TEXT DEFAULT '{}'"),
+            ('gold', 'INTEGER DEFAULT 100')  # 경제 시스템
         ]
 
         for column_name, column_def in stat_columns:
@@ -235,6 +260,38 @@ async def migrate_database(db_manager) -> None:
                 )
                 await db_manager.commit()
                 logger.info(f"{column_name} 컬럼 추가 완료")
+
+        # NPC 테이블 생성 확인 및 생성
+        cursor = await db_manager.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='npcs'")
+        npc_table_exists = await cursor.fetchone()
+
+        if not npc_table_exists:
+            logger.info("NPC 테이블 생성 중...")
+            npc_table_sql = """
+            CREATE TABLE IF NOT EXISTS npcs (
+                id TEXT PRIMARY KEY,
+                name_en TEXT NOT NULL,
+                name_ko TEXT NOT NULL,
+                description_en TEXT,
+                description_ko TEXT,
+                current_room_id TEXT NOT NULL,
+                npc_type TEXT DEFAULT 'generic',
+                dialogue TEXT DEFAULT '{}',
+                shop_inventory TEXT DEFAULT '[]',
+                properties TEXT DEFAULT '{}',
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (current_room_id) REFERENCES rooms(id) ON DELETE CASCADE
+            );
+            """
+            await db_manager.execute(npc_table_sql)
+
+            # NPC 인덱스 생성
+            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_npcs_room ON npcs(current_room_id)")
+            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_npcs_type ON npcs(npc_type)")
+
+            await db_manager.commit()
+            logger.info("NPC 테이블 생성 완료")
 
         logger.info("데이터베이스 마이그레이션 완료")
 

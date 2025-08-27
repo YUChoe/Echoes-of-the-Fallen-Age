@@ -113,6 +113,18 @@ class MessageHandler {
             case 'following_movement_complete':
                 this.client.gameModule.handleFollowingMovementComplete(data);
                 break;
+            case 'npc_interaction':
+                this.client.gameModule.handleNPCInteraction(data);
+                break;
+            case 'shop_list':
+                this.client.gameModule.handleShopList(data);
+                break;
+            case 'transaction_result':
+                this.client.gameModule.handleTransactionResult(data);
+                break;
+            case 'npc_dialogue':
+                this.client.gameModule.handleNPCDialogue(data);
+                break;
             default:
                 // 알 수 없는 메시지 타입
                 if (data.message) {

@@ -40,6 +40,10 @@ class GameEngine:
         self.db_manager = db_manager
         self.event_bus = event_bus or get_event_bus()
 
+        # ModelManager 초기화
+        from ..game.repositories import ModelManager
+        self.model_manager = ModelManager(db_manager)
+
         # WorldManager 초기화
         room_repo = RoomRepository(db_manager)
         object_repo = GameObjectRepository(db_manager)

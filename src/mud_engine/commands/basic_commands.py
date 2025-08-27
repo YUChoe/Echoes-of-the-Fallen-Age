@@ -205,6 +205,25 @@ class LookCommand(BaseCommand):
             # 응답 메시지 구성
             response = f"🏰 {room_name}\n{room_description}\n"
 
+            # 방에 있는 NPC들
+            npcs = []
+            try:
+                npcs = await game_engine.model_manager.npcs.get_npcs_in_room(current_room_id)
+            except Exception as e:
+                logger.debug(f"NPC 조회 중 오류 (무시됨): {e}")
+
+            if npcs:
+                response += "\n👤 이곳에 있는 NPC들:\n"
+                for npc in npcs:
+                    npc_name = npc.get_localized_name(session.locale)
+                    npc_type_name = {
+                        'merchant': '상인',
+                        'guard': '경비병',
+                        'quest_giver': '퀘스트 제공자',
+                        'generic': 'NPC'
+                    }.get(npc.npc_type, 'NPC')
+                    response += f"• {npc_name} ({npc_type_name})\n"
+
             # 방에 있는 객체들
             if objects:
                 response += "\n📦 이곳에 있는 물건들:\n"
@@ -257,6 +276,16 @@ class LookCommand(BaseCommand):
                     getattr(other_session, 'current_room_id', None) == current_room_id):
                     player_names.append(other_session.player.username)
 
+            # NPC 데이터 생성
+            npc_data = []
+            for npc in npcs:
+                npc_data.append({
+                    "id": npc.id,
+                    "name": npc.get_localized_name(session.locale),
+                    "description": npc.get_localized_description(session.locale),
+                    "npc_type": npc.npc_type
+                })
+
             return self.create_success_result(
                 message=response.strip(),
                 data={
@@ -265,7 +294,8 @@ class LookCommand(BaseCommand):
                     "room_name": room_name,
                     "players": player_names,
                     "exits": list(exits.keys()) if exits else [],
-                    "objects": [obj.get_localized_name(session.locale) for obj in objects]
+                    "objects": [obj.get_localized_name(session.locale) for obj in objects],
+                    "npcs": npc_data
                 }
             )
 
