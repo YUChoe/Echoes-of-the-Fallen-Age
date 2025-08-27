@@ -1,0 +1,501 @@
+/* Echoes of the Fallen Age - 미니멀 스타일 */
+
+/* 기본 변수 */
+:root {
+    --game-font: 'Courier New', 'Monaco', monospace;
+    --border-radius: 0.5rem;
+    --spacing-small: 0.5rem;
+    --spacing-medium: 1rem;
+    --spacing-large: 2rem;
+}
+
+/* 화면 전환 */
+.screen {
+    display: block;
+}
+
+#gameScreen {
+    display: none;
+}
+
+#gameScreen.active {
+    display: block;
+}
+
+#loginScreen.active {
+    display: block;
+}
+
+/* 로그인 폼 전환 */
+#loginForm, #registerForm {
+    transition: opacity 0.3s ease;
+}
+
+#registerForm {
+    display: none;
+}
+
+#registerForm.active {
+    display: block;
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.9em;
+}
+
+.auth-switch a {
+    text-decoration: none;
+    font-weight: 500;
+}
+
+/* 게임 출력 영역 */
+#gameOutput {
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-medium);
+    height: 400px;
+    overflow-y: auto;
+    font-family: var(--game-font);
+    font-size: 0.9em;
+    line-height: 1.4;
+    margin-bottom: var(--spacing-medium);
+}
+
+/* 메시지 스타일 */
+.message {
+    margin-bottom: 0.5rem;
+    padding: 0.25rem 0;
+}
+
+.message-system {
+    color: var(--pico-color-amber-500);
+    font-weight: 500;
+}
+
+.message-error {
+    color: var(--pico-color-red-500);
+    font-weight: 500;
+}
+
+.message-success {
+    color: var(--pico-color-green-500);
+    font-weight: 500;
+}
+
+.message-info {
+    color: var(--pico-color-blue-500);
+}
+
+.message-player {
+    color: var(--pico-color);
+    font-weight: 500;
+}
+
+.welcome-message {
+    text-align: center;
+    padding: var(--spacing-large);
+    border: 2px dashed var(--pico-muted-border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-medium);
+    background: var(--pico-card-background-color);
+}
+
+.welcome-message .message-content {
+    color: var(--pico-color);
+    line-height: 1.6;
+}
+
+/* 게임 컨트롤 */
+.game-controls {
+    display: flex;
+    gap: var(--spacing-small);
+    margin-top: var(--spacing-small);
+}
+
+.game-controls button {
+    padding: 0.5rem 1rem;
+    font-size: 0.8em;
+}
+
+/* 빠른 명령어 */
+.quick_commands {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-small);
+}
+
+.cmd_btn {
+    padding: 0.5rem;
+    font-size: 0.85em;
+    margin: 0;
+}
+
+/* 동적 버튼 영역 */
+.dynamic_buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: var(--spacing-small);
+    margin: var(--spacing-small) 0;
+    padding: var(--spacing-small);
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: var(--border-radius);
+}
+
+.dynamic_btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8em;
+    margin: 0;
+    background: var(--pico-color-blue-50);
+    border: 1px solid var(--pico-color-blue-300);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dynamic_btn:hover {
+    background: var(--pico-color-blue-500);
+    color: white;
+    border-color: var(--pico-color-blue-600);
+}
+
+.dynamic_btn.exit {
+    background: var(--pico-color-green-50);
+    border-color: var(--pico-color-green-300);
+}
+
+.dynamic_btn.exit:hover {
+    background: var(--pico-color-green-500);
+    border-color: var(--pico-color-green-600);
+}
+
+.dynamic_btn.object {
+    background: var(--pico-color-amber-50);
+    border-color: var(--pico-color-amber-300);
+}
+
+.dynamic_btn.object:hover {
+    background: var(--pico-color-amber-500);
+    border-color: var(--pico-color-amber-600);
+}
+
+
+
+/* 플레이어 상태 */
+#player-stats p {
+    margin-bottom: 0.5rem;
+    font-size: 0.9em;
+}
+
+#player-stats span {
+    color: var(--pico-primary);
+    font-weight: 500;
+}
+
+/* 온라인 플레이어 */
+#onlinePlayers {
+    font-size: 0.9em;
+}
+
+.player-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.player-item:last-child {
+    border-bottom: none;
+}
+
+.loading {
+    text-align: center;
+    color: var(--pico-muted-color);
+    font-style: italic;
+    padding: 1rem;
+}
+
+/* 명령어 입력 */
+.command-hint {
+    font-size: 0.8em;
+    color: var(--pico-muted-color);
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
+/* 연결 상태 */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.badge.connected {
+    background: var(--pico-color-green-100);
+    color: var(--pico-color-green-700);
+}
+
+.badge.disconnected {
+    background: var(--pico-color-red-100);
+    color: var(--pico-color-red-700);
+}
+
+/* 서버 상태 */
+.status-indicator {
+    font-size: 0.8em;
+}
+
+.status-indicator.online {
+    color: var(--pico-color-green-500);
+}
+
+.status-indicator.offline {
+    color: var(--pico-color-red-500);
+}
+
+/* 로딩 오버레이 */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-content {
+    background: var(--pico-card-background-color);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+    box-shadow: var(--pico-box-shadow);
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--pico-muted-border-color);
+    border-top: 4px solid var(--pico-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 토스트 알림 */
+.toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10000;
+}
+
+.toast {
+    background: var(--pico-card-background-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--pico-box-shadow);
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-left: 4px solid var(--pico-primary);
+    animation: toastSlide 0.3s ease-out;
+    max-width: 300px;
+}
+
+.toast.success {
+    border-left-color: var(--pico-color-green-500);
+}
+
+.toast.error {
+    border-left-color: var(--pico-color-red-500);
+}
+
+.toast.warning {
+    border-left-color: var(--pico-color-amber-500);
+}
+
+@keyframes toastSlide {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 테마 토글 */
+#theme-toggle {
+    cursor: pointer;
+    font-size: 1.2em;
+    text-decoration: none;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .quick_commands {
+        grid-template-columns: 1fr;
+    }
+
+    .dynamic_buttons {
+        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    }
+
+    #game_output {
+        height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .dynamic_btn {
+        padding: 0.3rem 0.4rem;
+        font-size: 0.75em;
+    }
+}
+
+/* 다크 테마 개선 */
+[data-theme="dark"] {
+    --game-output-bg: #1a1a1a;
+}
+
+[data-theme="dark"] #gameOutput {
+    background: var(--game-output-bg);
+    color: #e0e0e0;
+}
+
+[data-theme="dark"] .welcome-message {
+    background: var(--game-output-bg);
+    border-color: var(--pico-muted-border-color);
+}
+
+[data-theme="dark"] .message-system {
+    color: #ffd700;
+}
+
+[data-theme="dark"] .message-error {
+    color: #ff6b6b;
+}
+
+[data-theme="dark"] .message-success {
+    color: #51cf66;
+}
+
+[data-theme="dark"] .message-info {
+    color: #74c0fc;
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* 포커스 스타일 */
+button:focus,
+input:focus,
+select:focus {
+    outline: 2px solid var(--pico-primary);
+    outline-offset: 2px;
+}
+
+/* 스크롤바 스타일 (WebKit) */
+#gameOutput::-webkit-scrollbar {
+    width: 8px;
+}
+
+#gameOutput::-webkit-scrollbar-track {
+    background: var(--pico-muted-border-color);
+    border-radius: 4px;
+}
+
+#gameOutput::-webkit-scrollbar-thumb {
+    background: var(--pico-primary);
+    border-radius: 4px;
+}
+
+#gameOutput::-webkit-scrollbar-thumb:hover {
+    background: var(--pico-primary-hover);
+}/* 타임스탬프
+스타일 */
+.timestamp {
+    color: var(--pico-muted-color);
+    font-size: 0.8em;
+    margin-right: 0.5rem;
+}
+
+/* 메시지 개선 */
+.message {
+    word-wrap: break-word;
+    line-height: 1.5;
+}
+
+/* 입력 필드 활성화 상태 */
+input:disabled,
+button:disabled,
+select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+input:not(:disabled),
+button:not(:disabled),
+select:not(:disabled) {
+    opacity: 1;
+    cursor: pointer;
+}
+
+input[type="text"]:not(:disabled),
+input[type="password"]:not(:disabled),
+input[type="email"]:not(:disabled) {
+    cursor: text;
+}
+
+/* 연결 상태 개선 */
+.badge {
+    font-weight: 500;
+    border-radius: 12px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge.connected {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.badge.disconnected {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+[data-theme="dark"] .badge.connected {
+    background-color: #1e4620;
+    color: #75b798;
+    border: 1px solid #2d5a31;
+}
+
+[data-theme="dark"] .badge.disconnected {
+    background-color: #4a1e1e;
+    color: #f1aeb5;
+    border: 1px solid #5a2d2d;
+}

@@ -19,6 +19,26 @@ from src.mud_engine.i18n import (
     format_direction_name
 )
 
+# 테스트를 위한 모의 번역 데이터
+MOCK_TRANSLATIONS = {
+    "en": {
+        "welcome_message": "Welcome to the MUD Engine!",
+        "say_format": "{player} says: {message}",
+    },
+    "ko": {
+        "welcome_message": "MUD 엔진에 오신 것을 환영합니다!",
+        "say_format": "{player}님이 말합니다: {message}",
+    },
+}
+
+@pytest.fixture
+def i18n_manager_with_data() -> I18nManager:
+    """테스트용 번역 데이터가 채워진 I18nManager 픽스처"""
+    manager = I18nManager()
+    # 내부 _translations 속성에 모의 데이터를 직접 주입
+    manager._translations = MOCK_TRANSLATIONS
+    return manager
+
 
 class TestI18nManager:
     """I18nManager 테스트"""
@@ -32,10 +52,9 @@ class TestI18nManager:
         assert manager.DEFAULT_LOCALE == 'en'
         assert manager._fallback_locale == 'en'
 
-    def test_get_text_basic(self):
+    def test_get_text_basic(self, i18n_manager_with_data: I18nManager):
         """기본 텍스트 조회 테스트"""
-        manager = I18nManager()
-        manager._load_default_translations()
+        manager = i18n_manager_with_data
 
         # 영어 텍스트 조회
         text_en = manager.get_text('welcome_message', 'en')
@@ -45,10 +64,9 @@ class TestI18nManager:
         text_ko = manager.get_text('welcome_message', 'ko')
         assert text_ko == 'MUD 엔진에 오신 것을 환영합니다!'
 
-    def test_get_text_with_formatting(self):
+    def test_get_text_with_formatting(self, i18n_manager_with_data: I18nManager):
         """포맷팅이 있는 텍스트 조회 테스트"""
-        manager = I18nManager()
-        manager._load_default_translations()
+        manager = i18n_manager_with_data
 
         # 매개변수 포맷팅
         text = manager.get_text('say_format', 'en', player='Alice', message='Hello')
@@ -57,19 +75,17 @@ class TestI18nManager:
         text_ko = manager.get_text('say_format', 'ko', player='앨리스', message='안녕하세요')
         assert text_ko == '앨리스님이 말합니다: 안녕하세요'
 
-    def test_get_text_fallback(self):
+    def test_get_text_fallback(self, i18n_manager_with_data: I18nManager):
         """폴백 로케일 테스트"""
-        manager = I18nManager()
-        manager._load_default_translations()
+        manager = i18n_manager_with_data
 
         # 지원되지 않는 로케일 -> 폴백 로케일 사용
         text = manager.get_text('welcome_message', 'fr')
         assert text == 'Welcome to the MUD Engine!'  # 영어 폴백
 
-    def test_get_text_missing_key(self):
+    def test_get_text_missing_key(self, i18n_manager_with_data: I18nManager):
         """존재하지 않는 키 테스트"""
-        manager = I18nManager()
-        manager._load_default_translations()
+        manager = i18n_manager_with_data
 
         # 존재하지 않는 키
         text = manager.get_text('nonexistent_key', 'en')
@@ -98,16 +114,14 @@ class TestI18nManager:
         manager.set_fallback_locale('fr')
         assert manager._fallback_locale == 'ko'
 
-    def test_translation_stats(self):
+    def test_translation_stats(self, i18n_manager_with_data: I18nManager):
         """번역 통계 테스트"""
-        manager = I18nManager()
-        manager._load_default_translations()
-
+        manager = i18n_manager_with_data
         stats = manager.get_translation_stats()
 
         assert stats['supported_locales'] == ['en', 'ko']
         assert stats['fallback_locale'] == 'en'
-        assert stats['total_keys'] > 0
+        assert stats['total_keys'] == 2
         assert 'en' in stats['locale_stats']
         assert 'ko' in stats['locale_stats']
 

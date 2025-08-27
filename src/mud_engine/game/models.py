@@ -10,6 +10,8 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from ..database.repository import BaseModel
+from ..config import Config
+from .stats import PlayerStats
 
 
 @dataclass
@@ -21,8 +23,12 @@ class Player(BaseModel):
     password_hash: str = ""
     email: Optional[str] = None
     preferred_locale: str = "en"
+    is_admin: bool = False
     created_at: datetime = field(default_factory=datetime.now)
     last_login: Optional[datetime] = None
+
+    # 능력치 시스템
+    stats: PlayerStats = field(default_factory=PlayerStats)
 
     def __post_init__(self):
         """초기화 후 검증"""
@@ -48,8 +54,15 @@ class Player(BaseModel):
     @staticmethod
     def is_valid_username(username: str) -> bool:
         """사용자명 유효성 검사"""
-        if not username or len(username) < 3 or len(username) > 20:
+        if not username:
             return False
+
+        min_length = Config.USERNAME_MIN_LENGTH
+        max_length = Config.USERNAME_MAX_LENGTH
+
+        if len(username) < min_length or len(username) > max_length:
+            return False
+
         return re.match(r'^[a-zA-Z0-9_]+$', username) is not None
 
     @staticmethod
@@ -64,11 +77,96 @@ class Player(BaseModel):
         # 보안상 비밀번호 해시는 일반 직렬화에서 제외
         if 'password_hash' in data:
             del data['password_hash']
+
+        # 능력치 정보 포함
+        if hasattr(self, 'stats') and self.stats:
+            data['stats'] = self.stats.get_all_stats()
+
         return data
 
     def to_dict_with_password(self) -> Dict[str, Any]:
         """비밀번호 해시 포함 딕셔너리 변환 (데이터베이스 저장용)"""
-        return super().to_dict()
+        data = super().to_dict()
+
+        # 능력치를 개별 컬럼으로 분리하여 저장
+        if hasattr(self, 'stats') and self.stats:
+            stats_dict = self.stats.to_dict()
+            for key, value in stats_dict.items():
+                data[f'stat_{key}'] = value
+            # 원본 stats 필드 제거
+            if 'stats' in data:
+                del data['stats']
+
+        return data
+
+    def get_max_carry_weight(self) -> float:
+        """최대 소지 가능 무게 계산 (STR 기반)"""
+        if hasattr(self, 'stats') and self.stats:
+            from .stats import StatType
+            base_strength = self.stats.get_primary_stat(StatType.STR)
+            # 기본 공식: STR * 2 + 10 (kg)
+            return base_strength * 2.0 + 10.0
+        return 30.0  # 기본값
+
+    def get_current_carry_weight(self, inventory_objects: List['GameObject']) -> float:
+        """현재 소지 중인 무게 계산"""
+        return sum(obj.weight for obj in inventory_objects)
+
+    def can_carry_more(self, inventory_objects: List['GameObject'], additional_weight: float = 0.0) -> bool:
+        """추가 무게를 들 수 있는지 확인"""
+        current_weight = self.get_current_carry_weight(inventory_objects)
+        max_weight = self.get_max_carry_weight()
+        return (current_weight + additional_weight) <= max_weight
+
+    def get_carry_capacity_info(self, inventory_objects: List['GameObject']) -> Dict[str, Any]:
+        """소지 용량 정보 반환"""
+        current_weight = self.get_current_carry_weight(inventory_objects)
+        max_weight = self.get_max_carry_weight()
+        percentage = (current_weight / max_weight) * 100 if max_weight > 0 else 0
+
+        return {
+            'current_weight': current_weight,
+            'max_weight': max_weight,
+            'percentage': percentage,
+            'available_weight': max_weight - current_weight,
+            'is_overloaded': current_weight > max_weight
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Player':
+        """딕셔너리에서 모델 생성"""
+        # 능력치 관련 필드를 PlayerStats 객체로 변환
+        stats_data = {}
+        keys_to_remove = []
+
+        for key, value in data.items():
+            if key.startswith('stat_'):
+                stat_key = key[5:]  # 'stat_' 제거
+                stats_data[stat_key] = value
+                keys_to_remove.append(key)
+
+        # 능력치 필드들을 원본 데이터에서 제거
+        for key in keys_to_remove:
+            del data[key]
+
+        # PlayerStats 객체 생성
+        if stats_data:
+            data['stats'] = PlayerStats.from_dict(stats_data)
+        else:
+            data['stats'] = PlayerStats()  # 기본값
+
+        # 날짜 필드 처리
+        for date_field in ['created_at', 'last_login']:
+            if date_field in data and isinstance(data[date_field], str):
+                try:
+                    data[date_field] = datetime.fromisoformat(data[date_field].replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    if date_field == 'created_at':
+                        data[date_field] = datetime.now()
+                    else:
+                        data[date_field] = None
+
+        return cls(**data)
 
 
 @dataclass
@@ -233,52 +331,76 @@ class Room(BaseModel):
         return list(self.exits.keys())
 
     def to_dict(self) -> Dict[str, Any]:
-        """딕셔너리로 변환"""
+        """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""
         data = super().to_dict()
-        # 딕셔너리는 JSON 문자열로 변환
-        for key in ['name', 'description', 'exits']:
-            if isinstance(data.get(key), dict):
-                data[key] = json.dumps(data[key], ensure_ascii=False)
+
+        # name과 description을 개별 컬럼으로 분리하고 원본 제거
+        if 'name' in data:
+            name_dict = data.pop('name')
+            # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
+            if isinstance(name_dict, str):
+                try:
+                    name_dict = json.loads(name_dict)
+                except (json.JSONDecodeError, TypeError):
+                    name_dict = {}
+            data['name_en'] = name_dict.get('en', '') if isinstance(name_dict, dict) else ''
+            data['name_ko'] = name_dict.get('ko', '') if isinstance(name_dict, dict) else ''
+
+        if 'description' in data:
+            desc_dict = data.pop('description')
+            # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
+            if isinstance(desc_dict, str):
+                try:
+                    desc_dict = json.loads(desc_dict)
+                except (json.JSONDecodeError, TypeError):
+                    desc_dict = {}
+            data['description_en'] = desc_dict.get('en', '') if isinstance(desc_dict, dict) else ''
+            data['description_ko'] = desc_dict.get('ko', '') if isinstance(desc_dict, dict) else ''
+
+        # exits는 JSON 문자열로 유지 (BaseModel에서 이미 변환됨)
+        # 추가 처리 불필요
+
         return data
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Room':
         """딕셔너리에서 모델 생성"""
-        # 데이터베이스 컬럼명을 모델 필드명으로 변환
-        converted_data = {}
+        # 데이터베이스 컬럼명이나 JSON 문자열을 모델 필드로 변환
+        converted_data = data.copy()
 
-        for key, value in data.items():
-            if key == 'name_en' or key == 'name_ko':
-                # name_en, name_ko를 name 딕셔너리로 변환
-                if 'name' not in converted_data:
-                    converted_data['name'] = {}
-                locale = 'en' if key == 'name_en' else 'ko'
-                converted_data['name'][locale] = value
-            elif key == 'description_en' or key == 'description_ko':
-                # description_en, description_ko를 description 딕셔너리로 변환
-                if 'description' not in converted_data:
-                    converted_data['description'] = {}
-                locale = 'en' if key == 'description_en' else 'ko'
-                converted_data['description'][locale] = value
-            elif key == 'exits':
-                # exits JSON 문자열을 딕셔너리로 변환
-                if isinstance(value, str):
-                    try:
-                        converted_data[key] = json.loads(value)
-                    except (json.JSONDecodeError, TypeError):
-                        converted_data[key] = {}
-                else:
-                    converted_data[key] = value or {}
-            else:
-                converted_data[key] = value
+        # name, description, exits가 JSON 문자열인 경우 딕셔너리로 변환
+        for key in ['name', 'description', 'exits']:
+            value = converted_data.get(key)
+            if isinstance(value, str):
+                try:
+                    converted_data[key] = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    converted_data[key] = {}
 
-        # 필수 필드 기본값 설정
+        # DB 컬럼명 (name_en, name_ko 등)을 딕셔너리 필드로 통합
         if 'name' not in converted_data:
             converted_data['name'] = {}
         if 'description' not in converted_data:
             converted_data['description'] = {}
-        if 'exits' not in converted_data:
-            converted_data['exits'] = {}
+
+        if 'name_en' in converted_data:
+            converted_data['name']['en'] = converted_data.pop('name_en')
+        if 'name_ko' in converted_data:
+            converted_data['name']['ko'] = converted_data.pop('name_ko')
+        if 'description_en' in converted_data:
+            converted_data['description']['en'] = converted_data.pop('description_en')
+        if 'description_ko' in converted_data:
+            converted_data['description']['ko'] = converted_data.pop('description_ko')
+
+        # 날짜 필드 처리 (문자열을 datetime 객체로 변환)
+        for date_field in ['created_at', 'updated_at']:
+            if date_field in converted_data and isinstance(converted_data[date_field], str):
+                try:
+                    from datetime import datetime
+                    converted_data[date_field] = datetime.fromisoformat(converted_data[date_field].replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    # 파싱 실패 시 현재 시간으로 설정
+                    converted_data[date_field] = datetime.now()
 
         return cls(**converted_data)
 
@@ -294,6 +416,10 @@ class GameObject(BaseModel):
     location_type: str = ""  # 'room', 'inventory'
     location_id: Optional[str] = None  # room_id 또는 character_id
     properties: Dict[str, Any] = field(default_factory=dict)
+    weight: float = 1.0  # 무게 (kg 단위)
+    category: str = "misc"  # 카테고리: weapon, armor, consumable, misc
+    equipment_slot: Optional[str] = None  # 장비 슬롯: weapon, armor, accessory
+    is_equipped: bool = False  # 착용 여부
     created_at: datetime = field(default_factory=datetime.now)
 
     def __post_init__(self):
@@ -327,6 +453,21 @@ class GameObject(BaseModel):
 
         if not isinstance(self.properties, dict):
             raise ValueError("속성은 딕셔너리 형태여야 합니다")
+
+        # 무게 검증
+        if not isinstance(self.weight, (int, float)) or self.weight < 0:
+            raise ValueError("무게는 0 이상의 숫자여야 합니다")
+
+        # 카테고리 검증
+        valid_categories = {'weapon', 'armor', 'consumable', 'misc'}
+        if self.category not in valid_categories:
+            raise ValueError(f"올바르지 않은 카테고리입니다: {self.category}")
+
+        # 장비 슬롯 검증
+        if self.equipment_slot is not None:
+            valid_slots = {'weapon', 'armor', 'accessory'}
+            if self.equipment_slot not in valid_slots:
+                raise ValueError(f"올바르지 않은 장비 슬롯입니다: {self.equipment_slot}")
 
     def get_localized_name(self, locale: str = 'en') -> str:
         """로케일에 따른 객체 이름 반환"""
@@ -362,13 +503,67 @@ class GameObject(BaseModel):
         """특정 캐릭터의 인벤토리에 있는지 확인"""
         return self.location_type == 'inventory' and self.location_id == character_id
 
+    def can_be_equipped(self) -> bool:
+        """장비할 수 있는 아이템인지 확인"""
+        return self.equipment_slot is not None
+
+    def equip(self) -> None:
+        """아이템 착용"""
+        if not self.can_be_equipped():
+            raise ValueError("이 아이템은 착용할 수 없습니다")
+        self.is_equipped = True
+
+    def unequip(self) -> None:
+        """아이템 착용 해제"""
+        self.is_equipped = False
+
+    def get_weight_display(self) -> str:
+        """무게를 표시용 문자열로 반환"""
+        if self.weight < 1.0:
+            return f"{int(self.weight * 1000)}g"
+        else:
+            return f"{self.weight:.1f}kg"
+
+    def get_category_display(self, locale: str = 'en') -> str:
+        """카테고리를 표시용 문자열로 반환"""
+        category_names = {
+            'weapon': {'en': 'Weapon', 'ko': '무기'},
+            'armor': {'en': 'Armor', 'ko': '방어구'},
+            'consumable': {'en': 'Consumable', 'ko': '소모품'},
+            'misc': {'en': 'Miscellaneous', 'ko': '기타'}
+        }
+        return category_names.get(self.category, {}).get(locale, self.category)
+
     def to_dict(self) -> Dict[str, Any]:
-        """딕셔너리로 변환"""
+        """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""
         data = super().to_dict()
-        # 딕셔너리는 JSON 문자열로 변환
-        for key in ['name', 'description', 'properties']:
-            if isinstance(data.get(key), dict):
-                data[key] = json.dumps(data[key], ensure_ascii=False)
+
+        # name과 description을 개별 컬럼으로 분리하고 원본 제거
+        if 'name' in data:
+            name_dict = data.pop('name')
+            # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
+            if isinstance(name_dict, str):
+                try:
+                    name_dict = json.loads(name_dict)
+                except (json.JSONDecodeError, TypeError):
+                    name_dict = {}
+            data['name_en'] = name_dict.get('en', '') if isinstance(name_dict, dict) else ''
+            data['name_ko'] = name_dict.get('ko', '') if isinstance(name_dict, dict) else ''
+
+        if 'description' in data:
+            desc_dict = data.pop('description')
+            # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
+            if isinstance(desc_dict, str):
+                try:
+                    desc_dict = json.loads(desc_dict)
+                except (json.JSONDecodeError, TypeError):
+                    desc_dict = {}
+            data['description_en'] = desc_dict.get('en', '') if isinstance(desc_dict, dict) else ''
+            data['description_ko'] = desc_dict.get('ko', '') if isinstance(desc_dict, dict) else ''
+
+        # properties는 JSON 문자열로 유지 (BaseModel에서 이미 변환됨)
+        # 추가 처리 불필요
+
         return data
 
     @classmethod
@@ -409,6 +604,16 @@ class GameObject(BaseModel):
             converted_data['description'] = {}
         if 'properties' not in converted_data:
             converted_data['properties'] = {}
+
+        # 날짜 필드 처리 (문자열을 datetime 객체로 변환)
+        for date_field in ['created_at']:
+            if date_field in converted_data and isinstance(converted_data[date_field], str):
+                try:
+                    from datetime import datetime
+                    converted_data[date_field] = datetime.fromisoformat(converted_data[date_field].replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    # 파싱 실패 시 현재 시간으로 설정
+                    converted_data[date_field] = datetime.now()
 
         return cls(**converted_data)
 

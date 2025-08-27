@@ -5,214 +5,216 @@ MUD Engine 메인 실행 파일
 import asyncio
 import logging
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 
+from .database import get_database_manager, close_database_manager
+from .game.managers import PlayerManager
+from .game.repositories import PlayerRepository
+from .server import MudServer
+
 
 def setup_logging():
-    """로깅 설정"""
+    """로깅 설정 - 새로운 포맷 및 파일 관리 규칙 적용"""
+    import logging.handlers
+    from datetime import datetime
+
     log_level = os.getenv("LOG_LEVEL", "INFO")
-    logging.basicConfig(
-        level=getattr(logging, log_level),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler("mud_engine.log", encoding="utf-8")
-        ]
+
+    # 로그 디렉토리 생성
+    os.makedirs('logs', exist_ok=True)
+
+    # 커스텀 포맷터 클래스
+    class MudEngineFormatter(logging.Formatter):
+        def format(self, record):
+            # 시분초.밀리초 형식
+            timestamp = self.formatTime(record, '%H:%M:%S')
+            ms = int(record.created * 1000) % 1000
+            time_with_ms = f"{timestamp}.{ms:03d}"
+
+            # 파일명과 라인 번호
+            filename = record.filename
+            lineno = record.lineno
+            location = f"[{filename}:{lineno}]"
+
+            # 최종 포맷: {시분초.ms} {LEVEL} [{filename.py:line}] {logstring}
+            return f"{time_with_ms} {record.levelname} {location} {record.getMessage()}"
+
+    # 커스텀 로테이팅 핸들러
+    class CustomRotatingHandler(logging.handlers.BaseRotatingHandler):
+        """날짜와 크기 기반 로그 로테이션 핸들러"""
+
+        def __init__(self, filename, maxBytes=200*1024*1024, backupCount=30, encoding='utf-8'):
+            self.maxBytes = maxBytes
+            self.backupCount = backupCount
+            self.current_date = datetime.now().strftime('%Y%m%d')
+            self.file_number = 1
+
+            # 파일명 생성
+            self.base_filename = filename
+            self.current_filename = self._get_current_filename()
+
+            super().__init__(self.current_filename, 'a', encoding=encoding)
+
+        def _get_current_filename(self):
+            """현재 로그 파일명 생성"""
+            today = datetime.now().strftime('%Y%m%d')
+            if today != self.current_date:
+                self.current_date = today
+                self.file_number = 1
+
+            return f"logs/mud_engine-{self.current_date}-{self.file_number:02d}.log"
+
+        def shouldRollover(self, record):
+            """로테이션 필요 여부 확인"""
+            # 날짜 변경 확인
+            today = datetime.now().strftime('%Y%m%d')
+            if today != self.current_date:
+                return True
+
+            # 파일 크기 확인
+            if self.stream is None:
+                self.stream = self._open()
+
+            if self.maxBytes > 0:
+                msg = "%s\n" % self.format(record)
+                self.stream.seek(0, 2)  # EOF로 이동
+                if self.stream.tell() + len(msg) >= self.maxBytes:
+                    return True
+
+            return False
+
+        def doRollover(self):
+            """로그 파일 로테이션 수행"""
+            if self.stream:
+                self.stream.close()
+                self.stream = None
+
+            # 현재 파일 압축
+            import gzip
+            import shutil
+
+            current_file = self.current_filename
+            if os.path.exists(current_file):
+                compressed_file = f"{current_file}.gz"
+                with open(current_file, 'rb') as f_in:
+                    with gzip.open(compressed_file, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                os.remove(current_file)
+
+            # 새 파일명 생성
+            today = datetime.now().strftime('%Y%m%d')
+            if today != self.current_date:
+                self.current_date = today
+                self.file_number = 1
+            else:
+                self.file_number += 1
+
+            self.current_filename = self._get_current_filename()
+            self.baseFilename = self.current_filename
+
+            # 새 스트림 열기
+            if not self.delay:
+                self.stream = self._open()
+
+            # 오래된 로그 파일 정리
+            self._cleanup_old_logs()
+
+        def _cleanup_old_logs(self):
+            """오래된 로그 파일 정리"""
+            log_dir = os.path.dirname(self.current_filename)
+            if not os.path.exists(log_dir):
+                return
+
+            # 로그 파일 목록 가져오기
+            log_files = []
+            for filename in os.listdir(log_dir):
+                if filename.startswith('mud_engine-') and filename.endswith('.log.gz'):
+                    filepath = os.path.join(log_dir, filename)
+                    log_files.append((os.path.getctime(filepath), filepath))
+
+            # 생성 시간 기준 정렬
+            log_files.sort()
+
+            # 백업 개수 초과 시 오래된 파일 삭제
+            while len(log_files) > self.backupCount:
+                _, old_file = log_files.pop(0)
+                try:
+                    os.remove(old_file)
+                except OSError:
+                    pass
+
+    # 포맷터 생성
+    formatter = MudEngineFormatter()
+
+    # 콘솔 핸들러
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
+    # 파일 핸들러 (커스텀 로테이팅)
+    file_handler = CustomRotatingHandler(
+        filename='logs/mud_engine.log',
+        maxBytes=200 * 1024 * 1024,  # 200MB
+        backupCount=30
     )
+    file_handler.setFormatter(formatter)
+
+    # 루트 로거 설정
+    root_logger = logging.getLogger()
+    root_logger.setLevel(getattr(logging, log_level))
+    root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
 
 
 async def main():
     """메인 함수"""
-    # 환경 변수 로드
     load_dotenv()
-
-    # 로깅 설정
     setup_logging()
     logger = logging.getLogger(__name__)
 
     logger.info("MUD Engine 시작 중...")
-
     print("🎮 Python MUD Engine v0.1.0")
-    print("🌐 서버 준비 중...")
 
-    db_manager = None
-
+    server = None
     try:
         # 데이터베이스 초기화
-        from .database import get_database_manager, close_database_manager
-
-        print("📊 데이터베이스 초기화 중...")
-        logger.info("데이터베이스 매니저 생성 시작")
-
+        logger.info("데이터베이스 매니저 생성 중...")
         db_manager = await get_database_manager()
-        logger.info("데이터베이스 매니저 생성 완료")
+        logger.info("데이터베이스 매니저 생성 완료.")
 
-        # 헬스체크
-        print("🔍 데이터베이스 연결 확인 중...")
-        logger.info("헬스체크 시작")
+        # 관리자 클래스 초기화
+        logger.info("게임 관리자 클래스 초기화 중...")
+        player_repo = PlayerRepository(db_manager)
+        player_manager = PlayerManager(player_repo)
+        logger.info("게임 관리자 클래스 초기화 완료.")
 
-        if await db_manager.health_check():
-            print("✅ 데이터베이스 연결 성공")
-            logger.info("헬스체크 성공")
-        else:
-            print("❌ 데이터베이스 연결 실패")
-            logger.error("헬스체크 실패")
-            return
+        # 서버 초기화 및 시작
+        host = os.getenv("SERVER_HOST", "127.0.0.1")
+        port = int(os.getenv("SERVER_PORT", "8080"))
+        server = MudServer(host, port, player_manager, db_manager)
+        await server.start()
 
-        # 테이블 정보 출력
-        print("📋 테이블 정보 확인 중...")
-        tables = ['players', 'characters', 'rooms', 'game_objects', 'translations']
-        for table in tables:
-            try:
-                logger.info(f"테이블 {table} 레코드 수 조회 시작")
-                count_result = await db_manager.fetch_one(f"SELECT COUNT(*) as count FROM {table}")
-                count = count_result['count'] if count_result else 0
-                print(f"📋 {table}: {count}개 레코드")
-                logger.info(f"테이블 {table}: {count}개 레코드")
-            except Exception as e:
-                print(f"⚠️  {table} 테이블 확인 실패: {e}")
-                logger.warning(f"테이블 {table} 확인 실패: {e}")
+        print(f"🌐 서버가 http://{host}:{port} 에서 실행 중입니다.")
+        print("Ctrl+C를 눌러 서버를 종료할 수 있습니다.")
 
-        print("✅ 데이터베이스 초기화 완료!")
-
-        # 모델 매니저 테스트
-        print("🎯 모델 매니저 테스트 중...")
-        logger.info("모델 매니저 테스트 시작")
-
-        from .game import ModelManager, Player, Character, Room, GameObject
-
-        model_manager = ModelManager(db_manager)
-
-        # 샘플 플레이어 생성 테스트
-        try:
-            # 기존 플레이어 확인
-            existing_player = await model_manager.players.get_by_username("demo_user")
-
-            if existing_player:
-                print(f"✅ 기존 플레이어 사용: {existing_player.username}")
-                created_player = existing_player
-            else:
-                sample_player = Player(
-                    username="demo_user",
-                    password_hash="demo_hash_123",
-                    email="demo@mudengine.local",
-                    preferred_locale="ko"
-                )
-                created_player = await model_manager.players.create(sample_player.to_dict_with_password())
-                print(f"✅ 새 플레이어 생성: {created_player.username}")
-
-            # 기존 캐릭터 확인
-            existing_characters = await model_manager.characters.get_by_player_id(created_player.id)
-
-            if existing_characters:
-                print(f"✅ 기존 캐릭터 사용: {existing_characters[0].name}")
-                created_character = existing_characters[0]
-            else:
-                sample_character = Character(
-                    player_id=created_player.id,
-                    name="데모캐릭터",
-                    current_room_id="room_001"
-                )
-                created_character = await model_manager.characters.create(sample_character.to_dict())
-                print(f"✅ 새 캐릭터 생성: {created_character.name}")
-
-            # 참조 무결성 검증
-            room_ref_valid = await model_manager.validate_character_room_reference(created_character.id)
-            print(f"✅ 캐릭터 방 참조 검증: {'유효' if room_ref_valid else '무효'}")
-
-        except Exception as e:
-            print(f"⚠️  모델 테스트 중 오류: {e}")
-            logger.warning(f"모델 테스트 오류: {e}")
-
-        # 다국어 시스템 테스트
-        print("🌍 다국어 시스템 테스트 중...")
-        logger.info("다국어 시스템 테스트 시작")
-
-        try:
-            from .i18n import get_i18n_manager, get_locale_service, create_default_translation_files
-
-            # 기본 번역 파일 생성
-            print("📝 기본 번역 파일 생성 중...")
-            file_created = create_default_translation_files()
-            if file_created:
-                print("✅ 기본 번역 파일 생성 완료")
-            else:
-                print("⚠️  기본 번역 파일 생성 실패 (이미 존재할 수 있음)")
-
-            # I18nManager 초기화
-            i18n_manager = await get_i18n_manager()
-            print("✅ I18nManager 초기화 완료")
-
-            # 번역 테스트
-            welcome_en = i18n_manager.get_text('welcome_message', 'en')
-            welcome_ko = i18n_manager.get_text('welcome_message', 'ko')
-
-            print(f"🇺🇸 영어: {welcome_en}")
-            print(f"🇰🇷 한국어: {welcome_ko}")
-
-            # 포맷팅 테스트
-            formatted_text = i18n_manager.get_text('player_joined', 'ko', player='데모사용자')
-            print(f"📝 포맷팅 테스트: {formatted_text}")
-
-            # LocaleService 테스트
-            locale_service = get_locale_service()
-            locale_service.set_user_locale('demo_user', 'ko')
-
-            user_text = await locale_service.get_text_for_user('demo_user', 'server_ready')
-            print(f"👤 사용자별 텍스트: {user_text}")
-
-            # 번역 통계
-            stats = i18n_manager.get_translation_stats()
-            print(f"📊 번역 통계: {stats['total_keys']}개 키, {len(stats['locale_stats'])}개 로케일")
-
-        except Exception as e:
-            print(f"⚠️  다국어 시스템 테스트 중 오류: {e}")
-            logger.warning(f"다국어 시스템 테스트 오류: {e}")
-
-        print("🚀 MUD Engine 준비 완료!")
-        logger.info("MUD Engine 초기화 완료")
-
-        # 데모 실행 (3초로 단축)
-        print("⏱️  3초 후 종료됩니다...")
-        logger.info("데모 실행 중 (3초)")
-
-        for i in range(3, 0, -1):
-            print(f"⏰ {i}초...")
-            await asyncio.sleep(1)
-
-        print("🏁 데모 완료!")
-        logger.info("데모 완료")
+        # 서버가 계속 실행되도록 유지
+        await asyncio.Event().wait()
 
     except Exception as e:
-        logger.error(f"초기화 실패: {e}")
-        print(f"❌ 초기화 실패: {e}")
-        raise
-
+        logger.error(f"초기화 또는 실행 중 오류 발생: {e}", exc_info=True)
+        print(f"❌ 치명적인 오류 발생: {e}")
     finally:
-        # 리소스 정리
-        print("🧹 리소스 정리 중...")
-        logger.info("리소스 정리 시작")
+        logger.info("MUD Engine 종료 절차 시작...")
+        if server:
+            await server.stop()
 
-        try:
-            from .database import close_database_manager
-            await close_database_manager()
-            logger.info("데이터베이스 연결 종료 완료")
-            print("✅ 데이터베이스 연결 종료")
-        except Exception as e:
-            logger.error(f"데이터베이스 종료 실패: {e}")
-            print(f"⚠️  데이터베이스 종료 실패: {e}")
-
-        print("👋 MUD Engine 종료")
-        logger.info("MUD Engine 정상 종료")
+        await close_database_manager()
+        logger.info("MUD Engine이 성공적으로 종료되었습니다.")
+        print("👋 MUD Engine 종료.")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n👋 MUD Engine 종료")
-    except Exception as e:
-        print(f"❌ 오류 발생: {e}")
-        logging.exception("예상치 못한 오류")
+        pass # main 함수의 finally 블록에서 종료 처리를 하므로 여기서는 pass
