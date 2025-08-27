@@ -233,6 +233,43 @@ class GameModule {
     handleFollowStopped(data) {
         this.addGameMessage(data.message, 'warning');
     }
+
+    handleRoomInfo(data) {
+        // 방 정보를 받았을 때 자동으로 look 명령어 결과처럼 처리
+        if (data.room) {
+            const room = data.room;
+            let message = `🏰 ${room.name}\n${room.description}\n`;
+
+            // 객체 정보 추가
+            if (room.objects && room.objects.length > 0) {
+                message += "\n📦 이곳에 있는 물건들:\n";
+                room.objects.forEach(obj => {
+                    message += `• ${obj.name}\n`;
+                });
+            }
+
+            // 출구 정보 추가
+            if (room.exits && Object.keys(room.exits).length > 0) {
+                message += "\n🚪 출구:\n";
+                Object.keys(room.exits).forEach(direction => {
+                    message += `• ${this.getDirectionText(direction)}\n`;
+                });
+            }
+
+            // 메시지 표시
+            this.addGameMessage(message.trim(), 'info');
+
+            // 동적 버튼 업데이트
+            this.updateDynamicButtons({
+                exits: Object.keys(room.exits || {}),
+                objects: room.objects ? room.objects.map(obj => obj.name) : []
+            });
+        }
+    }
+
+    handleFollowingMovementComplete(data) {
+        this.addGameMessage(data.message, 'follow');
+    }
 }
 
 // 전역 변수로 export

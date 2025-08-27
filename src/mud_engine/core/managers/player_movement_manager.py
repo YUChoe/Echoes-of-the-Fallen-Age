@@ -106,7 +106,26 @@ class PlayerMovementManager:
                 await self.update_room_player_list(old_room_id)
             await self.update_room_player_list(room_id)
 
-            # 방 정보를 플레이어에게 전송
+            # 방 정보를 플레이어에게 전송 (follower든 아니든 항상 전송)
+            await self.send_room_info_to_player(session, room_id)
+
+            logger.info(f"플레이어 {session.player.username}이 방 {room_id}로 이동")
+            return True
+
+        except Exception as e:
+            logger.error(f"플레이어 방 이동 실패 ({session.player.username} -> {room_id}): {e}")
+            await session.send_error("방 이동 중 오류가 발생했습니다.")
+            return False
+
+    async def send_room_info_to_player(self, session: 'Session', room_id: str) -> None:
+        """
+        플레이어에게 방 정보를 전송합니다.
+
+        Args:
+            session: 플레이어 세션
+            room_id: 방 ID
+        """
+        try:
             room_info = await self.game_engine.get_room_info(room_id, session.locale)
             if room_info:
                 room_data = {
@@ -132,13 +151,10 @@ class PlayerMovementManager:
                 # UI 업데이트 정보 전송
                 await self.game_engine.ui_manager.send_ui_update(session, room_info)
 
-            logger.info(f"플레이어 {session.player.username}이 방 {room_id}로 이동")
-            return True
+                logger.debug(f"방 정보 전송 완료: {session.player.username} -> 방 {room_id}")
 
         except Exception as e:
-            logger.error(f"플레이어 방 이동 실패 ({session.player.username} -> {room_id}): {e}")
-            await session.send_error("방 이동 중 오류가 발생했습니다.")
-            return False
+            logger.error(f"방 정보 전송 실패 ({session.player.username}, {room_id}): {e}")
 
     async def handle_player_movement_with_followers(self, session: 'Session', new_room_id: str, old_room_id: Optional[str] = None) -> None:
         """
@@ -180,7 +196,13 @@ class PlayerMovementManager:
                 success = await self.move_player_to_room(follower_session, new_room_id, skip_followers=True)
 
                 if success:
-                    logger.info(f"따라가기 이동: {follower_session.player.username} -> 방 {new_room_id}")
+                    # 이동 성공 시 follower에게 이동 완료 메시지 전송
+                    await follower_session.send_message({
+                        "type": "following_movement_complete",
+                        "message": f"👥 {session.player.username}님을 따라 이동했습니다."
+                    })
+
+                    logger.info(f"따라가기 이동 완료: {follower_session.player.username} -> 방 {new_room_id}")
                 else:
                     # 이동 실패 시 따라가기 중지
                     if hasattr(follower_session, 'following_player'):

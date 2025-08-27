@@ -49,17 +49,6 @@ source mud_engine_env/Scripts/activate && PYTHONPATH=. pytest
 # 프로세스 확인 및 종료
 ps aux | grep python
 kill -9 <PID>
-
-# 포트 충돌 해결 (Windows)
-netstat -ano | findstr :${PROJECT_PORT}
-taskkill /PID <프로세스ID> /F
-```
-
-## 현재 프로젝트 프로세스 관리
-```bash
-# 8080 포트 사용 프로세스 확인
-netstat -ano | findstr :8080
-taskkill /PID <프로세스ID> /F
 ```
 
 ## 금지사항

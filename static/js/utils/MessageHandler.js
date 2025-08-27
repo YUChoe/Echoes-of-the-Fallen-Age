@@ -107,6 +107,12 @@ class MessageHandler {
             case 'follow_stopped':
                 this.client.gameModule.handleFollowStopped(data);
                 break;
+            case 'room_info':
+                this.client.gameModule.handleRoomInfo(data);
+                break;
+            case 'following_movement_complete':
+                this.client.gameModule.handleFollowingMovementComplete(data);
+                break;
             default:
                 // 알 수 없는 메시지 타입
                 if (data.message) {
