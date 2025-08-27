@@ -5,6 +5,8 @@
 - **상태 관리**: 명확한 상태 플래그로 애플리케이션 상태 추적
 - **방어적 처리**: 메시지 형식 검증 후 처리
 - **즉시 테스트**: 각 단계마다 실제 동작 확인
+- **이벤트 기반 처리**: 컴포넌트 간 결합도 최소화
+- **다국어 지원**: 클라이언트 텍스트도 딕셔너리 형태로 관리
 
 ## 주요 실수 패턴
 
@@ -132,6 +134,76 @@ handleMessage(data) {
 // 4단계: 최적화 및 정리
 
 // 리팩토링 중간 단계에서도 항상 작동하는 상태 유지
+```
+
+### 5. 이벤트 기반 아키텍처
+```javascript
+// ✅ 이벤트 에미터 패턴
+class GameEventManager {
+    constructor() {
+        this.listeners = new Map();
+    }
+
+    on(eventType, callback) {
+        if (!this.listeners.has(eventType)) {
+            this.listeners.set(eventType, []);
+        }
+        this.listeners.get(eventType).push(callback);
+    }
+
+    emit(eventType, data) {
+        const callbacks = this.listeners.get(eventType) || [];
+        callbacks.forEach(callback => {
+            try {
+                callback(data);
+            } catch (error) {
+                console.error(`Event handler error for ${eventType}:`, error);
+            }
+        });
+    }
+}
+
+// ✅ 컴포넌트 간 느슨한 결합
+class ChatModule {
+    constructor(eventManager) {
+        this.eventManager = eventManager;
+        this.eventManager.on('message_received', this.handleMessage.bind(this));
+    }
+
+    handleMessage(data) {
+        if (data.type === 'chat') {
+            this.displayChatMessage(data);
+        }
+    }
+}
+```
+
+### 6. 다국어 지원 패턴
+```javascript
+// ✅ 클라이언트 다국어 지원
+const MESSAGES = {
+    ko: {
+        connecting: '서버에 연결 중...',
+        connected: '서버에 연결되었습니다.',
+        disconnected: '서버와의 연결이 끊어졌습니다.',
+        login_failed: '로그인에 실패했습니다.',
+        invalid_input: '잘못된 입력입니다.'
+    },
+    en: {
+        connecting: 'Connecting to server...',
+        connected: 'Connected to server.',
+        disconnected: 'Disconnected from server.',
+        login_failed: 'Login failed.',
+        invalid_input: 'Invalid input.'
+    }
+};
+
+function getMessage(key, lang = 'ko') {
+    return MESSAGES[lang]?.[key] || MESSAGES.ko[key] || key;
+}
+
+// ✅ 사용 예시
+this.showStatus(getMessage('connecting'));
 ```
 
 ## 체크리스트

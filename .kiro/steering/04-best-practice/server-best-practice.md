@@ -5,6 +5,11 @@
 - **의존성 주입**: 모든 의존성을 명시적으로 주입
 - **방어적 프로그래밍**: 타입과 존재 여부 항상 확인
 - **충분한 로깅**: 디버깅에 필요한 모든 정보 기록
+- **비동기 패턴**: 모든 비동기 함수는 `async/await` 패턴 사용
+- **로깅 표준화**: Python logging 모듈 사용
+- **다국어 지원**: 모든 텍스트는 딕셔너리 형태로 저장
+- **리포지토리 패턴**: 데이터베이스 작업은 리포지토리 패턴 사용
+- **이벤트 기반 아키텍처**: 컴포넌트 간 결합도 최소화
 
 ## 주요 실수 패턴
 
@@ -96,6 +101,78 @@ async def recursive_method(self, data, prevent_recursion=False):
     if not prevent_recursion:
         for related_data in get_related_data(data):
             await self.recursive_method(related_data, prevent_recursion=True)
+```
+
+### 5. 비동기 프로그래밍 패턴
+```python
+# ✅ 올바른 비동기 함수 정의
+async def process_player_action(self, player_id: str, action: str) -> ActionResult:
+    try:
+        player = await self._player_repo.get_by_id(player_id)
+        result = await self._action_service.execute(player, action)
+        await self._event_manager.emit('player_action', {
+            'player_id': player_id,
+            'action': action,
+            'result': result
+        })
+        return result
+    except Exception as e:
+        self.logger.error(f"Action processing failed: {e}", exc_info=True)
+        raise
+
+# ✅ 이벤트 기반 아키텍처
+class EventManager:
+    async def emit(self, event_type: str, data: Dict[str, Any]):
+        for handler in self._handlers.get(event_type, []):
+            try:
+                await handler(data)
+            except Exception as e:
+                self.logger.error(f"Event handler failed: {e}", exc_info=True)
+```
+
+### 6. 다국어 지원 패턴
+```python
+# ✅ 텍스트 딕셔너리 사용
+MESSAGES = {
+    'ko': {
+        'welcome': '게임에 오신 것을 환영합니다!',
+        'invalid_command': '잘못된 명령어입니다.',
+        'room_not_found': '방을 찾을 수 없습니다.'
+    },
+    'en': {
+        'welcome': 'Welcome to the game!',
+        'invalid_command': 'Invalid command.',
+        'room_not_found': 'Room not found.'
+    }
+}
+
+def get_message(key: str, lang: str = 'ko') -> str:
+    return MESSAGES.get(lang, MESSAGES['ko']).get(key, key)
+```
+
+### 7. 리포지토리 패턴 구현
+```python
+# ✅ 리포지토리 인터페이스
+from abc import ABC, abstractmethod
+
+class PlayerRepository(ABC):
+    @abstractmethod
+    async def create(self, data: Dict[str, Any]) -> Player:
+        pass
+
+    @abstractmethod
+    async def get_by_id(self, player_id: str) -> Optional[Player]:
+        pass
+
+    @abstractmethod
+    async def update(self, player_id: str, data: Dict[str, Any]) -> bool:
+        pass
+
+# ✅ 구체적인 구현
+class SQLitePlayerRepository(PlayerRepository):
+    async def create(self, data: Dict[str, Any]) -> Player:
+        # 데이터베이스 저장 로직
+        pass
 ```
 
 ## 체크리스트
