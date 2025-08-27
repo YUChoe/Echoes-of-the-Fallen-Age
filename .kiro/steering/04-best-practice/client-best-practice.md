@@ -1,12 +1,28 @@
-# 클라이언트 개발 베스트 프랙티스
+# MUD 게임 클라이언트 베스트 프랙티스
 
-## 핵심 원칙
-- **프로토콜 동기화**: 서버-클라이언트 메시지 형식 일치
-- **상태 관리**: 명확한 상태 플래그로 애플리케이션 상태 추적
-- **방어적 처리**: 메시지 형식 검증 후 처리
-- **즉시 테스트**: 각 단계마다 실제 동작 확인
-- **이벤트 기반 처리**: 컴포넌트 간 결합도 최소화
-- **다국어 지원**: 클라이언트 텍스트도 딕셔너리 형태로 관리
+## MUD 게임 특화 원칙
+- **실시간 게임 상태 동기화**: 플레이어, 방, 아이템 상태 실시간 반영
+- **게임 메시지 프로토콜**: MUD 특화 메시지 타입 처리
+- **게임 세션 관리**: 로그인/로그아웃, 재연결 처리
+- **게임 UI 패턴**: 3단 레이아웃 (게임출력 | 사이드바 | 입력영역)
+
+## MUD 게임 UI 구성
+
+### 게임 인터페이스
+- **플레이어 상태 패널**: 이름, 위치, 레벨, HP/MP 등
+- **빠른 명령어 버튼**: look, inventory, who, quit 등
+- **연결 상태 표시**: 실시간 서버 연결 상태
+
+### 게임 메시지 시스템
+- **타입별 색상 구분**: 시스템/플레이어/NPC/오류 메시지
+- **타임스탬프**: 모든 게임 메시지에 시간 정보
+- **자동 스크롤**: 새 메시지 자동 스크롤
+- **게임 출력 폰트**: Courier New (모노스페이스)
+
+### 게임 상호작용
+- **키보드**: Enter로 명령어 전송
+- **마우스**: 빠른 명령어 버튼 클릭
+- **도움말**: 게임 명령어 가이드 모달
 
 ## 주요 실수 패턴
 
@@ -136,122 +152,121 @@ handleMessage(data) {
 // 리팩토링 중간 단계에서도 항상 작동하는 상태 유지
 ```
 
-### 5. 이벤트 기반 아키텍처
+### 5. MUD 게임 세션 관리
 ```javascript
-// ✅ 이벤트 에미터 패턴
-class GameEventManager {
+// ✅ MUD 게임 클라이언트 상태 관리
+class MudGameClient {
     constructor() {
-        this.listeners = new Map();
+        this.isConnected = false;
+        this.isAuthenticated = false;
+        this.isLoggingOut = false;
+        this.isReconnecting = false;
+        this.currentRoom = null;
+        this.playerStats = null;
     }
 
-    on(eventType, callback) {
-        if (!this.listeners.has(eventType)) {
-            this.listeners.set(eventType, []);
-        }
-        this.listeners.get(eventType).push(callback);
-    }
-
-    emit(eventType, data) {
-        const callbacks = this.listeners.get(eventType) || [];
-        callbacks.forEach(callback => {
-            try {
-                callback(data);
-            } catch (error) {
-                console.error(`Event handler error for ${eventType}:`, error);
-            }
-        });
-    }
-}
-
-// ✅ 컴포넌트 간 느슨한 결합
-class ChatModule {
-    constructor(eventManager) {
-        this.eventManager = eventManager;
-        this.eventManager.on('message_received', this.handleMessage.bind(this));
-    }
-
-    handleMessage(data) {
-        if (data.type === 'chat') {
-            this.displayChatMessage(data);
+    handleGameMessage(data) {
+        switch(data.type) {
+            case 'room_description':
+                this.updateRoomInfo(data);
+                break;
+            case 'player_stats':
+                this.updatePlayerStats(data);
+                break;
+            case 'game_message':
+                this.displayGameMessage(data);
+                break;
+            case 'system_message':
+                this.displaySystemMessage(data);
+                break;
         }
     }
 }
 ```
 
-### 6. 다국어 지원 패턴
+### 6. MUD 게임 명령어 처리
 ```javascript
-// ✅ 클라이언트 다국어 지원
-const MESSAGES = {
-    ko: {
-        connecting: '서버에 연결 중...',
-        connected: '서버에 연결되었습니다.',
-        disconnected: '서버와의 연결이 끊어졌습니다.',
-        login_failed: '로그인에 실패했습니다.',
-        invalid_input: '잘못된 입력입니다.'
-    },
-    en: {
-        connecting: 'Connecting to server...',
-        connected: 'Connected to server.',
-        disconnected: 'Disconnected from server.',
-        login_failed: 'Login failed.',
-        invalid_input: 'Invalid input.'
+// ✅ 게임 명령어 자동완성 및 히스토리
+class GameCommandHandler {
+    constructor() {
+        this.commandHistory = [];
+        this.historyIndex = -1;
+        this.commonCommands = ['look', 'inventory', 'who', 'say', 'tell'];
     }
-};
 
-function getMessage(key, lang = 'ko') {
-    return MESSAGES[lang]?.[key] || MESSAGES.ko[key] || key;
+    handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            this.sendCommand(event.target.value);
+            this.addToHistory(event.target.value);
+            event.target.value = '';
+        } else if (event.key === 'ArrowUp') {
+            this.showPreviousCommand(event.target);
+        } else if (event.key === 'ArrowDown') {
+            this.showNextCommand(event.target);
+        }
+    }
+
+    sendCommand(command) {
+        if (command.trim()) {
+            this.websocket.send(JSON.stringify({
+                type: 'command',
+                command: command.trim()
+            }));
+        }
+    }
 }
-
-// ✅ 사용 예시
-this.showStatus(getMessage('connecting'));
 ```
 
-## 체크리스트
+## MUD 게임 개발 체크리스트
 
-### 리팩토링 전
-- [ ] 기존 코드의 전체 플로우 문서화
-- [ ] 서버-클라이언트 메시지 프로토콜 분석
-- [ ] 핵심 기능별 테스트 시나리오 작성
-- [ ] 상태 관리 로직 파악
+### 게임 클라이언트 구현 전
+- [ ] MUD 서버 메시지 프로토콜 분석
+- [ ] 게임 상태 (플레이어, 방, 아이템) 데이터 구조 파악
+- [ ] 게임 명령어 목록 및 응답 형식 확인
+- [ ] 실시간 업데이트가 필요한 UI 요소 식별
 
-### 리팩토링 중
-- [ ] 모듈 간 의존성 명확히 정의
-- [ ] 메시지 핸들링 로직 일관성 유지
-- [ ] 상태 변화 시점과 조건 명확히 구분
-- [ ] 각 모듈별 책임 범위 명확히 분리
+### 게임 클라이언트 구현 중
+- [ ] 게임 메시지 타입별 핸들러 구현
+- [ ] 플레이어 상태 실시간 업데이트 로직
+- [ ] 게임 명령어 입력 및 히스토리 기능
+- [ ] 연결 끊김 시 재연결 로직
 
-### 리팩토링 후
-- [ ] 전체 사용자 시나리오 End-to-End 테스트
-- [ ] 서버 로그와 클라이언트 동작 동시 확인
-- [ ] 예외 상황 처리 로직 검증
-- [ ] 성능 및 메모리 사용량 확인
+### 게임 클라이언트 테스트
+- [ ] 로그인/로그아웃 플로우 테스트
+- [ ] 게임 명령어 (look, inventory, move 등) 테스트
+- [ ] 다중 플레이어 상호작용 테스트
+- [ ] 네트워크 끊김 상황 테스트
 
-## 디버깅 가이드
+## MUD 게임 디버깅 가이드
 
-### 문제 발생 시 확인 순서
-1. **브라우저 개발자 도구**: Network 탭에서 실제 메시지 확인
-2. **서버 로그**: 서버에서 보내는 메시지 형식 확인
-3. **클라이언트 로그**: 메시지 수신 및 처리 과정 추적
-4. **상태 변화**: 애플리케이션 상태 변화 시점 분석
-
-### 효과적인 디버깅
+### 게임 상태 디버깅
 ```javascript
-// 메시지 처리 전후 로깅
-handleMessage(data) {
-    console.log('Received message:', data);
-
-    // 처리 로직
-
-    console.log('Message processed, current state:', {
-        isConnected: this.isConnected,
-        isAuthenticated: this.isAuthenticated,
-        currentScreen: this.currentScreen
+// 게임 상태 로깅
+handleGameStateUpdate(data) {
+    console.log('Game state update:', {
+        type: data.type,
+        player: this.playerStats,
+        room: this.currentRoom,
+        timestamp: new Date().toISOString()
     });
 }
 ```
 
-## 핵심 교훈
-- **확인 우선**: 가정하지 말고 실제 동작 확인
-- **점진적 접근**: 한 번에 모든 것을 바꾸지 말고 단계적 진행
-- **상태 추적**: 애플리케이션 상태 변화를 명확히 관리
-- **프로토콜 준수**: 서버-클라이언트 간 메시지 형식 일관성 유지
+### 게임 메시지 디버깅
+```javascript
+// 게임 메시지 상세 로깅
+handleGameMessage(data) {
+    console.log('Game message received:', {
+        type: data.type,
+        content: data.message,
+        sender: data.sender,
+        room: data.room_id
+    });
+}
+```
+
+## MUD 게임 특화 주의사항
+- **게임 세션 유지**: 브라우저 새로고침 시에도 게임 상태 복원
+- **명령어 큐잉**: 네트워크 지연 시 명령어 순서 보장
+- **실시간 동기화**: 다른 플레이어 행동 즉시 반영
+- **게임 규칙 준수**: 서버 검증에 의존하되 클라이언트에서 기본 검증
