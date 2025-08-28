@@ -240,19 +240,25 @@ class HelpCommand(BaseCommand):
         if not self.command_processor:
             return self.create_error_result("명령어 처리기가 설정되지 않았습니다.")
 
+        # 플레이어의 관리자 권한 확인
+        is_admin = False
+        if session.player:
+            is_admin = getattr(session.player, 'is_admin', False)
+
         if args:
             # 특정 명령어 도움말
             command_name = args[0]
-            help_text = self.command_processor.get_help_text(command_name)
+            help_text = self.command_processor.get_help_text(command_name, is_admin)
         else:
             # 전체 명령어 목록
-            help_text = self.command_processor.get_help_text()
+            help_text = self.command_processor.get_help_text(None, is_admin)
 
         return self.create_success_result(
             message=help_text,
             data={
                 "action": "help",
-                "command": args[0] if args else None
+                "command": args[0] if args else None,
+                "is_admin": is_admin
             }
         )
 

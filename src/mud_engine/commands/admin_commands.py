@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 class AdminCommand(BaseCommand):
     """관리자 명령어 기본 클래스"""
 
-    def __init__(self, name: str, description: str, aliases: List[str] = None):
-        super().__init__(name, description, aliases or [])
+    def __init__(self, name: str, description: str, aliases: List[str] = None, usage: str = ""):
+        super().__init__(name, aliases, description, usage, admin_only=True)
         self.admin_required = True
 
     def check_admin_permission(self, session: Session) -> bool:

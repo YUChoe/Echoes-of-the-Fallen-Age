@@ -39,7 +39,7 @@ class BaseCommand(ABC):
     """명령어 기본 클래스"""
 
     def __init__(self, name: str, aliases: Optional[List[str]] = None,
-                 description: str = "", usage: str = ""):
+                 description: str = "", usage: str = "", admin_only: bool = False):
         """
         명령어 초기화
 
@@ -48,11 +48,13 @@ class BaseCommand(ABC):
             aliases: 명령어 별칭 목록
             description: 명령어 설명
             usage: 사용법
+            admin_only: 관리자 전용 명령어 여부
         """
         self.name = name.lower()
         self.aliases = [alias.lower() for alias in (aliases or [])]
         self.description = description
         self.usage = usage
+        self.admin_only = admin_only
 
     @abstractmethod
     async def execute(self, session: Session, args: List[str]) -> CommandResult:
@@ -88,7 +90,7 @@ class BaseCommand(ABC):
         Returns:
             str: 도움말 텍스트
         """
-        help_text = f"**{self.name}**"
+        help_text = f"{self.name}"
 
         if self.aliases:
             help_text += f" (별칭: {', '.join(self.aliases)})"

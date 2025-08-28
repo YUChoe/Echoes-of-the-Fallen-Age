@@ -180,6 +180,16 @@ class CommandProcessor:
                     }
                 ))
 
+            # 관리자 전용 명령어 권한 확인
+            if hasattr(command, 'admin_only') and command.admin_only:
+                is_admin = getattr(session.player, 'is_admin', False)
+                if not is_admin:
+                    logger.warning(f"권한 없음: {session.player.username} -> {command_name} (관리자 전용)")
+                    return CommandResult(
+                        result_type=CommandResultType.ERROR,
+                        message=f"'{command_name}' 명령어는 관리자 전용입니다."
+                    )
+
             # 명령어 실행
             result = await command.execute(session, args)
 
@@ -195,12 +205,13 @@ class CommandProcessor:
                 message=f"명령어 실행 중 오류가 발생했습니다: {str(e)}"
             )
 
-    def get_help_text(self, command_name: Optional[str] = None) -> str:
+    def get_help_text(self, command_name: Optional[str] = None, is_admin: bool = False) -> str:
         """
         도움말 텍스트 생성
 
         Args:
             command_name: 특정 명령어 도움말 (None이면 전체 목록)
+            is_admin: 관리자 권한 여부
 
         Returns:
             str: 도움말 텍스트
@@ -208,25 +219,46 @@ class CommandProcessor:
         if command_name:
             command = self.get_command(command_name)
             if command:
+                # 관리자 전용 명령어인데 관리자가 아니면 접근 거부
+                if hasattr(command, 'admin_only') and command.admin_only and not is_admin:
+                    return f"'{command_name}' 명령어는 관리자 전용입니다."
                 return command.get_help()
             else:
                 return f"알 수 없는 명령어: '{command_name}'"
 
-        # 전체 명령어 목록
-        commands = self.get_all_commands()
+        # 전체 명령어 목록 (권한에 따라 필터링)
+        all_commands = self.get_all_commands()
+        commands = [cmd for cmd in all_commands if not (hasattr(cmd, 'admin_only') and cmd.admin_only) or is_admin]
 
         if not commands:
-            return "등록된 명령어가 없습니다."
+            return "사용 가능한 명령어가 없습니다."
 
         help_text = "🎮 사용 가능한 명령어:\n\n"
 
-        for command in commands:
-            help_text += f"• **{command.name}**"
-            if command.aliases:
-                help_text += f" ({', '.join(command.aliases)})"
-            if command.description:
-                help_text += f" - {command.description}"
-            help_text += "\n"
+        # 일반 명령어와 관리자 명령어 분리
+        normal_commands = [cmd for cmd in commands if not (hasattr(cmd, 'admin_only') and cmd.admin_only)]
+        admin_commands = [cmd for cmd in commands if hasattr(cmd, 'admin_only') and cmd.admin_only]
+
+        # 일반 명령어 표시
+        if normal_commands:
+            for command in normal_commands:
+                help_text += f"• {command.name}"
+                if command.aliases:
+                    help_text += f" ({', '.join(command.aliases)})"
+                if command.description:
+                    help_text += f" - {command.description}"
+                help_text += "\n"
+
+        # 관리자 명령어 표시 (관리자인 경우에만)
+        if admin_commands and is_admin:
+            help_text += "\n🔧 관리자 명령어:\n"
+            for command in admin_commands:
+                help_text += f"• {command.name}"
+                if command.aliases:
+                    help_text += f" ({', '.join(command.aliases)})"
+                if command.description:
+                    help_text += f" - {command.description}"
+                help_text += "\n"
 
         help_text += "\n특정 명령어의 자세한 도움말을 보려면 'help <명령어>'를 입력하세요."
 

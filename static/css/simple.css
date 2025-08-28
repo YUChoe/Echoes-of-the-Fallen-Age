@@ -274,7 +274,7 @@ body {
     font-size: 0.875rem;
 }
 
-/* 메시지 스타일 */
+/* 메시지 스타일 - 폼 메시지용 */
 .message {
     margin-top: 1rem;
     padding: 0.75rem;
@@ -307,6 +307,10 @@ body {
     color: #60a5fa;
 }
 
+.game-message.info {
+    color: #60a5fa;
+}
+
 .game-message.error {
     color: #f87171;
 }
@@ -320,6 +324,11 @@ body {
 }
 
 .game-message.command {
+    color: #a78bfa;
+    font-weight: bold;
+}
+
+.game-message.player {
     color: #a78bfa;
     font-weight: bold;
 }

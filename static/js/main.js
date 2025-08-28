@@ -303,7 +303,9 @@ class MUDClient {
                     this.handleAuthError(message);
                     break;
                 case 'message':
-                    this.addGameMessage(message.content, message.message_type || 'info');
+                    if (this.gameModule) {
+                        this.gameModule.addGameMessage(message.content, message.message_type || 'info');
+                    }
                     break;
                 case 'player_list':
                     this.updateOnlinePlayers(message.players);
@@ -312,11 +314,15 @@ class MUDClient {
                     this.updateLocation(message.location);
                     break;
                 default:
-                    this.addGameMessage(message.content || data, 'info');
+                    if (this.gameModule) {
+                        this.gameModule.addGameMessage(message.content || data, 'info');
+                    }
             }
         } catch (error) {
             // JSON이 아닌 경우 일반 텍스트로 처리
-            this.addGameMessage(data, 'info');
+            if (this.gameModule) {
+                this.gameModule.addGameMessage(data, 'info');
+            }
         }
     }
 
@@ -401,7 +407,9 @@ class MUDClient {
         this.showToast(`환영합니다, ${this.currentPlayer.username}님!`, 'success');
 
         // 환영 메시지 추가
-        this.addGameMessage(`🌟 ${this.currentPlayer.username}님, Echoes of the Fallen Age에 오신 것을 환영합니다!`, 'system');
+        if (this.gameModule) {
+            this.gameModule.addGameMessage(`🌟 ${this.currentPlayer.username}님, Echoes of the Fallen Age에 오신 것을 환영합니다!`, 'system');
+        }
     }
 
     handleAuthError(message) {
@@ -448,7 +456,9 @@ class MUDClient {
         this.historyIndex = -1;
 
         // 사용자 입력 표시
-        this.addGameMessage(`> ${command}`, 'player');
+        if (this.gameModule) {
+            this.gameModule.addGameMessage(`> ${command}`, 'player');
+        }
 
         // 서버로 전송
         this.sendMessage({
@@ -486,31 +496,7 @@ class MUDClient {
         }
     }
 
-    addGameMessage(content, type = 'info') {
-        if (!this.gameOutput) return;
-
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message message-${type}`;
-
-        // 타임스탬프 추가
-        const timestamp = new Date().toLocaleTimeString('ko-KR', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
-
-        messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${this.formatMessage(content)}`;
-
-        this.gameOutput.appendChild(messageDiv);
-        this.scrollToBottom();
-
-        // 메시지가 너무 많으면 오래된 것 제거
-        const messages = this.gameOutput.querySelectorAll('.message');
-        if (messages.length > 1000) {
-            messages[0].remove();
-        }
-    }
+    // addGameMessage는 GameModule에서 처리하도록 제거됨
 
     formatMessage(content) {
         // 기본적인 텍스트 포맷팅
@@ -594,7 +580,9 @@ class MUDClient {
     clearOutput() {
         if (this.gameOutput) {
             this.gameOutput.innerHTML = '';
-            this.addGameMessage('화면이 지워졌습니다.', 'system');
+            if (this.gameModule) {
+                this.gameModule.addGameMessage('화면이 지워졌습니다.', 'system');
+            }
         }
     }
 
