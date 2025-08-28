@@ -391,3 +391,97 @@ class ModelManager:
         except Exception as e:
             logger.error(f"고아 참조 정리 실패: {e}")
             raise
+
+class MonsterRepository(BaseRepository):
+    """몬스터 리포지토리"""
+
+    def get_table_name(self) -> str:
+        return "monsters"
+
+    def get_model_class(self):
+        from .monster import Monster
+        return Monster
+
+    async def get_monsters_in_room(self, room_id: str) -> List:
+        """특정 방에 있는 몬스터 목록 조회"""
+        try:
+            db_manager = await self.get_db_manager()
+            cursor = await db_manager.execute(
+                "SELECT * FROM monsters WHERE current_room_id = ? AND is_alive = TRUE",
+                (room_id,)
+            )
+            rows = await cursor.fetchall()
+
+            monsters = []
+            for row in rows:
+                monster_data = dict(zip([col[0] for col in cursor.description], row))
+                Monster = self.get_model_class()
+                monsters.append(Monster.from_dict(monster_data))
+
+            logger.debug(f"방 {room_id}에서 {len(monsters)}마리 몬스터 조회")
+            return monsters
+
+        except Exception as e:
+            logger.error(f"방 내 몬스터 조회 실패: {e}")
+            return []
+
+    async def kill_monster(self, monster_id: str) -> bool:
+        """몬스터 사망 처리"""
+        try:
+            from datetime import datetime
+            current_time = datetime.now().isoformat()
+
+            db_manager = await self.get_db_manager()
+            await db_manager.execute(
+                "UPDATE monsters SET is_alive = FALSE, last_death_time = ? WHERE id = ?",
+                (current_time, monster_id)
+            )
+            await db_manager.commit()
+
+            logger.info(f"몬스터 {monster_id} 사망 처리 완료")
+            return True
+
+        except Exception as e:
+            logger.error(f"몬스터 사망 처리 실패: {e}")
+            db_manager = await self.get_db_manager()
+            await db_manager.rollback()
+            return False
+
+    async def respawn_monster(self, monster_id: str) -> bool:
+        """몬스터 리스폰 처리"""
+        try:
+            import json
+
+            # 몬스터 정보 조회
+            monster = await self.get_by_id(monster_id)
+            if not monster:
+                logger.error(f"몬스터 {monster_id}를 찾을 수 없습니다")
+                return False
+
+            # 스폰 방으로 이동하고 생존 상태로 변경
+            spawn_room = monster.spawn_room_id or monster.current_room_id
+
+            # 능력치를 최대치로 복구
+            monster.stats.current_hp = monster.stats.max_hp
+            stats_json = json.dumps(monster.stats.to_dict(), ensure_ascii=False)
+
+            db_manager = await self.get_db_manager()
+            await db_manager.execute("""
+                UPDATE monsters
+                SET is_alive = TRUE,
+                    last_death_time = NULL,
+                    current_room_id = ?,
+                    stats = ?
+                WHERE id = ?
+            """, (spawn_room, stats_json, monster_id))
+
+            await db_manager.commit()
+
+            logger.info(f"몬스터 {monster_id} 리스폰 완료 (방: {spawn_room})")
+            return True
+
+        except Exception as e:
+            logger.error(f"몬스터 리스폰 실패: {e}")
+            db_manager = await self.get_db_manager()
+            await db_manager.rollback()
+            return False

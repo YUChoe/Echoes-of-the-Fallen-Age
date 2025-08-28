@@ -5,6 +5,7 @@
 """
 
 from .models import Player, Character, Room, GameObject, Session
+# repositories.py 파일에서 import (repositories 디렉토리가 아님)
 from .repositories import (
     PlayerRepository,
     CharacterRepository,

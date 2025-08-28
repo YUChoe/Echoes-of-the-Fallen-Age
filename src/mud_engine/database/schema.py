@@ -107,6 +107,34 @@ DATABASE_SCHEMA: List[str] = [
     """,
 
     """
+    -- 몬스터 테이블
+    CREATE TABLE IF NOT EXISTS monsters (
+        id TEXT PRIMARY KEY,
+        name_en TEXT NOT NULL,
+        name_ko TEXT NOT NULL,
+        description_en TEXT,
+        description_ko TEXT,
+        monster_type TEXT DEFAULT 'passive', -- 'aggressive', 'passive', 'neutral'
+        behavior TEXT DEFAULT 'stationary', -- 'stationary', 'roaming', 'territorial'
+        stats TEXT DEFAULT '{}', -- JSON 형태로 저장 (MonsterStats)
+        experience_reward INTEGER DEFAULT 50,
+        gold_reward INTEGER DEFAULT 10,
+        drop_items TEXT DEFAULT '[]', -- JSON 형태로 저장 (DropItem 목록)
+        spawn_room_id TEXT, -- 스폰 방 ID
+        current_room_id TEXT, -- 현재 위치한 방 ID
+        respawn_time INTEGER DEFAULT 300, -- 리스폰 시간 (초)
+        last_death_time TIMESTAMP, -- 마지막 사망 시간
+        is_alive BOOLEAN DEFAULT TRUE, -- 생존 상태
+        aggro_range INTEGER DEFAULT 1, -- 어그로 범위
+        roaming_range INTEGER DEFAULT 2, -- 로밍 범위
+        properties TEXT DEFAULT '{}', -- JSON 형태로 저장
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (spawn_room_id) REFERENCES rooms(id) ON DELETE SET NULL,
+        FOREIGN KEY (current_room_id) REFERENCES rooms(id) ON DELETE SET NULL
+    );
+    """,
+
+    """
     -- 다국어 텍스트 테이블
     CREATE TABLE IF NOT EXISTS translations (
         key TEXT NOT NULL,
@@ -125,6 +153,10 @@ DATABASE_SCHEMA: List[str] = [
     CREATE INDEX IF NOT EXISTS idx_translations_key ON translations(key);
     CREATE INDEX IF NOT EXISTS idx_npcs_room ON npcs(current_room_id);
     CREATE INDEX IF NOT EXISTS idx_npcs_type ON npcs(npc_type);
+    CREATE INDEX IF NOT EXISTS idx_monsters_spawn_room ON monsters(spawn_room_id);
+    CREATE INDEX IF NOT EXISTS idx_monsters_current_room ON monsters(current_room_id);
+    CREATE INDEX IF NOT EXISTS idx_monsters_type ON monsters(monster_type);
+    CREATE INDEX IF NOT EXISTS idx_monsters_alive ON monsters(is_alive);
     """
 ]
 
@@ -292,6 +324,49 @@ async def migrate_database(db_manager) -> None:
 
             await db_manager.commit()
             logger.info("NPC 테이블 생성 완료")
+
+        # Monster 테이블 생성 확인 및 생성
+        cursor = await db_manager.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='monsters'")
+        monster_table_exists = await cursor.fetchone()
+
+        if not monster_table_exists:
+            logger.info("Monster 테이블 생성 중...")
+            monster_table_sql = """
+            CREATE TABLE IF NOT EXISTS monsters (
+                id TEXT PRIMARY KEY,
+                name_en TEXT NOT NULL,
+                name_ko TEXT NOT NULL,
+                description_en TEXT,
+                description_ko TEXT,
+                monster_type TEXT DEFAULT 'passive',
+                behavior TEXT DEFAULT 'stationary',
+                stats TEXT DEFAULT '{}',
+                experience_reward INTEGER DEFAULT 50,
+                gold_reward INTEGER DEFAULT 10,
+                drop_items TEXT DEFAULT '[]',
+                spawn_room_id TEXT,
+                current_room_id TEXT,
+                respawn_time INTEGER DEFAULT 300,
+                last_death_time TIMESTAMP,
+                is_alive BOOLEAN DEFAULT TRUE,
+                aggro_range INTEGER DEFAULT 1,
+                roaming_range INTEGER DEFAULT 2,
+                properties TEXT DEFAULT '{}',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (spawn_room_id) REFERENCES rooms(id) ON DELETE SET NULL,
+                FOREIGN KEY (current_room_id) REFERENCES rooms(id) ON DELETE SET NULL
+            );
+            """
+            await db_manager.execute(monster_table_sql)
+
+            # Monster 인덱스 생성
+            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_monsters_spawn_room ON monsters(spawn_room_id)")
+            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_monsters_current_room ON monsters(current_room_id)")
+            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_monsters_type ON monsters(monster_type)")
+            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_monsters_alive ON monsters(is_alive)")
+
+            await db_manager.commit()
+            logger.info("Monster 테이블 생성 완료")
 
         logger.info("데이터베이스 마이그레이션 완료")
 
