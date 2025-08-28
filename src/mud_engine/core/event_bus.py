@@ -3,7 +3,7 @@
 
 import asyncio
 import logging
-from typing import Dict, List, Callable, Any, Optional, Set
+from typing import Dict, List, Callable, Any, Optional, Set, Union, Coroutine, Awaitable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -140,7 +140,7 @@ class EventBus:
 
         logger.info("EventBus 중지 완료")
 
-    def subscribe(self, event_type: EventType, callback: Callable[[Event], None]) -> None:
+    def subscribe(self, event_type: EventType, callback: Union[Callable[[Event], None], Callable[[Event], Awaitable[None]]]) -> None:
         """
         이벤트 구독
 
@@ -154,7 +154,7 @@ class EventBus:
         self._subscribers[event_type].append(callback)
         logger.debug(f"이벤트 구독 등록: {event_type.value} -> {callback.__name__}")
 
-    def unsubscribe(self, event_type: EventType, callback: Callable[[Event], None]) -> bool:
+    def unsubscribe(self, event_type: EventType, callback: Union[Callable[[Event], None], Callable[[Event], Awaitable[None]]]) -> bool:
         """
         이벤트 구독 해제
 

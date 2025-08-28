@@ -8,6 +8,7 @@ from datetime import datetime
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
     from ...server.session import Session
+    from ...commands.processor import CommandProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class CommandManager:
 
     def __init__(self, game_engine: 'GameEngine'):
         self.game_engine = game_engine
-        self.command_processor = None
+        self.command_processor: Optional['CommandProcessor'] = None
         self._setup_command_processor()
 
     def _setup_command_processor(self) -> None:
@@ -35,6 +36,10 @@ class CommandManager:
 
     def _setup_commands(self) -> None:
         """기본 명령어들 설정"""
+        if not self.command_processor:
+            logger.error("CommandProcessor가 초기화되지 않았습니다.")
+            return
+
         # 기본 명령어들 import 및 등록
         from ...commands.basic_commands import (
             SayCommand, TellCommand, WhoCommand, LookCommand, QuitCommand,
@@ -129,6 +134,11 @@ class CommandManager:
         """
         if not session.is_authenticated or not session.player:
             await session.send_error("인증되지 않은 사용자입니다.")
+            return None
+
+        if not self.command_processor:
+            logger.error("CommandProcessor가 초기화되지 않았습니다.")
+            await session.send_error("명령어 처리기가 초기화되지 않았습니다.")
             return None
 
         # 명령어 처리기를 통해 명령어 실행
