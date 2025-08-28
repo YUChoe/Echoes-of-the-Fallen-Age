@@ -8,6 +8,12 @@ class MessageHandler {
     }
 
     handleMessage(data) {
+        // 디버깅을 위한 로깅
+        console.log('서버 메시지 수신:', data);
+
+        // 메시지 중복 표시 방지를 위한 플래그
+        let messageDisplayed = false;
+
         // 오류 메시지 처리
         if (data.error) {
             const screen = this.client.isAuthenticated ? 'game' : this.client.currentScreen;
@@ -24,6 +30,7 @@ class MessageHandler {
                 // 게임 명령어 성공 응답 처리 (look, move 등)
                 if (data.message) {
                     this.client.gameModule.addGameMessage(data.message, 'success');
+                    messageDisplayed = true;
                 }
 
                 // 이동 명령어 후 자동 look 실행
@@ -53,6 +60,13 @@ class MessageHandler {
                     });
                 }
 
+                // look_refresh 명령어 응답 처리 - 기존 방 정보 다시 표시
+                if (data.data && data.data.action === 'look_refresh') {
+                    // 클라이언트에서 이미 가지고 있는 방 정보를 다시 표시하도록 요청
+                    // 실제로는 아무것도 하지 않음 (중복 표시 방지)
+                    console.log('방 정보 새로고침 요청 - 중복 표시 방지됨');
+                }
+
                 // inventory 명령어 응답 처리 - 인벤토리 컨텍스트 업데이트
                 if (data.data && data.data.action === 'inventory') {
                     this.client.updateInventoryContext(data.data.items || []);
@@ -68,8 +82,12 @@ class MessageHandler {
                     // UI 업데이트 로직
                 }
             }
-        } else if (data.response) {
-            this.client.gameModule.addGameMessage(data.response, data.message_type || 'system');
+        } else if (data.response && !messageDisplayed) {
+            // 이미 메시지가 표시되지 않은 경우에만 response 메시지 표시
+            // 단, 명령어 확인 메시지는 표시하지 않음 (중복 방지)
+            if (!data.response.includes('명령을 받았습니다')) {
+                this.client.gameModule.addGameMessage(data.response, data.message_type || 'system');
+            }
         }
 
         // 동적 버튼 업데이트

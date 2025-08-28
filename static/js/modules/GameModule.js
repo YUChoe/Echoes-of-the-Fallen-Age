@@ -271,6 +271,13 @@ class GameModule {
     }
 
     handleSystemMessage(data) {
+        // 로그인 관련 중복 메시지 필터링
+        if (data.message && data.message.includes('게임에 참여했습니다')) {
+            // 로그인 시 이미 환영 메시지가 표시되었으므로 참여 메시지는 표시하지 않음
+            console.log('로그인 참여 메시지 중복 방지:', data.message);
+            return;
+        }
+
         this.addGameMessage(data.message, 'system');
     }
 

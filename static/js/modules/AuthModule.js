@@ -128,15 +128,15 @@ class AuthModule {
             this.client.initializeGameUI();
         }, 100);
 
-        // 환영 메시지 표시
-        if (data.message) {
-            this.client.gameModule.addGameMessage(data.message, 'success');
-        }
+        // 환영 메시지는 MessageHandler에서 이미 처리되므로 중복 방지
+        // if (data.message) {
+        //     this.client.gameModule.addGameMessage(data.message, 'success');
+        // }
 
-        // 로그인 후 자동으로 주변 둘러보기
-        setTimeout(() => {
-            this.client.sendCommand('look');
-        }, 500);
+        // 로그인 후 자동 look 명령어는 서버에서 이미 방 정보를 전송하므로 불필요
+        // setTimeout(() => {
+        //     this.client.sendCommand('look');
+        // }, 500);
     }
 
     handleRegisterSuccess(data) {

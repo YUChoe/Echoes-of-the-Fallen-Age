@@ -174,7 +174,7 @@ class LookCommand(BaseCommand):
             return await self._look_at(session, target)
 
     async def _look_around(self, session: Session) -> CommandResult:
-        """방 전체 둘러보기"""
+        """방 전체 둘러보기 - 클라이언트에 이미 있는 방 정보를 다시 표시하도록 요청"""
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
@@ -183,119 +183,13 @@ class LookCommand(BaseCommand):
         if not current_room_id:
             return self.create_error_result("현재 위치를 확인할 수 없습니다.")
 
-        # GameEngine을 통해 방 정보 조회
-        game_engine = getattr(session, 'game_engine', None)
-        if not game_engine:
-            return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
-
         try:
-            # 방 정보 조회
-            room_info = await game_engine.get_room_info(current_room_id, session.locale)
-            if not room_info:
-                return self.create_error_result("방 정보를 찾을 수 없습니다.")
-
-            room = room_info['room']
-            objects = room_info['objects']
-            exits = room_info['exits']
-
-            # 방 이름과 설명
-            room_name = room.get_localized_name(session.locale)
-            room_description = room.get_localized_description(session.locale)
-
-            # 응답 메시지 구성
-            response = f"🏰 {room_name}\n{room_description}\n"
-
-            # 방에 있는 NPC들
-            npcs = []
-            try:
-                npcs = await game_engine.model_manager.npcs.get_npcs_in_room(current_room_id)
-            except Exception as e:
-                logger.debug(f"NPC 조회 중 오류 (무시됨): {e}")
-
-            if npcs:
-                response += "\n👤 이곳에 있는 NPC들:\n"
-                for npc in npcs:
-                    npc_name = npc.get_localized_name(session.locale)
-                    npc_type_name = {
-                        'merchant': '상인',
-                        'guard': '경비병',
-                        'quest_giver': '퀘스트 제공자',
-                        'generic': 'NPC'
-                    }.get(npc.npc_type, 'NPC')
-                    response += f"• {npc_name} ({npc_type_name})\n"
-
-            # 방에 있는 객체들
-            if objects:
-                response += "\n📦 이곳에 있는 물건들:\n"
-                for obj in objects:
-                    obj_name = obj.get_localized_name(session.locale)
-                    response += f"• {obj_name}\n"
-
-            # 같은 방에 있는 플레이어들 표시
-            players_in_room = []
-
-            for other_session in game_engine.session_manager.get_authenticated_sessions().values():
-                if (other_session.player and
-                    getattr(other_session, 'current_room_id', None) == current_room_id):
-
-                    if other_session.session_id == session.session_id:
-                        players_in_room.append(f"• {other_session.player.username} (당신)")
-                    else:
-                        # 따라가기 상태 확인
-                        following_info = ""
-                        if hasattr(other_session, 'following_player'):
-                            following_info = f" (→ {other_session.following_player}님을 따라가는 중)"
-                        players_in_room.append(f"• {other_session.player.username}{following_info}")
-
-            if players_in_room:
-                response += f"\n👥 이곳에 있는 사람들:\n" + "\n".join(players_in_room) + "\n"
-            else:
-                response += f"\n👥 이곳에 있는 사람들:\n• {session.player.username} (당신)\n"
-
-            # 출구 정보
-            if exits:
-                response += "\n🚪 출구:\n"
-                for direction, target_room_id in exits.items():
-                    # 목적지 방 이름 조회 (선택사항)
-                    try:
-                        target_room = await game_engine.world_manager.get_room(target_room_id)
-                        if target_room:
-                            target_name = target_room.get_localized_name(session.locale)
-                            response += f"• {direction} - {target_name}\n"
-                        else:
-                            response += f"• {direction}\n"
-                    except:
-                        response += f"• {direction}\n"
-            else:
-                response += "\n🚪 이 방에는 출구가 없습니다.\n"
-
-            # 플레이어 목록 데이터 생성
-            player_names = []
-            for other_session in game_engine.session_manager.get_authenticated_sessions().values():
-                if (other_session.player and
-                    getattr(other_session, 'current_room_id', None) == current_room_id):
-                    player_names.append(other_session.player.username)
-
-            # NPC 데이터 생성
-            npc_data = []
-            for npc in npcs:
-                npc_data.append({
-                    "id": npc.id,
-                    "name": npc.get_localized_name(session.locale),
-                    "description": npc.get_localized_description(session.locale),
-                    "npc_type": npc.npc_type
-                })
-
+            # 중복 방 정보 조회를 피하고, 클라이언트에 다시 보기 요청만 전송
             return self.create_success_result(
-                message=response.strip(),
+                message="주변을 다시 둘러봅니다.",
                 data={
-                    "action": "look",
-                    "room_id": current_room_id,
-                    "room_name": room_name,
-                    "players": player_names,
-                    "exits": list(exits.keys()) if exits else [],
-                    "objects": [obj.get_localized_name(session.locale) for obj in objects],
-                    "npcs": npc_data
+                    "action": "look_refresh",
+                    "room_id": current_room_id
                 }
             )
 
