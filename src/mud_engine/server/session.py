@@ -42,6 +42,7 @@ class Session:
         self.current_room_id: Optional[str] = None
         self.locale: str = "en"  # 기본 언어 설정
         self.game_engine: Optional[Any] = None  # GameEngine 참조
+        self.following_player: Optional[str] = None  # 따라가고 있는 플레이어 이름
 
         logger.info(f"새 세션 생성: {self.session_id}")
 

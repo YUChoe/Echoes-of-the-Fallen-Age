@@ -1,272 +1,296 @@
-# MUD 게임 클라이언트 베스트 프랙티스
+# 클라이언트 개발 베스트 프랙티스
 
-## MUD 게임 특화 원칙
-- **실시간 게임 상태 동기화**: 플레이어, 방, 아이템 상태 실시간 반영
-- **게임 메시지 프로토콜**: MUD 특화 메시지 타입 처리
-- **게임 세션 관리**: 로그인/로그아웃, 재연결 처리
-- **게임 UI 패턴**: 3단 레이아웃 (게임출력 | 사이드바 | 입력영역)
+## 서버-클라이언트 통신 처리
 
-## MUD 게임 UI 구성
-
-### 게임 인터페이스
-- **플레이어 상태 패널**: 이름, 위치, 레벨, HP/MP 등
-- **빠른 명령어 버튼**: look, inventory, who, quit 등
-- **연결 상태 표시**: 실시간 서버 연결 상태
-
-### 게임 메시지 시스템
-- **타입별 색상 구분**: 시스템/플레이어/NPC/오류 메시지
-- **타임스탬프**: 모든 게임 메시지에 시간 정보
-- **자동 스크롤**: 새 메시지 자동 스크롤
-- **게임 출력 폰트**: Courier New (모노스페이스)
-
-### 게임 상호작용
-- **키보드**: Enter로 명령어 전송
-- **마우스**: 빠른 명령어 버튼 클릭
-- **도움말**: 게임 명령어 가이드 모달
-
-## 주요 실수 패턴
-
-### 1. 메시지 프로토콜 불일치
+### 방어적 데이터 접근
 ```javascript
-// ❌ 잘못된 방법 - 서버 응답 형식 미확인
-if (data.type === 'login') {
-    this.client.authModule.handleLoginSuccess(data);
-}
+// ✅ 안전한 데이터 접근 패턴
+const responseData = data.data || data;
+const action = responseData.action || data.action;
 
-// ✅ 올바른 방법 - 실제 서버 응답 형식에 맞춤
-if (data.action === 'login_success') {
-    this.client.authModule.handleLoginSuccess(data);
+// 방어적 접근으로 호환성 유지
+const loginData = data.data || data;
+const isAdmin = loginData.is_admin || false;
+```
+
+### 메시지 처리 패턴
+```javascript
+// MessageHandler에서 서버 응답 처리
+handleMessage(data) {
+    console.log('서버 메시지 수신:', data);
+
+    // 데이터 구조 확인 및 방어적 접근
+    const messageType = data.type;
+    const responseData = data.data || data;
+
+    switch(messageType) {
+        case 'room_info':
+            this.client.gameModule.handleRoomInfo(responseData);
+            break;
+        case 'login_success':
+            this.client.authModule.handleLoginSuccess(responseData);
+            break;
+        // ... 기타 케이스
+    }
 }
 ```
 
-### 2. 상태 관리 로직 누락
+## 에러 처리 및 디버깅
+
+### 클라이언트 디버깅 전략
 ```javascript
-// ❌ 잘못된 방법 - 상태 구분 없음
-logout() {
-    this.sendCommand('quit');
+// 서버 응답 구조 확인
+console.log('서버 메시지 수신:', data);
+
+// 데이터 존재 여부 확인
+if (data && data.data && data.data.action) {
+    // 처리 로직
+} else {
+    console.warn('예상과 다른 데이터 구조:', data);
 }
 
-// ✅ 올바른 방법 - 상태 플래그로 구분
-logout() {
-    this.isLoggingOut = true;
-    this.sendCommand('quit');
-}
+// 응답 타입별 로깅
+console.log(`메시지 타입: ${data.type}, 데이터:`, data);
+```
 
-this.ws.onclose = () => {
-    if (this.isLoggingOut) {
-        this.handleLogout();
-    } else if (this.isAuthenticated) {
-        this.handleUnexpectedDisconnection();
-    }
+### 에러 상황 처리
+```javascript
+// 네트워크 에러 처리
+this.websocket.onerror = function(error) {
+    console.error('WebSocket 에러:', error);
+    // 사용자에게 알림
+    this.showErrorMessage('서버 연결에 문제가 발생했습니다.');
 };
-```
 
-### 3. 메시지 핸들러 누락
-```javascript
-// ❌ 누락된 핸들러 - 메시지가 무시됨
-} else if (data.type === 'room_message') {
-    // 핸들러 없음
-}
-
-// ✅ 완전한 핸들러 구현
-} else if (data.type === 'room_message') {
-    this.handleRoomMessage(data);
-}
-
-handleRoomMessage(data) {
-    this.addGameMessage(data.message, 'info');
+// 예상치 못한 메시지 형식 처리
+if (!data.type) {
+    console.warn('메시지 타입이 없는 응답:', data);
+    return;
 }
 ```
 
-## 권장 개발 패턴
+## UI 업데이트 패턴
 
-### 1. 상태 기반 이벤트 처리
+### 동적 UI 갱신
 ```javascript
-class MudClient {
+// 방 정보 업데이트
+handleRoomInfo(roomData) {
+    if (!roomData) return;
+
+    // DOM 요소 안전하게 접근
+    const roomNameElement = document.getElementById('room-name');
+    if (roomNameElement) {
+        roomNameElement.textContent = roomData.name || '알 수 없는 장소';
+    }
+
+    // 방 설명 업데이트
+    this.updateRoomDescription(roomData.description);
+
+    // 출구 정보 업데이트
+    this.updateExits(roomData.exits);
+}
+```
+
+### 상태 관리
+```javascript
+// 클라이언트 상태 관리
+class GameState {
     constructor() {
-        this.isConnected = false;
-        this.isAuthenticated = false;
-        this.isLoggingOut = false;
-        this.isReconnecting = false;
-    }
-
-    handleConnectionClose() {
-        this.isConnected = false;
-
-        if (this.isLoggingOut) {
-            this.handleLogout();
-        } else if (this.isAuthenticated && !this.isReconnecting) {
-            this.handleUnexpectedDisconnection();
-        }
-    }
-}
-```
-
-### 2. 방어적 메시지 처리
-```javascript
-handleMessage(data) {
-    // 필수 필드 검증
-    if (!data || typeof data !== 'object') {
-        console.warn('Invalid message format:', data);
-        return;
-    }
-
-    // 상태별 처리
-    if (data.status === 'success') {
-        this.handleSuccessMessage(data);
-    } else if (data.error) {
-        this.handleErrorMessage(data);
-    } else {
-        this.handleGenericMessage(data);
-    }
-}
-```
-
-### 3. 메시지 타입 동기화
-```javascript
-// 서버 메시지 타입에 맞춘 핸들러 구현
-handleMessage(data) {
-    switch(data.type) {
-        case 'room_message':
-            this.handleRoomMessage(data);
-            break;
-        case 'system_message':
-            this.handleSystemMessage(data);
-            break;
-        case 'follow_stopped':
-            this.handleFollowStopped(data);
-            break;
-        default:
-            console.warn('Unknown message type:', data.type);
-    }
-}
-```
-
-### 4. 점진적 리팩토링
-```javascript
-// 1단계: 기존 기능 보존하면서 모듈 분리
-// 2단계: 각 모듈별 개별 테스트
-// 3단계: 전체 통합 테스트
-// 4단계: 최적화 및 정리
-
-// 리팩토링 중간 단계에서도 항상 작동하는 상태 유지
-```
-
-### 5. MUD 게임 세션 관리
-```javascript
-// ✅ MUD 게임 클라이언트 상태 관리
-class MudGameClient {
-    constructor() {
-        this.isConnected = false;
-        this.isAuthenticated = false;
-        this.isLoggingOut = false;
-        this.isReconnecting = false;
         this.currentRoom = null;
-        this.playerStats = null;
+        this.player = null;
+        this.inventory = [];
     }
 
-    handleGameMessage(data) {
-        switch(data.type) {
-            case 'room_description':
-                this.updateRoomInfo(data);
-                break;
-            case 'player_stats':
-                this.updatePlayerStats(data);
-                break;
-            case 'game_message':
-                this.displayGameMessage(data);
-                break;
-            case 'system_message':
-                this.displaySystemMessage(data);
-                break;
-        }
+    updateRoom(roomData) {
+        this.currentRoom = roomData;
+        this.notifyUI('room_updated', roomData);
+    }
+
+    updatePlayer(playerData) {
+        this.player = playerData;
+        this.notifyUI('player_updated', playerData);
     }
 }
 ```
 
-### 6. MUD 게임 명령어 처리
+## 모듈 구조 패턴
+
+### 모듈 간 통신
 ```javascript
-// ✅ 게임 명령어 자동완성 및 히스토리
-class GameCommandHandler {
+// 메시지 핸들러에서 적절한 모듈로 라우팅
+case 'login_success':
+    this.client.authModule.handleLoginSuccess(data);
+    break;
+
+case 'room_info':
+    this.client.gameModule.handleRoomInfo(data);
+    break;
+
+case 'inventory_update':
+    this.client.gameModule.handleInventoryUpdate(data);
+    break;
+```
+
+### 모듈별 책임 분리
+```javascript
+// AuthModule - 인증 관련 처리
+class AuthModule {
+    handleLoginSuccess(data) {
+        const loginData = data.data || data;
+        this.updateLoginState(loginData);
+        this.showGameInterface();
+    }
+}
+
+// GameModule - 게임 플레이 관련 처리
+class GameModule {
+    handleRoomInfo(data) {
+        this.updateRoomDisplay(data);
+        this.updateMiniMap(data);
+    }
+}
+```
+
+## 데이터 형식 호환성
+
+### 서버 응답 구조 변화 대응
+```javascript
+// 이전 형식과 새 형식 모두 지원
+function extractActionFromResponse(data) {
+    // 새로운 형식: { status: "success", data: { action: "login_success" } }
+    if (data.data && data.data.action) {
+        return data.data.action;
+    }
+
+    // 이전 형식: { status: "success", action: "login_success" }
+    if (data.action) {
+        return data.action;
+    }
+
+    return null;
+}
+```
+
+### 타입 검사 및 기본값
+```javascript
+// 안전한 데이터 추출
+function safeExtractData(response, path, defaultValue = null) {
+    try {
+        const keys = path.split('.');
+        let value = response;
+
+        for (const key of keys) {
+            if (value && typeof value === 'object' && key in value) {
+                value = value[key];
+            } else {
+                return defaultValue;
+            }
+        }
+
+        return value;
+    } catch (error) {
+        console.warn(`데이터 추출 실패: ${path}`, error);
+        return defaultValue;
+    }
+}
+
+// 사용 예시
+const playerName = safeExtractData(data, 'data.player.username', '알 수 없음');
+```
+
+## WebSocket 연결 관리
+
+### 연결 상태 관리
+```javascript
+class WebSocketManager {
     constructor() {
-        this.commandHistory = [];
-        this.historyIndex = -1;
-        this.commonCommands = ['look', 'inventory', 'who', 'say', 'tell'];
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
+        this.reconnectDelay = 1000;
     }
 
-    handleKeyPress(event) {
-        if (event.key === 'Enter') {
-            this.sendCommand(event.target.value);
-            this.addToHistory(event.target.value);
-            event.target.value = '';
-        } else if (event.key === 'ArrowUp') {
-            this.showPreviousCommand(event.target);
-        } else if (event.key === 'ArrowDown') {
-            this.showNextCommand(event.target);
+    connect() {
+        this.websocket = new WebSocket(this.url);
+
+        this.websocket.onopen = () => {
+            console.log('서버에 연결되었습니다.');
+            this.reconnectAttempts = 0;
+        };
+
+        this.websocket.onclose = () => {
+            console.log('서버 연결이 끊어졌습니다.');
+            this.attemptReconnect();
+        };
+    }
+
+    attemptReconnect() {
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            setTimeout(() => {
+                this.reconnectAttempts++;
+                this.connect();
+            }, this.reconnectDelay * this.reconnectAttempts);
         }
     }
+}
+```
 
-    sendCommand(command) {
-        if (command.trim()) {
-            this.websocket.send(JSON.stringify({
-                type: 'command',
-                command: command.trim()
-            }));
-        }
+## 사용자 경험 개선
+
+### 로딩 상태 관리
+```javascript
+// 로딩 인디케이터 표시
+function showLoading(message = '처리 중...') {
+    const loadingElement = document.getElementById('loading');
+    if (loadingElement) {
+        loadingElement.textContent = message;
+        loadingElement.style.display = 'block';
+    }
+}
+
+function hideLoading() {
+    const loadingElement = document.getElementById('loading');
+    if (loadingElement) {
+        loadingElement.style.display = 'none';
     }
 }
 ```
 
-## MUD 게임 개발 체크리스트
-
-### 게임 클라이언트 구현 전
-- [ ] MUD 서버 메시지 프로토콜 분석
-- [ ] 게임 상태 (플레이어, 방, 아이템) 데이터 구조 파악
-- [ ] 게임 명령어 목록 및 응답 형식 확인
-- [ ] 실시간 업데이트가 필요한 UI 요소 식별
-
-### 게임 클라이언트 구현 중
-- [ ] 게임 메시지 타입별 핸들러 구현
-- [ ] 플레이어 상태 실시간 업데이트 로직
-- [ ] 게임 명령어 입력 및 히스토리 기능
-- [ ] 연결 끊김 시 재연결 로직
-
-### 게임 클라이언트 테스트
-- [ ] 로그인/로그아웃 플로우 테스트
-- [ ] 게임 명령어 (look, inventory, move 등) 테스트
-- [ ] 다중 플레이어 상호작용 테스트
-- [ ] 네트워크 끊김 상황 테스트
-
-## MUD 게임 디버깅 가이드
-
-### 게임 상태 디버깅
+### 사용자 피드백
 ```javascript
-// 게임 상태 로깅
-handleGameStateUpdate(data) {
-    console.log('Game state update:', {
-        type: data.type,
-        player: this.playerStats,
-        room: this.currentRoom,
-        timestamp: new Date().toISOString()
-    });
+// 성공/에러 메시지 표시
+function showMessage(message, type = 'info') {
+    const messageContainer = document.getElementById('message-container');
+    if (!messageContainer) return;
+
+    const messageElement = document.createElement('div');
+    messageElement.className = `message message-${type}`;
+    messageElement.textContent = message;
+
+    messageContainer.appendChild(messageElement);
+
+    // 자동으로 메시지 제거
+    setTimeout(() => {
+        messageElement.remove();
+    }, 3000);
 }
 ```
 
-### 게임 메시지 디버깅
-```javascript
-// 게임 메시지 상세 로깅
-handleGameMessage(data) {
-    console.log('Game message received:', {
-        type: data.type,
-        content: data.message,
-        sender: data.sender,
-        room: data.room_id
-    });
-}
-```
+## 클라이언트 체크리스트
 
-## MUD 게임 특화 주의사항
-- **게임 세션 유지**: 브라우저 새로고침 시에도 게임 상태 복원
-- **명령어 큐잉**: 네트워크 지연 시 명령어 순서 보장
-- **실시간 동기화**: 다른 플레이어 행동 즉시 반영
-- **게임 규칙 준수**: 서버 검증에 의존하되 클라이언트에서 기본 검증
+### 새로운 기능 구현 시
+- [ ] 서버 응답 형식 확인 및 방어적 접근 구현
+- [ ] 에러 상황 처리 로직 추가
+- [ ] 사용자 피드백 메시지 구현
+- [ ] 로딩 상태 관리 추가
+
+### 메시지 처리 추가 시
+- [ ] MessageHandler에 새로운 케이스 추가
+- [ ] 해당 모듈에 핸들러 메서드 구현
+- [ ] 데이터 구조 변화에 대한 호환성 확인
+- [ ] 에러 처리 및 로깅 추가
+
+### UI 업데이트 시
+- [ ] DOM 요소 존재 여부 확인
+- [ ] 기본값 설정으로 안전성 확보
+- [ ] 사용자 경험 고려한 피드백 제공
+- [ ] 반응형 디자인 고려
