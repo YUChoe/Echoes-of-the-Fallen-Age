@@ -41,6 +41,21 @@ class MessageHandler {
                 // look 명령어 응답 처리 - 동적 버튼 업데이트
                 if (data.data && data.data.action === 'look') {
                     this.client.gameModule.updateDynamicButtons(data.data);
+                    // 방 컨텍스트 업데이트 (NPC 정보 포함)
+                    this.client.updateRoomContext({
+                        exits: data.data.exits ? data.data.exits.reduce((acc, exit) => {
+                            acc[exit] = exit; // 간단한 매핑
+                            return acc;
+                        }, {}) : {},
+                        objects: data.data.objects ? data.data.objects.map(obj => ({ name: obj })) : [],
+                        players: data.data.players || [],
+                        npcs: data.data.npcs || []
+                    });
+                }
+
+                // inventory 명령어 응답 처리 - 인벤토리 컨텍스트 업데이트
+                if (data.data && data.data.action === 'inventory') {
+                    this.client.updateInventoryContext(data.data.items || []);
                 }
 
                 // 일반적인 동적 버튼 업데이트 (data에 exits나 objects가 있는 경우)

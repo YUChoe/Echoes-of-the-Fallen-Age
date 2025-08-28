@@ -123,6 +123,11 @@ class AuthModule {
         // 게임 화면으로 전환
         this.client.showScreen('game');
 
+        // UI 초기화 (로그인 직후)
+        setTimeout(() => {
+            this.client.initializeGameUI();
+        }, 100);
+
         // 환영 메시지 표시
         if (data.message) {
             this.client.gameModule.addGameMessage(data.message, 'success');

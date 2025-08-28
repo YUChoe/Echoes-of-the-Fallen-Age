@@ -32,6 +32,10 @@ class MudClient {
         this.statsModule = null;
         this.uiModule = null;
         this.messageHandler = null;
+        this.commandBuilderModule = null;
+
+        // 명령어 조합 모드 상태
+        this.isCommandBuilderMode = true;
 
         this.init();
     }
@@ -64,6 +68,7 @@ class MudClient {
         this.npcModule = new NPCModule(this);
         this.uiModule = new UIModule(this);
         this.messageHandler = new MessageHandler(this);
+        this.commandBuilderModule = new CommandBuilderModule(this);
     }
 
     async loadConfig() {
@@ -108,6 +113,14 @@ class MudClient {
         this.gameModule.setupEventListeners();
         this.adminModule.setupEventListeners();
         this.statsModule.setupEventListeners();
+
+        // 명령어 조합 모드 토글 버튼
+        const toggleBtn = document.getElementById('toggleCommandBuilder');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this.toggleCommandBuilderMode();
+            });
+        }
     }
 
     showScreen(screenName) {
@@ -129,6 +142,9 @@ class MudClient {
             if (commandInput) {
                 commandInput.focus();
             }
+
+            // 게임 화면 전환 시 모든 UI 요소를 초기화하고 올바른 모드 활성화
+            this.initializeGameUI();
         }
     }
 
@@ -269,6 +285,116 @@ class MudClient {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // 게임 UI 초기화
+    initializeGameUI() {
+        // 인라인 스타일 제거 (CSS 클래스가 제어하도록)
+        const commandBuilder = document.getElementById('commandBuilder');
+        const dynamicButtons = document.getElementById('dynamicButtons');
+        const inputContainer = document.querySelector('.input-container');
+
+        if (commandBuilder) {
+            commandBuilder.style.display = '';
+        }
+        if (dynamicButtons) {
+            dynamicButtons.style.display = '';
+        }
+        if (inputContainer) {
+            inputContainer.style.display = '';
+        }
+
+        // 즉시 올바른 모드 활성화
+        if (this.isCommandBuilderMode) {
+            this.activateCommandBuilderMode();
+        } else {
+            this.activateNormalMode();
+        }
+    }
+
+    // 명령어 조합 모드 활성화
+    activateCommandBuilderMode() {
+        const toggleBtn = document.getElementById('toggleCommandBuilder');
+
+        // body 클래스로 모드 제어
+        document.body.className = 'command-builder-active';
+
+        if (toggleBtn) {
+            toggleBtn.classList.add('active');
+            toggleBtn.textContent = '📝 일반 모드';
+        }
+
+        // 명령어 조합 컨텍스트 업데이트
+        this.updateCommandBuilderContext();
+    }
+
+    // 일반 모드 활성화
+    activateNormalMode() {
+        const toggleBtn = document.getElementById('toggleCommandBuilder');
+
+        // body 클래스로 모드 제어
+        document.body.className = 'normal-mode-active';
+
+        if (toggleBtn) {
+            toggleBtn.classList.remove('active');
+            toggleBtn.textContent = '🎯 명령어 조합 모드';
+        }
+    }
+
+    // 명령어 조합 모드 토글
+    toggleCommandBuilderMode() {
+        this.isCommandBuilderMode = !this.isCommandBuilderMode;
+
+        if (this.isCommandBuilderMode) {
+            this.activateCommandBuilderMode();
+        } else {
+            this.activateNormalMode();
+        }
+    }
+
+    // 명령어 조합 시스템의 컨텍스트 업데이트
+    updateCommandBuilderContext() {
+        if (!this.commandBuilderModule || !this.isCommandBuilderMode) return;
+
+        // 현재 게임 상태를 기반으로 컨텍스트 생성
+        const context = {
+            exits: this.currentRoomExits || [],
+            objects: this.currentRoomObjects || [],
+            inventory: this.currentInventory || [],
+            players: this.currentRoomPlayers || [],
+            npcs: this.currentRoomNPCs || [],
+            hasExits: (this.currentRoomExits || []).length > 0,
+            hasRoomObjects: (this.currentRoomObjects || []).length > 0,
+            hasInventoryItems: (this.currentInventory || []).length > 0,
+            hasOtherPlayers: (this.currentRoomPlayers || []).length > 0,
+            hasNPCs: (this.currentRoomNPCs || []).length > 0
+        };
+
+        this.commandBuilderModule.updateAvailableCommands(context);
+    }
+
+    // 게임 상태 업데이트 메서드들
+    updateRoomContext(roomData) {
+        this.currentRoomExits = roomData.exits ? Object.keys(roomData.exits) : [];
+        this.currentRoomObjects = roomData.objects || [];
+        this.currentRoomPlayers = roomData.players || [];
+        this.currentRoomNPCs = roomData.npcs || [];
+
+
+
+        // 명령어 조합 모드가 활성화되어 있으면 컨텍스트 업데이트
+        if (this.isCommandBuilderMode) {
+            this.updateCommandBuilderContext();
+        }
+    }
+
+    updateInventoryContext(inventoryData) {
+        this.currentInventory = inventoryData || [];
+
+        // 명령어 조합 모드가 활성화되어 있으면 컨텍스트 업데이트
+        if (this.isCommandBuilderMode) {
+            this.updateCommandBuilderContext();
+        }
     }
 }
 

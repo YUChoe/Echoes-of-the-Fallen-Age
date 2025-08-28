@@ -69,12 +69,24 @@
                     <button id="statsBtn" class="cmd-btn">📊 능력치</button>
                 </div>
 
+                <!-- 명령어 조합 시스템 토글 -->
+                <div class="command-builder-toggle">
+                    <button id="toggleCommandBuilder" class="toggle-btn active">
+                        📝 일반 모드
+                    </button>
+                </div>
+
+                <!-- 명령어 조합 시스템 -->
+                <div id="commandBuilder" style="display: none;">
+                    <!-- 명령어 조합 패널이 여기에 생성됨 -->
+                </div>
+
                 <!-- 동적 버튼 영역 (출구와 객체) -->
                 <div class="dynamic-buttons" id="dynamicButtons" style="display: none;">
                     <!-- 동적으로 생성되는 버튼들 -->
                 </div>
 
-                <div class="input-container">
+                <div class="input-container" style="display: none;">
                     <input type="text" id="commandInput" placeholder="명령어를 입력하세요..." autocomplete="off">
                     <button id="sendBtn" class="btn primary">전송</button>
                 </div>
@@ -431,7 +443,8 @@
     <script src="/static/js/modules/GameModule.js"></script>
     <script src="/static/js/modules/AdminModule.js"></script>
     <script src="/static/js/modules/StatsModule.js"></script>
-    <script src="/static/js/modules/NPCModule.js"></script></script>
+    <script src="/static/js/modules/NPCModule.js"></script>
+    <script src="/static/js/modules/CommandBuilderModule.js"></script>
     <script src="/static/js/core/MudClient.js"></script>
     <script src="/static/js/app.js"></script>
 </body>

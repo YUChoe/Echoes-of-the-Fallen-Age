@@ -105,7 +105,7 @@ class GameModule {
 
         if (exits.length > 0) {
             const exitsGroup = document.createElement('div');
-            exitsGroup.className = 'button-group';
+            exitsGroup.className = 'button-group exits';
             exitsGroup.innerHTML = '<span class="group-label">🚪 출구:</span>';
 
             exits.forEach(exit => {
@@ -306,8 +306,12 @@ class GameModule {
             // 동적 버튼 업데이트
             this.updateDynamicButtons({
                 exits: Object.keys(room.exits || {}),
-                objects: room.objects ? room.objects.map(obj => obj.name) : []
+                objects: room.objects ? room.objects.map(obj => obj.name) : [],
+                npcs: room.npcs || []
             });
+
+            // 클라이언트의 방 컨텍스트 업데이트
+            this.client.updateRoomContext(room);
         }
     }
 
