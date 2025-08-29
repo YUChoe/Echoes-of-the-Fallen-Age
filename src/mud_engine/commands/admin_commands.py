@@ -453,6 +453,105 @@ class KickPlayerCommand(AdminCommand):
         """
 
 
+class GotoCommand(AdminCommand):
+    """방 ID로 바로 이동하는 명령어"""
+
+    def __init__(self):
+        super().__init__(
+            name="goto",
+            description="지정한 방 ID로 바로 이동합니다",
+            aliases=["tp", "teleport", "warp"]
+        )
+
+    async def execute_admin(self, session: Session, args: List[str]) -> CommandResult:
+        """방 ID로 이동 실행"""
+        if len(args) < 1:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message="사용법: goto <방ID>"
+            )
+
+        target_room_id = args[0]
+
+        try:
+            # 대상 방이 존재하는지 확인
+            target_room = await session.game_engine.world_manager.get_room(target_room_id)
+
+            if not target_room:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message=f"❌ 방 ID '{target_room_id}'를 찾을 수 없습니다."
+                )
+
+            # 현재 방에서 플레이어 제거 알림
+            if hasattr(session, 'current_room_id') and session.current_room_id:
+                await session.game_engine.broadcast_to_room(
+                    session.current_room_id,
+                    {
+                        "type": "room_message",
+                        "message": f"✨ {session.player.username}이(가) 순간이동으로 사라졌습니다."
+                    },
+                    exclude_session=session.session_id
+                )
+
+            # PlayerMovementManager를 사용하여 플레이어 이동
+            success = await session.game_engine.movement_manager.move_player_to_room(session, target_room_id)
+
+            if not success:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message=f"❌ 방 '{target_room_id}'로 이동할 수 없습니다."
+                )
+
+            # 새 방에 도착 알림
+            await session.game_engine.broadcast_to_room(
+                target_room_id,
+                {
+                    "type": "room_message",
+                    "message": f"✨ {session.player.username}이(가) 순간이동으로 나타났습니다."
+                },
+                exclude_session=session.session_id
+            )
+
+            # 방 이름 가져오기
+            room_name = target_room.name.get('ko', target_room.name.get('en', '알 수 없는 방'))
+
+            return CommandResult(
+                result_type=CommandResultType.SUCCESS,
+                message=f"✅ '{room_name}' (ID: {target_room_id})로 이동했습니다."
+            )
+
+        except Exception as e:
+            logger.error(f"방 이동 중 오류: {e}")
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message=f"❌ 방 이동 중 오류가 발생했습니다: {str(e)}"
+            )
+
+    def get_help(self) -> str:
+        return """
+✨ **순간이동 명령어**
+
+**사용법:** `goto <방ID>`
+
+**설명:**
+관리자 권한으로 지정한 방 ID로 즉시 이동합니다.
+이동 시 현재 방의 다른 플레이어들에게 알림이 전송됩니다.
+
+**예시:**
+- `goto town_square` - town_square 방으로 이동
+- `goto forest_0_0` - forest_0_0 방으로 이동
+- `goto library` - library 방으로 이동
+
+**별칭:** `tp`, `teleport`, `warp`
+**권한:** 관리자 전용
+
+**주의사항:**
+- 존재하지 않는 방 ID를 입력하면 이동할 수 없습니다
+- 이동 시 다른 플레이어들에게 순간이동 메시지가 표시됩니다
+        """
+
+
 class AdminListCommand(AdminCommand):
     """관리자 명령어 목록"""
 
@@ -473,6 +572,7 @@ class AdminListCommand(AdminCommand):
 - `createroom <ID> <이름> [설명]` - 새 방 생성
 - `editroom <ID> <속성> <값>` - 방 편집
 - `createexit <출발방> <방향> <도착방>` - 출구 생성
+- `goto <방ID>` - 지정한 방으로 순간이동
 
 **객체 관리:**
 - `createobject <ID> <이름> <타입> [위치]` - 객체 생성

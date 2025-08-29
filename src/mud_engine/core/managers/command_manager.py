@@ -91,7 +91,7 @@ class CommandManager:
         # 관리자 명령어들 등록
         from ...commands.admin_commands import (
             CreateRoomCommand, EditRoomCommand, CreateExitCommand,
-            CreateObjectCommand, KickPlayerCommand, AdminListCommand
+            CreateObjectCommand, KickPlayerCommand, AdminListCommand, GotoCommand
         )
         self.command_processor.register_command(CreateRoomCommand())
         self.command_processor.register_command(EditRoomCommand())
@@ -99,6 +99,7 @@ class CommandManager:
         self.command_processor.register_command(CreateObjectCommand())
         self.command_processor.register_command(KickPlayerCommand())
         self.command_processor.register_command(AdminListCommand())
+        self.command_processor.register_command(GotoCommand())
 
         # 플레이어 상호작용 명령어들 등록
         from ...commands.interaction_commands import (
