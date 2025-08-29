@@ -365,6 +365,19 @@ class Monster(BaseModel):
         else:
             converted_data['drop_items'] = []
 
+        # properties 필드 처리
+        if 'properties' in converted_data:
+            properties_data = converted_data['properties']
+            if isinstance(properties_data, str):
+                try:
+                    converted_data['properties'] = json.loads(properties_data)
+                except (json.JSONDecodeError, TypeError):
+                    converted_data['properties'] = {}
+            elif not isinstance(properties_data, dict):
+                converted_data['properties'] = {}
+        else:
+            converted_data['properties'] = {}
+
         # 날짜 필드 처리
         for date_field in ['created_at', 'last_death_time']:
             if date_field in converted_data and isinstance(converted_data[date_field], str):

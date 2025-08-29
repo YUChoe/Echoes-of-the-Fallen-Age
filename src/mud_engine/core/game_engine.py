@@ -47,7 +47,9 @@ class GameEngine:
         # WorldManager 초기화
         room_repo = RoomRepository(db_manager)
         object_repo = GameObjectRepository(db_manager)
-        self.world_manager = WorldManager(room_repo, object_repo)
+        from ..game.repositories import MonsterRepository
+        monster_repo = MonsterRepository(db_manager)
+        self.world_manager = WorldManager(room_repo, object_repo, monster_repo)
 
         self._running = False
         self._start_time: Optional[datetime] = None
@@ -92,6 +94,14 @@ class GameEngine:
         self._running = True
         self._start_time = datetime.now()
 
+        # 몬스터 스폰 시스템 시작
+        try:
+            await self.world_manager.setup_default_spawn_points()
+            await self.world_manager.start_spawn_scheduler()
+            logger.info("몬스터 스폰 시스템 시작 완료")
+        except Exception as e:
+            logger.error(f"몬스터 스폰 시스템 시작 실패: {e}")
+
         logger.info("GameEngine 시작 완료")
 
     async def stop(self) -> None:
@@ -102,6 +112,13 @@ class GameEngine:
         logger.info("GameEngine 중지 중...")
 
         self._running = False
+
+        # 몬스터 스폰 시스템 중지
+        try:
+            await self.world_manager.stop_spawn_scheduler()
+            logger.info("몬스터 스폰 시스템 중지 완료")
+        except Exception as e:
+            logger.error(f"몬스터 스폰 시스템 중지 실패: {e}")
 
         # 모든 활성 세션에 종료 알림
         await self._notify_all_players_shutdown()

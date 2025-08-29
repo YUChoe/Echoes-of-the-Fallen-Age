@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """게임의 핵심 관리자(Manager) 클래스들을 정의합니다."""
+import asyncio
 import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from .repositories import PlayerRepository, RoomRepository, GameObjectRepository
+from .repositories import PlayerRepository, RoomRepository, GameObjectRepository, MonsterRepository
 from ..game.auth import AuthService
 from ..game.models import Player, Room, GameObject
+from .monster import Monster, MonsterType, MonsterBehavior, MonsterStats
 
 logger = logging.getLogger(__name__)
 
@@ -39,16 +41,19 @@ class PlayerManager:
 
     async def save_player(self, player: Player) -> None:
         """플레이어 정보를 저장합니다."""
-        await self._player_repo.update(player)
+        await self._player_repo.update(player.id, player.to_dict_with_password())
 
 
 class WorldManager:
     """게임 세계 관리자 클래스 - 방과 게임 객체를 총괄 관리합니다."""
 
-    def __init__(self, room_repo: RoomRepository, object_repo: GameObjectRepository) -> None:
+    def __init__(self, room_repo: RoomRepository, object_repo: GameObjectRepository, monster_repo: MonsterRepository) -> None:
         """WorldManager를 초기화합니다."""
         self._room_repo: RoomRepository = room_repo
         self._object_repo: GameObjectRepository = object_repo
+        self._monster_repo: MonsterRepository = monster_repo
+        self._spawn_scheduler_task: Optional[asyncio.Task] = None
+        self._spawn_points: Dict[str, List[Dict[str, Any]]] = {}  # room_id -> spawn_configs
         logger.info("WorldManager 초기화 완료")
 
     # === 방 관리 기능 ===
@@ -560,7 +565,7 @@ class WorldManager:
                 - missing_rooms: List[str] - 누락된 방들
         """
         try:
-            issues = {
+            issues: Dict[str, List[str]] = {
                 'invalid_exits': [],
                 'orphaned_objects': [],
                 'missing_rooms': []
@@ -631,3 +636,261 @@ class WorldManager:
         except Exception as e:
             logger.error(f"세계 무결성 수정 실패: {e}")
             raise
+
+    # === 몬스터 스폰 시스템 ===
+
+    async def start_spawn_scheduler(self) -> None:
+        """몬스터 스폰 스케줄러를 시작합니다."""
+        if self._spawn_scheduler_task and not self._spawn_scheduler_task.done():
+            logger.warning("스폰 스케줄러가 이미 실행 중입니다")
+            return
+
+        logger.info("몬스터 스폰 스케줄러 시작")
+        self._spawn_scheduler_task = asyncio.create_task(self._spawn_scheduler_loop())
+
+    async def stop_spawn_scheduler(self) -> None:
+        """몬스터 스폰 스케줄러를 중지합니다."""
+        if self._spawn_scheduler_task:
+            self._spawn_scheduler_task.cancel()
+            try:
+                await self._spawn_scheduler_task
+            except asyncio.CancelledError:
+                pass
+            logger.info("몬스터 스폰 스케줄러 중지")
+
+    async def _spawn_scheduler_loop(self) -> None:
+        """스폰 스케줄러 메인 루프"""
+        try:
+            while True:
+                await self._process_respawns()
+                await self._process_initial_spawns()
+                await asyncio.sleep(30)  # 30초마다 체크
+        except asyncio.CancelledError:
+            logger.info("스폰 스케줄러 루프 종료")
+            raise
+        except Exception as e:
+            logger.error(f"스폰 스케줄러 오류: {e}")
+            # 오류 발생 시 5초 후 재시도
+            await asyncio.sleep(5)
+
+    async def _process_respawns(self) -> None:
+        """리스폰 대기 중인 몬스터들을 처리합니다."""
+        try:
+            # 사망한 몬스터들 조회
+            dead_monsters = await self._monster_repo.find_by(is_alive=False)
+
+            for monster in dead_monsters:
+                if monster.is_ready_to_respawn():
+                    await self._respawn_monster(monster)
+
+        except Exception as e:
+            logger.error(f"리스폰 처리 실패: {e}")
+
+    async def _process_initial_spawns(self) -> None:
+        """초기 스폰이 필요한 방들을 처리합니다."""
+        try:
+            for room_id, spawn_configs in self._spawn_points.items():
+                for spawn_config in spawn_configs:
+                    await self._check_and_spawn_monster(room_id, spawn_config)
+
+        except Exception as e:
+            logger.error(f"초기 스폰 처리 실패: {e}")
+
+    async def _check_and_spawn_monster(self, room_id: str, spawn_config: Dict[str, Any]) -> None:
+        """특정 방에 몬스터 스폰이 필요한지 확인하고 스폰합니다."""
+        try:
+            monster_template_id = spawn_config.get('monster_template_id')
+            max_count = spawn_config.get('max_count', 1)
+            spawn_chance = spawn_config.get('spawn_chance', 1.0)
+
+            # 현재 방에 있는 해당 몬스터 수 확인
+            current_monsters = await self._monster_repo.get_monsters_in_room(room_id)
+            template_monsters = [m for m in current_monsters if m.get_property('template_id') == monster_template_id]
+
+            if len(template_monsters) < max_count:
+                # 스폰 확률 체크
+                import random
+                if random.random() <= spawn_chance:
+                    await self._spawn_monster_from_template(room_id, monster_template_id)
+
+        except Exception as e:
+            logger.error(f"몬스터 스폰 체크 실패 ({room_id}): {e}")
+
+    async def _spawn_monster_from_template(self, room_id: str, template_id: str) -> Optional[Monster]:
+        """템플릿을 기반으로 몬스터를 스폰합니다."""
+        try:
+            # 몬스터 템플릿 조회
+            template = await self._monster_repo.get_by_id(template_id)
+            if not template:
+                logger.error(f"몬스터 템플릿을 찾을 수 없음: {template_id}")
+                return None
+
+            # 새 몬스터 인스턴스 생성
+            from uuid import uuid4
+            new_monster = Monster(
+                id=str(uuid4()),
+                name=template.name.copy(),
+                description=template.description.copy(),
+                monster_type=template.monster_type,
+                behavior=template.behavior,
+                stats=MonsterStats(
+                    max_hp=template.stats.max_hp,
+                    current_hp=template.stats.max_hp,
+                    attack_power=template.stats.attack_power,
+                    defense=template.stats.defense,
+                    speed=template.stats.speed,
+                    accuracy=template.stats.accuracy,
+                    critical_chance=template.stats.critical_chance
+                ),
+                experience_reward=template.experience_reward,
+                gold_reward=template.gold_reward,
+                drop_items=template.drop_items.copy(),
+                spawn_room_id=room_id,
+                current_room_id=room_id,
+                respawn_time=template.respawn_time,
+                is_alive=True,
+                aggro_range=template.aggro_range,
+                roaming_range=template.roaming_range,
+                properties={'template_id': template_id},
+                created_at=datetime.now()
+            )
+
+            # 데이터베이스에 저장
+            created_monster = await self._monster_repo.create(new_monster.to_dict())
+            if created_monster:
+                logger.info(f"몬스터 스폰됨: {created_monster.get_localized_name()} (방: {room_id})")
+                return created_monster
+
+        except Exception as e:
+            logger.error(f"몬스터 스폰 실패 ({template_id} -> {room_id}): {e}")
+
+        return None
+
+    async def _respawn_monster(self, monster: Monster) -> bool:
+        """몬스터를 리스폰합니다."""
+        try:
+            success = await self._monster_repo.respawn_monster(monster.id)
+            if success:
+                logger.info(f"몬스터 리스폰됨: {monster.get_localized_name()} (방: {monster.spawn_room_id})")
+            return success
+
+        except Exception as e:
+            logger.error(f"몬스터 리스폰 실패 ({monster.id}): {e}")
+            return False
+
+    async def add_spawn_point(self, room_id: str, monster_template_id: str, max_count: int = 1, spawn_chance: float = 1.0) -> None:
+        """방에 몬스터 스폰 포인트를 추가합니다."""
+        try:
+            # 방이 존재하는지 확인
+            room = await self.get_room(room_id)
+            if not room:
+                logger.error(f"스폰 포인트 추가 실패: 방이 존재하지 않음 ({room_id})")
+                return
+
+            # 몬스터 템플릿이 존재하는지 확인
+            template = await self._monster_repo.get_by_id(monster_template_id)
+            if not template:
+                logger.error(f"스폰 포인트 추가 실패: 몬스터 템플릿이 존재하지 않음 ({monster_template_id})")
+                return
+
+            if room_id not in self._spawn_points:
+                self._spawn_points[room_id] = []
+
+            spawn_config = {
+                'monster_template_id': monster_template_id,
+                'max_count': max_count,
+                'spawn_chance': spawn_chance
+            }
+
+            self._spawn_points[room_id].append(spawn_config)
+            logger.info(f"스폰 포인트 추가됨: {room_id} -> {monster_template_id} (최대 {max_count}마리)")
+
+        except Exception as e:
+            logger.error(f"스폰 포인트 추가 실패: {e}")
+
+    async def remove_spawn_point(self, room_id: str, monster_template_id: str) -> bool:
+        """방에서 몬스터 스폰 포인트를 제거합니다."""
+        try:
+            if room_id not in self._spawn_points:
+                return False
+
+            original_count = len(self._spawn_points[room_id])
+            self._spawn_points[room_id] = [
+                config for config in self._spawn_points[room_id]
+                if config.get('monster_template_id') != monster_template_id
+            ]
+
+            removed = len(self._spawn_points[room_id]) < original_count
+            if removed:
+                logger.info(f"스폰 포인트 제거됨: {room_id} -> {monster_template_id}")
+
+            # 빈 리스트가 되면 방 자체를 제거
+            if not self._spawn_points[room_id]:
+                del self._spawn_points[room_id]
+
+            return removed
+
+        except Exception as e:
+            logger.error(f"스폰 포인트 제거 실패: {e}")
+            return False
+
+    async def get_spawn_points(self) -> Dict[str, List[Dict[str, Any]]]:
+        """모든 스폰 포인트 정보를 반환합니다."""
+        return self._spawn_points.copy()
+
+    async def get_room_spawn_points(self, room_id: str) -> List[Dict[str, Any]]:
+        """특정 방의 스폰 포인트 정보를 반환합니다."""
+        return self._spawn_points.get(room_id, []).copy()
+
+    async def clear_spawn_points(self, room_id: Optional[str] = None) -> None:
+        """스폰 포인트를 정리합니다."""
+        try:
+            if room_id:
+                if room_id in self._spawn_points:
+                    del self._spawn_points[room_id]
+                    logger.info(f"방 {room_id}의 스폰 포인트 정리됨")
+            else:
+                self._spawn_points.clear()
+                logger.info("모든 스폰 포인트 정리됨")
+
+        except Exception as e:
+            logger.error(f"스폰 포인트 정리 실패: {e}")
+
+    async def get_monsters_in_room(self, room_id: str) -> List[Monster]:
+        """특정 방에 있는 몬스터들을 조회합니다."""
+        try:
+            return await self._monster_repo.get_monsters_in_room(room_id)
+        except Exception as e:
+            logger.error(f"방 내 몬스터 조회 실패 ({room_id}): {e}")
+            return []
+
+    async def kill_monster(self, monster_id: str) -> bool:
+        """몬스터를 사망 처리합니다."""
+        try:
+            return await self._monster_repo.kill_monster(monster_id)
+        except Exception as e:
+            logger.error(f"몬스터 사망 처리 실패 ({monster_id}): {e}")
+            return False
+
+    async def setup_default_spawn_points(self) -> None:
+        """기본 스폰 포인트들을 설정합니다."""
+        try:
+            # 숲 지역에 기본 몬스터 스폰 설정
+            forest_rooms = [
+                'forest_0_0', 'forest_1_1', 'forest_2_2', 'forest_3_3',
+                'forest_4_4', 'forest_5_5', 'forest_6_6', 'forest_7_7'
+            ]
+
+            for room_id in forest_rooms:
+                # 방이 존재하는지 확인
+                room = await self.get_room(room_id)
+                if room:
+                    # 슬라임 스폰 포인트 추가 (확률 30%, 최대 2마리)
+                    await self.add_spawn_point(room_id, 'slime_template', max_count=2, spawn_chance=0.3)
+                    # 고블린 스폰 포인트 추가 (확률 20%, 최대 1마리)
+                    await self.add_spawn_point(room_id, 'goblin_template', max_count=1, spawn_chance=0.2)
+
+            logger.info("기본 스폰 포인트 설정 완료")
+
+        except Exception as e:
+            logger.error(f"기본 스폰 포인트 설정 실패: {e}")

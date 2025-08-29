@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 
 from ..database.repository import BaseRepository
 from .models import Player, Character, Room, GameObject, NPC
+from .monster import Monster
 
 logger = logging.getLogger(__name__)
 
@@ -402,27 +403,14 @@ class MonsterRepository(BaseRepository):
         from .monster import Monster
         return Monster
 
-    async def get_monsters_in_room(self, room_id: str) -> List:
-        """특정 방에 있는 몬스터 목록 조회"""
+    async def get_monsters_in_room(self, room_id: str) -> List[Monster]:
+        """특정 방에 있는 살아있는 몬스터들을 조회합니다."""
         try:
-            db_manager = await self.get_db_manager()
-            cursor = await db_manager.execute(
-                "SELECT * FROM monsters WHERE current_room_id = ? AND is_alive = TRUE",
-                (room_id,)
-            )
-            rows = await cursor.fetchall()
-
-            monsters = []
-            for row in rows:
-                monster_data = dict(zip([col[0] for col in cursor.description], row))
-                Monster = self.get_model_class()
-                monsters.append(Monster.from_dict(monster_data))
-
+            monsters = await self.find_by(current_room_id=room_id, is_alive=True)
             logger.debug(f"방 {room_id}에서 {len(monsters)}마리 몬스터 조회")
             return monsters
-
         except Exception as e:
-            logger.error(f"방 내 몬스터 조회 실패: {e}")
+            logger.error(f"방 내 몬스터 조회 실패 ({room_id}): {e}")
             return []
 
     async def kill_monster(self, monster_id: str) -> bool:
