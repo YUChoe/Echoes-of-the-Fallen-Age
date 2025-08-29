@@ -119,7 +119,16 @@ class CommandManager:
         self.command_processor.register_command(BuyCommand())
         self.command_processor.register_command(SellCommand())
 
-        logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용, NPC 상호작용 명령어 포함)")
+        # 전투 명령어들 등록
+        from ...commands.combat_commands import (
+            AttackCommand, DefendCommand, FleeCommand, CombatStatusCommand
+        )
+        self.command_processor.register_command(AttackCommand(self.game_engine.combat_system))
+        self.command_processor.register_command(DefendCommand(self.game_engine.combat_system))
+        self.command_processor.register_command(FleeCommand(self.game_engine.combat_system))
+        self.command_processor.register_command(CombatStatusCommand(self.game_engine.combat_system))
+
+        logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용, NPC 상호작용, 전투 명령어 포함)")
 
     async def handle_player_command(self, session: 'Session', command: str):
         """

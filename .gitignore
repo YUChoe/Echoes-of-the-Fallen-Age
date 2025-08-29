@@ -54,6 +54,7 @@ logs/
 .coverage
 .pytest_cache/
 htmlcov/
+.mypy_cache/
 
 # OS
 .DS_Store

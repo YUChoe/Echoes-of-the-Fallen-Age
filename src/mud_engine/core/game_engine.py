@@ -51,6 +51,10 @@ class GameEngine:
         monster_repo = MonsterRepository(db_manager)
         self.world_manager = WorldManager(room_repo, object_repo, monster_repo)
 
+        # CombatSystem 초기화
+        from ..game.combat import CombatSystem
+        self.combat_system = CombatSystem()
+
         self._running = False
         self._start_time: Optional[datetime] = None
 

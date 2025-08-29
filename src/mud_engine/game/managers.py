@@ -857,9 +857,11 @@ class WorldManager:
             logger.error(f"스폰 포인트 정리 실패: {e}")
 
     async def get_monsters_in_room(self, room_id: str) -> List[Monster]:
-        """특정 방에 있는 몬스터들을 조회합니다."""
+        """특정 방에 있는 모든 살아있는 몬스터를 조회합니다."""
         try:
-            return await self._monster_repo.get_monsters_in_room(room_id)
+            all_monsters = await self._monster_repo.get_monsters_in_room(room_id)
+            # 살아있는 몬스터만 반환
+            return [monster for monster in all_monsters if monster.is_alive]
         except Exception as e:
             logger.error(f"방 내 몬스터 조회 실패 ({room_id}): {e}")
             return []
@@ -894,3 +896,124 @@ class WorldManager:
 
         except Exception as e:
             logger.error(f"기본 스폰 포인트 설정 실패: {e}")
+
+    # === 몬스터 관리 기능 ===
+
+    async def get_monster(self, monster_id: str) -> Optional[Monster]:
+        """몬스터 ID로 몬스터 정보를 조회합니다."""
+        try:
+            return await self._monster_repo.get_by_id(monster_id)
+        except Exception as e:
+            logger.error(f"몬스터 조회 실패 ({monster_id}): {e}")
+            raise
+
+
+
+    async def get_all_monsters(self) -> List[Monster]:
+        """모든 몬스터를 조회합니다."""
+        try:
+            return await self._monster_repo.get_all()
+        except Exception as e:
+            logger.error(f"전체 몬스터 조회 실패: {e}")
+            raise
+
+    async def create_monster(self, monster_data: Dict[str, Any]) -> Monster:
+        """새로운 몬스터를 생성합니다."""
+        try:
+            # Monster 모델 생성 (유효성 검증 포함)
+            monster = Monster(
+                id=monster_data.get('id'),
+                name=monster_data.get('name', {}),
+                description=monster_data.get('description', {}),
+                monster_type=monster_data.get('monster_type', MonsterType.PASSIVE),
+                behavior=monster_data.get('behavior', MonsterBehavior.STATIONARY),
+                stats=monster_data.get('stats', MonsterStats()),
+                experience_reward=monster_data.get('experience_reward', 50),
+                gold_reward=monster_data.get('gold_reward', 10),
+                drop_items=monster_data.get('drop_items', []),
+                spawn_room_id=monster_data.get('spawn_room_id'),
+                current_room_id=monster_data.get('current_room_id'),
+                respawn_time=monster_data.get('respawn_time', 300),
+                aggro_range=monster_data.get('aggro_range', 1),
+                roaming_range=monster_data.get('roaming_range', 2),
+                properties=monster_data.get('properties', {})
+            )
+
+            # 데이터베이스에 저장
+            created_monster = await self._monster_repo.create(monster.to_dict())
+            logger.info(f"새 몬스터 생성됨: {created_monster.id}")
+            return created_monster
+
+        except Exception as e:
+            logger.error(f"몬스터 생성 실패: {e}")
+            raise
+
+    async def update_monster(self, monster: Monster) -> bool:
+        """몬스터 정보를 업데이트합니다."""
+        try:
+            updated_monster = await self._monster_repo.update(monster.id, monster.to_dict())
+            if updated_monster:
+                logger.info(f"몬스터 업데이트됨: {monster.id}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"몬스터 업데이트 실패 ({monster.id}): {e}")
+            raise
+
+    async def delete_monster(self, monster_id: str) -> bool:
+        """몬스터를 삭제합니다."""
+        try:
+            success = await self._monster_repo.delete(monster_id)
+            if success:
+                logger.info(f"몬스터 삭제됨: {monster_id}")
+            return success
+        except Exception as e:
+            logger.error(f"몬스터 삭제 실패 ({monster_id}): {e}")
+            raise
+
+    async def move_monster_to_room(self, monster_id: str, room_id: str) -> bool:
+        """몬스터를 특정 방으로 이동시킵니다."""
+        try:
+            # 대상 방이 존재하는지 확인
+            room = await self.get_room(room_id)
+            if not room:
+                logger.warning(f"대상 방이 존재하지 않음: {room_id}")
+                return False
+
+            # 몬스터 조회
+            monster = await self.get_monster(monster_id)
+            if not monster:
+                logger.warning(f"몬스터가 존재하지 않음: {monster_id}")
+                return False
+
+            # 몬스터 위치 업데이트
+            monster.current_room_id = room_id
+            success = await self.update_monster(monster)
+
+            if success:
+                logger.info(f"몬스터 {monster_id}를 방 {room_id}로 이동")
+
+            return success
+
+        except Exception as e:
+            logger.error(f"몬스터 방 이동 실패 ({monster_id} -> {room_id}): {e}")
+            raise
+
+    async def find_monsters_by_name(self, name_pattern: str, locale: str = 'ko') -> List[Monster]:
+        """이름 패턴으로 몬스터를 검색합니다."""
+        try:
+            all_monsters = await self.get_all_monsters()
+            matching_monsters = []
+
+            for monster in all_monsters:
+                if not monster.is_alive:
+                    continue
+
+                monster_name = monster.get_localized_name(locale).lower()
+                if name_pattern.lower() in monster_name:
+                    matching_monsters.append(monster)
+
+            return matching_monsters
+        except Exception as e:
+            logger.error(f"몬스터 이름 검색 실패 ({name_pattern}): {e}")
+            raise
