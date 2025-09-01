@@ -43,8 +43,8 @@ env/
 *.sqlite
 *.sqlite3
 data/*.db
-date/*.db-shm
-date/*.db-wal
+data/*.db-shm
+data/*.db-wal
 
 # 로그
 *.log
