@@ -501,6 +501,7 @@ class WorldManager:
             Dict: 위치 요약 정보
                 - room: Room 객체
                 - objects: List[GameObject] - 방에 있는 객체들
+                - monsters: List[Monster] - 방에 있는 몬스터들
                 - exits: Dict[str, str] - 출구 정보
                 - connected_rooms: List[Room] - 연결된 방들
         """
@@ -510,11 +511,13 @@ class WorldManager:
                 return {}
 
             objects = await self.get_room_objects(room_id)
+            monsters = await self.get_monsters_in_room(room_id)
             connected_rooms = await self.get_connected_rooms(room_id)
 
             return {
                 'room': room,
                 'objects': objects,
+                'monsters': monsters,
                 'exits': room.exits,
                 'connected_rooms': connected_rooms
             }

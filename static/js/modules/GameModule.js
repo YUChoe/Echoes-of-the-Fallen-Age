@@ -287,9 +287,28 @@ class GameModule {
 
     handleRoomInfo(data) {
         // 방 정보를 받았을 때 자동으로 look 명령어 결과처럼 처리
+        console.log('=== GameModule.handleRoomInfo 호출됨 ===');
+        console.log('데이터:', data);
+
         if (data.room) {
             const room = data.room;
+            console.log('방 정보:', room);
+            console.log('몬스터 데이터:', room.monsters);
+
             let message = `🏰 ${room.name}\n${room.description}\n`;
+
+            // 몬스터 정보 추가
+            if (room.monsters && room.monsters.length > 0) {
+                console.log('몬스터 정보 추가 중:', room.monsters.length, '마리');
+                message += "\n👹 이곳에 있는 몬스터들:\n";
+                room.monsters.forEach(monster => {
+                    const monsterLine = `• ${monster.name} (레벨 ${monster.level}, HP: ${monster.current_hp}/${monster.max_hp})\n`;
+                    console.log('몬스터 라인 추가:', monsterLine);
+                    message += monsterLine;
+                });
+            } else {
+                console.log('몬스터 정보 없음 또는 빈 배열');
+            }
 
             // 객체 정보 추가
             if (room.objects && room.objects.length > 0) {
@@ -314,6 +333,7 @@ class GameModule {
             this.updateDynamicButtons({
                 exits: Object.keys(room.exits || {}),
                 objects: room.objects ? room.objects.map(obj => obj.name) : [],
+                monsters: room.monsters ? room.monsters.map(monster => monster.name) : [],
                 npcs: room.npcs || []
             });
 

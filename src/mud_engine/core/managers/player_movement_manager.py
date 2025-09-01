@@ -140,6 +140,16 @@ class PlayerMovementManager:
                             "type": obj.object_type
                         }
                         for obj in room_info['objects']
+                    ],
+                    "monsters": [
+                        {
+                            "id": monster.id,
+                            "name": monster.get_localized_name(session.locale),
+                            "level": monster.level,
+                            "current_hp": monster.current_hp,
+                            "max_hp": monster.max_hp
+                        }
+                        for monster in room_info.get('monsters', [])
                     ]
                 }
 

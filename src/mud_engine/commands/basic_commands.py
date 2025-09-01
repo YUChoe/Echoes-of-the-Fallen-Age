@@ -174,7 +174,7 @@ class LookCommand(BaseCommand):
             return await self._look_at(session, target)
 
     async def _look_around(self, session: Session) -> CommandResult:
-        """방 전체 둘러보기 - 클라이언트에 이미 있는 방 정보를 다시 표시하도록 요청"""
+        """방 전체 둘러보기 - 방 정보를 다시 전송"""
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
@@ -184,7 +184,14 @@ class LookCommand(BaseCommand):
             return self.create_error_result("현재 위치를 확인할 수 없습니다.")
 
         try:
-            # 중복 방 정보 조회를 피하고, 클라이언트에 다시 보기 요청만 전송
+            # 게임 엔진을 통해 방 정보를 다시 전송
+            game_engine = getattr(session, 'game_engine', None)
+            if not game_engine:
+                return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+
+            # 방 정보를 플레이어에게 전송
+            await game_engine.movement_manager.send_room_info_to_player(session, current_room_id)
+
             return self.create_success_result(
                 message="주변을 다시 둘러봅니다.",
                 data={

@@ -125,6 +125,7 @@ class Monster(BaseModel):
     roaming_range: int = 2  # 로밍 범위 (방 단위)
     properties: Dict[str, Any] = field(default_factory=dict)  # 추가 속성
     created_at: datetime = field(default_factory=datetime.now)
+    _level: int = field(default=1)  # 내부 레벨 저장용
 
     def __post_init__(self):
         """초기화 후 검증"""
@@ -178,6 +179,26 @@ class Monster(BaseModel):
     def get_localized_description(self, locale: str = 'en') -> str:
         """로케일에 따른 몬스터 설명 반환"""
         return self.description.get(locale, self.description.get('en', self.description.get('ko', 'No description available.')))
+
+    @property
+    def level(self) -> int:
+        """몬스터 레벨 (기본값: 1)"""
+        return getattr(self, '_level', 1)
+
+    @level.setter
+    def level(self, value: int) -> None:
+        """몬스터 레벨 설정"""
+        self._level = value
+
+    @property
+    def max_hp(self) -> int:
+        """최대 HP (stats에서 가져오기)"""
+        return self.stats.max_hp if self.stats else 100
+
+    @property
+    def current_hp(self) -> int:
+        """현재 HP (stats에서 가져오기)"""
+        return self.stats.current_hp if self.stats else 100
 
     def is_aggressive(self) -> bool:
         """선공형 몬스터인지 확인"""
@@ -243,6 +264,11 @@ class Monster(BaseModel):
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""
+        # level을 properties에 저장
+        if not isinstance(self.properties, dict):
+            self.properties = {}
+        self.properties['level'] = self.level
+
         # BaseModel.to_dict() 호출 전에 DropItem 객체들을 딕셔너리로 변환
         original_drop_items = self.drop_items
         if isinstance(self.drop_items, list):
@@ -375,8 +401,12 @@ class Monster(BaseModel):
                     converted_data['properties'] = {}
             elif not isinstance(properties_data, dict):
                 converted_data['properties'] = {}
-        else:
-            converted_data['properties'] = {}
+
+        # level 처리 (properties에서 가져오거나 기본값 사용)
+        level_value = 1
+        if 'properties' in converted_data and isinstance(converted_data['properties'], dict):
+            level_value = converted_data['properties'].get('level', 1)
+        converted_data['_level'] = level_value
 
         # 날짜 필드 처리
         for date_field in ['created_at', 'last_death_time']:

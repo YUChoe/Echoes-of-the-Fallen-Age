@@ -526,6 +526,106 @@ function showMessage(message, type = 'info') {
 - [ ] 데이터 구조 변화에 대한 호환성 확인
 - [ ] 에러 처리 및 로깅 추가
 
+## 실제 프로젝트에서 발견된 주요 실수 패턴
+
+### 1. 브라우저 캐시 문제 간과 (Critical)
+**실수 사례**: 서버 코드 수정 후 브라우저에서 즉시 테스트 진행
+```javascript
+// ❌ 문제 상황
+// 1. GameModule.handleRoomInfo에 디버깅 로그 추가
+console.log('=== GameModule.handleRoomInfo 호출됨 ===');
+
+// 2. 서버 재시작 없이 브라우저에서 테스트
+// 3. 디버깅 로그가 출력되지 않음
+// 4. 메서드가 호출되지 않는다고 잘못 판단
+```
+
+**올바른 해결법**:
+```bash
+# 1. 서버 재시작 (필수)
+ps aux | grep python
+kill -9 <PID>
+source mud_engine_env/Scripts/activate && PYTHONPATH=. python -m src.mud_engine.main &
+
+# 2. 브라우저 강제 새로고침 (Ctrl+F5)
+# 3. 개발자 도구에서 실제 로드된 파일 버전 확인
+```
+
+### 2. 문제 원인 잘못 추정
+**실수 사례**: 서버-클라이언트 통신 문제를 서버 측 문제로 오판
+```javascript
+// ❌ 잘못된 추정
+// "서버에서 몬스터 데이터를 전송하지 않는다"
+// 실제로는 클라이언트에서 room_info 메시지를 받고 있었음
+
+// ✅ 올바른 디버깅 접근
+// 1단계: WebSocket 메시지 수신 여부 확인
+const originalOnMessage = window.mudClient.ws.onmessage;
+window.mudClient.ws.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    console.log('WebSocket 메시지 수신:', data);
+    if (data.type === 'room_info') {
+        console.log('room_info 메시지 상세:', data);
+    }
+    return originalOnMessage.call(this, event);
+};
+
+// 2단계: 메서드 호출 여부 확인
+const originalHandleRoomInfo = window.mudClient.gameModule.handleRoomInfo;
+window.mudClient.gameModule.handleRoomInfo = function(data) {
+    console.log('🔥 GameModule.handleRoomInfo 호출됨!');
+    return originalHandleRoomInfo.call(this, data);
+};
+```
+
+### 3. 객체 구조 가정 오류
+**실수 사례**: 전역 객체 구조를 확인하지 않고 접근
+```javascript
+// ❌ 잘못된 접근
+window.client.websocket.onmessage  // client 객체가 undefined
+window.mudClient.websocket         // websocket이 아니라 ws
+
+// ✅ 올바른 접근
+// 먼저 객체 구조 확인
+console.log('mudClient 객체 구조:', Object.keys(window.mudClient));
+console.log('WebSocket 관련 속성들:',
+    Object.keys(window.mudClient).filter(key =>
+        key.toLowerCase().includes('ws') ||
+        key.toLowerCase().includes('socket')
+    )
+);
+
+// 안전한 접근
+if (window.mudClient && window.mudClient.ws) {
+    window.mudClient.ws.onmessage = function(event) {
+        // 처리 로직
+    };
+}
+```
+
+### 4. 디버깅 로그 검증 부족
+**실수 사례**: 디버깅 로그를 추가했지만 실제 출력 여부를 확인하지 않음
+```javascript
+// ❌ 문제 상황
+// 1. 소스 코드에 console.log 추가
+// 2. 브라우저에서 로그가 출력되지 않음
+// 3. 캐시 문제인지 코드 문제인지 구분하지 못함
+
+// ✅ 올바른 검증 방법
+// 1. 브라우저에서 메서드 내용 직접 확인
+console.log(window.mudClient.gameModule.handleRoomInfo.toString());
+
+// 2. 메서드 존재 여부 확인
+console.log('handleRoomInfo 메서드 타입:',
+    typeof window.mudClient.gameModule.handleRoomInfo);
+
+// 3. 실시간으로 메서드 재정의하여 테스트
+window.mudClient.gameModule.handleRoomInfo = function(data) {
+    console.log('임시 디버깅: handleRoomInfo 호출됨', data);
+    // 원래 로직 실행
+};
+```
+
 ## 피해야 할 패턴
 
 ### CSS 및 UI 관리
@@ -546,6 +646,12 @@ function showMessage(message, type = 'info') {
 - 타입 검사 없이 데이터 사용
 - 기본값 설정 없는 데이터 추출
 
+### 디버깅 및 테스트
+- **캐시 확인 없이 코드 변경사항 반영 가정**
+- **객체 구조 확인 없이 깊은 속성 접근**
+- **서버와 클라이언트 로그 분리 확인**
+- **단계별 검증 없이 일괄 수정**
+
 ## 권장 패턴
 
 ### UI 및 CSS 관리
@@ -565,3 +671,46 @@ function showMessage(message, type = 'info') {
 - 서버 응답 구조 변화에 대한 유연한 대응
 - 명확한 에러 메시지와 사용자 피드백
 - 자동 복구 또는 재시도 로직
+
+### 디버깅 및 테스트 (실전 검증된 방법)
+- **캐시 문제 우선 해결**: 코드 변경 후 반드시 서버 재시작 + 브라우저 새로고침
+- **단계별 검증**: 서버 → 클라이언트 → 메시지 핸들러 → UI 업데이트 순서로 추적
+- **실시간 디버깅**: 브라우저에서 메서드 재정의를 통한 즉시 검증
+- **객체 구조 사전 확인**: 가정하지 말고 실제 구조 파악 후 접근
+
+### 효과적인 WebSocket 디버깅 패턴
+```javascript
+// 표준 WebSocket 메시지 가로채기 패턴
+function setupWebSocketDebugging() {
+    const originalOnMessage = window.mudClient.ws.onmessage;
+    window.mudClient.ws.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        console.log('WebSocket 메시지 수신:', data);
+
+        // 특정 메시지 타입 상세 로깅
+        if (data.type === 'room_info') {
+            console.log('=== room_info 메시지 상세 ===');
+            console.log('방 정보:', data.room);
+            if (data.room && data.room.monsters) {
+                console.log('몬스터 정보:', data.room.monsters);
+            }
+        }
+
+        return originalOnMessage.call(this, event);
+    };
+}
+
+// 메서드 호출 추적 패턴
+function setupMethodDebugging() {
+    const originalMethod = window.mudClient.gameModule.handleRoomInfo;
+    window.mudClient.gameModule.handleRoomInfo = function(data) {
+        console.log('🔥 메서드 호출 확인:', this.constructor.name, 'handleRoomInfo');
+        console.log('전달받은 데이터:', data);
+
+        const result = originalMethod.call(this, data);
+
+        console.log('메서드 실행 완료');
+        return result;
+    };
+}
+```
