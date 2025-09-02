@@ -42,27 +42,17 @@ class AttackCommand(BaseCommand):
             # 이미 전투 중인지 확인
             existing_combat = self.combat_system.get_player_combat(session.player.id)
             if existing_combat:
-                # 이미 전투 중이면 공격 액션 처리
-                turn = self.combat_system.process_player_action(
-                    session.player.id,
-                    CombatAction.ATTACK
-                )
-
-                if turn:
-                    combat_status = existing_combat.get_combat_status()
+                # 자동 전투 중이면 액션 설정
+                success = existing_combat.set_player_action(CombatAction.ATTACK)
+                if success:
                     return self.create_success_result(
-                        message=turn.message,
-                        data={
-                            "action": "combat_turn",
-                            "turn": turn.to_dict(),
-                            "combat_status": combat_status
-                        },
-                        broadcast=True,
-                        broadcast_message=f"⚔️ {session.player.username}이(가) 전투 중입니다!",
-                        room_only=True
+                        message="⚔️ 공격 액션을 선택했습니다!",
+                        data={"action": "combat_action_set", "selected_action": "attack"}
                     )
                 else:
-                    return self.create_error_result("전투 액션 처리에 실패했습니다.")
+                    return self.create_error_result("현재 액션을 선택할 수 없습니다.")
+
+
 
             # 새로운 전투 시작 - GameEngine을 통해 몬스터 찾기
             game_engine = getattr(session, 'game_engine', None)
@@ -89,30 +79,34 @@ class AttackCommand(BaseCommand):
                     f"'{' '.join(args)}'라는 몬스터를 찾을 수 없습니다."
                 )
 
-            # 전투 시작
-            combat = self.combat_system.start_combat(
+            # 브로드캐스트 콜백 함수 정의
+            async def broadcast_callback(room_id: str, message: str):
+                await game_engine.broadcast_to_room(
+                    room_id,
+                    {"type": "combat_message", "message": message},
+                    exclude_session=session.session_id
+                )
+
+            # 자동 전투 시작
+            combat = await self.combat_system.start_combat(
                 session.player,
                 target_monster,
-                current_room_id
+                current_room_id,
+                broadcast_callback
             )
 
-            # 첫 번째 공격 턴 처리
-            turn = combat.process_player_action(CombatAction.ATTACK)
-            combat_status = combat.get_combat_status()
-
             # 전투 시작 메시지
-            start_message = f"⚔️ {session.player.username}이(가) {target_monster.get_localized_name('ko')}와(과) 전투를 시작했습니다!"
+            start_message = f"⚔️ {session.player.username}이(가) {target_monster.get_localized_name('ko')}와(과) 자동 전투를 시작했습니다!"
 
             return self.create_success_result(
-                message=f"⚔️ {target_monster.get_localized_name('ko')}와(과) 전투를 시작합니다!\n{turn.message}",
+                message=f"⚔️ {target_monster.get_localized_name('ko')}와(과) 자동 전투를 시작합니다!",
                 data={
-                    "action": "combat_start",
+                    "action": "auto_combat_start",
                     "monster": {
                         "id": target_monster.id,
                         "name": target_monster.get_localized_name('ko')
                     },
-                    "turn": turn.to_dict(),
-                    "combat_status": combat_status
+                    "combat_status": combat.get_combat_status()
                 },
                 broadcast=True,
                 broadcast_message=start_message,
@@ -146,27 +140,15 @@ class DefendCommand(BaseCommand):
             if not combat:
                 return self.create_error_result("전투 중이 아닙니다.")
 
-            # 방어 액션 처리
-            turn = self.combat_system.process_player_action(
-                session.player.id,
-                CombatAction.DEFEND
-            )
-
-            if turn:
-                combat_status = combat.get_combat_status()
+            # 방어 액션 설정
+            success = combat.set_player_action(CombatAction.DEFEND)
+            if success:
                 return self.create_success_result(
-                    message=turn.message,
-                    data={
-                        "action": "combat_defend",
-                        "turn": turn.to_dict(),
-                        "combat_status": combat_status
-                    },
-                    broadcast=True,
-                    broadcast_message=f"🛡️ {session.player.username}이(가) 방어 자세를 취했습니다.",
-                    room_only=True
+                    message="🛡️ 방어 액션을 선택했습니다!",
+                    data={"action": "combat_action_set", "selected_action": "defend"}
                 )
             else:
-                return self.create_error_result("방어 액션 처리에 실패했습니다.")
+                return self.create_error_result("현재 액션을 선택할 수 없습니다.")
 
         except Exception as e:
             logger.error(f"방어 명령어 실행 중 오류: {e}")
@@ -195,45 +177,15 @@ class FleeCommand(BaseCommand):
             if not combat:
                 return self.create_error_result("전투 중이 아닙니다.")
 
-            # 도망 액션 처리
-            turn = self.combat_system.process_player_action(
-                session.player.id,
-                CombatAction.FLEE
-            )
-
-            if turn:
-                combat_status = combat.get_combat_status()
-
-                # 도망 성공 여부 확인
-                if combat.result == CombatResult.PLAYER_FLED:
-                    # 전투 종료
-                    self.combat_system.end_combat(combat.room_id)
-
-                    return self.create_success_result(
-                        message="💨 성공적으로 도망쳤습니다!",
-                        data={
-                            "action": "combat_fled",
-                            "turn": turn.to_dict(),
-                            "combat_ended": True
-                        },
-                        broadcast=True,
-                        broadcast_message=f"💨 {session.player.username}이(가) 전투에서 도망쳤습니다!",
-                        room_only=True
-                    )
-                else:
-                    return self.create_success_result(
-                        message=f"{turn.message}\n도망에 실패했습니다!",
-                        data={
-                            "action": "combat_flee_failed",
-                            "turn": turn.to_dict(),
-                            "combat_status": combat_status
-                        },
-                        broadcast=True,
-                        broadcast_message=f"💨 {session.player.username}이(가) 도망치려 했지만 실패했습니다!",
-                        room_only=True
-                    )
+            # 도망 액션 설정
+            success = combat.set_player_action(CombatAction.FLEE)
+            if success:
+                return self.create_success_result(
+                    message="💨 도망 액션을 선택했습니다!",
+                    data={"action": "combat_action_set", "selected_action": "flee"}
+                )
             else:
-                return self.create_error_result("도망 액션 처리에 실패했습니다.")
+                return self.create_error_result("현재 액션을 선택할 수 없습니다.")
 
         except Exception as e:
             logger.error(f"도망 명령어 실행 중 오류: {e}")
@@ -268,18 +220,24 @@ class CombatStatusCommand(BaseCommand):
             player_info = combat_status['player']
             monster_info = combat_status['monster']
 
-            message = f"""
-⚔️ 전투 상태 (턴 {combat_status['turn_number']})
+            current_turn = combat_status.get('current_turn', '알 수 없음')
+            state = combat_status.get('state', 'unknown')
 
-👤 {player_info['name']}:
+            message = f"""
+⚔️ 자동 전투 상태 (턴 {combat_status['turn_number']})
+🎯 현재 턴: {current_turn}
+⏱️ 상태: {state}
+
+👤 {player_info['name']} (Initiative: {player_info.get('initiative', 0)}):
    HP: {player_info['hp']}/{player_info['max_hp']} ({player_info['hp_percentage']:.1f}%)
 
-👹 {monster_info['name']}:
+👹 {monster_info['name']} (Initiative: {monster_info.get('initiative', 0)}):
    HP: {monster_info['hp']}/{monster_info['max_hp']} ({monster_info['hp_percentage']:.1f}%)
 
 📝 마지막 행동: {combat_status['last_turn']}
 
-💡 사용 가능한 명령어: attack, defend, flee
+💡 자동 전투 진행 중 - 턴이 돌아오면 액션을 선택하세요!
+   사용 가능한 명령어: attack, defend, flee
             """.strip()
 
             return self.create_success_result(

@@ -4,8 +4,9 @@
 
 import random
 import logging
+import asyncio
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Union, Tuple
+from typing import Dict, List, Optional, Any, Union, Tuple, Callable
 from enum import Enum
 from datetime import datetime
 
@@ -23,6 +24,16 @@ class CombatAction(Enum):
     CAST_SPELL = "cast_spell"
 
 
+class CombatMessageType(Enum):
+    """전투 메시지 타입"""
+    COMBAT_START = "combat_start"
+    COMBAT_MESSAGE = "combat_message"
+    COMBAT_STATUS = "combat_status"
+    COMBAT_END = "combat_end"
+    TURN_START = "turn_start"
+    ACTION_RESULT = "action_result"
+
+
 class CombatResult(Enum):
     """전투 결과"""
     ONGOING = "ongoing"
@@ -30,6 +41,15 @@ class CombatResult(Enum):
     MONSTER_VICTORY = "monster_victory"
     PLAYER_FLED = "player_fled"
     DRAW = "draw"
+
+
+class CombatState(Enum):
+    """전투 상태"""
+    INITIALIZING = "initializing"  # 전투 초기화 중
+    ROLLING_INITIATIVE = "rolling_initiative"  # Initiative 계산 중
+    WAITING_FOR_ACTION = "waiting_for_action"  # 플레이어 액션 대기
+    PROCESSING_TURN = "processing_turn"  # 턴 처리 중
+    COMBAT_ENDED = "combat_ended"  # 전투 종료
 
 
 @dataclass
@@ -76,6 +96,8 @@ class CombatParticipant:
     accuracy: int = 80
     critical_chance: int = 5
     is_defending: bool = False
+    initiative: int = 0  # Initiative 값 (속도 + 1d20)
+    pending_action: Optional[CombatAction] = None  # 대기 중인 액션
 
     def is_alive(self) -> bool:
         """생존 여부 확인"""
@@ -101,37 +123,63 @@ class CombatParticipant:
             return 0.0
         return (self.current_hp / self.max_hp) * 100
 
+    def roll_initiative(self) -> int:
+        """Initiative 계산 (속도 + 1d20)"""
+        roll = random.randint(1, 20)
+        self.initiative = self.speed + roll
+        return self.initiative
+
 
 class CombatSystem:
     """전투 시스템 메인 클래스"""
 
     def __init__(self):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-        self.active_combats: Dict[str, 'Combat'] = {}  # room_id -> Combat
+        self.active_combats: Dict[str, 'AutoCombat'] = {}  # room_id -> AutoCombat
+        self.combat_tasks: Dict[str, asyncio.Task] = {}  # room_id -> combat_task
 
-    def start_combat(self, player: Player, monster: Monster, room_id: str) -> 'Combat':
+    async def start_combat(self, player: Player, monster: Monster, room_id: str,
+                          broadcast_callback: Optional[Callable] = None) -> 'AutoCombat':
         """전투 시작"""
         self.logger.info(f"전투 시작: {player.username} vs {monster.get_localized_name('ko')} in room {room_id}")
 
         # 기존 전투가 있다면 종료
         if room_id in self.active_combats:
-            self.end_combat(room_id)
+            await self.end_combat(room_id)
 
-        # 새 전투 생성
-        combat = Combat(player, monster, room_id)
+        # 새 자동 전투 생성
+        combat = AutoCombat(player, monster, room_id, broadcast_callback)
         self.active_combats[room_id] = combat
+
+        # 자동 전투 루프 시작
+        task = asyncio.create_task(combat.start_auto_combat())
+        self.combat_tasks[room_id] = task
 
         return combat
 
-    def get_combat(self, room_id: str) -> Optional['Combat']:
+    def get_combat(self, room_id: str) -> Optional['AutoCombat']:
         """방의 활성 전투 조회"""
         return self.active_combats.get(room_id)
 
-    def end_combat(self, room_id: str) -> None:
+    async def end_combat(self, room_id: str) -> None:
         """전투 종료"""
         if room_id in self.active_combats:
             combat = self.active_combats[room_id]
             self.logger.info(f"전투 종료: room {room_id}, 결과: {combat.result}")
+
+            # 전투 태스크 취소
+            if room_id in self.combat_tasks:
+                task = self.combat_tasks[room_id]
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+                del self.combat_tasks[room_id]
+
+            # 전투 상태를 종료로 변경
+            combat.state = CombatState.COMBAT_ENDED
             del self.active_combats[room_id]
 
     def is_in_combat(self, player_id: str) -> bool:
@@ -141,21 +189,21 @@ class CombatSystem:
                 return True
         return False
 
-    def get_player_combat(self, player_id: str) -> Optional['Combat']:
+    def get_player_combat(self, player_id: str) -> Optional['AutoCombat']:
         """플레이어의 현재 전투 조회"""
         for combat in self.active_combats.values():
             if combat.player_participant.id == player_id:
                 return combat
         return None
 
-    def process_player_action(self, player_id: str, action: CombatAction,
-                            target_id: Optional[str] = None) -> Optional[CombatTurn]:
-        """플레이어 액션 처리"""
+    def set_player_action(self, player_id: str, action: CombatAction) -> bool:
+        """플레이어 액션 설정 (자동 전투에서 사용)"""
         combat = self.get_player_combat(player_id)
         if not combat:
-            return None
+            return False
 
-        return combat.process_player_action(action, target_id)
+        combat.player_participant.pending_action = action
+        return True
 
     def calculate_damage(self, attacker: CombatParticipant,
                         defender: CombatParticipant) -> Tuple[int, bool, bool]:
@@ -193,16 +241,19 @@ class CombatSystem:
         return final_damage, is_hit, is_critical
 
 
-class Combat:
-    """개별 전투 인스턴스"""
+class AutoCombat:
+    """자동 전투 인스턴스"""
 
-    def __init__(self, player: Player, monster: Monster, room_id: str):
+    def __init__(self, player: Player, monster: Monster, room_id: str,
+                 broadcast_callback: Optional[Callable] = None):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.room_id = room_id
         self.result = CombatResult.ONGOING
+        self.state = CombatState.INITIALIZING
         self.turn_number = 0
         self.combat_log: List[CombatTurn] = []
         self.started_at = datetime.now()
+        self.broadcast_callback = broadcast_callback
 
         # 전투 참여자 생성
         self.player_participant = self._create_player_participant(player)
@@ -212,7 +263,203 @@ class Combat:
         self.player = player
         self.monster = monster
 
-        self.logger.info(f"전투 생성: {player.username} vs {monster.get_localized_name('ko')}")
+        # 턴 순서 (Initiative 순)
+        self.turn_order: List[CombatParticipant] = []
+        self.current_turn_index = 0
+
+        # 턴 타이머 설정 (2초)
+        self.turn_timeout = 2.0
+
+        self.logger.info(f"자동 전투 생성: {player.username} vs {monster.get_localized_name('ko')}")
+
+    async def start_auto_combat(self) -> None:
+        """자동 전투 시작"""
+        try:
+            # 1. Initiative 계산
+            await self._roll_initiative()
+
+            # 2. 전투 루프 시작
+            await self._combat_loop()
+
+        except asyncio.CancelledError:
+            self.logger.info(f"전투 취소됨: {self.room_id}")
+            raise
+        except Exception as e:
+            self.logger.error(f"전투 중 오류 발생: {e}")
+            self.result = CombatResult.DRAW
+            self.state = CombatState.COMBAT_ENDED
+
+    async def _roll_initiative(self) -> None:
+        """Initiative 계산 및 턴 순서 결정"""
+        self.state = CombatState.ROLLING_INITIATIVE
+
+        # Initiative 계산
+        player_init = self.player_participant.roll_initiative()
+        monster_init = self.monster_participant.roll_initiative()
+
+        # 턴 순서 결정 (높은 Initiative 순)
+        participants = [self.player_participant, self.monster_participant]
+        self.turn_order = sorted(participants, key=lambda p: p.initiative, reverse=True)
+
+        # 브로드캐스트
+        init_message = (
+            f"⚔️ 전투 시작!\n"
+            f"Initiative: {self.player_participant.name}({player_init}) vs "
+            f"{self.monster_participant.name}({monster_init})\n"
+            f"턴 순서: {' → '.join([p.name for p in self.turn_order])}"
+        )
+
+        await self._broadcast_message(init_message)
+
+        self.logger.info(f"Initiative 계산 완료: {self.player_participant.name}({player_init}) vs {self.monster_participant.name}({monster_init})")
+
+    async def _combat_loop(self) -> None:
+        """자동 전투 메인 루프"""
+        while self.result == CombatResult.ONGOING:
+            # 현재 턴 참여자
+            current_participant = self.turn_order[self.current_turn_index]
+
+            self.state = CombatState.WAITING_FOR_ACTION
+
+            # 액션 결정
+            if current_participant.participant_type == "player":
+                action = await self._get_player_action(current_participant)
+            else:
+                action = self._get_monster_action()
+
+            # 턴 처리
+            self.state = CombatState.PROCESSING_TURN
+            await self._process_turn(current_participant, action)
+
+            # 전투 종료 조건 확인
+            if not self.player_participant.is_alive():
+                self.result = CombatResult.MONSTER_VICTORY
+                await self._handle_defeat()
+                break
+            elif not self.monster_participant.is_alive():
+                self.result = CombatResult.PLAYER_VICTORY
+                await self._handle_victory()
+                break
+
+            # 다음 턴으로
+            self.current_turn_index = (self.current_turn_index + 1) % len(self.turn_order)
+
+            # 턴 간 짧은 대기
+            await asyncio.sleep(0.5)
+
+        self.state = CombatState.COMBAT_ENDED
+
+    async def _get_player_action(self, participant: CombatParticipant) -> CombatAction:
+        """플레이어 액션 대기 (타이머 포함)"""
+        # 대기 중인 액션이 있으면 사용
+        if participant.pending_action:
+            action = participant.pending_action
+            participant.pending_action = None
+            return action
+
+        # 액션 선택 요청 브로드캐스트
+        await self._broadcast_message(
+            f"🎯 {participant.name}의 턴입니다! ({self.turn_timeout}초 내에 액션을 선택하세요)\n"
+            f"사용 가능한 명령어: attack, defend, flee"
+        )
+
+        # 타이머 시작
+        try:
+            await asyncio.wait_for(
+                self._wait_for_player_action(participant),
+                timeout=self.turn_timeout
+            )
+        except asyncio.TimeoutError:
+            # 시간 초과 시 기본 공격
+            await self._broadcast_message(f"⏰ {participant.name}의 시간이 초과되어 자동으로 공격합니다!")
+            return CombatAction.ATTACK
+
+        # 액션 반환
+        action = participant.pending_action or CombatAction.ATTACK
+        participant.pending_action = None
+        return action
+
+    async def _wait_for_player_action(self, participant: CombatParticipant) -> None:
+        """플레이어 액션 대기"""
+        while participant.pending_action is None:
+            await asyncio.sleep(0.1)
+
+    async def _process_turn(self, attacker: CombatParticipant, action: CombatAction) -> None:
+        """턴 처리"""
+        self.turn_number += 1
+
+        # 타겟 결정
+        if attacker.participant_type == "player":
+            defender = self.monster_participant
+        else:
+            defender = self.player_participant
+
+        # 턴 생성
+        turn = CombatTurn(
+            turn_number=self.turn_number,
+            attacker_id=attacker.id,
+            attacker_type=attacker.participant_type,
+            action=action,
+            target_id=defender.id
+        )
+
+        # 액션 처리
+        if action == CombatAction.ATTACK:
+            damage, is_hit, is_critical = self._calculate_damage(attacker, defender)
+
+            if is_hit:
+                actual_damage = defender.take_damage(damage)
+                turn.damage_dealt = actual_damage
+                turn.is_hit = True
+                turn.is_critical = is_critical
+
+                if is_critical:
+                    turn.message = f"💥 {attacker.name}이(가) {defender.name}에게 치명타로 {actual_damage} 데미지를 입혔습니다!"
+                else:
+                    turn.message = f"⚔️ {attacker.name}이(가) {defender.name}에게 {actual_damage} 데미지를 입혔습니다."
+            else:
+                turn.is_hit = False
+                turn.message = f"💨 {attacker.name}의 공격이 빗나갔습니다!"
+
+        elif action == CombatAction.DEFEND:
+            attacker.is_defending = True
+            turn.message = f"🛡️ {attacker.name}이(가) 방어 자세를 취했습니다."
+
+        elif action == CombatAction.FLEE:
+            if attacker.participant_type == "player":
+                flee_success = self._calculate_flee_success()
+                if flee_success:
+                    self.result = CombatResult.PLAYER_FLED
+                    turn.message = f"💨 {attacker.name}이(가) 성공적으로 도망쳤습니다!"
+                else:
+                    turn.message = f"💨 {attacker.name}이(가) 도망치려 했지만 실패했습니다!"
+            else:
+                turn.message = f"💨 {attacker.name}이(가) 도망치려 합니다!"
+
+        # 로그 추가
+        self.combat_log.append(turn)
+
+        # 턴 결과 브로드캐스트
+        status_message = (
+            f"{turn.message}\n"
+            f"💚 {self.player_participant.name}: {self.player_participant.current_hp}/{self.player_participant.max_hp} HP\n"
+            f"👹 {self.monster_participant.name}: {self.monster_participant.current_hp}/{self.monster_participant.max_hp} HP"
+        )
+        await self._broadcast_message(status_message)
+
+    async def _broadcast_message(self, message: str, message_type: CombatMessageType = CombatMessageType.COMBAT_MESSAGE) -> None:
+        """메시지 브로드캐스트 (개선된 버전)"""
+        if self.broadcast_callback:
+            # 전투 상태 정보 포함
+            combat_status = self.get_combat_status()
+            await self.broadcast_callback(
+                self.room_id,
+                message,
+                message_type.value,
+                combat_status
+            )
+        else:
+            self.logger.info(f"[전투 메시지] {message}")
 
     def _create_player_participant(self, player: Player) -> CombatParticipant:
         """플레이어 전투 참여자 생성"""
@@ -246,88 +493,18 @@ class Combat:
             critical_chance=monster.stats.critical_chance
         )
 
-    def process_player_action(self, action: CombatAction,
-                            target_id: Optional[str] = None) -> CombatTurn:
-        """플레이어 액션 처리"""
-        if self.result != CombatResult.ONGOING:
-            raise ValueError("전투가 이미 종료되었습니다")
+    def set_player_action(self, action: CombatAction) -> bool:
+        """플레이어 액션 설정"""
+        if self.state != CombatState.WAITING_FOR_ACTION:
+            return False
 
-        self.turn_number += 1
+        # 현재 턴이 플레이어 턴인지 확인
+        current_participant = self.turn_order[self.current_turn_index]
+        if current_participant.participant_type != "player":
+            return False
 
-        # 플레이어 턴 처리
-        player_turn = self._process_turn(
-            self.player_participant,
-            self.monster_participant,
-            action
-        )
-        self.combat_log.append(player_turn)
-
-        # 몬스터가 죽었는지 확인
-        if not self.monster_participant.is_alive():
-            self.result = CombatResult.PLAYER_VICTORY
-            self._handle_victory()
-            return player_turn
-
-        # 플레이어가 도망쳤는지 확인
-        if action == CombatAction.FLEE:
-            flee_success = self._calculate_flee_success()
-            if flee_success:
-                self.result = CombatResult.PLAYER_FLED
-                return player_turn
-
-        # 몬스터 턴 처리 (AI)
-        monster_action = self._get_monster_action()
-        monster_turn = self._process_turn(
-            self.monster_participant,
-            self.player_participant,
-            monster_action
-        )
-        self.combat_log.append(monster_turn)
-
-        # 플레이어가 죽었는지 확인
-        if not self.player_participant.is_alive():
-            self.result = CombatResult.MONSTER_VICTORY
-            self._handle_defeat()
-
-        return player_turn
-
-    def _process_turn(self, attacker: CombatParticipant,
-                     defender: CombatParticipant,
-                     action: CombatAction) -> CombatTurn:
-        """턴 처리"""
-        turn = CombatTurn(
-            turn_number=self.turn_number,
-            attacker_id=attacker.id,
-            attacker_type=attacker.participant_type,
-            action=action,
-            target_id=defender.id
-        )
-
-        if action == CombatAction.ATTACK:
-            damage, is_hit, is_critical = self._calculate_damage(attacker, defender)
-
-            if is_hit:
-                actual_damage = defender.take_damage(damage)
-                turn.damage_dealt = actual_damage
-                turn.is_hit = True
-                turn.is_critical = is_critical
-
-                if is_critical:
-                    turn.message = f"{attacker.name}이(가) {defender.name}에게 치명타로 {actual_damage} 데미지를 입혔습니다!"
-                else:
-                    turn.message = f"{attacker.name}이(가) {defender.name}에게 {actual_damage} 데미지를 입혔습니다."
-            else:
-                turn.is_hit = False
-                turn.message = f"{attacker.name}의 공격이 빗나갔습니다!"
-
-        elif action == CombatAction.DEFEND:
-            attacker.is_defending = True
-            turn.message = f"{attacker.name}이(가) 방어 자세를 취했습니다."
-
-        elif action == CombatAction.FLEE:
-            turn.message = f"{attacker.name}이(가) 도망치려 합니다!"
-
-        return turn
+        current_participant.pending_action = action
+        return True
 
     def _calculate_damage(self, attacker: CombatParticipant,
                         defender: CombatParticipant) -> Tuple[int, bool, bool]:
@@ -382,42 +559,58 @@ class Combat:
 
         return random.random() <= flee_chance
 
-    def _handle_victory(self) -> None:
+    async def _handle_victory(self) -> None:
         """승리 처리"""
         # 경험치 획득
         exp_gained = self.monster.experience_reward
+        victory_message = f"🎉 {self.player.username}이(가) {self.monster.get_localized_name('ko')}을(를) 처치했습니다!"
+
         if self.player.stats:
             leveled_up = self.player.stats.add_experience(exp_gained)
+            victory_message += f"\n💫 경험치 {exp_gained} 획득!"
+
             if leveled_up:
+                victory_message += f"\n🆙 레벨업! 현재 레벨: {self.player.stats.level}"
                 self.logger.info(f"플레이어 {self.player.username} 레벨업! 현재 레벨: {self.player.stats.level}")
 
         # 몬스터 사망 처리
         self.monster.die()
 
+        await self._broadcast_message(victory_message)
         self.logger.info(f"전투 승리: {self.player.username}이(가) {self.monster.get_localized_name('ko')}을(를) 처치했습니다")
 
-    def _handle_defeat(self) -> None:
+    async def _handle_defeat(self) -> None:
         """패배 처리"""
-        # 플레이어 사망 처리 (추후 구현)
+        defeat_message = f"💀 {self.player.username}이(가) {self.monster.get_localized_name('ko')}에게 패배했습니다!"
+        await self._broadcast_message(defeat_message)
         self.logger.info(f"전투 패배: {self.player.username}이(가) {self.monster.get_localized_name('ko')}에게 패배했습니다")
 
     def get_combat_status(self) -> Dict[str, Any]:
         """전투 상태 정보 반환"""
+        current_participant = None
+        if self.turn_order and self.current_turn_index < len(self.turn_order):
+            current_participant = self.turn_order[self.current_turn_index]
+
         return {
             'room_id': self.room_id,
             'result': self.result.value,
+            'state': self.state.value,
             'turn_number': self.turn_number,
+            'current_turn': current_participant.name if current_participant else None,
+            'turn_timeout': self.turn_timeout,
             'player': {
                 'name': self.player_participant.name,
                 'hp': self.player_participant.current_hp,
                 'max_hp': self.player_participant.max_hp,
-                'hp_percentage': self.player_participant.get_hp_percentage()
+                'hp_percentage': self.player_participant.get_hp_percentage(),
+                'initiative': self.player_participant.initiative
             },
             'monster': {
                 'name': self.monster_participant.name,
                 'hp': self.monster_participant.current_hp,
                 'max_hp': self.monster_participant.max_hp,
-                'hp_percentage': self.monster_participant.get_hp_percentage()
+                'hp_percentage': self.monster_participant.get_hp_percentage(),
+                'initiative': self.monster_participant.initiative
             },
             'last_turn': self.combat_log[-1].message if self.combat_log else "",
             'is_ongoing': self.result == CombatResult.ONGOING
