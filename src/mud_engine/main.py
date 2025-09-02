@@ -35,7 +35,8 @@ def setup_logging():
             # 파일명과 라인 번호
             filename = record.filename
             lineno = record.lineno
-            location = f"[{filename}:{lineno}]"
+            # location = f"[{filename}:{lineno}]"
+            location = f"[{record.name}:{lineno}]"
 
             # 최종 포맷: {시분초.ms} {LEVEL} [{filename.py:line}] {logstring}
             return f"{time_with_ms} {record.levelname} {location} {record.getMessage()}"
@@ -144,12 +145,23 @@ def setup_logging():
                 except OSError:
                     pass
 
+    class ExcludeLoggerFilter(logging.Filter):
+        def __init__(self, exclude_name):
+            self.exclude_name = exclude_name
+
+        def filter(self, record):
+            # 로거 이름이 exclude_name과 같으면 필터링하여 True를 반환하지 않음
+            if record.name == self.exclude_name:
+                return False
+            return True
+
     # 포맷터 생성
     formatter = MudEngineFormatter()
 
     # 콘솔 핸들러
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
+    console_handler.addFilter(ExcludeLoggerFilter("aiosqlite"))
 
     # 파일 핸들러 (커스텀 로테이팅)
     file_handler = CustomRotatingHandler(
