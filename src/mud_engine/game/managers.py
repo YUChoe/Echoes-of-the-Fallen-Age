@@ -900,6 +900,52 @@ class WorldManager:
         except Exception as e:
             logger.error(f"기본 스폰 포인트 설정 실패: {e}")
 
+    # === 선공 시스템 ===
+
+    async def check_aggressive_monsters(self, player_id: str, room_id: str, combat_system) -> Optional['Monster']:
+        """방에 입장한 플레이어에 대해 선공형 몬스터의 자동 공격을 확인합니다."""
+        try:
+            # 이미 전투 중인 플레이어는 제외
+            if combat_system.is_in_combat(player_id):
+                return None
+
+            # 방에 있는 살아있는 몬스터들 조회
+            monsters = await self.get_monsters_in_room(room_id)
+
+            for monster in monsters:
+                # 선공형 몬스터만 확인
+                if monster.monster_type != MonsterType.AGGRESSIVE:
+                    continue
+
+                # 이미 다른 플레이어와 전투 중인 몬스터는 제외
+                if self._is_monster_in_combat(monster.id, combat_system):
+                    continue
+
+                # 어그로 범위 내에 있는지 확인 (현재는 같은 방이면 어그로)
+                if monster.current_room_id == room_id:
+                    logger.info(f"선공형 몬스터 {monster.get_localized_name('ko')}가 플레이어 {player_id}를 공격합니다")
+
+                    # 플레이어 정보 조회 필요 - 이는 호출하는 쪽에서 처리하도록 콜백으로 전달
+                    # 여기서는 몬스터 ID만 반환하고 실제 전투 시작은 상위에서 처리
+                    return monster
+
+            return None
+
+        except Exception as e:
+            logger.error(f"선공형 몬스터 확인 실패: {e}")
+            return None
+
+    def _is_monster_in_combat(self, monster_id: str, combat_system) -> bool:
+        """몬스터가 현재 전투 중인지 확인합니다."""
+        try:
+            for combat in combat_system.active_combats.values():
+                if combat.monster.id == monster_id:
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"몬스터 전투 상태 확인 실패: {e}")
+            return False
+
     # === 몬스터 관리 기능 ===
 
     async def get_monster(self, monster_id: str) -> Optional[Monster]:

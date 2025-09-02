@@ -18,6 +18,12 @@ class MessageHandler {
             return;
         }
 
+        // 특정 메시지 타입별 처리 (전투 메시지 등)
+        if (data.type) {
+            this.handleSpecificMessageTypes(data);
+            return; // 타입이 있는 메시지는 여기서 처리 완료
+        }
+
         // 성공 응답 처리
         if (data.status === 'success') {
             // 인증 관련 처리
@@ -43,8 +49,10 @@ class MessageHandler {
             this.client.gameModule.updateDynamicButtons(data);
         }
 
-        // 특정 메시지 타입별 처리
-        this.handleSpecificMessageTypes(data);
+        // 타입이 없는 기타 메시지들 처리
+        if (!data.type && !data.status) {
+            this.handleSpecificMessageTypes(data);
+        }
     }
 
     // 명령어별 특별 처리
@@ -163,6 +171,33 @@ class MessageHandler {
                 break;
             case 'npc_dialogue':
                 this.client.gameModule.handleNPCDialogue(data);
+                break;
+            case 'combat_start':
+                this.client.gameModule.handleCombatStart(data);
+                break;
+            case 'combat_message':
+                this.client.gameModule.handleCombatMessage(data);
+                break;
+            case 'combat_status':
+                this.client.gameModule.handleCombatStatus(data);
+                break;
+            case 'combat_end':
+                this.client.gameModule.handleCombatEnd(data);
+                break;
+            case 'turn_start':
+                this.client.gameModule.handleTurnStart(data);
+                break;
+            case 'action_result':
+                this.client.gameModule.handleActionResult(data);
+                break;
+            case 'monster_aggro':
+                if (this.client.gameModule && typeof this.client.gameModule.handleMonsterAggro === 'function') {
+                    this.client.gameModule.handleMonsterAggro(data);
+                } else {
+                    // 대체 처리: 기본 메시지 표시
+                    console.warn('GameModule.handleMonsterAggro 메서드가 없습니다. 기본 메시지를 표시합니다.');
+                    this.client.gameModule.addGameMessage(data.message || '몬스터가 당신을 공격합니다!', 'warning');
+                }
                 break;
             default:
                 // 알 수 없는 메시지 타입 - 이미 data.message는 위에서 처리했으므로 여기서는 처리하지 않음

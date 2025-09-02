@@ -94,6 +94,34 @@
     font-weight: 500;
 }
 
+/* 게임 메시지 스타일 */
+.game-message {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border-radius: var(--border-radius);
+    line-height: 1.4;
+}
+
+.game-message.warning {
+    color: #f59e0b;
+    font-weight: bold;
+    background-color: rgba(245, 158, 11, 0.1);
+    border-left: 3px solid #f59e0b;
+    padding-left: 8px;
+}
+
+.game-message.monster-aggro {
+    animation: pulse 0.5s ease-in-out;
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.2));
+    border: 1px solid #f59e0b;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+
 .welcome-message {
     text-align: center;
     padding: var(--spacing-large);
@@ -498,4 +526,373 @@ input[type="email"]:not(:disabled) {
     background-color: #4a1e1e;
     color: #f1aeb5;
     border: 1px solid #5a2d2d;
+}
+/*
+전투 관련 스타일 */
+
+/* 전투 메시지 스타일 */
+.game-message.combat-start {
+    background: linear-gradient(90deg, #ff6b6b, #ffa500);
+    color: white;
+    font-weight: bold;
+    border-left: 4px solid #ff4757;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    border-radius: var(--border-radius);
+    animation: combatStartPulse 0.5s ease-in-out;
+}
+
+.game-message.combat {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    color: #856404;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    border-radius: var(--border-radius);
+}
+
+.game-message.combat-end {
+    background: linear-gradient(90deg, #4ecdc4, #44bd87);
+    color: white;
+    font-weight: bold;
+    border-left: 4px solid #2ed573;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    border-radius: var(--border-radius);
+    animation: combatEndPulse 0.5s ease-in-out;
+}
+
+.game-message.turn-start {
+    background: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    color: #1565c0;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+}
+
+.game-message.action-result {
+    background: #f3e5f5;
+    border-left: 4px solid #9c27b0;
+    color: #7b1fa2;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    border-radius: var(--border-radius);
+}
+
+/* 전투 UI 패널 */
+.combat-ui {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    min-width: 280px;
+    max-width: 350px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    font-family: var(--game-font);
+    border: 2px solid #ffd700;
+}
+
+.combat-header {
+    text-align: center;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #444;
+    padding-bottom: 0.5rem;
+}
+
+.combat-header h3 {
+    margin: 0 0 0.5rem 0;
+    color: #ffd700;
+    font-size: 1.2rem;
+}
+
+.turn-info, .combat-state {
+    font-size: 0.9rem;
+    color: #ccc;
+    margin: 0.25rem 0;
+}
+
+/* 전투 참여자 */
+.combat-participants {
+    margin: 1rem 0;
+}
+
+.participant {
+    margin-bottom: 1rem;
+}
+
+.participant-name {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.participant.player .participant-name {
+    color: #4caf50;
+}
+
+.participant.monster .participant-name {
+    color: #f44336;
+}
+
+.participant.monster.dead .participant-name {
+    color: #666;
+    text-decoration: line-through;
+}
+
+/* 다중 몬스터 컨테이너 */
+.monsters-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+.monsters-container .participant.monster {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.monsters-container .participant.monster.dead {
+    opacity: 0.5;
+    background: rgba(100, 100, 100, 0.1);
+}
+
+/* 타겟 선택기 */
+.target-selector {
+    margin: 1rem 0;
+    padding: 0.5rem;
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid #ffd700;
+    border-radius: 4px;
+}
+
+.target-selector label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #ffd700;
+    font-weight: bold;
+}
+
+.target-selector select {
+    width: 100%;
+    padding: 0.5rem;
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+}
+
+/* HP 바 */
+.hp-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hp-bar {
+    flex: 1;
+    height: 20px;
+    background: #333;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #555;
+}
+
+.hp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2ed573, #7bed9f);
+    transition: width 0.3s ease, background 0.3s ease;
+    border-radius: 10px;
+}
+
+.hp-text {
+    font-size: 0.8rem;
+    color: #ccc;
+    min-width: 60px;
+    text-align: right;
+}
+
+/* 턴 표시기 */
+.turn-indicator {
+    text-align: center;
+    font-weight: bold;
+    color: #ffd700;
+    margin: 1rem 0;
+    padding: 0.5rem;
+    background: rgba(255, 215, 0, 0.1);
+    border-radius: var(--border-radius);
+    border: 1px solid #ffd700;
+}
+
+.turn-indicator.active {
+    animation: turnPulse 1s ease-in-out infinite alternate;
+}
+
+/* 전투 액션 버튼 */
+.combat-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.combat-btn {
+    padding: 0.75rem;
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.combat-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.combat-btn:active {
+    transform: translateY(0);
+}
+
+.combat-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.combat-btn.attack {
+    background: linear-gradient(135deg, #ff4757, #ff3742);
+    color: white;
+}
+
+.combat-btn.attack:hover {
+    background: linear-gradient(135deg, #ff3742, #ff2f3a);
+}
+
+.combat-btn.defend {
+    background: linear-gradient(135deg, #3742fa, #2f3542);
+    color: white;
+}
+
+.combat-btn.defend:hover {
+    background: linear-gradient(135deg, #2f3542, #2c2c54);
+}
+
+.combat-btn.flee {
+    background: linear-gradient(135deg, #ffa502, #ff6348);
+    color: white;
+}
+
+.combat-btn.flee:hover {
+    background: linear-gradient(135deg, #ff6348, #ff4757);
+}
+
+/* 애니메이션 */
+@keyframes combatStartPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 10px rgba(255, 71, 87, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 71, 87, 0);
+    }
+}
+
+@keyframes combatEndPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 10px rgba(46, 213, 115, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(46, 213, 115, 0);
+    }
+}
+
+@keyframes turnPulse {
+    0% {
+        background: rgba(255, 215, 0, 0.1);
+        border-color: #ffd700;
+    }
+    100% {
+        background: rgba(255, 215, 0, 0.3);
+        border-color: #ffed4e;
+    }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .combat-ui {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+        min-width: auto;
+    }
+
+    .combat-actions {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
+    .combat-btn {
+        flex: 1;
+        margin: 0 0.25rem;
+        padding: 0.5rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* 크리티컬 히트 효과 */
+.critical-hit {
+    animation: criticalFlash 0.5s ease-in-out;
+}
+
+@keyframes criticalFlash {
+    0%, 100% {
+        background: inherit;
+    }
+    50% {
+        background: linear-gradient(90deg, #ff6b6b, #ffa500);
+        color: white;
+    }
+}
+
+/* 회피 효과 */
+.dodge-effect {
+    animation: dodgeShake 0.3s ease-in-out;
+}
+
+@keyframes dodgeShake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-5px);
+    }
+    75% {
+        transform: translateX(5px);
+    }
 }

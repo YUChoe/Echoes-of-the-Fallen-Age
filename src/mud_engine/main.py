@@ -170,6 +170,7 @@ def setup_logging():
         backupCount=30
     )
     file_handler.setFormatter(formatter)
+    file_handler.addFilter(ExcludeLoggerFilter("aiosqlite"))
 
     # 루트 로거 설정
     root_logger = logging.getLogger()

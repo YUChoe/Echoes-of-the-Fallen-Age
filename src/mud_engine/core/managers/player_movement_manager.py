@@ -109,6 +109,9 @@ class PlayerMovementManager:
             # 방 정보를 플레이어에게 전송 (follower든 아니든 항상 전송)
             await self.send_room_info_to_player(session, room_id)
 
+            # 선공형 몬스터 체크 및 즉시 공격 처리
+            await self._check_aggressive_monsters_on_entry(session, room_id)
+
             logger.info(f"플레이어 {session.player.username}이 방 {room_id}로 이동")
             return True
 
@@ -351,3 +354,67 @@ class PlayerMovementManager:
 
         except Exception as e:
             logger.error(f"플레이어 상태 변경 알림 실패 ({player_id}, {status}): {e}")
+
+    async def _check_aggressive_monsters_on_entry(self, session: 'Session', room_id: str) -> None:
+        """
+        플레이어가 방에 입장할 때 선공형 몬스터 체크 및 즉시 공격 처리
+
+        Args:
+            session: 플레이어 세션
+            room_id: 입장한 방 ID
+        """
+        try:
+            logger.info(f"선공형 몬스터 체크 시작: 플레이어 {session.player.username}, 방 {room_id}")
+
+            # 플레이어가 이미 전투 중인지 확인
+            existing_combat = self.game_engine.combat_system.get_player_combat(session.player.id)
+            if existing_combat:
+                logger.info(f"플레이어 {session.player.username}이 이미 전투 중이므로 선공 체크 생략")
+                return
+
+            # 방의 선공형 몬스터들 조회
+            room_info = await self.game_engine.get_room_info(room_id, session.locale)
+            if not room_info or not room_info.get('monsters'):
+                return
+
+            aggressive_monsters = []
+            for monster in room_info['monsters']:
+                logger.info(f"몬스터 체크: {monster.get_localized_name(session.locale)}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
+                # 선공형이고 살아있는 몬스터만
+                if monster.is_aggressive() and monster.is_alive:
+                    aggressive_monsters.append(monster)
+                    logger.info(f"선공형 몬스터 발견: {monster.get_localized_name(session.locale)}")
+
+            if not aggressive_monsters:
+                logger.info(f"방 {room_id}에 선공형 몬스터 없음")
+                return
+
+            # 첫 번째 선공형 몬스터가 공격 (우선순위: 레벨 높은 순)
+            aggressive_monsters.sort(key=lambda m: m.level, reverse=True)
+            attacking_monster = aggressive_monsters[0]
+
+            logger.info(f"선공형 몬스터 {attacking_monster.get_localized_name(session.locale)}이 플레이어 {session.player.username}을 공격!")
+
+            # 선공 메시지 브로드캐스트
+            monster_name = attacking_monster.get_localized_name(session.locale)
+            aggro_message = f"🔥 {monster_name}이(가) {session.player.username}을(를) 발견하고 공격합니다!"
+
+            # 방에 있는 모든 플레이어에게 선공 메시지 전송
+            await self.game_engine.broadcast_to_room(room_id, {
+                'type': 'monster_aggro',
+                'message': aggro_message,
+                'monster_id': attacking_monster.id,
+                'player_id': session.player.id,
+                'timestamp': datetime.now().isoformat()
+            })
+
+            # 전투 시작
+            broadcast_callback = self.game_engine.broadcast_to_room
+            await self.game_engine.combat_system.start_combat(
+                session.player, attacking_monster, room_id, broadcast_callback
+            )
+
+            logger.info(f"선공형 몬스터 전투 시작: {monster_name} vs {session.player.username}")
+
+        except Exception as e:
+            logger.error(f"선공형 몬스터 체크 중 오류: {e}")

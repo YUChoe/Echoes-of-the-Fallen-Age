@@ -135,52 +135,128 @@ class CombatSystem:
 
     def __init__(self):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-        self.active_combats: Dict[str, 'AutoCombat'] = {}  # room_id -> AutoCombat
-        self.combat_tasks: Dict[str, asyncio.Task] = {}  # room_id -> combat_task
+        self.active_combats: Dict[str, 'AutoCombat'] = {}  # player_id -> AutoCombat
+        self.combat_tasks: Dict[str, asyncio.Task] = {}  # player_id -> combat_task
+        self.room_combats: Dict[str, List[str]] = {}  # room_id -> List[player_id] (방별 전투 목록)
 
-    async def start_combat(self, player: Player, monster: Monster, room_id: str,
+    async def start_combat(self, player: Player, monsters: Union[Monster, List[Monster]], room_id: str,
                           broadcast_callback: Optional[Callable] = None) -> 'AutoCombat':
-        """전투 시작"""
-        self.logger.info(f"전투 시작: {player.username} vs {monster.get_localized_name('ko')} in room {room_id}")
+        """전투 시작 (다중 전투 지원)"""
+        # 단일 몬스터인 경우 리스트로 변환
+        if isinstance(monsters, Monster):
+            monsters = [monsters]
 
-        # 기존 전투가 있다면 종료
-        if room_id in self.active_combats:
-            await self.end_combat(room_id)
+        monster_names = [monster.get_localized_name('ko') for monster in monsters]
+        self.logger.info(f"전투 시작: {player.username} vs {', '.join(monster_names)} in room {room_id}")
 
-        # 새 자동 전투 생성
-        combat = AutoCombat(player, monster, room_id, broadcast_callback)
-        self.active_combats[room_id] = combat
+        # 플레이어가 이미 전투 중이라면 몬스터 추가 또는 새 전투 시작
+        if player.id in self.active_combats:
+            existing_combat = self.active_combats[player.id]
+            # 기존 전투에 몬스터 추가
+            await self.add_monsters_to_combat(player.id, monsters)
+            return existing_combat
+        else:
+            # 새 다중 전투 생성
+            combat = AutoCombat(player, monsters, room_id, broadcast_callback)
+            self.active_combats[player.id] = combat
 
-        # 자동 전투 루프 시작
-        task = asyncio.create_task(combat.start_auto_combat())
-        self.combat_tasks[room_id] = task
+            # 방별 전투 목록에 추가
+            if room_id not in self.room_combats:
+                self.room_combats[room_id] = []
+            self.room_combats[room_id].append(player.id)
 
-        return combat
+            # 자동 전투 루프 시작
+            task = asyncio.create_task(combat.start_auto_combat())
+            self.combat_tasks[player.id] = task
 
-    def get_combat(self, room_id: str) -> Optional['AutoCombat']:
-        """방의 활성 전투 조회"""
-        return self.active_combats.get(room_id)
+            return combat
 
-    async def end_combat(self, room_id: str) -> None:
-        """전투 종료"""
-        if room_id in self.active_combats:
-            combat = self.active_combats[room_id]
-            self.logger.info(f"전투 종료: room {room_id}, 결과: {combat.result}")
+    async def add_monsters_to_combat(self, player_id: str, new_monsters: List[Monster]) -> bool:
+        """기존 전투에 몬스터 추가"""
+        if player_id not in self.active_combats:
+            return False
+
+        combat = self.active_combats[player_id]
+
+        # 새 몬스터들을 전투에 추가
+        for monster in new_monsters:
+            monster_participant = combat._create_monster_participant(monster)
+            combat.monster_participants.append(monster_participant)
+            combat.monsters.append(monster)
+
+            # Initiative 계산 및 턴 순서에 추가
+            monster_participant.roll_initiative()
+            combat.turn_order.append(monster_participant)
+
+        # 턴 순서 재정렬 (Initiative 순)
+        combat.turn_order.sort(key=lambda p: p.initiative, reverse=True)
+
+        # 현재 턴 인덱스 조정
+        current_participant = combat.turn_order[combat.current_turn_index] if combat.turn_order else None
+        if current_participant:
+            # 현재 턴 참여자의 새로운 인덱스 찾기
+            for i, participant in enumerate(combat.turn_order):
+                if participant.id == current_participant.id:
+                    combat.current_turn_index = i
+                    break
+
+        # 몬스터 추가 알림
+        monster_names = [monster.get_localized_name('ko') for monster in new_monsters]
+        add_message = f"⚔️ {', '.join(monster_names)}이(가) 전투에 참여했습니다!"
+        await combat._broadcast_message(add_message, CombatMessageType.COMBAT_MESSAGE)
+
+        self.logger.info(f"전투에 몬스터 추가: {', '.join(monster_names)}")
+        return True
+
+    def get_combat_by_room(self, room_id: str) -> List['AutoCombat']:
+        """방의 모든 활성 전투 조회"""
+        if room_id not in self.room_combats:
+            return []
+
+        combats = []
+        for player_id in self.room_combats[room_id]:
+            if player_id in self.active_combats:
+                combats.append(self.active_combats[player_id])
+        return combats
+
+    def get_combat_by_player(self, player_id: str) -> Optional['AutoCombat']:
+        """플레이어의 활성 전투 조회"""
+        return self.active_combats.get(player_id)
+
+    async def end_player_combat(self, player_id: str) -> None:
+        """플레이어의 전투 종료"""
+        if player_id in self.active_combats:
+            combat = self.active_combats[player_id]
+            room_id = combat.room_id
+            self.logger.info(f"전투 종료: player {player_id}, 결과: {combat.result}")
 
             # 전투 태스크 취소
-            if room_id in self.combat_tasks:
-                task = self.combat_tasks[room_id]
+            if player_id in self.combat_tasks:
+                task = self.combat_tasks[player_id]
                 if not task.done():
                     task.cancel()
                     try:
                         await task
                     except asyncio.CancelledError:
                         pass
-                del self.combat_tasks[room_id]
+                del self.combat_tasks[player_id]
 
             # 전투 상태를 종료로 변경
             combat.state = CombatState.COMBAT_ENDED
-            del self.active_combats[room_id]
+            del self.active_combats[player_id]
+
+            # 방별 전투 목록에서 제거
+            if room_id in self.room_combats and player_id in self.room_combats[room_id]:
+                self.room_combats[room_id].remove(player_id)
+                if not self.room_combats[room_id]:  # 빈 리스트면 제거
+                    del self.room_combats[room_id]
+
+    async def end_combat(self, room_id: str) -> None:
+        """방의 모든 전투 종료 (하위 호환성을 위해 유지)"""
+        if room_id in self.room_combats:
+            player_ids = self.room_combats[room_id].copy()
+            for player_id in player_ids:
+                await self.end_player_combat(player_id)
 
     def is_in_combat(self, player_id: str) -> bool:
         """플레이어가 전투 중인지 확인"""
@@ -242,9 +318,9 @@ class CombatSystem:
 
 
 class AutoCombat:
-    """자동 전투 인스턴스"""
+    """자동 전투 인스턴스 (다중 전투 지원)"""
 
-    def __init__(self, player: Player, monster: Monster, room_id: str,
+    def __init__(self, player: Player, monsters: List[Monster], room_id: str,
                  broadcast_callback: Optional[Callable] = None):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.room_id = room_id
@@ -257,20 +333,41 @@ class AutoCombat:
 
         # 전투 참여자 생성
         self.player_participant = self._create_player_participant(player)
-        self.monster_participant = self._create_monster_participant(monster)
+        self.monster_participants = [self._create_monster_participant(monster) for monster in monsters]
 
         # 원본 객체 참조 유지 (경험치, 레벨업 등을 위해)
         self.player = player
-        self.monster = monster
+        self.monsters = monsters
 
-        # 턴 순서 (Initiative 순)
+        # 턴 순서 (Initiative 순) - 플레이어 + 모든 몬스터
         self.turn_order: List[CombatParticipant] = []
         self.current_turn_index = 0
 
         # 턴 타이머 설정 (2초)
         self.turn_timeout = 2.0
 
-        self.logger.info(f"자동 전투 생성: {player.username} vs {monster.get_localized_name('ko')}")
+        # 현재 타겟 (플레이어가 공격할 몬스터)
+        self.current_target_index = 0
+
+        monster_names = [monster.get_localized_name('ko') for monster in monsters]
+        self.logger.info(f"다중 전투 생성: {player.username} vs {', '.join(monster_names)}")
+
+    # 하위 호환성을 위한 생성자 (단일 몬스터)
+    @classmethod
+    def create_single_combat(cls, player: Player, monster: Monster, room_id: str,
+                           broadcast_callback: Optional[Callable] = None):
+        """단일 몬스터와의 전투 생성 (하위 호환성)"""
+        return cls(player, [monster], room_id, broadcast_callback)
+
+    @property
+    def monster_participant(self):
+        """하위 호환성을 위한 속성 (첫 번째 몬스터 반환)"""
+        return self.monster_participants[0] if self.monster_participants else None
+
+    @property
+    def monster(self):
+        """하위 호환성을 위한 속성 (첫 번째 몬스터 반환)"""
+        return self.monsters[0] if self.monsters else None
 
     async def start_auto_combat(self) -> None:
         """자동 전투 시작"""
@@ -290,28 +387,35 @@ class AutoCombat:
             self.state = CombatState.COMBAT_ENDED
 
     async def _roll_initiative(self) -> None:
-        """Initiative 계산 및 턴 순서 결정"""
+        """Initiative 계산 및 턴 순서 결정 (다중 전투 지원)"""
         self.state = CombatState.ROLLING_INITIATIVE
 
-        # Initiative 계산
+        # 모든 참여자의 Initiative 계산
         player_init = self.player_participant.roll_initiative()
-        monster_init = self.monster_participant.roll_initiative()
+        monster_inits = []
+
+        for monster_participant in self.monster_participants:
+            monster_init = monster_participant.roll_initiative()
+            monster_inits.append(monster_init)
 
         # 턴 순서 결정 (높은 Initiative 순)
-        participants = [self.player_participant, self.monster_participant]
+        participants = [self.player_participant] + self.monster_participants
         self.turn_order = sorted(participants, key=lambda p: p.initiative, reverse=True)
 
-        # 브로드캐스트
+        # 브로드캐스트 메시지 생성
+        monster_init_info = []
+        for i, monster_participant in enumerate(self.monster_participants):
+            monster_init_info.append(f"{monster_participant.name}({monster_inits[i]})")
+
         init_message = (
-            f"⚔️ 전투 시작!\n"
-            f"Initiative: {self.player_participant.name}({player_init}) vs "
-            f"{self.monster_participant.name}({monster_init})\n"
+            f"⚔️ 다중 전투 시작!\n"
+            f"Initiative: {self.player_participant.name}({player_init}) vs {', '.join(monster_init_info)}\n"
             f"턴 순서: {' → '.join([p.name for p in self.turn_order])}"
         )
 
-        await self._broadcast_message(init_message)
+        await self._broadcast_message(init_message, CombatMessageType.COMBAT_START)
 
-        self.logger.info(f"Initiative 계산 완료: {self.player_participant.name}({player_init}) vs {self.monster_participant.name}({monster_init})")
+        self.logger.info(f"다중 전투 Initiative 계산 완료: {self.player_participant.name}({player_init}) vs {', '.join(monster_init_info)}")
 
     async def _combat_loop(self) -> None:
         """자동 전투 메인 루프"""
@@ -336,10 +440,17 @@ class AutoCombat:
                 self.result = CombatResult.MONSTER_VICTORY
                 await self._handle_defeat()
                 break
-            elif not self.monster_participant.is_alive():
+            elif all(not monster.is_alive() for monster in self.monster_participants):
+                # 모든 몬스터가 죽었을 때 승리
                 self.result = CombatResult.PLAYER_VICTORY
                 await self._handle_victory()
                 break
+            else:
+                # 죽은 몬스터들을 턴 순서에서 제거
+                self.turn_order = [p for p in self.turn_order if p.is_alive()]
+                # 현재 턴 인덱스 조정
+                if self.current_turn_index >= len(self.turn_order):
+                    self.current_turn_index = 0
 
             # 다음 턴으로
             self.current_turn_index = (self.current_turn_index + 1) % len(self.turn_order)
@@ -360,7 +471,8 @@ class AutoCombat:
         # 액션 선택 요청 브로드캐스트
         await self._broadcast_message(
             f"🎯 {participant.name}의 턴입니다! ({self.turn_timeout}초 내에 액션을 선택하세요)\n"
-            f"사용 가능한 명령어: attack, defend, flee"
+            f"사용 가능한 명령어: attack, defend, flee",
+            CombatMessageType.TURN_START
         )
 
         # 타이머 시작
@@ -385,13 +497,24 @@ class AutoCombat:
             await asyncio.sleep(0.1)
 
     async def _process_turn(self, attacker: CombatParticipant, action: CombatAction) -> None:
-        """턴 처리"""
+        """턴 처리 (다중 전투 지원)"""
         self.turn_number += 1
 
         # 타겟 결정
         if attacker.participant_type == "player":
-            defender = self.monster_participant
+            # 플레이어의 경우 현재 타겟 몬스터 선택
+            alive_monsters = [m for m in self.monster_participants if m.is_alive()]
+            if not alive_monsters:
+                return  # 살아있는 몬스터가 없으면 턴 종료
+
+            # 현재 타겟이 죽었거나 인덱스가 범위를 벗어나면 첫 번째 살아있는 몬스터로 변경
+            if (self.current_target_index >= len(alive_monsters) or
+                not alive_monsters[self.current_target_index].is_alive()):
+                self.current_target_index = 0
+
+            defender = alive_monsters[self.current_target_index]
         else:
+            # 몬스터의 경우 항상 플레이어를 공격
             defender = self.player_participant
 
         # 턴 생성
@@ -445,7 +568,7 @@ class AutoCombat:
             f"💚 {self.player_participant.name}: {self.player_participant.current_hp}/{self.player_participant.max_hp} HP\n"
             f"👹 {self.monster_participant.name}: {self.monster_participant.current_hp}/{self.monster_participant.max_hp} HP"
         )
-        await self._broadcast_message(status_message)
+        await self._broadcast_message(status_message, CombatMessageType.ACTION_RESULT)
 
     async def _broadcast_message(self, message: str, message_type: CombatMessageType = CombatMessageType.COMBAT_MESSAGE) -> None:
         """메시지 브로드캐스트 (개선된 버전)"""
@@ -560,36 +683,60 @@ class AutoCombat:
         return random.random() <= flee_chance
 
     async def _handle_victory(self) -> None:
-        """승리 처리"""
-        # 경험치 획득
-        exp_gained = self.monster.experience_reward
-        victory_message = f"🎉 {self.player.username}이(가) {self.monster.get_localized_name('ko')}을(를) 처치했습니다!"
+        """승리 처리 (다중 전투 지원)"""
+        # 모든 몬스터로부터 경험치 획득
+        total_exp_gained = sum(monster.experience_reward for monster in self.monsters)
+        monster_names = [monster.get_localized_name('ko') for monster in self.monsters]
+
+        if len(self.monsters) == 1:
+            victory_message = f"🎉 {self.player.username}이(가) {monster_names[0]}을(를) 처치했습니다!"
+        else:
+            victory_message = f"🎉 {self.player.username}이(가) {', '.join(monster_names)}을(를) 모두 처치했습니다!"
 
         if self.player.stats:
-            leveled_up = self.player.stats.add_experience(exp_gained)
-            victory_message += f"\n💫 경험치 {exp_gained} 획득!"
+            leveled_up = self.player.stats.add_experience(total_exp_gained)
+            victory_message += f"\n💫 총 경험치 {total_exp_gained} 획득!"
 
             if leveled_up:
                 victory_message += f"\n🆙 레벨업! 현재 레벨: {self.player.stats.level}"
                 self.logger.info(f"플레이어 {self.player.username} 레벨업! 현재 레벨: {self.player.stats.level}")
 
-        # 몬스터 사망 처리
-        self.monster.die()
+        # 모든 몬스터 사망 처리
+        for monster in self.monsters:
+            monster.die()
 
-        await self._broadcast_message(victory_message)
-        self.logger.info(f"전투 승리: {self.player.username}이(가) {self.monster.get_localized_name('ko')}을(를) 처치했습니다")
+        await self._broadcast_message(victory_message, CombatMessageType.COMBAT_END)
+        self.logger.info(f"다중 전투 승리: {self.player.username}이(가) {', '.join(monster_names)}을(를) 처치했습니다")
 
     async def _handle_defeat(self) -> None:
-        """패배 처리"""
-        defeat_message = f"💀 {self.player.username}이(가) {self.monster.get_localized_name('ko')}에게 패배했습니다!"
-        await self._broadcast_message(defeat_message)
-        self.logger.info(f"전투 패배: {self.player.username}이(가) {self.monster.get_localized_name('ko')}에게 패배했습니다")
+        """패배 처리 (다중 전투 지원)"""
+        monster_names = [monster.get_localized_name('ko') for monster in self.monsters]
+
+        if len(self.monsters) == 1:
+            defeat_message = f"💀 {self.player.username}이(가) {monster_names[0]}에게 패배했습니다!"
+        else:
+            defeat_message = f"💀 {self.player.username}이(가) {', '.join(monster_names)}에게 패배했습니다!"
+
+        await self._broadcast_message(defeat_message, CombatMessageType.COMBAT_END)
+        self.logger.info(f"다중 전투 패배: {self.player.username}이(가) {', '.join(monster_names)}에게 패배했습니다")
 
     def get_combat_status(self) -> Dict[str, Any]:
-        """전투 상태 정보 반환"""
+        """전투 상태 정보 반환 (다중 전투 지원)"""
         current_participant = None
         if self.turn_order and self.current_turn_index < len(self.turn_order):
             current_participant = self.turn_order[self.current_turn_index]
+
+        # 다중 몬스터 정보 생성
+        monsters_info = []
+        for monster_participant in self.monster_participants:
+            monsters_info.append({
+                'name': monster_participant.name,
+                'hp': monster_participant.current_hp,
+                'max_hp': monster_participant.max_hp,
+                'hp_percentage': monster_participant.get_hp_percentage(),
+                'initiative': monster_participant.initiative,
+                'is_alive': monster_participant.is_alive()
+            })
 
         return {
             'room_id': self.room_id,
@@ -598,6 +745,7 @@ class AutoCombat:
             'turn_number': self.turn_number,
             'current_turn': current_participant.name if current_participant else None,
             'turn_timeout': self.turn_timeout,
+            'current_target_index': self.current_target_index,
             'player': {
                 'name': self.player_participant.name,
                 'hp': self.player_participant.current_hp,
@@ -605,13 +753,9 @@ class AutoCombat:
                 'hp_percentage': self.player_participant.get_hp_percentage(),
                 'initiative': self.player_participant.initiative
             },
-            'monster': {
-                'name': self.monster_participant.name,
-                'hp': self.monster_participant.current_hp,
-                'max_hp': self.monster_participant.max_hp,
-                'hp_percentage': self.monster_participant.get_hp_percentage(),
-                'initiative': self.monster_participant.initiative
-            },
+            'monsters': monsters_info,
+            # 하위 호환성을 위한 단일 몬스터 정보
+            'monster': monsters_info[0] if monsters_info else None,
             'last_turn': self.combat_log[-1].message if self.combat_log else "",
             'is_ongoing': self.result == CombatResult.ONGOING
         }
