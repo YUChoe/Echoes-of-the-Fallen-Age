@@ -331,7 +331,7 @@ class AdminManager:
                 "rooms_with_players": len([
                     room for room in rooms
                     if any(
-                        getattr(session, 'current_room_id', None) == room.get('id')
+                        getattr(session, 'current_room_id', None) == room.id
                         for session in self.game_engine.session_manager.get_authenticated_sessions().values()
                     )
                 ])
@@ -348,7 +348,7 @@ class AdminManager:
 
             object_types: Dict[str, int] = {}
             for obj in objects:
-                obj_type = obj.get('object_type', 'unknown')
+                obj_type = getattr(obj, 'object_type', 'unknown')
                 object_types[obj_type] = object_types.get(obj_type, 0) + 1
 
             return {

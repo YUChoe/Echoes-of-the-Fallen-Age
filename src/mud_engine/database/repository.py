@@ -6,7 +6,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Type, TypeVar, Generic, Union
+from typing import Any, Dict, List, Optional, Type, TypeVar, Generic, Union, cast
 from uuid import uuid4
 
 from .connection import DatabaseManager, get_database_manager
@@ -14,7 +14,7 @@ from .connection import DatabaseManager, get_database_manager
 logger = logging.getLogger(__name__)
 
 # 제네릭 타입 변수
-T = TypeVar('T')
+T = TypeVar('T', bound='BaseModel')
 
 
 class BaseModel:
@@ -178,7 +178,7 @@ class BaseRepository(Generic[T], ABC):
             if result is None:
                 return None
 
-            return self._model_class.from_dict(result)
+            return cast(T, self._model_class.from_dict(result))
 
         except Exception as e:
             logger.error(f"{self._table_name} 레코드 조회 실패 (ID: {record_id}): {e}")
@@ -204,7 +204,7 @@ class BaseRepository(Generic[T], ABC):
 
             results = await db_manager.fetch_all(query)
 
-            return [self._model_class.from_dict(result) for result in results]
+            return [cast(T, self._model_class.from_dict(result)) for result in results]
 
         except Exception as e:
             logger.error(f"{self._table_name} 전체 레코드 조회 실패: {e}")
@@ -326,7 +326,7 @@ class BaseRepository(Generic[T], ABC):
 
             results = await db_manager.fetch_all(query, tuple(values))
 
-            return [self._model_class.from_dict(result) for result in results]
+            return [cast(T, self._model_class.from_dict(result)) for result in results]
 
         except Exception as e:
             logger.error(f"{self._table_name} 조건 검색 실패: {e}")

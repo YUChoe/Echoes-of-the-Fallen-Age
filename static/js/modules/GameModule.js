@@ -302,7 +302,18 @@ class GameModule {
                 console.log('몬스터 정보 추가 중:', room.monsters.length, '마리');
                 message += "\n👹 이곳에 있는 몬스터들:\n";
                 room.monsters.forEach(monster => {
-                    const monsterLine = `• ${monster.name} (레벨 ${monster.level}, HP: ${monster.current_hp}/${monster.max_hp})\n`;
+                    // 성향 정보 추가
+                    let temperamentInfo = '';
+                    if (monster.monster_type) {
+                        const temperamentMap = {
+                            'aggressive': '공격적',
+                            'passive': '수동적',
+                            'neutral': '중립적'
+                        };
+                        temperamentInfo = ` [${temperamentMap[monster.monster_type] || monster.monster_type}]`;
+                    }
+
+                    const monsterLine = `• ${monster.name} (레벨 ${monster.level}, HP: ${monster.current_hp}/${monster.max_hp})${temperamentInfo}\n`;
                     console.log('몬스터 라인 추가:', monsterLine);
                     message += monsterLine;
                 });

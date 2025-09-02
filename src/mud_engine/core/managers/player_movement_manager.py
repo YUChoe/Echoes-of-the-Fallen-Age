@@ -128,6 +128,11 @@ class PlayerMovementManager:
         try:
             room_info = await self.game_engine.get_room_info(room_id, session.locale)
             if room_info:
+                # 디버깅: 몬스터 정보 로깅
+                monsters = room_info.get('monsters', [])
+                logger.debug(f"방 {room_id}에서 {len(monsters)}마리 몬스터 발견")
+                for i, monster in enumerate(monsters):
+                    logger.debug(f"몬스터 {i+1}: {monster.get_localized_name(session.locale)}, 타입: {monster.monster_type}, 행동: {monster.behavior}")
                 room_data = {
                     "id": room_info['room'].id,
                     "name": room_info['room'].get_localized_name(session.locale),
@@ -147,7 +152,12 @@ class PlayerMovementManager:
                             "name": monster.get_localized_name(session.locale),
                             "level": monster.level,
                             "current_hp": monster.current_hp,
-                            "max_hp": monster.max_hp
+                            "max_hp": monster.max_hp,
+                            "monster_type": monster.monster_type.value if hasattr(monster.monster_type, 'value') else str(monster.monster_type),
+                            "behavior": monster.behavior.value if hasattr(monster.behavior, 'value') else str(monster.behavior),
+                            "is_aggressive": monster.is_aggressive(),
+                            "is_passive": monster.is_passive(),
+                            "is_neutral": monster.is_neutral()
                         }
                         for monster in room_info.get('monsters', [])
                     ]
