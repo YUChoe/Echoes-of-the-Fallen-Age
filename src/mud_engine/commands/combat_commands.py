@@ -54,7 +54,7 @@ class AttackCommand(BaseCommand):
                         message=turn.message,
                         data={
                             "action": "combat_turn",
-                            "turn": turn.__dict__,
+                            "turn": turn.to_dict(),
                             "combat_status": combat_status
                         },
                         broadcast=True,
@@ -111,7 +111,7 @@ class AttackCommand(BaseCommand):
                         "id": target_monster.id,
                         "name": target_monster.get_localized_name('ko')
                     },
-                    "turn": turn.__dict__,
+                    "turn": turn.to_dict(),
                     "combat_status": combat_status
                 },
                 broadcast=True,
@@ -158,7 +158,7 @@ class DefendCommand(BaseCommand):
                     message=turn.message,
                     data={
                         "action": "combat_defend",
-                        "turn": turn.__dict__,
+                        "turn": turn.to_dict(),
                         "combat_status": combat_status
                     },
                     broadcast=True,
@@ -213,7 +213,7 @@ class FleeCommand(BaseCommand):
                         message="💨 성공적으로 도망쳤습니다!",
                         data={
                             "action": "combat_fled",
-                            "turn": turn.__dict__,
+                            "turn": turn.to_dict(),
                             "combat_ended": True
                         },
                         broadcast=True,
@@ -225,7 +225,7 @@ class FleeCommand(BaseCommand):
                         message=f"{turn.message}\n도망에 실패했습니다!",
                         data={
                             "action": "combat_flee_failed",
-                            "turn": turn.__dict__,
+                            "turn": turn.to_dict(),
                             "combat_status": combat_status
                         },
                         broadcast=True,

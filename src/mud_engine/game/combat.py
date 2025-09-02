@@ -46,6 +46,21 @@ class CombatTurn:
     message: str = ""
     timestamp: datetime = field(default_factory=datetime.now)
 
+    def to_dict(self) -> Dict[str, Any]:
+        """JSON 직렬화를 위한 딕셔너리 변환"""
+        return {
+            'turn_number': self.turn_number,
+            'attacker_id': self.attacker_id,
+            'attacker_type': self.attacker_type,
+            'action': self.action.value,  # Enum을 문자열로 변환
+            'target_id': self.target_id,
+            'damage_dealt': self.damage_dealt,
+            'is_critical': self.is_critical,
+            'is_hit': self.is_hit,
+            'message': self.message,
+            'timestamp': self.timestamp.isoformat()  # datetime을 문자열로 변환
+        }
+
 
 @dataclass
 class CombatParticipant:
