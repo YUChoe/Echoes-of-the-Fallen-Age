@@ -346,7 +346,7 @@ class AdminManager:
             # 모든 객체 조회 (간단한 통계만)
             objects = await self.game_engine.world_manager._object_repo.get_all()
 
-            object_types = {}
+            object_types: Dict[str, int] = {}
             for obj in objects:
                 obj_type = obj.get('object_type', 'unknown')
                 object_types[obj_type] = object_types.get(obj_type, 0) + 1

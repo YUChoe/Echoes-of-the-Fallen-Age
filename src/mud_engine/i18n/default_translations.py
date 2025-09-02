@@ -5,7 +5,7 @@
 새로운 번역 키를 추가할 때는 이 파일을 수정하세요.
 """
 
-from typing import Dict
+from typing import Dict, Any, Set, List
 
 # 기본 번역 텍스트 (최소한의 핵심 메시지만 포함)
 DEFAULT_TRANSLATIONS: Dict[str, Dict[str, str]] = {
@@ -55,17 +55,17 @@ def get_default_translations() -> Dict[str, Dict[str, str]]:
     return DEFAULT_TRANSLATIONS.copy()
 
 
-def get_core_translation_keys() -> set:
+def get_core_translation_keys() -> Set[str]:
     """핵심 번역 키 목록 반환"""
-    keys = set()
+    keys: Set[str] = set()
     for locale_translations in DEFAULT_TRANSLATIONS.values():
         keys.update(locale_translations.keys())
     return keys
 
 
-def validate_default_translations() -> Dict[str, any]:
+def validate_default_translations() -> Dict[str, Any]:
     """기본 번역 텍스트 유효성 검사"""
-    validation_result = {
+    validation_result: Dict[str, Any] = {
         'valid': True,
         'errors': [],
         'warnings': [],
@@ -73,8 +73,8 @@ def validate_default_translations() -> Dict[str, any]:
     }
 
     # 모든 로케일에서 동일한 키를 가지고 있는지 확인
-    all_keys = set()
-    locale_keys = {}
+    all_keys: Set[str] = set()
+    locale_keys: Dict[str, Set[str]] = {}
 
     for locale, translations in DEFAULT_TRANSLATIONS.items():
         locale_keys[locale] = set(translations.keys())

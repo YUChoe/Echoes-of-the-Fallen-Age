@@ -5,7 +5,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Set
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +162,7 @@ class TranslationFileManager:
 
     def validate_translation_files(self) -> Dict[str, Any]:
         """번역 파일 유효성 검사"""
-        validation_result = {
+        validation_result: Dict[str, Any] = {
             'valid': True,
             'errors': [],
             'warnings': [],
@@ -180,8 +180,8 @@ class TranslationFileManager:
                 return validation_result
 
             # 모든 로케일의 번역 로드
-            all_translations = {}
-            all_keys = set()
+            all_translations: Dict[str, Dict[str, str]] = {}
+            all_keys: Set[str] = set()
 
             for locale in available_locales:
                 translations = self.load_translation_file(locale)

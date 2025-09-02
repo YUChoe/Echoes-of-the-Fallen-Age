@@ -592,7 +592,7 @@ class GameObject(BaseModel):
     def from_dict(cls, data: Dict[str, Any]) -> 'GameObject':
         """딕셔너리에서 모델 생성"""
         # 데이터베이스 컬럼명을 모델 필드명으로 변환
-        converted_data = {}
+        converted_data: Dict[str, Any] = {}
 
         for key, value in data.items():
             if key == 'name_en' or key == 'name_ko':

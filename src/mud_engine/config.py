@@ -64,27 +64,27 @@ class Config:
             return cast_type(value)
 
     # 데이터베이스 설정
-    DATABASE_URL = get_env.__func__('DATABASE_URL', 'sqlite:///data/mud_engine.db')
+    DATABASE_URL = get_env('DATABASE_URL', 'sqlite:///data/mud_engine.db')
 
     # 서버 설정
-    SERVER_HOST = get_env.__func__('SERVER_HOST', 'localhost')
-    SERVER_PORT = get_env.__func__('SERVER_PORT', 8080, int)
+    SERVER_HOST = get_env('SERVER_HOST', 'localhost')
+    SERVER_PORT = get_env('SERVER_PORT', 8080, int)
 
     # 보안 설정
-    SECRET_KEY = get_env.__func__('SECRET_KEY', 'your-secret-key-change-this-in-production')
+    SECRET_KEY = get_env('SECRET_KEY', 'your-secret-key-change-this-in-production')
 
     # 개발 설정
-    DEBUG = get_env.__func__('DEBUG', False, bool)
-    LOG_LEVEL = get_env.__func__('LOG_LEVEL', 'INFO')
+    DEBUG = get_env('DEBUG', False, bool)
+    LOG_LEVEL = get_env('LOG_LEVEL', 'INFO')
 
     # 다국어 설정
-    DEFAULT_LOCALE = get_env.__func__('DEFAULT_LOCALE', 'en')
-    SUPPORTED_LOCALES = get_env.__func__('SUPPORTED_LOCALES', 'en,ko').split(',')
+    DEFAULT_LOCALE = get_env('DEFAULT_LOCALE', 'en')
+    SUPPORTED_LOCALES = get_env('SUPPORTED_LOCALES', 'en,ko').split(',')
 
     # 사용자 계정 설정
-    USERNAME_MIN_LENGTH = get_env.__func__('USERNAME_MIN_LENGTH', 3, int)
-    USERNAME_MAX_LENGTH = get_env.__func__('USERNAME_MAX_LENGTH', 20, int)
-    PASSWORD_MIN_LENGTH = get_env.__func__('PASSWORD_MIN_LENGTH', 6, int)
+    USERNAME_MIN_LENGTH = get_env('USERNAME_MIN_LENGTH', 3, int)
+    USERNAME_MAX_LENGTH = get_env('USERNAME_MAX_LENGTH', 20, int)
+    PASSWORD_MIN_LENGTH = get_env('PASSWORD_MIN_LENGTH', 6, int)
 
     @classmethod
     def get_username_validation_config(cls) -> dict:

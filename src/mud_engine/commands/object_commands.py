@@ -2,10 +2,11 @@
 """객체 상호작용 명령어들"""
 
 import logging
-from typing import List
+from typing import List, Dict
 
 from .base import BaseCommand, CommandResult, CommandResultType
 from ..server.session import Session
+from ..game.models import GameObject
 
 logger = logging.getLogger(__name__)
 
@@ -297,7 +298,7 @@ class InventoryCommand(BaseCommand):
             response += "\n"
 
             # 카테고리별로 정렬
-            categories = {}
+            categories: Dict[str, List[GameObject]] = {}
             for obj in filtered_objects:
                 category = obj.category
                 if category not in categories:

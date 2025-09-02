@@ -60,7 +60,7 @@ class TranslationManager:
         Returns:
             Dict[str, Dict[str, str]]: 병합된 번역 데이터
         """
-        merged_translations = {}
+        merged_translations: Dict[str, Dict[str, str]] = {}
 
         try:
             available_locales = self.file_manager.get_available_locales()
@@ -84,7 +84,7 @@ class TranslationManager:
         Returns:
             Dict[str, List[str]]: 로케일별 누락된 키 목록
         """
-        missing_translations = {}
+        missing_translations: Dict[str, List[str]] = {}
 
         try:
             merged_translations = self.merge_translations_from_files()
@@ -93,7 +93,7 @@ class TranslationManager:
                 return missing_translations
 
             # 모든 키 수집
-            all_keys = set()
+            all_keys: Set[str] = set()
             for translations in merged_translations.values():
                 all_keys.update(translations.keys())
 
@@ -122,7 +122,7 @@ class TranslationManager:
         Returns:
             Dict[str, List[str]]: 로케일별 사용되지 않는 키 목록
         """
-        unused_translations = {}
+        unused_translations: Dict[str, List[str]] = {}
 
         try:
             merged_translations = self.merge_translations_from_files()
@@ -152,7 +152,7 @@ class TranslationManager:
         Returns:
             Dict[str, str]: 번역 템플릿
         """
-        template = {}
+        template: Dict[str, str] = {}
 
         for key in keys:
             template[key] = f"[TODO: {target_locale}] {key}"
@@ -180,11 +180,11 @@ class TranslationManager:
                 return False
 
             # 모든 키 수집
-            all_keys = set()
+            all_keys: Set[str] = set()
             for translations in merged_translations.values():
                 all_keys.update(translations.keys())
 
-            all_keys = sorted(list(all_keys))
+            sorted_keys = sorted(list(all_keys))
             locales = sorted(list(merged_translations.keys()))
 
             # CSV 파일 작성
@@ -196,7 +196,7 @@ class TranslationManager:
                 writer.writerow(header)
 
                 # 데이터 작성
-                for key in all_keys:
+                for key in sorted_keys:
                     row = [key]
                     for locale in locales:
                         value = merged_translations[locale].get(key, '')
@@ -223,24 +223,26 @@ class TranslationManager:
         try:
             import csv
 
-            translations_by_locale = {}
+            translations_by_locale: Dict[str, Dict[str, str]] = {}
 
             with open(input_file, 'r', encoding='utf-8') as csvfile:
                 reader = csv.DictReader(csvfile)
 
                 # 헤더에서 로케일 추출
-                locales = [col for col in reader.fieldnames if col != 'key']
+                fieldnames = reader.fieldnames or []
+                locales = [col for col in fieldnames if col != 'key']
 
                 for locale in locales:
                     translations_by_locale[locale] = {}
 
                 # 데이터 읽기
                 for row in reader:
-                    key = row['key']
-                    for locale in locales:
-                        value = row.get(locale, '').strip()
-                        if value:  # 빈 값은 제외
-                            translations_by_locale[locale][key] = value
+                    key = row.get('key')
+                    if key:
+                        for locale in locales:
+                            value = row.get(locale, '').strip()
+                            if value:  # 빈 값은 제외
+                                translations_by_locale[locale][key] = value
 
             # 파일로 저장
             for locale, translations in translations_by_locale.items():
@@ -264,7 +266,7 @@ class TranslationManager:
         Returns:
             Dict[str, Any]: 번역 상태 보고서
         """
-        report = {
+        report: Dict[str, Any] = {
             'timestamp': None,
             'total_locales': 0,
             'total_keys': 0,
@@ -287,7 +289,7 @@ class TranslationManager:
             report['total_locales'] = len(merged_translations)
 
             # 모든 키 수집
-            all_keys = set()
+            all_keys: Set[str] = set()
             for translations in merged_translations.values():
                 all_keys.update(translations.keys())
 
@@ -331,7 +333,7 @@ class TranslationManager:
         Returns:
             Dict[str, List[str]]: 정리된 키 목록
         """
-        cleaned_keys = {}
+        cleaned_keys: Dict[str, List[str]] = {}
 
         try:
             unused_translations = self.find_unused_translations(used_keys)

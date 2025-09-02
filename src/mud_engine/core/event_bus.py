@@ -295,7 +295,7 @@ class EventBus:
             for event_type, callbacks in self._subscribers.items()
         }
 
-        event_type_counts = {}
+        event_type_counts: Dict[str, int] = {}
         for event in self._event_history:
             event_type = event.event_type.value
             event_type_counts[event_type] = event_type_counts.get(event_type, 0) + 1

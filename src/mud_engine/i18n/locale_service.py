@@ -155,7 +155,7 @@ class LocaleService:
 
     def get_locale_stats(self) -> Dict[str, int]:
         """로케일 사용 통계"""
-        stats = {}
+        stats: Dict[str, int] = {}
 
         # 사용자 로케일 통계
         for locale in self._user_locales.values():

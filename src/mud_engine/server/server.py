@@ -4,7 +4,7 @@
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TypedDict, List
 
 from aiohttp import web, WSMsgType
 
@@ -17,6 +17,11 @@ from ..core.event_bus import initialize_event_bus, shutdown_event_bus
 from ..config import Config
 
 logger = logging.getLogger(__name__)
+
+
+class PlayerInfo(TypedDict):
+    username: str
+    session_time: float
 
 
 class MudServer:
@@ -35,6 +40,7 @@ class MudServer:
         self.db_manager = db_manager
         self.session_manager: SessionManager = SessionManager()
         self.game_engine: Optional[GameEngine] = None
+        self._is_running: bool = False
 
         logger.info("MudServer 초기화")
         self._setup_routes()
@@ -54,7 +60,7 @@ class MudServer:
         self.app.router.add_static("/static/", path="static", name="static")
         logger.info("라우팅 설정 완료")
 
-    async def handle_index(self, request: web.Request) -> web.Response:
+    async def handle_index(self, request: web.Request) -> web.FileResponse:
         """메인 페이지 핸들러"""
         return web.FileResponse("static/html/index.html")
 
@@ -247,7 +253,7 @@ class MudServer:
             })
             return
 
-        players = []
+        players: List[PlayerInfo] = []
         for sess in authenticated_sessions.values():
             if sess.player:
                 players.append({
@@ -355,6 +361,7 @@ class MudServer:
         self.site = web.TCPSite(self.runner, self.host, self.port)
         await self.site.start()
 
+        self._is_running = True
         logger.info("서버가 성공적으로 시작되었습니다.")
 
     async def stop(self) -> None:
@@ -385,6 +392,7 @@ class MudServer:
 
             # 웹 서버 종료
             await self.runner.cleanup()
+            self._is_running = False
             logger.info("서버가 성공적으로 종료되었습니다.")
 
     def get_server_config(self) -> Dict[str, Any]:
@@ -400,7 +408,7 @@ class MudServer:
         return {
             "server_config": self.get_server_config(),
             "session_manager": self.session_manager.get_stats(),
-            "is_running": self.runner is not None and not self.runner.closed
+            "is_running": self._is_running
         }
 
     # === 관리자 API 핸들러들 ===
