@@ -1,0 +1,55 @@
+{
+  "mcpServers": {
+    "Context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {},
+      "disabled": false,
+      "autoApprove": []
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "browser_navigate",
+        "browser_type",
+        "browser_click",
+        "browser_fill_form",
+        "browser_evaluate",
+        "browser_snapshot",
+        "browser_console_messages",
+        "browser_wait_for",
+        "browser_press_key",
+        "browser_tabs",
+        "browser_close",
+        "browser_select_option",
+        "browser_handle_dialog",
+        "browser_handle_dialog",
+        "browser_file_upload",
+        "browser_network_requests",
+        "browser_take_screenshot"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "search_nodes",
+        "create_entities",
+        "add_observations",
+        "create_relations",
+        "read_graph"
+      ]
+    }
+  }
+}

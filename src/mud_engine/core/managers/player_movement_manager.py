@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Optional
 from datetime import datetime
 
 from ..event_bus import Event, EventType
+from ..types import SessionType
 
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
-    from ...server.session import Session
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class PlayerMovementManager:
     def __init__(self, game_engine: 'GameEngine'):
         self.game_engine = game_engine
 
-    async def move_player_to_room(self, session: 'Session', room_id: str, skip_followers: bool = False) -> bool:
+    async def move_player_to_room(self, session: SessionType, room_id: str, skip_followers: bool = False) -> bool:
         """
         플레이어를 특정 방으로 이동시킵니다.
 
@@ -120,7 +120,7 @@ class PlayerMovementManager:
             await session.send_error("방 이동 중 오류가 발생했습니다.")
             return False
 
-    async def send_room_info_to_player(self, session: 'Session', room_id: str) -> None:
+    async def send_room_info_to_player(self, session: SessionType, room_id: str) -> None:
         """
         플레이어에게 방 정보를 전송합니다.
 
@@ -179,7 +179,7 @@ class PlayerMovementManager:
         except Exception as e:
             logger.error(f"방 정보 전송 실패 ({session.player.username}, {room_id}): {e}")
 
-    async def handle_player_movement_with_followers(self, session: 'Session', new_room_id: str, old_room_id: Optional[str] = None) -> None:
+    async def handle_player_movement_with_followers(self, session: SessionType, new_room_id: str, old_room_id: Optional[str] = None) -> None:
         """
         플레이어 이동 시 따라가는 플레이어들도 함께 이동시킵니다.
 
@@ -277,7 +277,7 @@ class PlayerMovementManager:
         except Exception as e:
             logger.error(f"방 플레이어 목록 업데이트 실패 ({room_id}): {e}")
 
-    async def handle_player_disconnect_cleanup(self, session: 'Session') -> None:
+    async def handle_player_disconnect_cleanup(self, session: SessionType) -> None:
         """
         플레이어 연결 해제 시 따라가기 관련 정리 작업
 
@@ -355,7 +355,7 @@ class PlayerMovementManager:
         except Exception as e:
             logger.error(f"플레이어 상태 변경 알림 실패 ({player_id}, {status}): {e}")
 
-    async def _check_aggressive_monsters_on_entry(self, session: 'Session', room_id: str) -> None:
+    async def _check_aggressive_monsters_on_entry(self, session: SessionType, room_id: str) -> None:
         """
         플레이어가 방에 입장할 때 선공형 몬스터 체크 및 즉시 공격 처리
 

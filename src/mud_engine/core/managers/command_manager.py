@@ -5,9 +5,10 @@ import logging
 from typing import TYPE_CHECKING, Optional
 from datetime import datetime
 
+from ..types import SessionType
+
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
-    from ...server.session import Session
     from ...commands.processor import CommandProcessor
 
 logger = logging.getLogger(__name__)
@@ -131,7 +132,7 @@ class CommandManager:
 
         logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용, NPC 상호작용, 전투 명령어 포함)")
 
-    async def handle_player_command(self, session: 'Session', command: str):
+    async def handle_player_command(self, session: SessionType, command: str):
         """
         플레이어 명령어 처리
 
@@ -160,7 +161,7 @@ class CommandManager:
         # 결과 반환 (관리자 명령어 응답 처리용)
         return result
 
-    async def _send_command_result(self, session: 'Session', result) -> None:
+    async def _send_command_result(self, session: SessionType, result) -> None:
         """
         명령어 실행 결과를 세션에 전송
 

@@ -7,12 +7,13 @@ from datetime import datetime
 
 from .event_bus import EventBus, Event, EventType, get_event_bus
 from .managers import CommandManager, EventHandler, PlayerMovementManager, UIManager, AdminManager
+from .types import SessionType
 from ..game.managers import PlayerManager, WorldManager
 from ..game.repositories import RoomRepository, GameObjectRepository
 from ..database.connection import DatabaseManager
 
 if TYPE_CHECKING:
-    from ..server.session import SessionManager, Session
+    from ..server.session import SessionManager
     from ..game.models import Player
 
 logger = logging.getLogger(__name__)
@@ -154,12 +155,12 @@ class GameEngine:
 
     # === 플레이어 세션 관리 ===
 
-    async def add_player_session(self, session: 'Session', player: 'Player') -> None:
+    async def add_player_session(self, session: SessionType, player: 'Player') -> None:
         """
         플레이어 세션 추가
 
         Args:
-            session: 세션 객체
+            session: 세션 객체 (Session 또는 TelnetSession)
             player: 플레이어 객체
         """
         # 세션에 게임 엔진 참조 설정
@@ -197,12 +198,12 @@ class GameEngine:
             }
         ))
 
-    async def remove_player_session(self, session: 'Session', reason: str = "연결 종료") -> None:
+    async def remove_player_session(self, session: SessionType, reason: str = "연결 종료") -> None:
         """
         플레이어 세션 제거
 
         Args:
-            session: 세션 객체
+            session: 세션 객체 (Session 또는 TelnetSession)
             reason: 제거 이유
         """
         # 따라가기 관련 정리 작업 수행
@@ -287,12 +288,12 @@ class GameEngine:
 
     # === 명령어 처리 ===
 
-    async def handle_player_command(self, session: 'Session', command: str):
+    async def handle_player_command(self, session: SessionType, command: str):
         """
         플레이어 명령어 처리
 
         Args:
-            session: 세션 객체
+            session: 세션 객체 (Session 또는 TelnetSession)
             command: 명령어
 
         Returns:
@@ -324,25 +325,25 @@ class GameEngine:
 
     # === 관리자 기능 위임 메서드들 ===
 
-    async def create_room_realtime(self, room_data: Dict[str, Any], admin_session: 'Session') -> bool:
+    async def create_room_realtime(self, room_data: Dict[str, Any], admin_session: SessionType) -> bool:
         """실시간으로 새로운 방을 생성합니다."""
         return await self.admin_manager.create_room_realtime(room_data, admin_session)
 
-    async def update_room_realtime(self, room_id: str, updates: Dict[str, Any], admin_session: 'Session') -> bool:
+    async def update_room_realtime(self, room_id: str, updates: Dict[str, Any], admin_session: SessionType) -> bool:
         """실시간으로 방 정보를 수정합니다."""
         return await self.admin_manager.update_room_realtime(room_id, updates, admin_session)
 
-    async def create_object_realtime(self, object_data: Dict[str, Any], admin_session: 'Session') -> bool:
+    async def create_object_realtime(self, object_data: Dict[str, Any], admin_session: SessionType) -> bool:
         """실시간으로 새로운 게임 객체를 생성합니다."""
         return await self.admin_manager.create_object_realtime(object_data, admin_session)
 
-    async def validate_and_repair_world(self, admin_session: Optional['Session'] = None) -> Dict[str, Any]:
+    async def validate_and_repair_world(self, admin_session: Optional[SessionType] = None) -> Dict[str, Any]:
         """게임 세계의 무결성을 검증하고 자동으로 수정합니다."""
         return await self.admin_manager.validate_and_repair_world(admin_session)
 
     # === 이동 관리 위임 메서드들 ===
 
-    async def move_player_to_room(self, session: 'Session', room_id: str, skip_followers: bool = False) -> bool:
+    async def move_player_to_room(self, session: SessionType, room_id: str, skip_followers: bool = False) -> bool:
         """플레이어를 특정 방으로 이동시킵니다."""
         return await self.movement_manager.move_player_to_room(session, room_id, skip_followers)
 
@@ -350,7 +351,7 @@ class GameEngine:
         """방의 플레이어 목록을 실시간으로 업데이트합니다."""
         await self.movement_manager.update_room_player_list(room_id)
 
-    async def handle_player_disconnect_cleanup(self, session: 'Session') -> None:
+    async def handle_player_disconnect_cleanup(self, session: SessionType) -> None:
         """플레이어 연결 해제 시 따라가기 관련 정리 작업"""
         await self.movement_manager.handle_player_disconnect_cleanup(session)
 
@@ -367,7 +368,7 @@ class GameEngine:
         count = await self.broadcast_to_all(shutdown_message)
         logger.info(f"서버 종료 알림 전송: {count}명의 플레이어")
 
-    def _find_session_by_player_id(self, player_id: str) -> Optional['Session']:
+    def _find_session_by_player_id(self, player_id: str) -> Optional[SessionType]:
         """플레이어 ID로 세션 찾기"""
         for session in self.session_manager.sessions.values():
             if session.player and session.player.id == player_id:

@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Dict, Any
 from datetime import datetime
 
 from ..event_bus import Event, EventType
+from ..types import SessionType
 
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
-    from ...server.session import Session
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class AdminManager:
     def __init__(self, game_engine: 'GameEngine'):
         self.game_engine = game_engine
 
-    async def create_room_realtime(self, room_data: Dict[str, Any], admin_session: 'Session') -> bool:
+    async def create_room_realtime(self, room_data: Dict[str, Any], admin_session: SessionType) -> bool:
         """
         실시간으로 새로운 방을 생성합니다.
 
@@ -59,7 +59,7 @@ class AdminManager:
             await admin_session.send_error(f"방 생성 실패: {str(e)}")
             return False
 
-    async def update_room_realtime(self, room_id: str, updates: Dict[str, Any], admin_session: 'Session') -> bool:
+    async def update_room_realtime(self, room_id: str, updates: Dict[str, Any], admin_session: SessionType) -> bool:
         """
         실시간으로 방 정보를 수정합니다.
 
@@ -115,7 +115,7 @@ class AdminManager:
             await admin_session.send_error(f"방 수정 실패: {str(e)}")
             return False
 
-    async def create_object_realtime(self, object_data: Dict[str, Any], admin_session: 'Session') -> bool:
+    async def create_object_realtime(self, object_data: Dict[str, Any], admin_session: SessionType) -> bool:
         """
         실시간으로 새로운 게임 객체를 생성합니다.
 
@@ -167,7 +167,7 @@ class AdminManager:
             await admin_session.send_error(f"객체 생성 실패: {str(e)}")
             return False
 
-    async def validate_and_repair_world(self, admin_session: 'Session' = None) -> Dict[str, Any]:
+    async def validate_and_repair_world(self, admin_session: SessionType = None) -> Dict[str, Any]:
         """
         게임 세계의 무결성을 검증하고 자동으로 수정합니다.
 
@@ -213,7 +213,7 @@ class AdminManager:
                 await admin_session.send_error(f"무결성 검증 실패: {str(e)}")
             raise
 
-    async def kick_player(self, target_username: str, admin_session: 'Session', reason: str = "관리자에 의해 추방") -> bool:
+    async def kick_player(self, target_username: str, admin_session: SessionType, reason: str = "관리자에 의해 추방") -> bool:
         """
         플레이어를 서버에서 추방합니다.
 
@@ -267,7 +267,7 @@ class AdminManager:
             await admin_session.send_error(f"플레이어 추방 실패: {str(e)}")
             return False
 
-    async def get_admin_stats(self, admin_session: 'Session') -> Dict[str, Any]:
+    async def get_admin_stats(self, admin_session: SessionType) -> Dict[str, Any]:
         """
         관리자용 서버 통계 정보를 반환합니다.
 

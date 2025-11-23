@@ -4,9 +4,10 @@
 import logging
 from typing import TYPE_CHECKING, Dict, Any, List
 
+from ..types import SessionType
+
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
-    from ...server.session import Session
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class UIManager:
     def __init__(self, game_engine: 'GameEngine'):
         self.game_engine = game_engine
 
-    async def send_ui_update(self, session: 'Session', room_info: Dict[str, Any]) -> None:
+    async def send_ui_update(self, session: SessionType, room_info: Dict[str, Any]) -> None:
         """
         클라이언트에게 UI 업데이트 정보 전송
 
@@ -113,7 +114,7 @@ class UIManager:
         }
         return icons.get(object_type, '❓')
 
-    def _generate_autocomplete_hints(self, session: 'Session', room_info: Dict[str, Any]) -> List[str]:
+    def _generate_autocomplete_hints(self, session: SessionType, room_info: Dict[str, Any]) -> List[str]:
         """자동완성 힌트 생성"""
         hints = []
 
