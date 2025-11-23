@@ -287,6 +287,10 @@ class Monster(BaseModel):
         # 원본 drop_items 복원
         self.drop_items = original_drop_items
 
+        # _level 필드 제거 (properties에 이미 저장됨)
+        if '_level' in data:
+            del data['_level']
+
         # name과 description을 개별 컬럼으로 분리
         if 'name' in data:
             name_dict = data.pop('name')

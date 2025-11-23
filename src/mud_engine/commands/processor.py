@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 from .base import BaseCommand, CommandResult, CommandResultType
-from ..server.session import Session
+from ..core.types import SessionType
 from ..core.event_bus import EventBus, Event, EventType
 
 logger = logging.getLogger(__name__)
@@ -129,7 +129,7 @@ class CommandProcessor:
 
         return command_name, args
 
-    async def process_command(self, session: Session, command_line: str) -> CommandResult:
+    async def process_command(self, session: SessionType, command_line: str) -> CommandResult:
         """
         명령어 처리
 

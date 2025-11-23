@@ -5,7 +5,7 @@ import logging
 from typing import List
 
 from .base import BaseCommand, CommandResult, CommandResultType
-from ..server.session import Session
+from ..core.types import SessionType
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class SayCommand(BaseCommand):
             usage="say <메시지> 또는 '<메시지>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(
                 "말할 내용을 입력해주세요.\n사용법: say <메시지>"
@@ -60,7 +60,7 @@ class TellCommand(BaseCommand):
             usage="tell <플레이어명> <메시지>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.validate_args(args, min_args=2):
             return self.create_error_result(
                 "귓속말할 플레이어와 메시지를 입력해주세요.\n사용법: tell <플레이어명> <메시지>"
@@ -103,7 +103,7 @@ class WhoCommand(BaseCommand):
         )
         self.session_manager = session_manager
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.session_manager:
             # 기본 구현
             response = f"""
@@ -164,7 +164,7 @@ class LookCommand(BaseCommand):
             usage="look [대상]"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not args:
             # 방 전체 둘러보기
             return await self._look_around(session)
@@ -173,7 +173,7 @@ class LookCommand(BaseCommand):
             target = " ".join(args)
             return await self._look_at(session, target)
 
-    async def _look_around(self, session: Session) -> CommandResult:
+    async def _look_around(self, session: SessionType) -> CommandResult:
         """방 전체 둘러보기 - 방 정보를 다시 전송"""
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
@@ -204,7 +204,7 @@ class LookCommand(BaseCommand):
             logger.error(f"방 둘러보기 중 오류: {e}")
             return self.create_error_result("방 정보를 조회하는 중 오류가 발생했습니다.")
 
-    async def _look_at(self, session: Session, target: str) -> CommandResult:
+    async def _look_at(self, session: SessionType, target: str) -> CommandResult:
         """특정 대상 살펴보기"""
         target_lower = target.lower()
 
@@ -243,7 +243,7 @@ class HelpCommand(BaseCommand):
         )
         self.command_processor = command_processor
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.command_processor:
             return self.create_error_result("명령어 처리기가 설정되지 않았습니다.")
 
@@ -281,7 +281,7 @@ class QuitCommand(BaseCommand):
             usage="quit"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         return self.create_success_result(
             message="안전하게 게임을 종료합니다. 안녕히 가세요!",
             data={
@@ -303,7 +303,7 @@ class MoveCommand(BaseCommand):
             usage=direction
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
@@ -378,7 +378,7 @@ class GoCommand(BaseCommand):
             usage="go <방향>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(
                 "이동할 방향을 지정해주세요.\n사용법: go <방향>\n"
@@ -424,7 +424,7 @@ class ExitsCommand(BaseCommand):
             usage="exits"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
@@ -477,7 +477,7 @@ class StatsCommand(BaseCommand):
             usage="stats [상세]"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 

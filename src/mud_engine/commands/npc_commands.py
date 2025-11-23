@@ -6,7 +6,7 @@ import logging
 from typing import List, Optional
 
 from .base import BaseCommand, CommandResult
-from ..server.session import Session
+from ..core.types import SessionType
 from ..game.models import NPC, GameObject
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class TalkCommand(BaseCommand):
             usage="talk <NPC이름>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """NPC와 대화 실행"""
         try:
             if not args:
@@ -86,7 +86,7 @@ class ShopCommand(BaseCommand):
             usage="shop [상인이름]"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """상점 목록 보기 실행"""
         try:
             # GameEngine을 통해 NPC 조회
@@ -159,7 +159,7 @@ class BuyCommand(BaseCommand):
             usage="buy <아이템이름> [상인이름]"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """아이템 구매 실행"""
         try:
             if not args:
@@ -277,7 +277,7 @@ class SellCommand(BaseCommand):
             usage="sell <아이템이름> [상인이름]"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """아이템 판매 실행"""
         try:
             if not args:

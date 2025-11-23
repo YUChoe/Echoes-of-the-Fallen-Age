@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from enum import Enum
 
-from ..server.session import Session
+from ..core.types import SessionType
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class BaseCommand(ABC):
         self.admin_only = admin_only
 
     @abstractmethod
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """
         명령어 실행
 

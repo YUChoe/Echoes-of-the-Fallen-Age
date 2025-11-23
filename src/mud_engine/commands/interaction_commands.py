@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from .base import BaseCommand, CommandResult, CommandResultType
-from ..server.session import Session
+from ..core.types import SessionType
 from ..core.event_bus import Event, EventType
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class EmoteCommand(BaseCommand):
             usage="emote <행동/감정>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         logger.debug(f"EmoteCommand 실행: 플레이어={session.player.username}, args={args}")
 
         if not args:
@@ -74,7 +74,7 @@ class GiveCommand(BaseCommand):
             usage="give <아이템명> <플레이어명>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         logger.debug(f"GiveCommand 실행: 플레이어={session.player.username}, args={args}")
 
         if len(args) < 2:
@@ -196,7 +196,7 @@ class FollowCommand(BaseCommand):
             usage="follow <플레이어명> 또는 follow stop (따라가기 중지)"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         logger.debug(f"FollowCommand 실행: 플레이어={session.player.username}, args={args}")
 
         if not args:
@@ -293,7 +293,7 @@ class WhisperCommand(BaseCommand):
             usage="whisper <플레이어명> <메시지>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         logger.debug(f"WhisperCommand 실행: 플레이어={session.player.username}, args={args}")
 
         if len(args) < 2:
@@ -362,7 +362,7 @@ class PlayersCommand(BaseCommand):
             usage="players"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         logger.debug(f"PlayersCommand 실행: 플레이어={session.player.username}")
 
         current_room_id = getattr(session, 'current_room_id', None)

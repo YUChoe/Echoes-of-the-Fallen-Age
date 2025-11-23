@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from .base import BaseCommand, CommandResult, CommandResultType
-from ..server.session import Session
+from ..core.types import SessionType
 from ..game.models import Room, GameObject
 
 logger = logging.getLogger(__name__)
@@ -20,13 +20,13 @@ class AdminCommand(BaseCommand):
         super().__init__(name, aliases, description, usage, admin_only=True)
         self.admin_required = True
 
-    def check_admin_permission(self, session: Session) -> bool:
+    def check_admin_permission(self, session: SessionType) -> bool:
         """관리자 권한 확인"""
         if not session.player or not session.player.is_admin:
             return False
         return True
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """관리자 권한 확인 후 명령어 실행"""
         if not self.check_admin_permission(session):
             return CommandResult(
@@ -36,7 +36,7 @@ class AdminCommand(BaseCommand):
 
         return await self.execute_admin(session, args)
 
-    async def execute_admin(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """관리자 명령어 실행 (하위 클래스에서 구현)"""
         raise NotImplementedError
 
@@ -51,7 +51,7 @@ class CreateRoomCommand(AdminCommand):
             aliases=["cr", "mkroom"]
         )
 
-    async def execute_admin(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """방 생성 실행"""
         if len(args) < 2:
             return CommandResult(
@@ -119,7 +119,7 @@ class EditRoomCommand(AdminCommand):
             aliases=["er", "modroom"]
         )
 
-    async def execute_admin(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """방 편집 실행"""
         if len(args) < 3:
             return CommandResult(
@@ -196,7 +196,7 @@ class CreateExitCommand(AdminCommand):
             aliases=["ce", "mkexit"]
         )
 
-    async def execute_admin(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """출구 생성 실행"""
         if len(args) < 3:
             return CommandResult(
@@ -276,7 +276,7 @@ class CreateObjectCommand(AdminCommand):
             aliases=["co", "mkobj"]
         )
 
-    async def execute_admin(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """객체 생성 실행"""
         if len(args) < 3:
             return CommandResult(
@@ -368,7 +368,7 @@ class KickPlayerCommand(AdminCommand):
             aliases=["kickplayer"]
         )
 
-    async def execute_admin(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """플레이어 추방 실행"""
         if len(args) < 1:
             return CommandResult(
@@ -463,7 +463,7 @@ class GotoCommand(AdminCommand):
             aliases=["tp", "teleport", "warp"]
         )
 
-    async def execute_admin(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """방 ID로 이동 실행"""
         if len(args) < 1:
             return CommandResult(
@@ -562,7 +562,7 @@ class AdminListCommand(AdminCommand):
             aliases=["adminhelp", "adm"]
         )
 
-    async def execute_admin(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """관리자 명령어 목록 표시"""
 
         admin_commands = """

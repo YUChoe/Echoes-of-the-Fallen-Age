@@ -125,10 +125,10 @@ class CommandManager:
         from ...commands.combat_commands import (
             AttackCommand, DefendCommand, FleeCommand, CombatStatusCommand
         )
-        self.command_processor.register_command(AttackCommand(self.game_engine.combat_system))
-        self.command_processor.register_command(DefendCommand(self.game_engine.combat_system))
-        self.command_processor.register_command(FleeCommand(self.game_engine.combat_system))
-        self.command_processor.register_command(CombatStatusCommand(self.game_engine.combat_system))
+        self.command_processor.register_command(AttackCommand(self.game_engine.combat_handler))
+        self.command_processor.register_command(DefendCommand(self.game_engine.combat_handler))
+        self.command_processor.register_command(FleeCommand(self.game_engine.combat_handler))
+        self.command_processor.register_command(CombatStatusCommand(self.game_engine.combat_handler))
 
         logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용, NPC 상호작용, 전투 명령어 포함)")
 

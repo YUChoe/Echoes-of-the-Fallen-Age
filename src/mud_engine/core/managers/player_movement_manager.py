@@ -367,8 +367,7 @@ class PlayerMovementManager:
             logger.info(f"선공형 몬스터 체크 시작: 플레이어 {session.player.username}, 방 {room_id}")
 
             # 플레이어가 이미 전투 중인지 확인
-            existing_combat = self.game_engine.combat_system.get_player_combat(session.player.id)
-            if existing_combat:
+            if self.game_engine.combat_manager.is_player_in_combat(session.player.id):
                 logger.info(f"플레이어 {session.player.username}이 이미 전투 중이므로 선공 체크 생략")
                 return
 
@@ -409,10 +408,19 @@ class PlayerMovementManager:
             })
 
             # 전투 시작
-            broadcast_callback = self.game_engine.broadcast_to_room
-            await self.game_engine.combat_system.start_combat(
-                session.player, attacking_monster, room_id, broadcast_callback
+            combat = await self.game_engine.combat_handler.check_and_start_combat(
+                room_id, session.player, session.player.id, aggressive_monsters
             )
+            
+            if combat:
+                # 전투 시작 메시지 전송
+                await session.send_message({
+                    'type': 'combat_start',
+                    'combat_id': combat.id,
+                    'combatants': [c.to_dict() for c in combat.combatants],
+                    'turn_order': combat.turn_order,
+                    'current_turn': combat.get_current_combatant().to_dict() if combat.get_current_combatant() else None
+                })
 
             logger.info(f"선공형 몬스터 전투 시작: {monster_name} vs {session.player.username}")
 

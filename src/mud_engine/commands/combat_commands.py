@@ -6,8 +6,9 @@ from datetime import datetime
 from typing import List
 
 from .base import BaseCommand, CommandResult, CommandResultType
-from ..server.session import Session
-from ..game.combat import CombatSystem, CombatAction, CombatResult
+from ..core.types import SessionType
+from ..game.combat import CombatAction
+from ..game.combat_handler import CombatHandler
 
 logger = logging.getLogger(__name__)
 
@@ -15,16 +16,17 @@ logger = logging.getLogger(__name__)
 class AttackCommand(BaseCommand):
     """공격 명령어"""
 
-    def __init__(self, combat_system: CombatSystem):
+    def __init__(self, combat_handler: CombatHandler):
         super().__init__(
             name="attack",
             aliases=["att", "kill", "fight"],
             description="몬스터를 공격합니다",
             usage="attack <몬스터명>"
         )
-        self.combat_system = combat_system
+        self.combat_handler = combat_handler
+        self.combat_system = combat_handler  # 호환성을 위한 별칭
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
@@ -45,10 +47,10 @@ class AttackCommand(BaseCommand):
             if existing_combat:
                 # 현재 전투 중인 몬스터들 중에 타겟이 있는지 확인
                 target_in_current_combat = False
-                for monster in existing_combat.monsters:
-                    monster_name_ko = monster.get_localized_name('ko').lower()
-                    monster_name_en = monster.get_localized_name('en').lower()
-                    if target_name in monster_name_ko or target_name in monster_name_en:
+                for combatant in existing_combat.monsters:
+                    # Combatant의 name 속성 사용
+                    combatant_name = combatant.name.lower()
+                    if target_name in combatant_name:
                         target_in_current_combat = True
                         break
 
@@ -117,6 +119,8 @@ class AttackCommand(BaseCommand):
                 )
 
             # 기존 전투가 있으면 몬스터 추가, 없으면 새 전투 시작
+            monster_name_ko = target_monster.get_localized_name('ko')
+            
             if existing_combat:
                 # 기존 전투에 몬스터 추가
                 success = await self.combat_system.add_monsters_to_combat(
@@ -126,12 +130,12 @@ class AttackCommand(BaseCommand):
 
                 if success:
                     return self.create_success_result(
-                        message=f"⚔️ {target_monster.get_localized_name('ko')}이(가) 전투에 참여했습니다!",
+                        message=f"⚔️ {monster_name_ko}이(가) 전투에 참여했습니다!",
                         data={
                             "action": "monster_added_to_combat",
                             "monster": {
                                 "id": target_monster.id,
-                                "name": target_monster.get_localized_name('ko')
+                                "name": monster_name_ko
                             },
                             "combat_status": existing_combat.get_combat_status()
                         }
@@ -148,15 +152,15 @@ class AttackCommand(BaseCommand):
                 )
 
                 # 전투 시작 메시지
-                start_message = f"⚔️ {session.player.username}이(가) {target_monster.get_localized_name('ko')}와(과) 전투를 시작했습니다!"
+                start_message = f"⚔️ {session.player.username}이(가) {monster_name_ko}와(과) 전투를 시작했습니다!"
 
                 return self.create_success_result(
-                    message=f"⚔️ {target_monster.get_localized_name('ko')}와(과) 전투를 시작합니다!",
+                    message=f"⚔️ {monster_name_ko}와(과) 전투를 시작합니다!",
                     data={
                         "action": "combat_start",
                         "monster": {
                             "id": target_monster.id,
-                            "name": target_monster.get_localized_name('ko')
+                            "name": monster_name_ko
                         },
                         "combat_status": combat.get_combat_status()
                     },
@@ -172,9 +176,14 @@ class AttackCommand(BaseCommand):
     def _is_monster_in_combat_with_other_player(self, monster_id: str, current_player_id: str) -> bool:
         """몬스터가 다른 플레이어와 전투 중인지 확인합니다."""
         try:
-            for player_id, combat in self.combat_system.active_combats.items():
-                if player_id == current_player_id:
-                    continue  # 현재 플레이어는 제외
+            for combat_id, combat in self.combat_system.active_combats.items():
+                # 현재 플레이어가 참여 중인 전투는 제외
+                player_in_this_combat = any(
+                    c.id == current_player_id
+                    for c in combat.combatants
+                )
+                if player_in_this_combat:
+                    continue
 
                 # 해당 전투에서 몬스터 ID 확인
                 for monster in combat.monsters:
@@ -189,16 +198,17 @@ class AttackCommand(BaseCommand):
 class DefendCommand(BaseCommand):
     """방어 명령어"""
 
-    def __init__(self, combat_system: CombatSystem):
+    def __init__(self, combat_handler: CombatHandler):
         super().__init__(
             name="defend",
             aliases=["def", "guard", "block"],
             description="방어 자세를 취합니다 (다음 턴 데미지 50% 감소)",
             usage="defend"
         )
-        self.combat_system = combat_system
+        self.combat_handler = combat_handler
+        self.combat_system = combat_handler  # 호환성을 위한 별칭
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
@@ -230,16 +240,17 @@ class DefendCommand(BaseCommand):
 class FleeCommand(BaseCommand):
     """도망 명령어"""
 
-    def __init__(self, combat_system: CombatSystem):
+    def __init__(self, combat_handler: CombatHandler):
         super().__init__(
             name="flee",
             aliases=["run", "escape", "retreat"],
             description="전투에서 도망칩니다",
             usage="flee"
         )
-        self.combat_system = combat_system
+        self.combat_handler = combat_handler
+        self.combat_system = combat_handler  # 호환성을 위한 별칭
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
@@ -271,16 +282,17 @@ class FleeCommand(BaseCommand):
 class CombatStatusCommand(BaseCommand):
     """전투 상태 확인 명령어"""
 
-    def __init__(self, combat_system: CombatSystem):
+    def __init__(self, combat_handler: CombatHandler):
         super().__init__(
             name="combat",
             aliases=["battle", "fight_status", "cs"],
             description="현재 전투 상태를 확인합니다",
             usage="combat"
         )
-        self.combat_system = combat_system
+        self.combat_handler = combat_handler
+        self.combat_system = combat_handler  # 호환성을 위한 별칭
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 

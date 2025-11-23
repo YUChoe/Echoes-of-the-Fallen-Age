@@ -5,7 +5,7 @@ import logging
 from typing import List, Dict
 
 from .base import BaseCommand, CommandResult, CommandResultType
-from ..server.session import Session
+from ..core.types import SessionType
 from ..game.models import GameObject
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class GetCommand(BaseCommand):
             usage="get <객체명>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(
                 "획득할 객체를 지정해주세요.\n사용법: get <객체명>"
@@ -146,7 +146,7 @@ class DropCommand(BaseCommand):
             usage="drop <객체명>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(
                 "버릴 객체를 지정해주세요.\n사용법: drop <객체명>"
@@ -243,7 +243,7 @@ class InventoryCommand(BaseCommand):
             usage="inventory [category]"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
@@ -360,7 +360,7 @@ class ExamineCommand(BaseCommand):
             usage="examine <대상>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(
                 "살펴볼 대상을 지정해주세요.\n사용법: examine <대상>"
@@ -382,7 +382,7 @@ class ExamineCommand(BaseCommand):
         # 객체 살펴보기
         return await self._examine_object(session, target_name)
 
-    async def _examine_self(self, session: Session) -> CommandResult:
+    async def _examine_self(self, session: SessionType) -> CommandResult:
         """자기 자신 살펴보기"""
         response = f"""
 👤 {session.player.username}
@@ -409,7 +409,7 @@ class ExamineCommand(BaseCommand):
             }
         )
 
-    async def _examine_object(self, session: Session, object_name: str) -> CommandResult:
+    async def _examine_object(self, session: SessionType, object_name: str) -> CommandResult:
         """객체 살펴보기"""
         # 현재 방 ID 가져오기
         current_room_id = getattr(session, 'current_room_id', None)
@@ -500,7 +500,7 @@ class EquipCommand(BaseCommand):
             usage="equip <장비명>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(
                 "착용할 장비를 지정해주세요.\n사용법: equip <장비명>"
@@ -591,7 +591,7 @@ class UnequipCommand(BaseCommand):
             usage="unequip <장비명>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(
                 "해제할 장비를 지정해주세요.\n사용법: unequip <장비명>"
@@ -657,7 +657,7 @@ class UseCommand(BaseCommand):
             usage="use <아이템명>"
         )
 
-    async def execute(self, session: Session, args: List[str]) -> CommandResult:
+    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(
                 "사용할 아이템을 지정해주세요.\n사용법: use <아이템명>"
