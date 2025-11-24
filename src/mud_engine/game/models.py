@@ -26,6 +26,7 @@ class Player(BaseModel):
     is_admin: bool = False
     created_at: datetime = field(default_factory=datetime.now)
     last_login: Optional[datetime] = None
+    last_room_id: str = "town_square"  # 마지막 위치
 
     # 능력치 시스템
     stats: PlayerStats = field(default_factory=PlayerStats)
