@@ -99,6 +99,31 @@ class CommandProcessor:
 
         return sorted(unique_commands, key=lambda c: c.name)
 
+    def _convert_combat_number_to_command(self, command_line: str) -> str:
+        """
+        전투 중 숫자 입력을 명령어로 변환
+        
+        Args:
+            command_line: 입력된 명령어 라인
+        
+        Returns:
+            str: 변환된 명령어 라인
+        """
+        command_line = command_line.strip()
+        
+        # 숫자만 입력된 경우 변환
+        if command_line in ['1', '2', '3']:
+            combat_actions = {
+                '1': 'attack',
+                '2': 'defend',
+                '3': 'flee'
+            }
+            converted = combat_actions.get(command_line, command_line)
+            logger.debug(f"전투 숫자 입력 변환: '{command_line}' -> '{converted}'")
+            return converted
+        
+        return command_line
+
     def parse_command(self, command_line: str) -> tuple[str, List[str]]:
         """
         명령어 라인 파싱
@@ -145,6 +170,10 @@ class CommandProcessor:
                 result_type=CommandResultType.ERROR,
                 message="인증되지 않은 사용자입니다."
             )
+
+        # 전투 중일 때 숫자 입력을 명령어로 변환
+        if getattr(session, 'in_combat', False):
+            command_line = self._convert_combat_number_to_command(command_line)
 
         # 명령어 파싱
         command_name, args = self.parse_command(command_line)

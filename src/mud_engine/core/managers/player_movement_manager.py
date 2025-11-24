@@ -2,7 +2,7 @@
 """플레이어 이동 관리자"""
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 from datetime import datetime
 
 from ..event_bus import Event, EventType
@@ -10,6 +10,7 @@ from ..types import SessionType
 
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
+    from ...game.combat import CombatInstance
 
 logger = logging.getLogger(__name__)
 
@@ -413,6 +414,14 @@ class PlayerMovementManager:
             )
             
             if combat:
+                # 세션 전투 상태 업데이트
+                session.in_combat = True
+                session.combat_id = combat.id
+                session.original_room_id = room_id
+                session.current_room_id = f"combat_{combat.id}"
+                
+                logger.info(f"세션 전투 상태 업데이트: combat_id={combat.id}, in_combat={session.in_combat}")
+                
                 # 전투 시작 메시지 전송
                 await session.send_message({
                     'type': 'combat_start',
@@ -421,8 +430,121 @@ class PlayerMovementManager:
                     'turn_order': combat.turn_order,
                     'current_turn': combat.get_current_combatant().to_dict() if combat.get_current_combatant() else None
                 })
+                
+                # 몬스터 턴들을 자동으로 처리 (플레이어 턴까지)
+                await self._process_monster_turns_until_player(combat, session)
 
             logger.info(f"선공형 몬스터 전투 시작: {monster_name} vs {session.player.username}")
 
         except Exception as e:
             logger.error(f"선공형 몬스터 체크 중 오류: {e}")
+    
+    async def _process_monster_turns_until_player(self, combat: Any, session: SessionType) -> None:
+        """
+        몬스터 턴들을 자동으로 처리하여 플레이어 턴까지 진행
+        
+        Args:
+            combat: 전투 인스턴스
+            session: 플레이어 세션
+        """
+        from ...game.combat import CombatantType
+        
+        try:
+            max_iterations = 20  # 무한 루프 방지
+            iterations = 0
+            
+            while combat.is_active and not combat.is_combat_over() and iterations < max_iterations:
+                iterations += 1
+                current = combat.get_current_combatant()
+                
+                if not current:
+                    logger.warning("현재 턴 전투원을 찾을 수 없음")
+                    break
+                
+                # 플레이어 턴이면 중단
+                if current.combatant_type == CombatantType.PLAYER:
+                    logger.info(f"플레이어 {session.player.username}의 턴 - 몬스터 턴 처리 완료")
+                    
+                    # 플레이어에게 턴 알림 전송
+                    await session.send_message({
+                        'type': 'combat_your_turn',
+                        'message': '당신의 턴입니다! 행동을 선택하세요.',
+                        'combat_status': combat.to_dict()
+                    })
+                    break
+                
+                # 몬스터 턴 처리
+                logger.info(f"몬스터 {current.name}의 턴 자동 처리 중...")
+                await self.game_engine.combat_handler.process_monster_turn(combat.id)
+                
+                # 전투 종료 확인
+                if combat.is_combat_over():
+                    logger.info("전투 종료됨")
+                    await self._handle_combat_end(combat, session)
+                    break
+            
+            if iterations >= max_iterations:
+                logger.error(f"몬스터 턴 처리 무한 루프 감지 (combat_id: {combat.id})")
+                
+        except Exception as e:
+            logger.error(f"몬스터 턴 자동 처리 중 오류: {e}", exc_info=True)
+    
+    async def _handle_combat_end(self, combat: Any, session: SessionType) -> None:
+        """
+        전투 종료 처리
+        
+        Args:
+            combat: 전투 인스턴스
+            session: 플레이어 세션
+        """
+        from ...game.combat import CombatantType
+        
+        try:
+            winners = combat.get_winners()
+            player_won = any(w.combatant_type == CombatantType.PLAYER for w in winners)
+            
+            # 보상 계산 (승리 시)
+            rewards: dict[str, Any] = {'experience': 0, 'gold': 0, 'items': []}
+            if player_won:
+                defeated_monsters = [c for c in combat.combatants if c.combatant_type != CombatantType.PLAYER and not c.is_alive()]
+                for monster in defeated_monsters:
+                    rewards['experience'] = rewards['experience'] + 50  # 기본 경험치
+                    rewards['gold'] = rewards['gold'] + 10  # 기본 골드
+            
+            # 전투 종료 메시지
+            if player_won:
+                message = f"""
+🎉 전투에서 승리했습니다!
+
+💰 보상:
+  - 경험치: {rewards['experience']}
+  - 골드: {rewards['gold']}
+
+원래 위치로 돌아갑니다...
+"""
+            else:
+                message = "💀 전투에서 패배했습니다...\n\n원래 위치로 돌아갑니다..."
+            
+            await session.send_message({
+                'type': 'combat_end',
+                'message': message.strip(),
+                'victory': player_won,
+                'rewards': rewards
+            })
+            
+            # 원래 방으로 복귀
+            if session.original_room_id:
+                session.current_room_id = session.original_room_id
+            
+            # 전투 상태 초기화
+            session.in_combat = False
+            session.original_room_id = None
+            session.combat_id = None
+            
+            # 전투 종료
+            self.game_engine.combat_manager.end_combat(combat.id)
+            
+            logger.info(f"전투 종료 처리 완료: combat_id={combat.id}, 승리={player_won}")
+            
+        except Exception as e:
+            logger.error(f"전투 종료 처리 중 오류: {e}", exc_info=True)

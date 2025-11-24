@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
-"""전투 관련 명령어들"""
+"""전투 관련 명령어들 - 턴제 전투 시스템"""
 
 import logging
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from .base import BaseCommand, CommandResult, CommandResultType
 from ..core.types import SessionType
-from ..game.combat import CombatAction
+from ..game.combat import CombatAction, CombatInstance
 from ..game.combat_handler import CombatHandler
 
 logger = logging.getLogger(__name__)
 
 
 class AttackCommand(BaseCommand):
-    """공격 명령어"""
+    """공격 명령어 - 턴제 전투"""
 
     def __init__(self, combat_handler: CombatHandler):
         super().__init__(
@@ -24,17 +24,25 @@ class AttackCommand(BaseCommand):
             usage="attack <몬스터명>"
         )
         self.combat_handler = combat_handler
-        self.combat_system = combat_handler  # 호환성을 위한 별칭
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
+        # 전투 중인 경우 - 공격 액션 실행
+        if getattr(session, 'in_combat', False):
+            return await self._execute_combat_attack(session)
+
+        # 전투 시작
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(
                 "공격할 대상을 지정해주세요.\n사용법: attack <몬스터명>"
             )
 
+        return await self._start_combat(session, args)
+
+    async def _start_combat(self, session: SessionType, args: List[str]) -> CommandResult:
+        """새로운 전투 시작"""
         target_name = " ".join(args).lower()
         current_room_id = getattr(session, 'current_room_id', None)
 
@@ -42,37 +50,6 @@ class AttackCommand(BaseCommand):
             return self.create_error_result("현재 위치를 확인할 수 없습니다.")
 
         try:
-            # 이미 전투 중인지 확인
-            existing_combat = self.combat_system.get_player_combat(session.player.id)
-            if existing_combat:
-                # 현재 전투 중인 몬스터들 중에 타겟이 있는지 확인
-                target_in_current_combat = False
-                for combatant in existing_combat.monsters:
-                    # Combatant의 name 속성 사용
-                    combatant_name = combatant.name.lower()
-                    if target_name in combatant_name:
-                        target_in_current_combat = True
-                        break
-
-                if target_in_current_combat:
-                    # 현재 전투 중인 몬스터를 공격하려는 경우 액션 설정
-                    success = existing_combat.set_player_action(CombatAction.ATTACK)
-                    if success:
-                        return self.create_success_result(
-                            message="⚔️ 공격 액션을 선택했습니다!",
-                            data={
-                                "action": "combat_action_set",
-                                "selected_action": "attack",
-                                "combat_status": existing_combat.get_combat_status()
-                            }
-                        )
-                    else:
-                        return self.create_error_result("현재 액션을 선택할 수 없습니다.")
-                else:
-                    # 새로운 몬스터를 공격하려는 경우 - 기존 전투에 추가
-                    pass  # 아래에서 처리
-
-            # GameEngine을 통해 몬스터 찾기
             game_engine = getattr(session, 'game_engine', None)
             if not game_engine:
                 return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
@@ -83,10 +60,6 @@ class AttackCommand(BaseCommand):
 
             for monster in monsters:
                 if not monster.is_alive:
-                    continue
-
-                # 이미 다른 플레이어와 전투 중인 몬스터는 제외 (현재 플레이어 제외)
-                if self._is_monster_in_combat_with_other_player(monster.id, session.player.id):
                     continue
 
                 monster_name_ko = monster.get_localized_name('ko').lower()
@@ -101,98 +74,221 @@ class AttackCommand(BaseCommand):
                     f"'{' '.join(args)}'라는 몬스터를 찾을 수 없습니다."
                 )
 
-            # 브로드캐스트 콜백 함수 정의 (개선된 버전)
-            async def broadcast_callback(room_id: str, message: str, message_type: str = "combat_message", combat_status: dict = None):
-                broadcast_data = {
-                    "type": message_type,
-                    "message": message,
-                    "timestamp": datetime.now().isoformat()
-                }
+            # 전투 인스턴스 생성
+            combat = await self.combat_handler.start_combat(
+                session.player,
+                target_monster,
+                current_room_id
+            )
 
-                if combat_status:
-                    broadcast_data["combat_status"] = combat_status
+            # 세션 상태 업데이트
+            session.in_combat = True
+            session.original_room_id = current_room_id
+            session.combat_id = combat.id
+            session.current_room_id = f"combat_{combat.id}"  # 전투 인스턴스로 이동
 
-                # 전투 메시지는 모든 플레이어에게 전송 (전투 시작한 플레이어 포함)
-                await game_engine.broadcast_to_room(
-                    room_id,
-                    broadcast_data
-                )
-
-            # 기존 전투가 있으면 몬스터 추가, 없으면 새 전투 시작
-            monster_name_ko = target_monster.get_localized_name('ko')
+            monster_name = target_monster.get_localized_name('ko')
             
-            if existing_combat:
-                # 기존 전투에 몬스터 추가
-                success = await self.combat_system.add_monsters_to_combat(
-                    session.player.id,
-                    [target_monster]
-                )
+            # 전투 시작 메시지
+            start_message = f"""
+⚔️ {monster_name}와(과) 전투를 시작합니다!
 
-                if success:
-                    return self.create_success_result(
-                        message=f"⚔️ {monster_name_ko}이(가) 전투에 참여했습니다!",
-                        data={
-                            "action": "monster_added_to_combat",
-                            "monster": {
-                                "id": target_monster.id,
-                                "name": monster_name_ko
-                            },
-                            "combat_status": existing_combat.get_combat_status()
-                        }
-                    )
-                else:
-                    return self.create_error_result("몬스터를 전투에 추가할 수 없습니다.")
-            else:
-                # 새로운 전투 시작
-                combat = await self.combat_system.start_combat(
-                    session.player,
-                    target_monster,
-                    current_room_id,
-                    broadcast_callback
-                )
+{self._get_combat_status_message(combat)}
 
-                # 전투 시작 메시지
-                start_message = f"⚔️ {session.player.username}이(가) {monster_name_ko}와(과) 전투를 시작했습니다!"
+{self._get_turn_message(combat, session.player.id)}
+"""
 
-                return self.create_success_result(
-                    message=f"⚔️ {monster_name_ko}와(과) 전투를 시작합니다!",
-                    data={
-                        "action": "combat_start",
-                        "monster": {
-                            "id": target_monster.id,
-                            "name": monster_name_ko
-                        },
-                        "combat_status": combat.get_combat_status()
-                    },
-                    broadcast=True,
-                    broadcast_message=start_message,
-                    room_only=True
-                )
+            return self.create_success_result(
+                message=start_message.strip(),
+                data={
+                    "action": "combat_start",
+                    "combat_id": combat.id,
+                    "combat_status": combat.to_dict()
+                }
+            )
 
         except Exception as e:
-            logger.error(f"공격 명령어 실행 중 오류: {e}")
-            return self.create_error_result("공격 중 오류가 발생했습니다.")
+            logger.error(f"전투 시작 중 오류: {e}", exc_info=True)
+            return self.create_error_result("전투 시작 중 오류가 발생했습니다.")
 
-    def _is_monster_in_combat_with_other_player(self, monster_id: str, current_player_id: str) -> bool:
-        """몬스터가 다른 플레이어와 전투 중인지 확인합니다."""
-        try:
-            for combat_id, combat in self.combat_system.active_combats.items():
-                # 현재 플레이어가 참여 중인 전투는 제외
-                player_in_this_combat = any(
-                    c.id == current_player_id
-                    for c in combat.combatants
-                )
-                if player_in_this_combat:
-                    continue
+    async def _execute_combat_attack(self, session: SessionType) -> CommandResult:
+        """전투 중 공격 액션 실행"""
+        combat_id = getattr(session, 'combat_id', None)
+        if not combat_id:
+            return self.create_error_result("전투 정보를 찾을 수 없습니다.")
 
-                # 해당 전투에서 몬스터 ID 확인
-                for monster in combat.monsters:
-                    if monster.id == monster_id:
-                        return True
-            return False
-        except Exception as e:
-            logger.error(f"몬스터 전투 상태 확인 실패: {e}")
-            return False
+        combat = self.combat_handler.combat_manager.get_combat(combat_id)
+        if not combat or not combat.is_active:
+            return self.create_error_result("전투를 찾을 수 없거나 이미 종료되었습니다.")
+
+        # 현재 턴 확인
+        current_combatant = combat.get_current_combatant()
+        if not current_combatant or current_combatant.id != session.player.id:
+            return self.create_error_result("당신의 턴이 아닙니다.")
+
+        # 공격 대상 선택 (첫 번째 생존 몬스터)
+        alive_monsters = combat.get_alive_monsters()
+        if not alive_monsters:
+            return self.create_error_result("공격할 몬스터가 없습니다.")
+
+        target = alive_monsters[0]
+
+        # 공격 실행
+        result = await self.combat_handler.process_player_action(
+            combat_id,
+            session.player.id,
+            CombatAction.ATTACK,
+            target.id
+        )
+
+        if not result.get('success'):
+            return self.create_error_result(result.get('message', '공격 실패'))
+
+        # 전투 종료 확인
+        if result.get('combat_over'):
+            return await self._end_combat(session, combat, result)
+
+        # 몬스터 턴 자동 처리
+        await self._process_monster_turns(combat)
+
+        # 전투 종료 재확인
+        if combat.is_combat_over():
+            result_end = await self._end_combat(session, combat, {})
+            return result_end
+
+        # 다음 턴 메시지
+        message = f"{result.get('message', '')}\n\n"
+        message += self._get_combat_status_message(combat)
+        message += "\n\n"
+        message += self._get_turn_message(combat, session.player.id)
+
+        return self.create_success_result(
+            message=message,
+            data={
+                "action": "combat_action_result",
+                "combat_status": combat.to_dict()
+            }
+        )
+
+    async def _process_monster_turns(self, combat: CombatInstance) -> None:
+        """몬스터 턴들을 자동으로 처리"""
+        while combat.is_active and not combat.is_combat_over():
+            current = combat.get_current_combatant()
+            if not current:
+                break
+
+            # 플레이어 턴이면 중단
+            from ..game.combat import CombatantType
+            if current.combatant_type == CombatantType.PLAYER:
+                break
+
+            # 몬스터 턴 처리
+            await self.combat_handler.process_monster_turn(combat.id)
+
+    async def _end_combat(
+        self,
+        session: SessionType,
+        combat: CombatInstance,
+        result: dict
+    ) -> CommandResult:
+        """전투 종료 처리"""
+        winners = combat.get_winners()
+        rewards = result.get('rewards', {'experience': 0, 'gold': 0, 'items': []})
+
+        # 승리/패배 메시지
+        from ..game.combat import CombatantType
+        player_won = any(w.combatant_type == CombatantType.PLAYER for w in winners)
+
+        if player_won:
+            message = f"""
+🎉 전투에서 승리했습니다!
+
+💰 보상:
+  - 경험치: {rewards['experience']}
+  - 골드: {rewards['gold']}
+
+원래 위치로 돌아갑니다...
+"""
+        else:
+            message = "💀 전투에서 패배했습니다...\n\n원래 위치로 돌아갑니다..."
+
+        # 원래 방으로 복귀
+        original_room_id = getattr(session, 'original_room_id', None)
+        if original_room_id:
+            session.current_room_id = original_room_id
+
+        # 전투 상태 초기화
+        session.in_combat = False
+        session.original_room_id = None
+        session.combat_id = None
+
+        # 전투 종료
+        self.combat_handler.combat_manager.end_combat(combat.id)
+
+        return self.create_success_result(
+            message=message.strip(),
+            data={
+                "action": "combat_end",
+                "victory": player_won,
+                "rewards": rewards
+            }
+        )
+
+    def _get_combat_status_message(self, combat: CombatInstance) -> str:
+        """전투 상태 메시지 생성"""
+        lines = ["━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
+        lines.append(f"⚔️ 전투 라운드 {combat.turn_number}")
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        # 플레이어 정보
+        players = combat.get_alive_players()
+        if players:
+            player = players[0]
+            hp_bar = self._get_hp_bar(player.current_hp, player.max_hp)
+            lines.append(f"\n👤 {player.name}")
+            lines.append(f"   HP: {hp_bar} {player.current_hp}/{player.max_hp}")
+            lines.append(f"   민첩: {player.agility}")
+
+        # 몬스터 정보
+        monsters = combat.get_alive_monsters()
+        if monsters:
+            lines.append("\n👹 몬스터:")
+            for monster in monsters:
+                hp_bar = self._get_hp_bar(monster.current_hp, monster.max_hp)
+                lines.append(f"   • {monster.name}")
+                lines.append(f"     HP: {hp_bar} {monster.current_hp}/{monster.max_hp}")
+                lines.append(f"     민첩: {monster.agility}")
+
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        return "\n".join(lines)
+
+    def _get_turn_message(self, combat: CombatInstance, player_id: str) -> str:
+        """턴 메시지 생성"""
+        current = combat.get_current_combatant()
+        if not current:
+            return ""
+
+        if current.id == player_id:
+            return """
+🎯 당신의 턴입니다! 행동을 선택하세요:
+
+1️⃣ attack  - 무기로 공격
+2️⃣ defend  - 방어 자세 (다음 데미지 50% 감소)
+3️⃣ flee    - 도망치기 (50% 확률)
+
+명령어를 입력하세요:"""
+        else:
+            return f"⏳ {current.name}의 턴입니다..."
+
+    def _get_hp_bar(self, current: int, maximum: int, length: int = 10) -> str:
+        """HP 바 생성"""
+        if maximum <= 0:
+            return "[" + "░" * length + "]"
+
+        filled = int((current / maximum) * length)
+        empty = length - filled
+
+        return "[" + "█" * filled + "░" * empty + "]"
 
 
 class DefendCommand(BaseCommand):
@@ -202,39 +298,77 @@ class DefendCommand(BaseCommand):
         super().__init__(
             name="defend",
             aliases=["def", "guard", "block"],
-            description="방어 자세를 취합니다 (다음 턴 데미지 50% 감소)",
+            description="방어 자세를 취합니다",
             usage="defend"
         )
         self.combat_handler = combat_handler
-        self.combat_system = combat_handler  # 호환성을 위한 별칭
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
-        try:
-            # 전투 중인지 확인
-            combat = self.combat_system.get_player_combat(session.player.id)
-            if not combat:
-                return self.create_error_result("전투 중이 아닙니다.")
+        if not getattr(session, 'in_combat', False):
+            return self.create_error_result("전투 중이 아닙니다.")
 
-            # 방어 액션 설정
-            success = combat.set_player_action(CombatAction.DEFEND)
-            if success:
-                return self.create_success_result(
-                    message="🛡️ 방어 액션을 선택했습니다!",
-                    data={
-                        "action": "combat_action_set",
-                        "selected_action": "defend",
-                        "combat_status": combat.get_combat_status()
-                    }
-                )
-            else:
-                return self.create_error_result("현재 액션을 선택할 수 없습니다.")
+        combat_id = getattr(session, 'combat_id', None)
+        if not combat_id:
+            return self.create_error_result("전투 정보를 찾을 수 없습니다.")
 
-        except Exception as e:
-            logger.error(f"방어 명령어 실행 중 오류: {e}")
-            return self.create_error_result("방어 중 오류가 발생했습니다.")
+        combat = self.combat_handler.combat_manager.get_combat(combat_id)
+        if not combat or not combat.is_active:
+            return self.create_error_result("전투를 찾을 수 없거나 이미 종료되었습니다.")
+
+        # 현재 턴 확인
+        current_combatant = combat.get_current_combatant()
+        if not current_combatant or current_combatant.id != session.player.id:
+            return self.create_error_result("당신의 턴이 아닙니다.")
+
+        # 방어 실행
+        result = await self.combat_handler.process_player_action(
+            combat_id,
+            session.player.id,
+            CombatAction.DEFEND,
+            None
+        )
+
+        if not result.get('success'):
+            return self.create_error_result(result.get('message', '방어 실패'))
+
+        # 전투 종료 확인
+        if result.get('combat_over'):
+            return await self._end_combat(session, combat, result)
+
+        # 몬스터 턴 자동 처리
+        await self._process_monster_turns(combat)
+
+        # 전투 종료 재확인
+        if combat.is_combat_over():
+            return await self._end_combat(session, combat, {})
+
+        # 다음 턴 메시지
+        attack_cmd = AttackCommand(self.combat_handler)
+        message = f"{result.get('message', '')}\n\n"
+        message += attack_cmd._get_combat_status_message(combat)
+        message += "\n\n"
+        message += attack_cmd._get_turn_message(combat, session.player.id)
+
+        return self.create_success_result(
+            message=message,
+            data={
+                "action": "combat_action_result",
+                "combat_status": combat.to_dict()
+            }
+        )
+
+    async def _process_monster_turns(self, combat):
+        """몬스터 턴 처리"""
+        attack_cmd = AttackCommand(self.combat_handler)
+        await attack_cmd._process_monster_turns(combat)
+
+    async def _end_combat(self, session, combat, result):
+        """전투 종료"""
+        attack_cmd = AttackCommand(self.combat_handler)
+        return await attack_cmd._end_combat(session, combat, result)
 
 
 class FleeCommand(BaseCommand):
@@ -248,35 +382,86 @@ class FleeCommand(BaseCommand):
             usage="flee"
         )
         self.combat_handler = combat_handler
-        self.combat_system = combat_handler  # 호환성을 위한 별칭
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
-        try:
-            # 전투 중인지 확인
-            combat = self.combat_system.get_player_combat(session.player.id)
-            if not combat:
-                return self.create_error_result("전투 중이 아닙니다.")
+        if not getattr(session, 'in_combat', False):
+            return self.create_error_result("전투 중이 아닙니다.")
 
-            # 도망 액션 설정
-            success = combat.set_player_action(CombatAction.FLEE)
-            if success:
-                return self.create_success_result(
-                    message="💨 도망 액션을 선택했습니다!",
-                    data={
-                        "action": "combat_action_set",
-                        "selected_action": "flee",
-                        "combat_status": combat.get_combat_status()
-                    }
-                )
-            else:
-                return self.create_error_result("현재 액션을 선택할 수 없습니다.")
+        combat_id = getattr(session, 'combat_id', None)
+        if not combat_id:
+            return self.create_error_result("전투 정보를 찾을 수 없습니다.")
 
-        except Exception as e:
-            logger.error(f"도망 명령어 실행 중 오류: {e}")
-            return self.create_error_result("도망 중 오류가 발생했습니다.")
+        combat = self.combat_handler.combat_manager.get_combat(combat_id)
+        if not combat or not combat.is_active:
+            return self.create_error_result("전투를 찾을 수 없거나 이미 종료되었습니다.")
+
+        # 현재 턴 확인
+        current_combatant = combat.get_current_combatant()
+        if not current_combatant or current_combatant.id != session.player.id:
+            return self.create_error_result("당신의 턴이 아닙니다.")
+
+        # 도망 실행
+        result = await self.combat_handler.process_player_action(
+            combat_id,
+            session.player.id,
+            CombatAction.FLEE,
+            None
+        )
+
+        if not result.get('success'):
+            return self.create_error_result(result.get('message', '도망 실패'))
+
+        # 도망 성공 여부 확인
+        if result.get('fled'):
+            # 원래 방으로 복귀
+            original_room_id = getattr(session, 'original_room_id', None)
+            if original_room_id:
+                session.current_room_id = original_room_id
+
+            # 전투 상태 초기화
+            session.in_combat = False
+            session.original_room_id = None
+            session.combat_id = None
+
+            return self.create_success_result(
+                message="💨 전투에서 도망쳤습니다!\n\n원래 위치로 돌아왔습니다.",
+                data={"action": "flee_success"}
+            )
+
+        # 도망 실패 - 몬스터 턴 처리
+        await self._process_monster_turns(combat)
+
+        # 전투 종료 확인
+        if combat.is_combat_over():
+            return await self._end_combat(session, combat, {})
+
+        # 다음 턴 메시지
+        attack_cmd = AttackCommand(self.combat_handler)
+        message = f"{result.get('message', '')}\n\n"
+        message += attack_cmd._get_combat_status_message(combat)
+        message += "\n\n"
+        message += attack_cmd._get_turn_message(combat, session.player.id)
+
+        return self.create_success_result(
+            message=message,
+            data={
+                "action": "combat_action_result",
+                "combat_status": combat.to_dict()
+            }
+        )
+
+    async def _process_monster_turns(self, combat):
+        """몬스터 턴 처리"""
+        attack_cmd = AttackCommand(self.combat_handler)
+        await attack_cmd._process_monster_turns(combat)
+
+    async def _end_combat(self, session, combat, result):
+        """전투 종료"""
+        attack_cmd = AttackCommand(self.combat_handler)
+        return await attack_cmd._end_combat(session, combat, result)
 
 
 class CombatStatusCommand(BaseCommand):
@@ -290,63 +475,31 @@ class CombatStatusCommand(BaseCommand):
             usage="combat"
         )
         self.combat_handler = combat_handler
-        self.combat_system = combat_handler  # 호환성을 위한 별칭
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
-        try:
-            # 전투 중인지 확인
-            combat = self.combat_system.get_player_combat(session.player.id)
-            if not combat:
-                return self.create_info_result("현재 전투 중이 아닙니다.")
+        if not getattr(session, 'in_combat', False):
+            return self.create_info_result("현재 전투 중이 아닙니다.")
 
-            combat_status = combat.get_combat_status()
+        combat_id = getattr(session, 'combat_id', None)
+        if not combat_id:
+            return self.create_error_result("전투 정보를 찾을 수 없습니다.")
 
-            # 전투 상태 메시지 생성 (다중 전투 지원)
-            player_info = combat_status['player']
-            monsters_info = combat_status.get('monsters', [combat_status.get('monster')])
+        combat = self.combat_handler.combat_manager.get_combat(combat_id)
+        if not combat:
+            return self.create_error_result("전투를 찾을 수 없습니다.")
 
-            current_turn = combat_status.get('current_turn', '알 수 없음')
-            state = combat_status.get('state', 'unknown')
-            current_target_index = combat_status.get('current_target_index', 0)
+        attack_cmd = AttackCommand(self.combat_handler)
+        message = attack_cmd._get_combat_status_message(combat)
+        message += "\n\n"
+        message += attack_cmd._get_turn_message(combat, session.player.id)
 
-            # 몬스터 정보 문자열 생성
-            monsters_text = ""
-            for i, monster_info in enumerate(monsters_info):
-                if not monster_info:
-                    continue
-
-                status_icon = "💀" if monster_info.get('is_alive', True) == False else "👹"
-                target_marker = " 🎯" if i == current_target_index else ""
-
-                monsters_text += f"{status_icon} {monster_info['name']} (Initiative: {monster_info.get('initiative', 0)}){target_marker}:\n"
-                monsters_text += f"   HP: {monster_info['hp']}/{monster_info['max_hp']} ({monster_info['hp_percentage']:.1f}%)\n\n"
-
-            message = f"""
-⚔️ 다중 전투 상태 (턴 {combat_status['turn_number']})
-🎯 현재 턴: {current_turn}
-⏱️ 상태: {state}
-
-👤 {player_info['name']} (Initiative: {player_info.get('initiative', 0)}):
-   HP: {player_info['hp']}/{player_info['max_hp']} ({player_info['hp_percentage']:.1f}%)
-
-{monsters_text}📝 마지막 행동: {combat_status['last_turn']}
-
-💡 다중 전투 진행 중 - 턴이 돌아오면 액션을 선택하세요!
-   🎯 표시된 몬스터가 현재 공격 대상입니다.
-   사용 가능한 명령어: attack [몬스터명], defend, flee
-            """.strip()
-
-            return self.create_success_result(
-                message=message,
-                data={
-                    "action": "combat_status",
-                    "combat_status": combat_status
-                }
-            )
-
-        except Exception as e:
-            logger.error(f"전투 상태 확인 명령어 실행 중 오류: {e}")
-            return self.create_error_result("전투 상태 확인 중 오류가 발생했습니다.")
+        return self.create_success_result(
+            message=message,
+            data={
+                "action": "combat_status",
+                "combat_status": combat.to_dict()
+            }
+        )
