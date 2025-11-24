@@ -471,6 +471,13 @@ class GotoCommand(AdminCommand):
                 message="사용법: goto <방ID>"
             )
 
+        # 전투 중에는 이동 불가
+        if getattr(session, 'in_combat', False):
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message="❌ 전투 중에는 이동할 수 없습니다. 먼저 전투에서 도망치거나 승리하세요."
+            )
+
         target_room_id = args[0]
 
         try:

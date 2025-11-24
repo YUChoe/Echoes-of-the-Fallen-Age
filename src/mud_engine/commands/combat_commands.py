@@ -425,6 +425,10 @@ class FleeCommand(BaseCommand):
             session.in_combat = False
             session.original_room_id = None
             session.combat_id = None
+            
+            # 전투 인스턴스 종료
+            self.combat_handler.combat_manager.end_combat(combat_id)
+            logger.info(f"플레이어 {session.player.username} 도망 성공 - 전투 {combat_id} 종료")
 
             return self.create_success_result(
                 message="💨 전투에서 도망쳤습니다!\n\n원래 위치로 돌아왔습니다.",

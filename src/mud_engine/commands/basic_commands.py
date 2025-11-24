@@ -360,6 +360,10 @@ class MoveCommand(BaseCommand):
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
+        # 전투 중에는 이동 불가
+        if getattr(session, 'in_combat', False):
+            return self.create_error_result("❌ 전투 중에는 이동할 수 없습니다. 먼저 전투에서 도망치거나 승리하세요.")
+
         # 현재 방 ID 가져오기 (세션에서 또는 캐릭터에서)
         current_room_id = getattr(session, 'current_room_id', None)
         if not current_room_id:

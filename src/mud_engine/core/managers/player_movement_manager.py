@@ -280,7 +280,7 @@ class PlayerMovementManager:
 
     async def handle_player_disconnect_cleanup(self, session: SessionType) -> None:
         """
-        플레이어 연결 해제 시 따라가기 관련 정리 작업
+        플레이어 연결 해제 시 따라가기 및 전투 관련 정리 작업
 
         Args:
             session: 연결 해제된 플레이어의 세션
@@ -290,6 +290,21 @@ class PlayerMovementManager:
 
         try:
             disconnected_player = session.player.username
+
+            # 전투 중이었다면 전투 종료 처리
+            if getattr(session, 'in_combat', False):
+                combat_id = getattr(session, 'combat_id', None)
+                if combat_id:
+                    combat = self.game_engine.combat_manager.get_combat(combat_id)
+                    if combat and combat.is_active:
+                        # 전투 인스턴스 종료
+                        self.game_engine.combat_manager.end_combat(combat_id)
+                        logger.info(f"플레이어 {disconnected_player} 연결 해제로 전투 {combat_id} 종료")
+                
+                # 전투 상태 초기화
+                session.in_combat = False
+                session.combat_id = None
+                session.original_room_id = None
 
             # 이 플레이어를 따라가던 다른 플레이어들의 따라가기 해제
             for other_session in self.game_engine.session_manager.get_authenticated_sessions().values():
