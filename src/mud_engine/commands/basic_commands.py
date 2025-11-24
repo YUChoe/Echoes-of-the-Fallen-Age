@@ -178,6 +178,38 @@ class LookCommand(BaseCommand):
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
+        # 전투 중인 경우 전투 상태 표시
+        if getattr(session, 'in_combat', False):
+            combat_id = getattr(session, 'combat_id', None)
+            if combat_id:
+                game_engine = getattr(session, 'game_engine', None)
+                if game_engine:
+                    combat = game_engine.combat_manager.get_combat(combat_id)
+                    if combat and combat.is_active:
+                        # 전투 상태 포맷팅
+                        from ..core.managers.player_movement_manager import PlayerMovementManager
+                        movement_mgr = game_engine.movement_manager
+                        combat_status = movement_mgr._format_combat_status(combat)
+                        
+                        current = combat.get_current_combatant()
+                        if current and current.id == session.player.id:
+                            turn_info = """
+
+🎯 당신의 턴입니다! 행동을 선택하세요:
+
+1️⃣ attack  - 무기로 공격
+2️⃣ defend  - 방어 자세 (다음 데미지 50% 감소)
+3️⃣ flee    - 도망치기 (50% 확률)
+
+명령어를 입력하세요:"""
+                        else:
+                            turn_info = f"\n\n⏳ {current.name}의 턴입니다..."
+                        
+                        return self.create_success_result(
+                            message=f"{combat_status}{turn_info}",
+                            data={"action": "look_combat", "combat_id": combat_id}
+                        )
+
         # 현재 방 ID 가져오기
         current_room_id = getattr(session, 'current_room_id', None)
         if not current_room_id:
@@ -246,6 +278,27 @@ class HelpCommand(BaseCommand):
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.command_processor:
             return self.create_error_result("명령어 처리기가 설정되지 않았습니다.")
+
+        # 전투 중인 경우 전투 명령어만 표시
+        if getattr(session, 'in_combat', False):
+            combat_help = """
+⚔️ 전투 중 사용 가능한 명령어:
+
+1️⃣ attack (또는 숫자 1) - 무기로 공격
+2️⃣ defend (또는 숫자 2) - 방어 자세 (다음 데미지 50% 감소)
+3️⃣ flee (또는 숫자 3) - 도망치기 (50% 확률)
+
+📋 기타 명령어:
+• look - 전투 상태 확인
+• status - 능력치 확인
+• combat - 전투 상태 상세 정보
+
+💡 팁: 숫자만 입력해도 행동을 선택할 수 있습니다!
+"""
+            return self.create_success_result(
+                message=combat_help.strip(),
+                data={"action": "help_combat"}
+            )
 
         # 플레이어의 관리자 권한 확인
         is_admin = False

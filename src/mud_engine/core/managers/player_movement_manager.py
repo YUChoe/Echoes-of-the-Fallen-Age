@@ -422,13 +422,11 @@ class PlayerMovementManager:
                 
                 logger.info(f"세션 전투 상태 업데이트: combat_id={combat.id}, in_combat={session.in_combat}")
                 
-                # 전투 시작 메시지 전송
+                # 전투 시작 간단 알림 (전투 상태는 몬스터 턴 후 표시)
+                combat_start_msg = f"⚔️ 전투 시작! {monster_name}이(가) 당신을 공격합니다!"
                 await session.send_message({
                     'type': 'combat_start',
-                    'combat_id': combat.id,
-                    'combatants': [c.to_dict() for c in combat.combatants],
-                    'turn_order': combat.turn_order,
-                    'current_turn': combat.get_current_combatant().to_dict() if combat.get_current_combatant() else None
+                    'message': combat_start_msg
                 })
                 
                 # 몬스터 턴들을 자동으로 처리 (플레이어 턴까지)
@@ -465,11 +463,20 @@ class PlayerMovementManager:
                 if current.combatant_type == CombatantType.PLAYER:
                     logger.info(f"플레이어 {session.player.username}의 턴 - 몬스터 턴 처리 완료")
                     
-                    # 플레이어에게 턴 알림 전송
+                    # 플레이어에게 턴 알림 전송 (포맷팅된 텍스트)
+                    turn_msg = f"""
+{self._format_combat_status(combat)}
+
+🎯 당신의 턴입니다! 행동을 선택하세요:
+
+1️⃣ attack  - 무기로 공격
+2️⃣ defend  - 방어 자세 (다음 데미지 50% 감소)
+3️⃣ flee    - 도망치기 (50% 확률)
+
+명령어를 입력하세요:"""
                     await session.send_message({
                         'type': 'combat_your_turn',
-                        'message': '당신의 턴입니다! 행동을 선택하세요.',
-                        'combat_status': combat.to_dict()
+                        'message': turn_msg.strip()
                     })
                     break
                 
@@ -548,3 +555,61 @@ class PlayerMovementManager:
             
         except Exception as e:
             logger.error(f"전투 종료 처리 중 오류: {e}", exc_info=True)
+    
+    def _format_combat_status(self, combat: Any) -> str:
+        """
+        전투 상태를 포맷팅된 텍스트로 변환
+        
+        Args:
+            combat: 전투 인스턴스
+        
+        Returns:
+            str: 포맷팅된 전투 상태 텍스트
+        """
+        from ...game.combat import CombatantType
+        
+        lines = ["━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
+        lines.append(f"⚔️ 전투 라운드 {combat.turn_number}")
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        
+        # 플레이어 정보
+        players = [c for c in combat.combatants if c.combatant_type == CombatantType.PLAYER and c.is_alive()]
+        if players:
+            player = players[0]
+            hp_bar = self._get_hp_bar(player.current_hp, player.max_hp)
+            lines.append(f"\n👤 {player.name}")
+            lines.append(f"   HP: {hp_bar} {player.current_hp}/{player.max_hp}")
+            lines.append(f"   민첩: {player.agility}")
+        
+        # 몬스터 정보
+        monsters = [c for c in combat.combatants if c.combatant_type == CombatantType.MONSTER and c.is_alive()]
+        if monsters:
+            lines.append("\n👹 몬스터:")
+            for monster in monsters:
+                hp_bar = self._get_hp_bar(monster.current_hp, monster.max_hp)
+                lines.append(f"   • {monster.name}")
+                lines.append(f"     HP: {hp_bar} {monster.current_hp}/{monster.max_hp}")
+                lines.append(f"     민첩: {monster.agility}")
+        
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        return "\n".join(lines)
+    
+    def _get_hp_bar(self, current: int, maximum: int, length: int = 10) -> str:
+        """
+        HP 바 생성
+        
+        Args:
+            current: 현재 HP
+            maximum: 최대 HP
+            length: 바 길이
+        
+        Returns:
+            str: HP 바 문자열
+        """
+        if maximum <= 0:
+            return "[" + "░" * length + "]"
+        
+        filled = int((current / maximum) * length)
+        empty = length - filled
+        
+        return "[" + "█" * filled + "░" * empty + "]"
