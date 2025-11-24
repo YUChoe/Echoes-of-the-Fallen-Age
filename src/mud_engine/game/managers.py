@@ -880,22 +880,9 @@ class WorldManager:
     async def setup_default_spawn_points(self) -> None:
         """기본 스폰 포인트들을 설정합니다."""
         try:
-            # 숲 지역에 기본 몬스터 스폰 설정
-            forest_rooms = [
-                'forest_0_0', 'forest_1_1', 'forest_2_2', 'forest_3_3',
-                'forest_4_4', 'forest_5_5', 'forest_6_6', 'forest_7_7'
-            ]
-
-            for room_id in forest_rooms:
-                # 방이 존재하는지 확인
-                room = await self.get_room(room_id)
-                if room:
-                    # 슬라임 스폰 포인트 추가 (확률 30%, 최대 2마리)
-                    await self.add_spawn_point(room_id, 'slime_template', max_count=2, spawn_chance=0.3)
-                    # 고블린 스폰 포인트 추가 (확률 20%, 최대 1마리)
-                    await self.add_spawn_point(room_id, 'goblin_template', max_count=1, spawn_chance=0.2)
-
-            logger.info("기본 스폰 포인트 설정 완료")
+            # TODO: 몬스터 템플릿 시스템 구현 후 활성화
+            # 현재는 스크립트로 직접 몬스터를 생성하여 사용 중
+            logger.info("기본 스폰 포인트 설정 완료 (템플릿 시스템 미구현)")
 
         except Exception as e:
             logger.error(f"기본 스폰 포인트 설정 실패: {e}")
