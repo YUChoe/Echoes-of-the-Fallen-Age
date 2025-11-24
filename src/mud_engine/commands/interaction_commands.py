@@ -288,7 +288,7 @@ class WhisperCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             name="whisper",
-            aliases=["귓속말", "w"],
+            aliases=["귓속말"],
             description="다른 플레이어에게 귓속말을 합니다",
             usage="whisper <플레이어명> <메시지>"
         )

@@ -35,6 +35,20 @@ class CommandProcessor:
         Args:
             command: 등록할 명령어 객체
         """
+        # 방향 명령어 전용 예약 별칭
+        RESERVED_DIRECTION_ALIASES = {'n', 's', 'e', 'w'}
+        
+        # 방향 명령어가 아닌데 예약된 별칭을 사용하는지 확인
+        if command.name not in ['north', 'south', 'east', 'west']:
+            for alias in command.aliases:
+                if alias in RESERVED_DIRECTION_ALIASES:
+                    logger.error(
+                        f"명령어 '{command.name}'이(가) 방향 전용 예약 별칭 '{alias}'를 사용하려고 시도했습니다. "
+                        f"n, s, e, w는 방향 명령어 전용입니다."
+                    )
+                    # 예약된 별칭 제거
+                    command.aliases = [a for a in command.aliases if a not in RESERVED_DIRECTION_ALIASES]
+        
         # 메인 명령어 이름으로 등록
         self.commands[command.name] = command
 
