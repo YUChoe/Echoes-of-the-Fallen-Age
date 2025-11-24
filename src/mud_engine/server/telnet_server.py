@@ -232,8 +232,12 @@ class TelnetServer:
             await session.send_error("사용자명을 입력하지 않았습니다.")
             return False
 
+        # 패스워드 입력 시 에코 비활성화
+        await session.disable_echo()
         await session.send_prompt("비밀번호: ")
         password = await session.read_line(timeout=60.0)
+        await session.enable_echo()
+        await session.send_text("")  # 줄바꿈 추가
 
         if not password:
             await session.send_error("비밀번호를 입력하지 않았습니다.")
@@ -286,15 +290,21 @@ class TelnetServer:
             await session.send_error("사용자명을 입력하지 않았습니다.")
             return False
 
+        # 패스워드 입력 시 에코 비활성화
+        await session.disable_echo()
         await session.send_prompt("비밀번호 (최소 6자): ")
         password = await session.read_line(timeout=60.0)
+        await session.send_text("")  # 줄바꿈 추가
 
         if not password:
+            await session.enable_echo()
             await session.send_error("비밀번호를 입력하지 않았습니다.")
             return False
 
         await session.send_prompt("비밀번호 확인: ")
         password_confirm = await session.read_line(timeout=60.0)
+        await session.enable_echo()
+        await session.send_text("")  # 줄바꿈 추가
 
         if password != password_confirm:
             await session.send_error("비밀번호가 일치하지 않습니다.")

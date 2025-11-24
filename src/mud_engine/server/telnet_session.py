@@ -58,7 +58,7 @@ class TelnetSession:
         Telnet 프로토콜 초기화 및 협상
         """
         # Telnet 옵션 협상 응답
-        # WILL ECHO - 서버가 에코를 처리함
+        # WONT ECHO - 서버가 에코를 처리하지 않음 (클라이언트가 에코함)
         # WILL SUPPRESS_GO_AHEAD - Go-Ahead 신호 억제
         # DONT LINEMODE - 라인 모드 사용 안 함
         
@@ -75,7 +75,7 @@ class TelnetSession:
         try:
             # 서버 옵션 전송
             self.writer.write(IAC + WILL + SUPPRESS_GO_AHEAD)
-            self.writer.write(IAC + DONT + ECHO)
+            self.writer.write(IAC + WONT + ECHO)  # 기본적으로 클라이언트가 에코
             self.writer.write(IAC + DONT + LINEMODE)
             await self.writer.drain()
         except Exception as e:
@@ -336,6 +336,36 @@ class TelnetSession:
             bool: 전송 성공 여부
         """
         return await self.send_text(prompt, newline=False)
+
+    async def disable_echo(self) -> None:
+        """
+        클라이언트 에코 비활성화 (패스워드 입력용)
+        """
+        IAC = bytes([255])  # Interpret As Command
+        WILL = bytes([251])
+        ECHO = bytes([1])
+        
+        try:
+            # 서버가 에코를 처리하겠다고 알림 (클라이언트 에코 비활성화)
+            self.writer.write(IAC + WILL + ECHO)
+            await self.writer.drain()
+        except Exception as e:
+            logger.debug(f"에코 비활성화 오류 (무시됨): {e}")
+
+    async def enable_echo(self) -> None:
+        """
+        클라이언트 에코 활성화 (일반 입력용)
+        """
+        IAC = bytes([255])  # Interpret As Command
+        WONT = bytes([252])
+        ECHO = bytes([1])
+        
+        try:
+            # 서버가 에코를 처리하지 않겠다고 알림 (클라이언트 에코 활성화)
+            self.writer.write(IAC + WONT + ECHO)
+            await self.writer.drain()
+        except Exception as e:
+            logger.debug(f"에코 활성화 오류 (무시됨): {e}")
 
     def _filter_telnet_commands(self, data: bytes) -> bytes:
         """
