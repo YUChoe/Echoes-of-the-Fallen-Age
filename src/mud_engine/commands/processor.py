@@ -185,6 +185,18 @@ class CommandProcessor:
                 message="인증되지 않은 사용자입니다."
             )
 
+        # "." 입력 시 이전 명령어 반복
+        if command_line.strip() == ".":
+            last_command = getattr(session, 'last_command', None)
+            if last_command:
+                logger.debug(f"이전 명령어 반복: {last_command}")
+                command_line = last_command
+            else:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message="반복할 이전 명령어가 없습니다."
+                )
+
         # 전투 중일 때 숫자 입력을 명령어로 변환
         if getattr(session, 'in_combat', False):
             command_line = self._convert_combat_number_to_command(command_line)
@@ -238,6 +250,10 @@ class CommandProcessor:
 
             # 실행 결과 로깅
             logger.info(f"명령어 실행: {session.player.username} -> {command_name} -> {result.result_type.value}")
+
+            # 명령어 실행 성공 시 마지막 명령어로 저장 (반복 명령 제외)
+            if result.result_type == CommandResultType.SUCCESS and command_line.strip() != ".":
+                session.last_command = command_line
 
             return result
 
