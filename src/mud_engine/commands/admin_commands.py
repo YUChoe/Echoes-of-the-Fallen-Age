@@ -454,21 +454,21 @@ class KickPlayerCommand(AdminCommand):
 
 
 class GotoCommand(AdminCommand):
-    """방 ID로 바로 이동하는 명령어"""
+    """좌표로 바로 이동하는 명령어"""
 
     def __init__(self):
         super().__init__(
             name="goto",
-            description="지정한 방 ID로 바로 이동합니다",
+            description="지정한 좌표로 바로 이동합니다",
             aliases=["tp", "teleport", "warp"]
         )
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
-        """방 ID로 이동 실행"""
-        if len(args) < 1:
+        """좌표로 이동 실행"""
+        if len(args) < 2:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="사용법: goto <방ID>"
+                message="사용법: goto <x좌표> <y좌표>"
             )
 
         # 전투 중에는 이동 불가
@@ -478,7 +478,18 @@ class GotoCommand(AdminCommand):
                 message="❌ 전투 중에는 이동할 수 없습니다. 먼저 전투에서 도망치거나 승리하세요."
             )
 
-        target_room_id = args[0]
+        try:
+            # 좌표 파싱
+            x = int(args[0])
+            y = int(args[1])
+        except ValueError:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message="❌ 좌표는 숫자로 입력해야 합니다. 예: goto 5 7"
+            )
+
+        # 좌표를 방 ID로 변환 (forest_x_y 형식)
+        target_room_id = f"forest_{x}_{y}"
 
         try:
             # 대상 방이 존재하는지 확인
@@ -487,7 +498,7 @@ class GotoCommand(AdminCommand):
             if not target_room:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 방 ID '{target_room_id}'를 찾을 수 없습니다."
+                    message=f"❌ 좌표 ({x}, {y})에 해당하는 방을 찾을 수 없습니다."
                 )
 
             # 현재 방에서 플레이어 제거 알림
@@ -507,7 +518,7 @@ class GotoCommand(AdminCommand):
             if not success:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 방 '{target_room_id}'로 이동할 수 없습니다."
+                    message=f"❌ 좌표 ({x}, {y})로 이동할 수 없습니다."
                 )
 
             # 새 방에 도착 알림
@@ -525,7 +536,7 @@ class GotoCommand(AdminCommand):
 
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
-                message=f"✅ '{room_name}' (ID: {target_room_id})로 이동했습니다."
+                message=f"✅ '{room_name}' (좌표: {x}, {y})로 이동했습니다."
             )
 
         except Exception as e:
@@ -539,22 +550,23 @@ class GotoCommand(AdminCommand):
         return """
 ✨ **순간이동 명령어**
 
-**사용법:** `goto <방ID>`
+**사용법:** `goto <x좌표> <y좌표>`
 
 **설명:**
-관리자 권한으로 지정한 방 ID로 즉시 이동합니다.
+관리자 권한으로 지정한 좌표로 즉시 이동합니다.
 이동 시 현재 방의 다른 플레이어들에게 알림이 전송됩니다.
 
 **예시:**
-- `goto town_square` - town_square 방으로 이동
-- `goto forest_0_0` - forest_0_0 방으로 이동
-- `goto library` - library 방으로 이동
+- `goto 0 0` - (0, 0) 좌표로 이동
+- `goto 5 7` - (5, 7) 좌표로 이동
+- `goto 3 4` - (3, 4) 좌표로 이동
 
 **별칭:** `tp`, `teleport`, `warp`
 **권한:** 관리자 전용
 
 **주의사항:**
-- 존재하지 않는 방 ID를 입력하면 이동할 수 없습니다
+- 좌표는 숫자로 입력해야 합니다
+- 존재하지 않는 좌표를 입력하면 이동할 수 없습니다
 - 이동 시 다른 플레이어들에게 순간이동 메시지가 표시됩니다
         """
 
