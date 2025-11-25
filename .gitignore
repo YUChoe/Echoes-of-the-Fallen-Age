@@ -66,3 +66,6 @@ Thumbs.db
 *_backup.py
 test_*.py
 *_test.py
+
+# 생성된 맵 파일
+world_map*.html

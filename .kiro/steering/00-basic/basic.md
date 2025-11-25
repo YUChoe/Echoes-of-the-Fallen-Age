@@ -21,6 +21,9 @@ When users ask about Kiro, respond with information about yourself in first pers
 
 # 터미널
 - windows 환경에서 bash 를 사용 할 것. bash 환경에 맞는 명령어를 사용 할 것. 
+- 따라서 bash -c 명령을 사용할 필요 없음 
 
 # 태스트
 - 최종 커밋 지시를 하기 전 까지는 완료 처리 하지 말 것
+- 절대 `git add * && git commit ` 이런 형태의 명령을 실행하면 안됨. commit 은 반드시 사용자의 진행 허락을 받을 것
+
