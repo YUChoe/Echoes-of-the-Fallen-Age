@@ -192,6 +192,15 @@ class TelnetSession:
             lines.append(description)
             lines.append("")
         
+        # 시간대 정보
+        if self.game_engine and hasattr(self.game_engine, 'time_manager'):
+            time_of_day = self.game_engine.time_manager.get_current_time()
+            if time_of_day.value == "day":
+                lines.append("☀️  낮")
+            else:
+                lines.append("🌙 밤")
+            lines.append("")
+        
         # 출구
         exits = room_data.get("exits", {})
         if exits:
