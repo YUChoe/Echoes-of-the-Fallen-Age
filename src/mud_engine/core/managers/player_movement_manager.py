@@ -85,7 +85,7 @@ class PlayerMovementManager:
             if old_room_id:
                 leave_message = {
                     "type": "room_message",
-                    "message": f"🚶 {session.player.username}님이 떠났습니다.",
+                    "message": f"🚶 {session.player.get_display_name()}님이 떠났습니다.",
                     "timestamp": datetime.now().isoformat()
                 }
                 await self.game_engine.broadcast_to_room(old_room_id, leave_message, exclude_session=session.session_id)
@@ -93,7 +93,7 @@ class PlayerMovementManager:
             # 새 방의 다른 플레이어들에게 입장 알림
             enter_message = {
                 "type": "room_message",
-                "message": f"🚶 {session.player.username}님이 도착했습니다.",
+                "message": f"🚶 {session.player.get_display_name()}님이 도착했습니다.",
                 "timestamp": datetime.now().isoformat()
             }
             await self.game_engine.broadcast_to_room(room_id, enter_message, exclude_session=session.session_id)
@@ -112,6 +112,9 @@ class PlayerMovementManager:
 
             # 선공형 몬스터 체크 및 즉시 공격 처리
             await self._check_aggressive_monsters_on_entry(session, room_id)
+
+            # 플레이어 좌표 업데이트
+            await self._update_player_coordinates(session, room_id)
 
             logger.info(f"플레이어 {session.player.username}이 방 {room_id}로 이동")
             return True
@@ -628,3 +631,82 @@ class PlayerMovementManager:
         empty = length - filled
         
         return "[" + "█" * filled + "░" * empty + "]"
+
+    async def _update_player_coordinates(self, session: SessionType, room_id: str) -> None:
+        """
+        플레이어의 좌표를 업데이트합니다.
+        room_id에서 좌표를 추출하여 데이터베이스에 저장합니다.
+
+        Args:
+            session: 플레이어 세션
+            room_id: 방 ID (예: forest_5_7, town_square)
+        """
+        try:
+            # room_id에서 좌표 추출
+            x, y = self._extract_coordinates_from_room_id(room_id)
+            
+            if x is not None and y is not None:
+                # 플레이어 객체 업데이트
+                session.player.last_room_x = x
+                session.player.last_room_y = y
+                
+                # 데이터베이스 업데이트
+                from ...game.repositories import PlayerRepository
+                from ...database import get_database_manager
+                
+                db_manager = await get_database_manager()
+                player_repo = PlayerRepository(db_manager)
+                
+                update_data = {
+                    'last_room_id': room_id,
+                    'last_room_x': x,
+                    'last_room_y': y
+                }
+                await player_repo.update(session.player.id, update_data)
+                
+                logger.debug(f"플레이어 {session.player.username} 좌표 업데이트: ({x}, {y})")
+            else:
+                # 좌표를 추출할 수 없는 경우 room_id만 업데이트
+                from ...game.repositories import PlayerRepository
+                from ...database import get_database_manager
+                
+                db_manager = await get_database_manager()
+                player_repo = PlayerRepository(db_manager)
+                
+                update_data = {'last_room_id': room_id}
+                await player_repo.update(session.player.id, update_data)
+                
+                logger.debug(f"플레이어 {session.player.username} room_id만 업데이트: {room_id}")
+                
+        except Exception as e:
+            logger.error(f"플레이어 좌표 업데이트 실패: {e}")
+
+    def _extract_coordinates_from_room_id(self, room_id: str) -> tuple[int | None, int | None]:
+        """
+        room_id에서 좌표를 추출합니다.
+        
+        Args:
+            room_id: 방 ID (예: forest_5_7, town_square)
+            
+        Returns:
+            tuple: (x, y) 좌표, 추출 실패 시 (None, None)
+        """
+        try:
+            # room_id 형식: prefix_x_y (예: forest_5_7)
+            parts = room_id.split('_')
+            
+            if len(parts) >= 3:
+                # 마지막 두 부분이 숫자인지 확인
+                try:
+                    x = int(parts[-2])
+                    y = int(parts[-1])
+                    return (x, y)
+                except ValueError:
+                    pass
+            
+            # 좌표를 추출할 수 없는 경우
+            return (None, None)
+            
+        except Exception as e:
+            logger.error(f"좌표 추출 실패 ({room_id}): {e}")
+            return (None, None)

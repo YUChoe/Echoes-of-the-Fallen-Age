@@ -28,6 +28,14 @@ class Player(BaseModel):
     last_login: Optional[datetime] = None
     last_room_id: str = "town_square"  # 마지막 위치
 
+    # 사용자 이름 시스템
+    display_name: Optional[str] = None  # 게임 내 표시 이름
+    last_name_change: Optional[datetime] = None  # 마지막 이름 변경 시간
+
+    # 마지막 위치 (좌표)
+    last_room_x: int = 0  # 마지막 위치 X 좌표
+    last_room_y: int = 0  # 마지막 위치 Y 좌표
+
     # 능력치 시스템
     stats: PlayerStats = field(default_factory=PlayerStats)
 
@@ -74,6 +82,37 @@ class Player(BaseModel):
         """이메일 유효성 검사"""
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         return re.match(pattern, email) is not None
+
+    def get_display_name(self) -> str:
+        """게임 내 표시 이름 반환 (display_name이 없으면 username 사용)"""
+        return self.display_name if self.display_name else self.username
+
+    def can_change_name(self) -> bool:
+        """이름 변경 가능 여부 확인 (하루에 한 번만 가능)"""
+        if self.is_admin:
+            return True  # 관리자는 제한 없음
+        
+        if not self.last_name_change:
+            return True  # 한 번도 변경하지 않았으면 가능
+        
+        # 마지막 변경 후 24시간이 지났는지 확인
+        time_since_change = datetime.now() - self.last_name_change
+        return time_since_change.total_seconds() >= 86400  # 24시간 = 86400초
+
+    @staticmethod
+    def is_valid_display_name(display_name: str) -> bool:
+        """표시 이름 유효성 검사 (한글, 영문, 숫자, 공백 허용, 3-20자)"""
+        if not display_name:
+            return False
+        
+        # 앞뒤 공백 제거 후 길이 확인
+        display_name = display_name.strip()
+        if len(display_name) < 3 or len(display_name) > 20:
+            return False
+        
+        # 한글, 영문, 숫자, 공백만 허용
+        pattern = r'^[가-힣a-zA-Z0-9\s]+$'
+        return re.match(pattern, display_name) is not None
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (비밀번호 해시 제외)"""

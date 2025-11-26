@@ -368,6 +368,40 @@ async def migrate_database(db_manager) -> None:
             await db_manager.commit()
             logger.info("Monster 테이블 생성 완료")
 
+        # 사용자 이름 시스템 컬럼 추가
+        cursor = await db_manager.execute("PRAGMA table_info(players)")
+        columns = await cursor.fetchall()
+        column_names = [col[1] for col in columns]
+
+        display_name_columns = [
+            ('display_name', 'TEXT'),
+            ('last_name_change', 'TIMESTAMP')
+        ]
+
+        for column_name, column_def in display_name_columns:
+            if column_name not in column_names:
+                logger.info(f"{column_name} 컬럼 추가 중...")
+                await db_manager.execute(
+                    f"ALTER TABLE players ADD COLUMN {column_name} {column_def}"
+                )
+                await db_manager.commit()
+                logger.info(f"{column_name} 컬럼 추가 완료")
+
+        # 마지막 위치 좌표 컬럼 추가
+        location_columns = [
+            ('last_room_x', 'INTEGER DEFAULT 0'),
+            ('last_room_y', 'INTEGER DEFAULT 0')
+        ]
+
+        for column_name, column_def in location_columns:
+            if column_name not in column_names:
+                logger.info(f"{column_name} 컬럼 추가 중...")
+                await db_manager.execute(
+                    f"ALTER TABLE players ADD COLUMN {column_name} {column_def}"
+                )
+                await db_manager.commit()
+                logger.info(f"{column_name} 컬럼 추가 완료")
+
         logger.info("데이터베이스 마이그레이션 완료")
 
     except Exception as e:

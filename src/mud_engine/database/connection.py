@@ -63,6 +63,10 @@ class DatabaseManager:
                 # 스키마 생성
                 await create_database_schema(self._connection)
 
+                # 마이그레이션 실행
+                from .schema import migrate_database
+                await migrate_database(self)
+
                 # 스키마 검증
                 if not await verify_schema(self._connection):
                     raise RuntimeError("데이터베이스 스키마 검증 실패")

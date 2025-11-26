@@ -409,7 +409,7 @@ class CombatManager:
         from .stats import StatType
         combatant = Combatant(
             id=player_id,
-            name=player.username,
+            name=player.get_display_name(),
             combatant_type=CombatantType.PLAYER,
             agility=player.stats.get_primary_stat(StatType.DEX),
             max_hp=player.stats.get_secondary_stat(StatType.HP),
