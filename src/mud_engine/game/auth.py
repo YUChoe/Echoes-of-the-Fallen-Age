@@ -2,6 +2,7 @@
 """플레이어 인증 관련 서비스를 제공합니다."""
 import bcrypt
 from typing import Optional
+from datetime import datetime
 
 from .repositories import PlayerRepository
 from ..game.models import Player
@@ -73,5 +74,9 @@ class AuthService:
 
         if not player or not self.verify_password(password, player.password_hash):
             raise AuthenticationError("사용자 이름 또는 비밀번호가 잘못되었습니다.")
+
+        # last_login 업데이트
+        player.last_login = datetime.now()
+        await self._player_repo.update(player.id, {'last_login': player.last_login})
 
         return player
