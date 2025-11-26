@@ -7,6 +7,7 @@ from datetime import datetime
 
 from .event_bus import EventBus, Event, EventType, get_event_bus
 from .managers import CommandManager, EventHandler, PlayerMovementManager, UIManager, AdminManager
+from .managers.time_manager import TimeManager
 from .types import SessionType
 from ..game.managers import PlayerManager, WorldManager
 from ..game.repositories import RoomRepository, GameObjectRepository
@@ -68,6 +69,7 @@ class GameEngine:
             self.movement_manager = PlayerMovementManager(self)
             self.ui_manager = UIManager(self)
             self.admin_manager = AdminManager(self)
+            self.time_manager = TimeManager(self)
 
             logger.info("모든 매니저 초기화 완료")
         except Exception as e:
@@ -109,6 +111,13 @@ class GameEngine:
         except Exception as e:
             logger.error(f"몬스터 스폰 시스템 시작 실패: {e}")
 
+        # 시간 시스템 시작
+        try:
+            await self.time_manager.start()
+            logger.info("시간 시스템 시작 완료")
+        except Exception as e:
+            logger.error(f"시간 시스템 시작 실패: {e}")
+
         logger.info("GameEngine 시작 완료")
 
     async def stop(self) -> None:
@@ -119,6 +128,13 @@ class GameEngine:
         logger.info("GameEngine 중지 중...")
 
         self._running = False
+
+        # 시간 시스템 중지
+        try:
+            await self.time_manager.stop()
+            logger.info("시간 시스템 중지 완료")
+        except Exception as e:
+            logger.error(f"시간 시스템 중지 실패: {e}")
 
         # 몬스터 스폰 시스템 중지
         try:

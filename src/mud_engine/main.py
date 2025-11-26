@@ -218,6 +218,9 @@ async def main():
 
         # 웹 서버의 게임 엔진을 Telnet 서버와 공유
         telnet_server.game_engine = web_server.game_engine
+        
+        # 게임 엔진에 Telnet 서버 참조 추가
+        web_server.game_engine.telnet_server = telnet_server
 
         await telnet_server.start()
 
