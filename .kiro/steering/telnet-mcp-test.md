@@ -14,8 +14,8 @@ Telnet MCP는 프로그래밍 방식으로 Telnet 서버와 상호작용할 수 
 - `mcp_telnet_mcp_telnet_list`: 활성 세션 목록
 
 ### 2. 테스트 계정
-- **일반 사용자**: player5426 / test1234
-- **관리자**: aa / aaaabbbb (is_admin=1)
+- **관리자**: player5426 / test1234 (is_admin=1)
+- **일반 사용자**: testuser / test1234 (is_admin=0)
 - 테스트 전 계정 존재 여부 확인 필요
 
 ### 3. 서버 연결 정보
@@ -58,7 +58,7 @@ await mcp_telnet_mcp_telnet_read({
 });
 // 결과: "사용자명: " 프롬프트
 
-// 4. 사용자명 입력
+// 4. 사용자명 입력 (관리자 계정)
 await mcp_telnet_mcp_telnet_send({
     sessionId: sessionId,
     command: "player5426"
@@ -102,19 +102,21 @@ const loginResult = await mcp_telnet_mcp_telnet_read({
 
 ### 2. 로그인 순서
 1. 메뉴에서 `1` 입력 (로그인 선택)
-2. 사용자명 입력 (예: `player5426`)
+2. 사용자명 입력
+   - 관리자: `player5426`
+   - 일반 사용자: `testuser`
 3. 비밀번호 입력 (예: `test1234`)
 4. 로그인 성공 시 시작 방에 스폰
 
 ### 3. 로그인 성공 확인
 ```
-🏰 Forest (0,0)
+🏰 Town Square (또는 Forest)
 ============================================================
-A dense forest. Trees stand thick and close together.
+A bustling town square with a fountain in the center...
 
-🚪 출구: east, south
+🚪 출구: north, east
 
-✅ 'player5426'님, 환영합니다!
+✅ 'player5426'님, 환영합니다! (또는 'testuser'님)
 
 게임에 입장했습니다!
 'help' 명령어로 도움말을 확인하세요.
@@ -300,27 +302,23 @@ Ctrl+C를 눌러 서버를 종료할 수 있습니다.
 
 ### 기본 이동 테스트
 ```javascript
-// 1. 연결 및 로그인
-const { sessionId } = await connect_and_login("player5426", "test1234");
+// 1. 연결 및 로그인 (일반 사용자)
+const { sessionId } = await connect_and_login("testuser", "test1234");
 
 // 2. 현재 위치 확인
 await send_and_read(sessionId, "look", 1000);
 
 // 3. 동쪽으로 이동
 await send_and_read(sessionId, "east", 1000);
-// 예상: Forest (1,0)으로 이동
 
 // 4. 남쪽으로 이동
 await send_and_read(sessionId, "south", 1000);
-// 예상: Forest (1,1)로 이동
 
 // 5. 북쪽으로 이동
 await send_and_read(sessionId, "north", 1000);
-// 예상: Forest (1,0)으로 복귀
 
 // 6. 서쪽으로 이동
 await send_and_read(sessionId, "west", 1000);
-// 예상: Forest (0,0)으로 복귀
 
 // 7. 잘못된 방향 이동 시도
 await send_and_read(sessionId, "west", 1000);
@@ -335,7 +333,7 @@ await mcp_telnet_mcp_telnet_disconnect({ sessionId });
 ### goto 명령어 테스트 (관리자)
 ```javascript
 // 1. 관리자 계정으로 로그인
-const { sessionId } = await connect_and_login("aa", "aaaabbbb");
+const { sessionId } = await connect_and_login("player5426", "test1234");
 
 // 2. 좌표로 이동 테스트
 await send_and_read(sessionId, "goto 5 7", 1500);
@@ -359,10 +357,10 @@ await disconnect(sessionId);
 
 ### 전투 시스템 테스트
 ```javascript
-// 1. 로그인
+// 1. 로그인 (관리자 또는 일반 사용자)
 const { sessionId } = await connect_and_login("player5426", "test1234");
 
-// 2. 몬스터가 있는 위치로 이동
+// 2. 몬스터가 있는 위치로 이동 (관리자만 가능)
 await send_and_read(sessionId, "goto 7 7", 1500);
 await send_and_read(sessionId, "look", 1000);
 
@@ -374,6 +372,23 @@ await send_and_read(sessionId, "attack", 1000);
 await send_and_read(sessionId, "look", 1000);
 
 // 5. 종료
+await disconnect(sessionId);
+```
+
+### 사용자 이름 변경 테스트
+```javascript
+// 1. 일반 사용자로 로그인
+const { sessionId } = await connect_and_login("testuser", "test1234");
+
+// 2. 이름 변경
+await send_and_read(sessionId, "changename 새로운이름", 1500);
+// 예상: "✅ 이름이 'testuser'에서 '새로운이름'(으)로 변경되었습니다!"
+
+// 3. 재변경 시도 (하루 한 번 제한)
+await send_and_read(sessionId, "changename 또다른이름", 1000);
+// 예상: "❌ 이름은 하루에 한 번만 변경할 수 있습니다. 다음 변경까지 24.0시간 남았습니다."
+
+// 4. 종료
 await disconnect(sessionId);
 ```
 
@@ -435,6 +450,9 @@ async function disconnect(sessionId) {
 - **응답 대기**: 각 명령어 후 충분한 waitMs 설정
 - **연결 종료**: 테스트 완료 후 반드시 disconnect 호출
 - **ANSI 코드**: 응답에 포함된 ANSI 색상 코드 처리 고려
+
+### 사용자편의
+- read/send 한 메시지는 화면에 출력해서 진행 상황을 파악 할 수 있게 할 것 
 
 ### 타이밍
 - 명령어 전송 후 충분한 대기 시간 필요

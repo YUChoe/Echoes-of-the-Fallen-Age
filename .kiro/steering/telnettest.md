@@ -16,8 +16,8 @@ Python 3.13+에서는 telnetlib이 제거되었으므로 socket 모듈을 사용
 - 비동기 응답 처리를 위한 timeout 설정
 
 ### 2. 테스트 계정
-- **일반 사용자**: player5426 / test1234
-- **관리자**: aa / aaaabbbb (is_admin=1)
+- **관리자**: player5426 / test1234 (is_admin=1)
+- **일반 사용자**: testuser / test1234 (is_admin=0)
 - 테스트 전 계정 존재 여부 확인 필요
 
 ### 3. 서버 연결 정보
