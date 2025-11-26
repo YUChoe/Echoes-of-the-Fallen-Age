@@ -63,7 +63,8 @@
         "telnet_connect",
         "telnet_read",
         "telnet_send",
-        "telnet_disconnect"
+        "telnet_disconnect",
+        "telnet_list"
       ]
     }
   }
