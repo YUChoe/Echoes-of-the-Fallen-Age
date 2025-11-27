@@ -162,10 +162,11 @@ class MudServer:
                 await self.game_engine.add_player_session(session, player)
 
             await session.send_success(
-                f"'{username}'님, 환영합니다!",
+                f"'{player.get_display_name()}'님, 환영합니다!",
                 {
                     "action": "login_success",
                     "username": username,
+                    "display_name": player.get_display_name(),
                     "player_id": player.id,
                     "session_id": session.session_id,
                     "is_admin": player.is_admin

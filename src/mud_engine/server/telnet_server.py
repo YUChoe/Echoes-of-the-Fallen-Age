@@ -263,7 +263,7 @@ class TelnetServer:
             if self.game_engine:
                 await self.game_engine.add_player_session(session, player)
 
-            await session.send_success(f"'{username}'님, 환영합니다!")
+            await session.send_success(f"'{player.get_display_name()}'님, 환영합니다!")
             logger.info(f"✅ Telnet 로그인 성공: 사용자명='{username}', 플레이어ID={player.id}")
             return True
 
