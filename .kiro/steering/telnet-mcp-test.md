@@ -24,6 +24,19 @@ Telnet MCP는 프로그래밍 방식으로 Telnet 서버와 상호작용할 수 
 - **프로토콜**: TCP (Telnet)
 - **타임아웃**: 5000ms (기본값)
 
+### 4. 진행 상황 출력 (필수)
+- **중요**: read/send 한 메시지는 반드시 화면에 출력하여 진행 상황을 파악할 수 있게 할 것
+- 모든 `mcp_telnet_mcp_telnet_send` 호출 후 전송한 명령어를 콘솔에 출력
+- 모든 `mcp_telnet_mcp_telnet_read` 호출 후 수신한 데이터를 콘솔에 출력
+- 예시:
+  ```javascript
+  console.log(`>>> 전송: ${command}`);
+  await mcp_telnet_mcp_telnet_send({ sessionId, command });
+  
+  const result = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs });
+  console.log(`<<< 수신: ${result.data.substring(0, 100)}...`);
+  ```
+
 ## 표준 테스트 패턴
 
 ### 기본 연결 및 로그인 패턴
@@ -302,6 +315,7 @@ Ctrl+C를 눌러 서버를 종료할 수 있습니다.
 - [ ] 명령어 응답이 정상적으로 수신되는지 확인
 - [ ] 에러 메시지가 적절하게 표시되는지 확인
 - [ ] sessionId가 유지되는지 확인
+- [ ] **모든 send/read 메시지가 콘솔에 출력되는지 확인 (필수)**
 
 ### 테스트 후
 - [ ] 연결이 정상적으로 종료되는지 확인
@@ -569,9 +583,13 @@ async function disconnect(sessionId) {
 - **연결 종료**: 테스트 완료 후 반드시 disconnect 호출
 - **ANSI 코드**: 응답에 포함된 ANSI 색상 코드 처리 고려
 
-### 사용자편의
-- read/send 한 메시지는 화면에 출력해서 진행 상황을 파악 할 수 있게 할 것
-- 헬퍼 함수에 console.log를 포함하여 자동으로 진행 상황 표시
+### 사용자편의 (필수 준수)
+- **필수**: read/send 한 메시지는 반드시 화면에 출력해서 진행 상황을 파악할 수 있게 할 것
+- **필수**: 헬퍼 함수에 console.log를 포함하여 자동으로 진행 상황 표시
+- **필수**: 모든 Telnet MCP 호출 시 전송/수신 내용을 콘솔에 출력
+- 출력 형식:
+  - 전송: `console.log(\`>>> 전송: \${command}\`);`
+  - 수신: `console.log(\`<<< 수신: \${result.data.substring(0, 100)}...\`);`
 
 ### 타이밍 최적화
 - **로컬 테스트**: 500ms 대기 시간으로 빠른 테스트 가능
