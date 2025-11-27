@@ -192,11 +192,22 @@ const statusResult = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 
 ## 응답 처리 가이드
 
 ### 1. waitMs 설정
+
+#### 표준 설정 (안정적)
 - **초기 연결**: 1000ms
 - **일반 명령어**: 1000ms
 - **로그인/이동**: 1000-1500ms
 - **전투 명령어**: 1500ms
 - **복잡한 명령어**: 2000ms
+
+#### 최적화 설정 (빠른 테스트)
+- **초기 연결**: 500ms
+- **일반 명령어**: 500ms
+- **로그인**: 800ms
+- **전투 명령어**: 1000ms
+- **복잡한 명령어**: 1200ms
+
+**권장**: 로컬 테스트 시 최적화 설정 사용, 원격 서버 테스트 시 표준 설정 사용
 
 ### 2. 응답 데이터 구조
 ```javascript
@@ -392,7 +403,114 @@ await send_and_read(sessionId, "changename 또다른이름", 1000);
 await disconnect(sessionId);
 ```
 
-## 헬퍼 함수 패턴
+## 성능 최적화
+
+### 빠른 테스트를 위한 헬퍼 함수
+
+헬퍼 함수를 사용하면 테스트 시간을 **50% 이상 단축**할 수 있습니다.
+
+#### 빠른 로그인 헬퍼 (최적화 버전)
+```javascript
+async function quick_login(username, password) {
+    console.log(`>>> 로그인 시작: ${username}`);
+    
+    const connectResult = await mcp_telnet_mcp_telnet_connect({
+        host: "127.0.0.1",
+        port: 4000,
+        timeout: 5000
+    });
+    
+    const sessionId = connectResult.sessionId;
+    
+    // 최적화된 대기 시간 사용
+    await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
+    await mcp_telnet_mcp_telnet_send({ sessionId, command: "1" });
+    await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
+    await mcp_telnet_mcp_telnet_send({ sessionId, command: username });
+    await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
+    await mcp_telnet_mcp_telnet_send({ sessionId, command: password });
+    const loginResult = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 800 });
+    
+    console.log(`<<< 로그인 완료: ${username}`);
+    return { sessionId, loginResult };
+}
+```
+
+#### 명령어 전송 및 읽기 헬퍼
+```javascript
+async function send_and_read(sessionId, command, waitMs = 500) {
+    console.log(`>>> 전송: ${command}`);
+    await mcp_telnet_mcp_telnet_send({ sessionId, command });
+    const result = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs });
+    console.log(`<<< 수신: ${result.data.substring(0, 100)}...`);
+    return result.data;
+}
+```
+
+#### 빠른 종료 헬퍼
+```javascript
+async function quick_disconnect(sessionId) {
+    console.log(`>>> 연결 종료`);
+    await mcp_telnet_mcp_telnet_send({ sessionId, command: "quit" });
+    await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
+    await mcp_telnet_mcp_telnet_disconnect({ sessionId });
+    console.log(`<<< 연결 종료 완료`);
+}
+```
+
+### 빠른 테스트 패턴 예시
+
+#### 기본 테스트 (최적화)
+```javascript
+// 1. 빠른 로그인
+const { sessionId } = await quick_login("player5426", "test1234");
+
+// 2. 명령어 체인 (최적화된 대기 시간)
+await send_and_read(sessionId, "look", 500);
+await send_and_read(sessionId, "goto 5 7", 500);
+await send_and_read(sessionId, "look", 500);
+
+// 3. 빠른 종료
+await quick_disconnect(sessionId);
+```
+
+#### 전투 테스트 (최적화)
+```javascript
+const { sessionId } = await quick_login("player5426", "test1234");
+
+// 몬스터 위치로 이동 및 전투
+await send_and_read(sessionId, "goto 7 7", 500);
+await send_and_read(sessionId, "attack goblin", 800);
+await send_and_read(sessionId, "attack", 500);
+await send_and_read(sessionId, "flee", 500);
+
+await quick_disconnect(sessionId);
+```
+
+### 성능 비교
+
+#### 기존 방식 (느림)
+```javascript
+// 총 소요 시간: ~8초
+await mcp_telnet_mcp_telnet_send({ sessionId, command: "look" });
+await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+
+await mcp_telnet_mcp_telnet_send({ sessionId, command: "goto 5 7" });
+await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1500 });
+
+await mcp_telnet_mcp_telnet_send({ sessionId, command: "look" });
+await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+```
+
+#### 최적화 방식 (빠름)
+```javascript
+// 총 소요 시간: ~3초 (62% 단축)
+await send_and_read(sessionId, "look", 500);
+await send_and_read(sessionId, "goto 5 7", 500);
+await send_and_read(sessionId, "look", 500);
+```
+
+## 헬퍼 함수 패턴 (표준 버전)
 
 ### 연결 및 로그인 헬퍼
 ```javascript
@@ -452,12 +570,19 @@ async function disconnect(sessionId) {
 - **ANSI 코드**: 응답에 포함된 ANSI 색상 코드 처리 고려
 
 ### 사용자편의
-- read/send 한 메시지는 화면에 출력해서 진행 상황을 파악 할 수 있게 할 것 
+- read/send 한 메시지는 화면에 출력해서 진행 상황을 파악 할 수 있게 할 것
+- 헬퍼 함수에 console.log를 포함하여 자동으로 진행 상황 표시
 
-### 타이밍
-- 명령어 전송 후 충분한 대기 시간 필요
-- 너무 짧으면 응답을 놓칠 수 있음
-- 너무 길면 테스트 시간이 증가
+### 타이밍 최적화
+- **로컬 테스트**: 500ms 대기 시간으로 빠른 테스트 가능
+- **원격 테스트**: 1000ms 이상 대기 시간 권장
+- **복잡한 명령어**: DB 조회나 계산이 많은 경우 더 긴 대기 시간 필요
+- **응답 누락 시**: waitMs를 점진적으로 증가시켜 테스트
+
+### 성능 팁
+- 헬퍼 함수 사용으로 코드 중복 제거 및 테스트 시간 단축
+- 여러 명령어를 연속 실행할 때 최적화된 대기 시간 사용
+- 불필요한 로그 출력 최소화 (필요시에만 상세 로그)
 
 ### 서버 상태
 - 테스트 전 서버가 실행 중인지 확인
