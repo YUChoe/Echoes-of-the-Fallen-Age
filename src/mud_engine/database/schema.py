@@ -62,6 +62,8 @@ DATABASE_SCHEMA: List[str] = [
         description_en TEXT,
         description_ko TEXT,
         exits TEXT DEFAULT '{}', -- JSON 형태로 저장 (방향: 목적지_방_ID)
+        x INTEGER, -- X 좌표
+        y INTEGER, -- Y 좌표
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -401,6 +403,30 @@ async def migrate_database(db_manager) -> None:
                 )
                 await db_manager.commit()
                 logger.info(f"{column_name} 컬럼 추가 완료")
+
+        # rooms 테이블에 x, y 좌표 컬럼 추가
+        cursor = await db_manager.execute("PRAGMA table_info(rooms)")
+        rooms_columns = await cursor.fetchall()
+        rooms_column_names = [col[1] for col in rooms_columns]
+
+        coordinate_columns = [
+            ('x', 'INTEGER'),
+            ('y', 'INTEGER')
+        ]
+
+        for column_name, column_def in coordinate_columns:
+            if column_name not in rooms_column_names:
+                logger.info(f"rooms 테이블에 {column_name} 컬럼 추가 중...")
+                await db_manager.execute(
+                    f"ALTER TABLE rooms ADD COLUMN {column_name} {column_def}"
+                )
+                await db_manager.commit()
+                logger.info(f"rooms 테이블에 {column_name} 컬럼 추가 완료")
+
+        # 좌표 인덱스 생성
+        await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_rooms_coordinates ON rooms(x, y)")
+        await db_manager.commit()
+        logger.info("rooms 좌표 인덱스 생성 완료")
 
         logger.info("데이터베이스 마이그레이션 완료")
 

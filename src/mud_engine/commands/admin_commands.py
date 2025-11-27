@@ -488,11 +488,23 @@ class GotoCommand(AdminCommand):
                 message="❌ 좌표는 숫자로 입력해야 합니다. 예: goto 5 7"
             )
 
-        # 좌표를 방 ID로 변환 (forest_x_y 형식)
-        target_room_id = f"forest_{x}_{y}"
-
         try:
-            # 대상 방이 존재하는지 확인
+            # x, y 좌표로 방 찾기
+            cursor = await session.game_engine.db_manager.execute(
+                "SELECT id FROM rooms WHERE x = ? AND y = ?",
+                (x, y)
+            )
+            room_row = await cursor.fetchone()
+            
+            if not room_row:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message=f"❌ 좌표 ({x}, {y})에 해당하는 방을 찾을 수 없습니다."
+                )
+            
+            target_room_id = room_row[0]
+            
+            # 대상 방 정보 가져오기
             target_room = await session.game_engine.world_manager.get_room(target_room_id)
 
             if not target_room:

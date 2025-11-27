@@ -333,6 +333,8 @@ class Room(BaseModel):
     name: Dict[str, str] = field(default_factory=dict)  # {'en': 'name', 'ko': '이름'}
     description: Dict[str, str] = field(default_factory=dict)
     exits: Dict[str, str] = field(default_factory=dict)  # {'north': 'room_id'}
+    x: Optional[int] = None  # X 좌표
+    y: Optional[int] = None  # Y 좌표
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 

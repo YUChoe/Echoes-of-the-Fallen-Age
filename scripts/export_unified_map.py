@@ -15,9 +15,10 @@ from src.mud_engine.database.connection import DatabaseManager
 async def get_all_rooms(db_manager: DatabaseManager):
     """모든 방 정보 가져오기"""
     cursor = await db_manager.execute("""
-        SELECT id, name_ko, name_en, description_ko, exits 
+        SELECT id, name_ko, name_en, description_ko, exits, x, y
         FROM rooms 
-        ORDER BY id
+        WHERE x IS NOT NULL AND y IS NOT NULL
+        ORDER BY x, y
     """)
     return await cursor.fetchall()
 
@@ -115,8 +116,14 @@ def generate_html(rooms_data):
     room_info = {}
     
     for room in rooms_data:
-        room_id, name_ko, name_en, desc_ko, exits_str = room
-        coord = map_room_to_grid(room_id)
+        room_id, name_ko, name_en, desc_ko, exits_str, x, y = room
+        
+        # x, y 좌표가 있으면 직접 사용
+        if x is not None and y is not None:
+            coord = (x, y)
+        else:
+            # 좌표가 없으면 기존 매핑 함수 사용
+            coord = map_room_to_grid(room_id)
         
         if coord:
             # exits 파싱

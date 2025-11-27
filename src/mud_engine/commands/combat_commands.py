@@ -89,7 +89,18 @@ class AttackCommand(BaseCommand):
 
             monster_name = target_monster.get_localized_name('ko')
             
-            # 전투 시작 메시지
+            # 몬스터가 선공이면 자동으로 턴 처리
+            current = combat.get_current_combatant()
+            from ..game.combat import CombatantType
+            if current and current.combatant_type == CombatantType.MONSTER:
+                logger.info(f"몬스터 선공 - 자동 턴 처리 시작")
+                await self._process_monster_turns(combat)
+                
+                # 전투 종료 확인
+                if combat.is_combat_over():
+                    return await self._end_combat(session, combat, {})
+            
+            # 전투 시작 메시지 (몬스터 턴 처리 후)
             start_message = f"""
 ⚔️ {monster_name}와(과) 전투를 시작합니다!
 
