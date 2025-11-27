@@ -450,24 +450,75 @@ class FleeCommand(BaseCommand):
 
         # 도망 성공 여부 확인
         if result.get('fled'):
-            # 원래 방으로 복귀
+            # 원래 방 정보 가져오기
             original_room_id = getattr(session, 'original_room_id', None)
-            if original_room_id:
-                session.current_room_id = original_room_id
-
-            # 전투 상태 초기화
-            session.in_combat = False
-            session.original_room_id = None
-            session.combat_id = None
+            if not original_room_id:
+                return self.create_error_result("원래 위치를 찾을 수 없습니다.")
             
-            # 전투 인스턴스 종료
-            self.combat_handler.combat_manager.end_combat(combat_id)
-            logger.info(f"플레이어 {session.player.username} 도망 성공 - 전투 {combat_id} 종료")
+            try:
+                game_engine = getattr(session, 'game_engine', None)
+                if not game_engine:
+                    return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+                
+                # 원래 방의 출구 정보 가져오기
+                original_room = await game_engine.world_manager.get_room(original_room_id)
+                if not original_room:
+                    return self.create_error_result("원래 방을 찾을 수 없습니다.")
+                
+                # 출구가 있는지 확인
+                import json
+                exits = original_room.exits
+                if isinstance(exits, str):
+                    exits = json.loads(exits)
+                
+                if not exits or len(exits) == 0:
+                    # 출구가 없으면 원래 방으로 복귀
+                    session.current_room_id = original_room_id
+                    flee_message = "💨 전투에서 도망쳤습니다!\n\n원래 위치로 돌아왔습니다."
+                else:
+                    # 랜덤 출구 선택
+                    import random
+                    exit_directions = list(exits.keys())
+                    random_direction = random.choice(exit_directions)
+                    target_room_id = exits[random_direction]
+                    
+                    # 대상 방이 존재하는지 확인
+                    target_room = await game_engine.world_manager.get_room(target_room_id)
+                    if target_room:
+                        session.current_room_id = target_room_id
+                        flee_message = f"💨 전투에서 도망쳤습니다!\n\n{random_direction} 방향으로 도망쳐 {target_room.get_localized_name('ko')}에 도착했습니다."
+                    else:
+                        # 대상 방이 없으면 원래 방으로
+                        session.current_room_id = original_room_id
+                        flee_message = "💨 전투에서 도망쳤습니다!\n\n원래 위치로 돌아왔습니다."
+                
+                # 전투 상태 초기화
+                session.in_combat = False
+                session.original_room_id = None
+                session.combat_id = None
+                
+                # 전투 인스턴스 종료
+                self.combat_handler.combat_manager.end_combat(combat_id)
+                logger.info(f"플레이어 {session.player.username} 도망 성공 - 전투 {combat_id} 종료, 이동: {session.current_room_id}")
 
-            return self.create_success_result(
-                message="💨 전투에서 도망쳤습니다!\n\n원래 위치로 돌아왔습니다.",
-                data={"action": "flee_success"}
-            )
+                return self.create_success_result(
+                    message=flee_message,
+                    data={"action": "flee_success", "new_room_id": session.current_room_id}
+                )
+                
+            except Exception as e:
+                logger.error(f"도망 처리 중 오류: {e}", exc_info=True)
+                # 오류 발생 시 원래 방으로 복귀
+                session.current_room_id = original_room_id
+                session.in_combat = False
+                session.original_room_id = None
+                session.combat_id = None
+                self.combat_handler.combat_manager.end_combat(combat_id)
+                
+                return self.create_success_result(
+                    message="💨 전투에서 도망쳤습니다!\n\n원래 위치로 돌아왔습니다.",
+                    data={"action": "flee_success"}
+                )
 
         # 도망 실패 - 몬스터 턴 처리
         await self._process_monster_turns(combat)
