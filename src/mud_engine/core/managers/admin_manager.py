@@ -228,7 +228,7 @@ class AdminManager:
         try:
             # 대상 플레이어 세션 찾기
             target_session = None
-            for session in self.game_engine.session_manager.get_authenticated_sessions().values():
+            for session in self.game_engine.session_manager.get_authenticated_sessions():
                 if session.player and session.player.username == target_username:
                     target_session = session
                     break
@@ -294,7 +294,7 @@ class AdminManager:
                         "ip_address": session.ip_address,
                         "connected_at": session.connected_at.isoformat() if hasattr(session, 'connected_at') else None
                     }
-                    for session in authenticated_sessions.values()
+                    for session in authenticated_sessions
                     if session.player
                 ]
             }
@@ -332,7 +332,7 @@ class AdminManager:
                     room for room in rooms
                     if any(
                         getattr(session, 'current_room_id', None) == room.id
-                        for session in self.game_engine.session_manager.get_authenticated_sessions().values()
+                        for session in self.game_engine.session_manager.get_authenticated_sessions()
                     )
                 ])
             }

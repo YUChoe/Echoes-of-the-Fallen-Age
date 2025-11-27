@@ -10,6 +10,12 @@ from .combat import CombatManager, CombatInstance, CombatAction, CombatTurn, Com
 from .monster import Monster, MonsterType
 from .models import Player
 
+# D&D 전투 엔진 import
+try:
+    from .dnd_combat import DnDCombatEngine
+except ImportError:
+    from src.mud_engine.game.dnd_combat import DnDCombatEngine
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +25,8 @@ class CombatHandler:
     def __init__(self, combat_manager: CombatManager):
         """전투 핸들러 초기화"""
         self.combat_manager = combat_manager
-        logger.info("CombatHandler 초기화 완료")
+        self.dnd_engine = DnDCombatEngine()
+        logger.info("CombatHandler 초기화 완료 (D&D 5e 룰 적용)")
     
     async def check_and_start_combat(
         self,
@@ -198,7 +205,7 @@ class CombatHandler:
         actor: Combatant,
         target_id: Optional[str]
     ) -> Dict[str, Any]:
-        """공격 실행"""
+        """공격 실행 (D&D 5e 룰 적용)"""
         if not target_id:
             return {
                 'success': False,
@@ -218,38 +225,111 @@ class CombatHandler:
                 'message': '이미 사망한 대상입니다.'
             }
         
-        # 데미지 계산
-        base_damage = actor.attack_power
-        # 랜덤 요소 추가 (80% ~ 120%)
-        damage_multiplier = random.uniform(0.8, 1.2)
-        damage = int(base_damage * damage_multiplier)
+        # D&D 5e 룰 적용
+        # 1. 공격 굴림 (d20 + 공격 보너스)
+        attack_bonus = self._calculate_attack_bonus(actor)
+        attack_roll, is_critical = self.dnd_engine.make_attack_roll(attack_bonus)
         
-        # 크리티컬 확률 (10%)
-        is_critical = random.random() < 0.1
-        if is_critical:
-            damage = int(damage * 1.5)
+        # 2. 대상 AC (방어도) 계산
+        target_ac = 10 + target.defense  # 기본 AC 10 + 방어력
         
-        # 대상에게 데미지 적용
-        actual_damage = target.take_damage(damage)
+        # 3. 명중 판정
+        hit = self.dnd_engine.check_hit(attack_roll, target_ac)
         
         # 방어 상태 해제
         actor.is_defending = False
         
-        message = f"{actor.name}이(가) {target.name}을(를) 공격하여 {actual_damage} 데미지를 입혔습니다."
+        # 빗나감
+        if not hit and not is_critical:
+            message = f"🎲 {actor.name}의 공격! (굴림: {attack_roll} vs AC {target_ac})\n"
+            message += f"❌ {target.name}을(를) 빗나갔습니다!"
+            
+            return {
+                'success': True,
+                'message': message,
+                'damage_dealt': 0,
+                'is_critical': False,
+                'hit': False,
+                'attack_roll': attack_roll,
+                'target_ac': target_ac,
+                'target_hp': target.current_hp,
+                'target_max_hp': target.max_hp
+            }
+        
+        # 4. 데미지 계산
+        # 데미지 주사위 표기법 생성 (예: "1d8+2")
+        damage_dice = self._get_damage_dice(actor)
+        damage = self.dnd_engine.calculate_damage(damage_dice, is_critical)
+        
+        # 5. 방어 중이면 데미지 50% 감소
+        if target.is_defending:
+            damage = damage // 2
+            logger.info(f"{target.name} 방어 중 - 데미지 50% 감소")
+        
+        # 6. 대상에게 데미지 적용 (방어력 적용)
+        actual_damage = max(1, damage - target.defense)
+        target.current_hp = max(0, target.current_hp - actual_damage)
+        
+        # 메시지 생성
+        message = f"🎲 {actor.name}의 공격! (굴림: {attack_roll} vs AC {target_ac})\n"
+        
         if is_critical:
-            message += " (크리티컬!)"
+            message += f"💥 크리티컬 히트! "
+        else:
+            message += f"✅ 명중! "
+        
+        message += f"{target.name}에게 {actual_damage} 데미지!"
+        
+        if target.is_defending:
+            message += " (방어 중 - 50% 감소)"
         
         if not target.is_alive():
-            message += f" {target.name}이(가) 쓰러졌습니다!"
+            message += f"\n💀 {target.name}이(가) 쓰러졌습니다!"
         
         return {
             'success': True,
             'message': message,
             'damage_dealt': actual_damage,
             'is_critical': is_critical,
+            'hit': True,
+            'attack_roll': attack_roll,
+            'target_ac': target_ac,
             'target_hp': target.current_hp,
             'target_max_hp': target.max_hp
         }
+    
+    def _calculate_attack_bonus(self, combatant: Combatant) -> int:
+        """공격 보너스 계산
+        
+        D&D 5e: 숙련도 보너스 + 능력치 보정치
+        간소화: 공격력 / 5 (최소 +1)
+        """
+        return max(1, combatant.attack_power // 5)
+    
+    def _get_damage_dice(self, combatant: Combatant) -> str:
+        """데미지 주사위 표기법 생성
+        
+        공격력 기반으로 주사위 표기법 생성
+        예: 공격력 8 -> "1d6+2"
+        """
+        base_dice = combatant.attack_power // 3  # 주사위 개수
+        bonus = combatant.attack_power % 3  # 보너스
+        
+        if base_dice <= 0:
+            base_dice = 1
+        
+        # 주사위 크기 결정 (d4, d6, d8)
+        if combatant.attack_power < 5:
+            dice_size = 4
+        elif combatant.attack_power < 10:
+            dice_size = 6
+        else:
+            dice_size = 8
+        
+        if bonus > 0:
+            return f"{base_dice}d{dice_size}+{bonus}"
+        else:
+            return f"{base_dice}d{dice_size}"
     
     async def _execute_defend(self, actor: Combatant) -> Dict[str, Any]:
         """방어 실행"""

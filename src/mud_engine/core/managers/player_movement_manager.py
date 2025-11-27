@@ -198,7 +198,7 @@ class PlayerMovementManager:
         # 이 플레이어를 따라가는 다른 플레이어들 찾기 (이전 방에서)
         followers = []
 
-        for other_session in self.game_engine.session_manager.get_authenticated_sessions().values():
+        for other_session in self.game_engine.session_manager.get_authenticated_sessions():
             if (other_session.player and
                 other_session.session_id != session.session_id and
                 getattr(other_session, 'current_room_id', None) == old_room_id and
@@ -255,7 +255,7 @@ class PlayerMovementManager:
         try:
             # 방에 있는 모든 플레이어들 찾기
             players_in_room = []
-            for session in self.game_engine.session_manager.get_authenticated_sessions().values():
+            for session in self.game_engine.session_manager.get_authenticated_sessions():
                 if (session.player and
                     getattr(session, 'current_room_id', None) == room_id):
 
@@ -310,7 +310,7 @@ class PlayerMovementManager:
                 session.original_room_id = None
 
             # 이 플레이어를 따라가던 다른 플레이어들의 따라가기 해제
-            for other_session in self.game_engine.session_manager.get_authenticated_sessions().values():
+            for other_session in self.game_engine.session_manager.get_authenticated_sessions():
                 if (other_session.player and
                     hasattr(other_session, 'following_player') and
                     other_session.following_player == disconnected_player):
@@ -355,7 +355,7 @@ class PlayerMovementManager:
             # 전체 플레이어들에게 상태 변경 알림 (선택적)
             if status in ['online', 'offline']:
                 player_session = None
-                for session in self.game_engine.session_manager.get_authenticated_sessions().values():
+                for session in self.game_engine.session_manager.get_authenticated_sessions():
                     if session.player and session.player.id == player_id:
                         player_session = session
                         break

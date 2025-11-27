@@ -160,7 +160,25 @@ class AttackCommand(BaseCommand):
             return await self._end_combat(session, combat, result)
 
         # 몬스터 턴 자동 처리
-        await self._process_monster_turns(combat)
+        monster_messages = []
+        while combat.is_active and not combat.is_combat_over():
+            current = combat.get_current_combatant()
+            if not current:
+                break
+
+            # 플레이어 턴이면 중단
+            from ..game.combat import CombatantType
+            if current.combatant_type == CombatantType.PLAYER:
+                break
+
+            # 몬스터 턴 처리
+            monster_result = await self.combat_handler.process_monster_turn(combat.id)
+            if monster_result.get('success') and monster_result.get('message'):
+                monster_messages.append(monster_result['message'])
+            
+            # 전투 종료 확인
+            if monster_result.get('combat_over'):
+                return await self._end_combat(session, combat, monster_result)
 
         # 전투 종료 재확인
         if combat.is_combat_over():
@@ -168,8 +186,13 @@ class AttackCommand(BaseCommand):
             return result_end
 
         # 다음 턴 메시지
-        message = f"{result.get('message', '')}\n\n"
-        message += self._get_combat_status_message(combat)
+        message = f"{result.get('message', '')}\n"
+        
+        # 몬스터 턴 메시지 추가
+        if monster_messages:
+            message += "\n" + "\n".join(monster_messages) + "\n"
+        
+        message += "\n" + self._get_combat_status_message(combat)
         message += "\n\n"
         message += self._get_turn_message(combat, session.player.id)
 
