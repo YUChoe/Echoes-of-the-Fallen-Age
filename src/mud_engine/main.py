@@ -11,8 +11,9 @@ from dotenv import load_dotenv
 from .database import get_database_manager, close_database_manager
 from .game.managers import PlayerManager
 from .game.repositories import PlayerRepository
-from .server import MudServer
 from .server.telnet_server import TelnetServer
+from .core.game_engine import GameEngine
+from .server.session_manager import SessionManager
 
 
 def setup_logging():
@@ -189,8 +190,8 @@ async def main():
     logger.info("MUD Engine 시작 중...")
     print("🎮 Python MUD Engine v0.1.0")
 
-    web_server = None
     telnet_server = None
+    game_engine = None
     try:
         # 데이터베이스 초기화
         logger.info("데이터베이스 매니저 생성 중...")
@@ -203,24 +204,25 @@ async def main():
         player_manager = PlayerManager(player_repo)
         logger.info("게임 관리자 클래스 초기화 완료.")
 
-        # 웹 서버 초기화 및 시작 (레거시)
-        web_host = os.getenv("SERVER_HOST", "127.0.0.1")
-        web_port = int(os.getenv("SERVER_PORT", "8080"))
-        web_server = MudServer(web_host, web_port, player_manager, db_manager)
-        await web_server.start()
+        # 세션 관리자 초기화
+        logger.info("세션 관리자 초기화 중...")
+        session_manager = SessionManager()
+        logger.info("세션 관리자 초기화 완료.")
 
-        print(f"🌐 웹 서버가 http://{web_host}:{web_port} 에서 실행 중입니다. (레거시)")
+        # 게임 엔진 초기화 및 시작
+        logger.info("게임 엔진 초기화 중...")
+        game_engine = GameEngine(session_manager, player_manager, db_manager)
+        await game_engine.start()
+        logger.info("게임 엔진 시작 완료.")
 
-        # Telnet 서버 초기화 및 시작 (주 클라이언트)
-        telnet_host = os.getenv("TELNET_HOST", "127.0.0.1")
+        # Telnet 서버 초기화 및 시작
+        telnet_host = os.getenv("TELNET_HOST", "0.0.0.0")
         telnet_port = int(os.getenv("TELNET_PORT", "4000"))
         telnet_server = TelnetServer(telnet_host, telnet_port, player_manager, db_manager)
-
-        # 웹 서버의 게임 엔진을 Telnet 서버와 공유
-        telnet_server.game_engine = web_server.game_engine
         
-        # 게임 엔진에 Telnet 서버 참조 추가
-        web_server.game_engine.telnet_server = telnet_server
+        # 게임 엔진을 Telnet 서버에 연결
+        telnet_server.game_engine = game_engine
+        game_engine.telnet_server = telnet_server
 
         await telnet_server.start()
 
@@ -240,9 +242,9 @@ async def main():
         if telnet_server:
             await telnet_server.stop()
 
-        # 웹 서버 종료
-        if web_server:
-            await web_server.stop()
+        # 게임 엔진 종료
+        if game_engine:
+            await game_engine.stop()
 
         await close_database_manager()
         logger.info("MUD Engine이 성공적으로 종료되었습니다.")

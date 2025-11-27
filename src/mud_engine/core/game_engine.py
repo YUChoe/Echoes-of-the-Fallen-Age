@@ -14,7 +14,7 @@ from ..game.repositories import RoomRepository, GameObjectRepository
 from ..database.connection import DatabaseManager
 
 if TYPE_CHECKING:
-    from ..server.session import SessionManager
+    from ..server.session_manager import SessionManager
     from ..game.models import Player
 
 logger = logging.getLogger(__name__)
@@ -298,7 +298,7 @@ class GameEngine:
 
         # 실제 브로드캐스트 수행 - 해당 방에 있는 플레이어들만 대상
         count = 0
-        for session in self.session_manager.get_authenticated_sessions().values():
+        for session in self.session_manager.get_authenticated_sessions():
             if (session.player and
                 session.session_id != exclude_session and
                 getattr(session, 'current_room_id', None) == room_id):
