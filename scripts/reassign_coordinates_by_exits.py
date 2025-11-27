@@ -31,11 +31,12 @@ logger = logging.getLogger(__name__)
 
 
 # 방향별 좌표 변화
+# HTML 테이블은 위에서 아래로 그려지므로 north는 y-1, south는 y+1
 DIRECTION_OFFSETS = {
-    'north': (0, 1),
-    'south': (0, -1),
-    'east': (1, 0),
-    'west': (-1, 0)
+    'north': (0, -1),  # 북쪽은 y 감소 (화면 위쪽)
+    'south': (0, 1),   # 남쪽은 y 증가 (화면 아래쪽)
+    'east': (1, 0),    # 동쪽은 x 증가 (화면 오른쪽)
+    'west': (-1, 0)    # 서쪽은 x 감소 (화면 왼쪽)
 }
 
 
