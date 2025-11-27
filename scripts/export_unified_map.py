@@ -336,15 +336,15 @@ def generate_html(rooms_data):
                 
                 # 방 타입 결정
                 css_class = 'empty'
-                if room_id.startswith('forest_'):
+                if room_id.startswith('forest') or 'forest' in room_id.lower():
                     css_class = 'forest'
-                elif room_id.startswith('plains_'):
+                elif room_id.startswith('plains') or 'plains' in room_id.lower():
                     css_class = 'plains'
-                elif room_id in ['town_square', 'room_001']:
+                elif room_id in ['town_square', 'room_001'] or 'town' in room_id.lower():
                     css_class = 'town'
-                elif room_id.startswith('road_south_'):
+                elif room_id.startswith('road') or 'road' in room_id.lower():
                     css_class = 'road'
-                elif room_id == 'dock':
+                elif room_id == 'dock' or 'dock' in room_id.lower():
                     css_class = 'dock'
                 else:
                     css_class = 'special'

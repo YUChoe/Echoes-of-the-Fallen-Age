@@ -306,9 +306,9 @@ class AttackCommand(BaseCommand):
             return """
 🎯 당신의 턴입니다! 행동을 선택하세요:
 
-1️⃣ attack  - 무기로 공격
-2️⃣ defend  - 방어 자세 (다음 데미지 50% 감소)
-3️⃣ flee    - 도망치기 (50% 확률)
+[1] attack  - 무기로 공격
+[2] defend  - 방어 자세 (다음 데미지 50% 감소)
+[3] flee    - 도망치기 (50% 확률)
 
 명령어를 입력하세요:"""
         else:
