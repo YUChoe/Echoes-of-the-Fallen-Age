@@ -57,7 +57,7 @@ class GameEngine:
         from ..game.combat import CombatManager
         from ..game.combat_handler import CombatHandler
         self.combat_manager = CombatManager()
-        self.combat_handler = CombatHandler(self.combat_manager)
+        self.combat_handler = CombatHandler(self.combat_manager, self.world_manager)
 
         self._running = False
         self._start_time: Optional[datetime] = None

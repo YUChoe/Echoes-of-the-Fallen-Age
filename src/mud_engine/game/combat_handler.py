@@ -22,9 +22,10 @@ logger = logging.getLogger(__name__)
 class CombatHandler:
     """전투 핸들러 - 전투 로직 처리"""
     
-    def __init__(self, combat_manager: CombatManager):
+    def __init__(self, combat_manager: CombatManager, world_manager: Any = None):
         """전투 핸들러 초기화"""
         self.combat_manager = combat_manager
+        self.world_manager = world_manager
         self.dnd_engine = DnDCombatEngine()
         logger.info("CombatHandler 초기화 완료 (D&D 5e 룰 적용)")
     
@@ -483,6 +484,21 @@ class CombatHandler:
                 logger.info(f"전투 보상: 경험치 {rewards['experience']}, 골드 {rewards['gold']}")
         else:
             logger.info(f"전투 {combat.id} 종료 - 무승부")
+        
+        # 죽은 몬스터들을 DB에 저장
+        from .combat import CombatantType
+        if self.world_manager:
+            for combatant in combat.combatants:
+                if combatant.combatant_type != CombatantType.PLAYER and not combatant.is_alive():
+                    # 몬스터가 죽었으면 DB에 저장
+                    try:
+                        monster = await self.world_manager.get_monster(combatant.id)
+                        if monster and monster.is_alive:
+                            monster.die()
+                            await self.world_manager.update_monster(monster)
+                            logger.info(f"몬스터 {combatant.name} ({combatant.id}) 사망 처리 완료")
+                    except Exception as e:
+                        logger.error(f"몬스터 사망 처리 실패 ({combatant.id}): {e}")
         
         # 전투 종료
         self.combat_manager.end_combat(combat.id)
