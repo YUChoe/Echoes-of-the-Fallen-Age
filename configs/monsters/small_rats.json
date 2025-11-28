@@ -1,0 +1,41 @@
+{
+  "template_id": "template_small_rat",
+  "name": {
+    "en": "Small Rat",
+    "ko": "작은 쥐"
+  },
+  "description": {
+    "en": "A tiny rat scurrying around. It looks weak and scared.",
+    "ko": "작고 빠르게 움직이는 쥐입니다. 약하고 겁이 많아 보입니다."
+  },
+  "monster_type": "PASSIVE",
+  "behavior": "ROAMING",
+  "stats": {
+    "strength": 6,
+    "dexterity": 16,
+    "constitution": 8,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 4,
+    "level": 1
+  },
+  "experience_reward": 5,
+  "gold_reward": 0,
+  "drop_items": [],
+  "respawn_time": 300,
+  "aggro_range": 0,
+  "roaming_range": 2,
+  "spawn_config": {
+    "count": 20,
+    "area_filter": {
+      "name_contains": "평원",
+      "min_y": -2
+    },
+    "distribution": "random",
+    "roaming": {
+      "enabled": true,
+      "roam_chance": 0.5,
+      "use_spawn_area": true
+    }
+  }
+}

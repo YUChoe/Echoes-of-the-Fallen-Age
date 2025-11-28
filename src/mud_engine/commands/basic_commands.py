@@ -129,7 +129,10 @@ class WhoCommand(BaseCommand):
             return self.create_info_result("현재 접속 중인 플레이어가 없습니다.")
 
         players = []
-        for sess in authenticated_sessions.values():
+        # 리스트인 경우와 딕셔너리인 경우 모두 처리
+        sessions_to_check = authenticated_sessions.values() if isinstance(authenticated_sessions, dict) else authenticated_sessions
+        
+        for sess in sessions_to_check:
             if sess.player:
                 session_time = (sess.last_activity - sess.created_at).total_seconds()
                 players.append({

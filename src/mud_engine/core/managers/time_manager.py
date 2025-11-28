@@ -217,13 +217,20 @@ class TimeManager:
         
         # 웹 세션
         web_sessions = self.game_engine.session_manager.get_all_sessions()
-        all_sessions.extend(web_sessions.values())
+        # 리스트인 경우와 딕셔너리인 경우 모두 처리
+        if isinstance(web_sessions, dict):
+            all_sessions.extend(web_sessions.values())
+        else:
+            all_sessions.extend(web_sessions)
         
         # Telnet 세션
         telnet_sessions = {}
         if hasattr(self.game_engine, 'telnet_server') and self.game_engine.telnet_server:
             telnet_sessions = self.game_engine.telnet_server.sessions
-            all_sessions.extend(telnet_sessions.values())
+            if isinstance(telnet_sessions, dict):
+                all_sessions.extend(telnet_sessions.values())
+            else:
+                all_sessions.extend(telnet_sessions)
         
         logger.info(f"전체 세션 수: {len(all_sessions)} (웹: {len(web_sessions)}, Telnet: {len(telnet_sessions) if hasattr(self.game_engine, 'telnet_server') and self.game_engine.telnet_server else 0})")
         

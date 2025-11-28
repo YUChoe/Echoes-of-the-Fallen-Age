@@ -1,0 +1,49 @@
+{
+  "template_id": "template_town_guard",
+  "name": {
+    "en": "Town Guard",
+    "ko": "마을 경비병"
+  },
+  "description": {
+    "en": "A vigilant guard protecting the town. He stands firm at his post.",
+    "ko": "마을을 지키는 경계심 강한 경비병입니다. 그는 자신의 위치를 굳건히 지키고 있습니다."
+  },
+  "monster_type": "PASSIVE",
+  "behavior": "STATIONARY",
+  "stats": {
+    "strength": 14,
+    "dexterity": 12,
+    "constitution": 14,
+    "intelligence": 10,
+    "wisdom": 12,
+    "charisma": 10,
+    "level": 5
+  },
+  "experience_reward": 100,
+  "gold_reward": 25,
+  "drop_items": [
+    {
+      "item_id": "guard_sword",
+      "drop_chance": 0.1
+    },
+    {
+      "item_id": "guard_helmet",
+      "drop_chance": 0.15
+    }
+  ],
+  "respawn_time": 1800,
+  "aggro_range": 1,
+  "roaming_range": 0,
+  "spawn_config": {
+    "count": 4,
+    "area_filter": {
+      "name_contains": "마을"
+    },
+    "distribution": "fixed",
+    "roaming": {
+      "enabled": false,
+      "roam_chance": 0.0,
+      "use_spawn_area": false
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "template_id": "template_forest_goblin",
+  "name": {
+    "en": "Forest Goblin",
+    "ko": "숲 고블린"
+  },
+  "description": {
+    "en": "A small green creature with sharp teeth and a rusty dagger.",
+    "ko": "날카로운 이빨과 녹슨 단검을 든 작은 녹색 생물입니다."
+  },
+  "monster_type": "AGGRESSIVE",
+  "behavior": "ROAMING",
+  "stats": {
+    "strength": 10,
+    "dexterity": 14,
+    "constitution": 10,
+    "intelligence": 8,
+    "wisdom": 8,
+    "charisma": 6,
+    "level": 3
+  },
+  "experience_reward": 50,
+  "gold_reward": 10,
+  "drop_items": [
+    {
+      "item_id": "rusty_dagger",
+      "drop_chance": 0.3
+    }
+  ],
+  "respawn_time": 600,
+  "aggro_range": 2,
+  "roaming_range": 3,
+  "spawn_config": {
+    "count": 10,
+    "area_filter": {
+      "name_contains": "숲",
+      "x_range": [-5, 5],
+      "y_range": [-5, 5]
+    },
+    "distribution": "random",
+    "roaming": {
+      "enabled": true,
+      "roam_chance": 0.7,
+      "use_spawn_area": true
+    }
+  }
+}

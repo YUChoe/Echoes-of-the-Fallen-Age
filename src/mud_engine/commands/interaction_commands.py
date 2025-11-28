@@ -224,7 +224,8 @@ class FollowCommand(BaseCommand):
                     message="현재 따라가고 있는 플레이어가 없습니다."
                 )
 
-        target_player_name = args[0]
+        # 공백이 포함된 이름 처리
+        target_player_name = ' '.join(args)
         current_room_id = getattr(session, 'current_room_id', None)
 
         if not current_room_id:
@@ -235,7 +236,11 @@ class FollowCommand(BaseCommand):
 
         # 대상 플레이어 찾기
         target_session = None
-        for other_session in session.game_engine.session_manager.get_authenticated_sessions().values():
+        authenticated_sessions = session.game_engine.session_manager.get_authenticated_sessions()
+        # 리스트인 경우와 딕셔너리인 경우 모두 처리
+        sessions_to_check = authenticated_sessions.values() if isinstance(authenticated_sessions, dict) else authenticated_sessions
+        
+        for other_session in sessions_to_check:
             if (other_session.player and
                 other_session.player.username.lower() == target_player_name.lower() and
                 getattr(other_session, 'current_room_id', None) == current_room_id and
@@ -376,7 +381,11 @@ class PlayersCommand(BaseCommand):
 
         # 같은 방에 있는 플레이어들 찾기
         players_in_room = []
-        for other_session in session.game_engine.session_manager.get_authenticated_sessions().values():
+        authenticated_sessions = session.game_engine.session_manager.get_authenticated_sessions()
+        # 리스트인 경우와 딕셔너리인 경우 모두 처리
+        sessions_to_check = authenticated_sessions.values() if isinstance(authenticated_sessions, dict) else authenticated_sessions
+        
+        for other_session in sessions_to_check:
             if (other_session.player and
                 getattr(other_session, 'current_room_id', None) == current_room_id):
 

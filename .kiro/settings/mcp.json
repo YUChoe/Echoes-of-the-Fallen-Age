@@ -40,7 +40,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-memory"
+        "@modelcontextprotocol/server-memory@latest"
       ],
       "disabled": false,
       "autoApprove": [
@@ -48,7 +48,8 @@
         "create_entities",
         "add_observations",
         "create_relations",
-        "read_graph"
+        "read_graph",
+        "open_nodes"
       ]
     },
     "telnet-mcp": {
