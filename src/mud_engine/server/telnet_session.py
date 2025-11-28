@@ -225,17 +225,22 @@ class TelnetSession:
                 obj_name = obj.get("name", "알 수 없음")
                 lines.append(f"  • {ANSIColors.item_name(obj_name)}")
         
-        # 몬스터
+        # 몬스터 (각각 개별 표시)
         monsters = room_data.get("monsters", [])
         if monsters:
             lines.append("")
             lines.append("👹 이곳에 있는 몬스터들:")
-            for monster in monsters:
+            for i, monster in enumerate(monsters, 1):
                 monster_name = monster.get("name", "알 수 없음")
+                monster_id = monster.get("id", "")
                 level = monster.get("level", 1)
                 hp = monster.get("current_hp", 0)
                 max_hp = monster.get("max_hp", 0)
-                lines.append(f"  • {ANSIColors.monster_name(monster_name)} (레벨 {level}, HP: {hp}/{max_hp})")
+                
+                # 각 몬스터를 개별 ID로 구분하여 표시
+                # ID의 마지막 4자리를 사용하여 구분
+                id_suffix = monster_id[-4:] if len(monster_id) >= 4 else monster_id
+                lines.append(f"  • {ANSIColors.monster_name(monster_name)} #{id_suffix} (레벨 {level}, HP: {hp}/{max_hp})")
         
         lines.append("")
         return "\r\n".join(lines)

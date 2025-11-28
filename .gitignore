@@ -67,5 +67,7 @@ Thumbs.db
 test_*.py
 *_test.py
 
+*.tar.gz
+
 # 생성된 맵 파일
 world_map*.html

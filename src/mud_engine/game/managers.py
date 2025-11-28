@@ -667,6 +667,7 @@ class WorldManager:
             while True:
                 await self._process_respawns()
                 await self._process_initial_spawns()
+                await self._process_monster_roaming()
                 await asyncio.sleep(30)  # 30초마다 체크
         except asyncio.CancelledError:
             logger.info("스폰 스케줄러 루프 종료")
@@ -737,13 +738,14 @@ class WorldManager:
                 monster_type=template.monster_type,
                 behavior=template.behavior,
                 stats=MonsterStats(
-                    max_hp=template.stats.max_hp,
-                    current_hp=template.stats.max_hp,
-                    attack_power=template.stats.attack_power,
-                    defense=template.stats.defense,
-                    speed=template.stats.speed,
-                    accuracy=template.stats.accuracy,
-                    critical_chance=template.stats.critical_chance
+                    strength=template.stats.strength,
+                    dexterity=template.stats.dexterity,
+                    constitution=template.stats.constitution,
+                    intelligence=template.stats.intelligence,
+                    wisdom=template.stats.wisdom,
+                    charisma=template.stats.charisma,
+                    level=template.stats.level,
+                    current_hp=template.stats.get_max_hp()
                 ),
                 experience_reward=template.experience_reward,
                 gold_reward=template.gold_reward,
@@ -880,9 +882,38 @@ class WorldManager:
     async def setup_default_spawn_points(self) -> None:
         """기본 스폰 포인트들을 설정합니다."""
         try:
-            # TODO: 몬스터 템플릿 시스템 구현 후 활성화
-            # 현재는 스크립트로 직접 몬스터를 생성하여 사용 중
-            logger.info("기본 스폰 포인트 설정 완료 (템플릿 시스템 미구현)")
+            # 작은 쥐 템플릿 확인
+            small_rat_template = await self._monster_repo.get_by_id('template_small_rat')
+            if not small_rat_template:
+                logger.info("작은 쥐 템플릿이 없습니다. 스폰 포인트 설정을 건너뜁니다.")
+                return
+
+            # 평원 방들 찾기
+            all_rooms = await self._room_repo.get_all()
+            plains_rooms = []
+            for room in all_rooms:
+                name_ko = room.name.get('ko', '')
+                if '평원' in name_ko and room.x is not None and room.y is not None:
+                    # 북쪽 평원 (y >= -2)만 선택
+                    if room.y >= -2:
+                        plains_rooms.append(room)
+
+            if not plains_rooms:
+                logger.info("평원 방을 찾을 수 없습니다.")
+                return
+
+            # 각 평원 방에 스폰 포인트 설정
+            spawn_count = 0
+            for room in plains_rooms[:10]:  # 최대 10개 방에만 설정
+                await self.add_spawn_point(
+                    room_id=room.id,
+                    monster_template_id='template_small_rat',
+                    max_count=5,
+                    spawn_chance=0.5
+                )
+                spawn_count += 1
+
+            logger.info(f"작은 쥐 스폰 포인트 {spawn_count}개 설정 완료")
 
         except Exception as e:
             logger.error(f"기본 스폰 포인트 설정 실패: {e}")
@@ -1053,3 +1084,91 @@ class WorldManager:
         except Exception as e:
             logger.error(f"몬스터 이름 검색 실패 ({name_pattern}): {e}")
             raise
+
+    # === 몬스터 로밍 시스템 ===
+
+    async def _process_monster_roaming(self) -> None:
+        """로밍 가능한 몬스터들의 이동을 처리합니다."""
+        try:
+            # 모든 살아있는 몬스터 조회
+            all_monsters = await self.get_all_monsters()
+            alive_monsters = [m for m in all_monsters if m.is_alive]
+
+            for monster in alive_monsters:
+                # 로밍 가능한 몬스터만 처리
+                if not monster.can_roam():
+                    continue
+
+                # 로밍 설정 확인
+                roaming_config = monster.get_property('roaming_config')
+                if not roaming_config:
+                    continue
+
+                # 로밍 확률 체크
+                roam_chance = roaming_config.get('roam_chance', 0.5)
+                import random
+                if random.random() > roam_chance:
+                    continue
+
+                # 로밍 범위 내에서 이동 가능한 방 찾기
+                await self._roam_monster(monster, roaming_config)
+
+        except Exception as e:
+            logger.error(f"몬스터 로밍 처리 실패: {e}")
+
+    async def _roam_monster(self, monster: Monster, roaming_config: Dict[str, Any]) -> None:
+        """몬스터를 로밍 범위 내에서 이동시킵니다."""
+        try:
+            if not monster.current_room_id:
+                return
+
+            # 현재 방 정보 조회
+            current_room = await self.get_room(monster.current_room_id)
+            if not current_room:
+                return
+
+            # 로밍 범위 확인
+            roaming_area = roaming_config.get('roaming_area', {})
+            min_x = roaming_area.get('min_x')
+            max_x = roaming_area.get('max_x')
+            min_y = roaming_area.get('min_y')
+            max_y = roaming_area.get('max_y')
+
+            # 좌표가 없으면 로밍 불가
+            if current_room.x is None or current_room.y is None:
+                return
+
+            # 이동 가능한 출구 찾기
+            available_exits = []
+            for direction, target_room_id in current_room.exits.items():
+                target_room = await self.get_room(target_room_id)
+                if not target_room or target_room.x is None or target_room.y is None:
+                    continue
+
+                # 로밍 범위 내에 있는지 확인
+                if min_x is not None and target_room.x < min_x:
+                    continue
+                if max_x is not None and target_room.x > max_x:
+                    continue
+                if min_y is not None and target_room.y < min_y:
+                    continue
+                if max_y is not None and target_room.y > max_y:
+                    continue
+
+                available_exits.append((direction, target_room_id))
+
+            # 이동 가능한 출구가 없으면 종료
+            if not available_exits:
+                return
+
+            # 랜덤하게 출구 선택
+            import random
+            _, target_room_id = random.choice(available_exits)
+
+            # 몬스터 이동
+            success = await self.move_monster_to_room(monster.id, target_room_id)
+            if success:
+                logger.debug(f"몬스터 {monster.get_localized_name('ko')}가 {target_room_id}로 이동")
+
+        except Exception as e:
+            logger.error(f"몬스터 로밍 실패 ({monster.id}): {e}")

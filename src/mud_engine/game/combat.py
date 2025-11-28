@@ -42,6 +42,7 @@ class Combatant:
     attack_power: int
     defense: int
     is_defending: bool = False  # 방어 중인지 여부
+    data: Optional[Dict[str, Any]] = None  # 추가 데이터 (AC, 공격보너스 등)
     
     def __post_init__(self):
         """초기화 후 검증"""
@@ -434,20 +435,30 @@ class CombatManager:
             logger.warning(f"전투 {combat_id}를 찾을 수 없거나 비활성 상태")
             return False
         
-        # Combatant 생성
+        # Combatant 생성 (D&D 능력치 사용)
         combatant = Combatant(
             id=monster.id,
             name=monster.get_localized_name('ko'),
             combatant_type=CombatantType.MONSTER,
-            agility=monster.stats.speed,
+            agility=monster.stats.dexterity,  # 민첩 사용
             max_hp=monster.stats.max_hp,
             current_hp=monster.stats.current_hp,
             attack_power=monster.stats.attack_power,
             defense=monster.stats.defense
         )
         
+        # Monster 객체의 추가 정보를 data에 저장 (전투 계산에 사용)
+        combatant.data = {
+            'armor_class': monster.stats.armor_class,
+            'attack_bonus': monster.stats.attack_bonus,
+            'initiative_bonus': monster.stats.initiative_bonus,
+            'experience_reward': monster.experience_reward,
+            'gold_reward': monster.gold_reward,
+            'level': monster.stats.level
+        }
+        
         combat.add_combatant(combatant)
-        logger.info(f"몬스터 {monster.id}를 전투 {combat_id}에 추가")
+        logger.info(f"몬스터 {monster.id}를 전투 {combat_id}에 추가 (AC: {monster.stats.armor_class}, 공격보너스: {monster.stats.attack_bonus})")
         return True
     
     def remove_player_from_combat(self, player_id: str) -> bool:

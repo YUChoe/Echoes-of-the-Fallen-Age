@@ -231,7 +231,11 @@ class CombatHandler:
         attack_roll, is_critical = self.dnd_engine.make_attack_roll(attack_bonus)
         
         # 2. 대상 AC (방어도) 계산
-        target_ac = 10 + target.defense  # 기본 AC 10 + 방어력
+        # target.data에서 armor_class 가져오기
+        if target.data and 'armor_class' in target.data:
+            target_ac = target.data['armor_class']
+        else:
+            target_ac = 10 + target.defense  # 기본 AC 10 + 방어력
         
         # 3. 명중 판정
         hit = self.dnd_engine.check_hit(attack_roll, target_ac)
@@ -302,8 +306,13 @@ class CombatHandler:
         """공격 보너스 계산
         
         D&D 5e: 숙련도 보너스 + 능력치 보정치
-        간소화: 공격력 / 5 (최소 +1)
+        combatant.data에 Monster 또는 Player 객체의 정보가 있음
         """
+        # combatant.data에서 attack_bonus 가져오기
+        if combatant.data and 'attack_bonus' in combatant.data:
+            return combatant.data['attack_bonus']
+        
+        # 기본값: 공격력 기반 계산
         return max(1, combatant.attack_power // 5)
     
     def _get_damage_dice(self, combatant: Combatant) -> str:
@@ -453,16 +462,23 @@ class CombatHandler:
             
             if player_winners:
                 # 처치한 몬스터들로부터 보상 계산
-                defeated_monsters = combat.get_alive_monsters()  # 사망한 몬스터는 제외되므로 반대로 가져와야 함
                 all_monsters = [c for c in combat.combatants if c.combatant_type != CombatantType.PLAYER]
                 defeated_monsters = [m for m in all_monsters if not m.is_alive()]
                 
                 # 각 몬스터로부터 보상 수집
                 for monster_combatant in defeated_monsters:
-                    # 몬스터 ID로 실제 Monster 객체 찾기 (보상 정보 가져오기 위해)
-                    # 여기서는 기본 보상만 지급 (나중에 Monster 객체 연동 필요)
-                    rewards['experience'] += 50  # 기본 경험치
-                    rewards['gold'] += 10  # 기본 골드
+                    # monster_combatant.data에 Monster 객체의 보상 정보가 저장되어 있음
+                    monster_data = monster_combatant.data
+                    if monster_data:
+                        exp_reward = monster_data.get('experience_reward', 50)
+                        gold_reward = monster_data.get('gold_reward', 10)
+                        rewards['experience'] += exp_reward
+                        rewards['gold'] += gold_reward
+                        logger.debug(f"몬스터 {monster_combatant.name} 보상: 경험치 {exp_reward}, 골드 {gold_reward}")
+                    else:
+                        # 데이터가 없으면 기본 보상
+                        rewards['experience'] += 50
+                        rewards['gold'] += 10
                 
                 logger.info(f"전투 보상: 경험치 {rewards['experience']}, 골드 {rewards['gold']}")
         else:

@@ -28,19 +28,73 @@ class MonsterBehavior(Enum):
 
 @dataclass
 class MonsterStats:
-    """몬스터 능력치"""
-    max_hp: int = 100
-    current_hp: int = 100
-    attack_power: int = 10
-    defense: int = 5
-    speed: int = 10
-    accuracy: int = 80  # 명중률 (%)
-    critical_chance: int = 5  # 크리티컬 확률 (%)
+    """몬스터 능력치 (플레이어와 동일한 D&D 기반 체계)"""
+    # 1차 능력치 (D&D 기반)
+    strength: int = 10      # 힘 - 물리 공격력
+    dexterity: int = 10     # 민첩 - 명중률, 회피, AC
+    constitution: int = 10  # 체력 - HP
+    intelligence: int = 10  # 지능 - 마법 공격력
+    wisdom: int = 10        # 지혜 - 마법 방어력
+    charisma: int = 10      # 매력 - 특수 능력
+    
+    # 레벨
+    level: int = 1
+    
+    # 현재 HP (최대 HP는 constitution 기반 계산)
+    current_hp: int = 0
 
     def __post_init__(self):
         """초기화 후 현재 HP를 최대 HP로 설정"""
         if self.current_hp <= 0:
-            self.current_hp = self.max_hp
+            self.current_hp = self.get_max_hp()
+
+    @property
+    def max_hp(self) -> int:
+        """최대 HP 계산: 기본 10 + (체력 * 2) + (레벨 * 5)"""
+        base_hp = 10
+        con_bonus = self.constitution * 2
+        level_bonus = self.level * 5
+        return base_hp + con_bonus + level_bonus
+    
+    def get_max_hp(self) -> int:
+        """최대 HP 반환"""
+        return self.max_hp
+    
+    @property
+    def attack_power(self) -> int:
+        """공격력 계산: 기본 1 + (힘 / 2) + 레벨"""
+        base_atk = 1
+        str_bonus = self.strength // 2
+        level_bonus = self.level
+        return base_atk + str_bonus + level_bonus
+    
+    @property
+    def defense(self) -> int:
+        """방어력 계산: 체력 / 3"""
+        return self.constitution // 3
+    
+    @property
+    def armor_class(self) -> int:
+        """AC (방어도) 계산: 10 + 민첩 보정치"""
+        dex_modifier = (self.dexterity - 10) // 2
+        return 10 + dex_modifier
+    
+    @property
+    def attack_bonus(self) -> int:
+        """공격 보너스 계산: 힘 보정치 + (레벨 / 4)"""
+        str_modifier = (self.strength - 10) // 2
+        proficiency = self.level // 4
+        return str_modifier + proficiency
+    
+    @property
+    def initiative_bonus(self) -> int:
+        """선공 보너스 계산: 민첩 보정치"""
+        return (self.dexterity - 10) // 2
+    
+    @property
+    def speed(self) -> int:
+        """속도 계산: 기본 10 + (민첩 / 2)"""
+        return 10 + (self.dexterity // 2)
 
     def is_alive(self) -> bool:
         """생존 여부 확인"""
@@ -48,7 +102,7 @@ class MonsterStats:
 
     def take_damage(self, damage: int) -> int:
         """데미지를 받고 실제 받은 데미지 반환"""
-        actual_damage = max(0, damage - self.defense)
+        actual_damage = max(1, damage - self.defense)
         self.current_hp = max(0, self.current_hp - actual_damage)
         return actual_damage
 
@@ -65,13 +119,14 @@ class MonsterStats:
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환"""
         return {
-            'max_hp': self.max_hp,
-            'current_hp': self.current_hp,
-            'attack_power': self.attack_power,
-            'defense': self.defense,
-            'speed': self.speed,
-            'accuracy': self.accuracy,
-            'critical_chance': self.critical_chance
+            'strength': self.strength,
+            'dexterity': self.dexterity,
+            'constitution': self.constitution,
+            'intelligence': self.intelligence,
+            'wisdom': self.wisdom,
+            'charisma': self.charisma,
+            'level': self.level,
+            'current_hp': self.current_hp
         }
 
     @classmethod

@@ -579,7 +579,7 @@ async function disconnect(sessionId) {
 
 ### Telnet MCP 사용 시
 - **세션 ID 관리**: 연결 후 받은 sessionId를 모든 후속 호출에 사용
-- **응답 대기**: 각 명령어 후 충분한 waitMs 설정
+- **응답 대기**: 각 명령어 후 충분한 waitMs 설정 (로컬 500 이하)
 - **연결 종료**: 테스트 완료 후 반드시 disconnect 호출
 - **ANSI 코드**: 응답에 포함된 ANSI 색상 코드 처리 고려
 
