@@ -283,11 +283,21 @@ class TelnetServer:
         """
         await session.send_text("")
         await session.send_info("=== 회원가입 ===")
-        await session.send_prompt("사용자명 (3-20자): ")
+        await session.send_prompt("사용자명 (3-20자, 공백 불가): ")
         username = await session.read_line(timeout=60.0)
 
         if not username:
             await session.send_error("사용자명을 입력하지 않았습니다.")
+            return False
+        
+        # 사용자명 검증: 공백 불허
+        if ' ' in username:
+            await session.send_error("사용자명에 공백을 사용할 수 없습니다.")
+            return False
+        
+        # 사용자명 길이 검증
+        if len(username) < 3 or len(username) > 20:
+            await session.send_error("사용자명은 3-20자여야 합니다.")
             return False
 
         # 패스워드 입력 시 에코 비활성화

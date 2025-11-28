@@ -224,8 +224,8 @@ class FollowCommand(BaseCommand):
                     message="현재 따라가고 있는 플레이어가 없습니다."
                 )
 
-        # 공백이 포함된 이름 처리
-        target_player_name = ' '.join(args)
+        # 플레이어 이름 (공백 불허이므로 첫 번째 인자만 사용)
+        target_player_name = args[0]
         current_room_id = getattr(session, 'current_room_id', None)
 
         if not current_room_id:

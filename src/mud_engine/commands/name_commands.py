@@ -64,7 +64,7 @@ class ChangeNameCommand(BaseCommand):
 
         # 이름 유효성 검사
         if not session.player.is_valid_display_name(new_name):
-            await session.send_error("❌ 올바르지 않은 이름입니다. 이름은 3-20자의 한글, 영문, 숫자, 공백만 사용할 수 있습니다.")
+            await session.send_error("❌ 올바르지 않은 이름입니다. 이름은 3-20자의 한글, 영문, 숫자만 사용할 수 있습니다 (공백 불가).")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
                 message="올바르지 않은 이름"

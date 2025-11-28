@@ -101,7 +101,7 @@ class Player(BaseModel):
 
     @staticmethod
     def is_valid_display_name(display_name: str) -> bool:
-        """표시 이름 유효성 검사 (한글, 영문, 숫자, 공백 허용, 3-20자)"""
+        """표시 이름 유효성 검사 (한글, 영문, 숫자만 허용, 공백 불가, 3-20자)"""
         if not display_name:
             return False
         
@@ -110,8 +110,12 @@ class Player(BaseModel):
         if len(display_name) < 3 or len(display_name) > 20:
             return False
         
-        # 한글, 영문, 숫자, 공백만 허용
-        pattern = r'^[가-힣a-zA-Z0-9\s]+$'
+        # 공백 불허
+        if ' ' in display_name:
+            return False
+        
+        # 한글, 영문, 숫자만 허용
+        pattern = r'^[가-힣a-zA-Z0-9]+$'
         return re.match(pattern, display_name) is not None
 
     def to_dict(self) -> Dict[str, Any]:
