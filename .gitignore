@@ -64,6 +64,7 @@ Thumbs.db
 *.tmp
 *.temp
 *_backup.py
+*_original.py
 test_*.py
 *_test.py
 
