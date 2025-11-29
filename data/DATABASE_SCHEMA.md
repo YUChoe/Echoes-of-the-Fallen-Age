@@ -1,7 +1,7 @@
 # Database Schema Documentation
 
-**Last Updated**: 2025-11-28  
-**Database Version**: 1.1.0 (UUID Migration)
+**Last Updated**: 2025-11-29  
+**Database Version**: 1.2.0 (Schema Documentation Sync)
 
 ## Overview
 
@@ -16,6 +16,13 @@
 - **마이그레이션 스크립트**: `scripts/migrate_to_uuid_safe.py`
 - **이유**: 고유성 보장, 자동 생성, 확장성 향상
 
+### 2025-11-29: Schema Documentation Update (v1.2.0)
+- **변경사항**: 실제 DB 스키마와 문서 동기화
+- **players 테이블**: stat 관련 컬럼, 좌표 필드 추가
+- **game_objects 테이블**: location_type, category, equipment_slot, is_equipped 필드 추가
+- **npcs 테이블**: shop_inventory, is_active 필드 추가
+- **translations 테이블**: 복합 PRIMARY KEY 구조로 변경
+
 ### 2025-11-27: Initial Schema (v1.0.0)
 - 초기 데이터베이스 스키마 생성
 
@@ -29,15 +36,37 @@
 
 ```sql
 CREATE TABLE players (
-    id TEXT PRIMARY KEY,              -- UUID
-    username TEXT UNIQUE NOT NULL,    -- 사용자명 (고유)
-    password_hash TEXT NOT NULL,      -- 비밀번호 해시
-    email TEXT,                       -- 이메일 (선택)
-    is_admin BOOLEAN DEFAULT 0,       -- 관리자 여부
+    id TEXT PRIMARY KEY,                      -- UUID
+    username TEXT UNIQUE NOT NULL,            -- 사용자명 (고유)
+    password_hash TEXT NOT NULL,              -- 비밀번호 해시
+    email TEXT,                               -- 이메일 (선택)
+    preferred_locale TEXT DEFAULT 'en',       -- 선호 언어
+    is_admin BOOLEAN DEFAULT FALSE,           -- 관리자 여부
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP,
-    display_name TEXT,                -- 표시 이름
-    last_name_change TIMESTAMP        -- 마지막 이름 변경 시간
+    
+    -- 능력치 (Stats)
+    stat_strength INTEGER DEFAULT 10,         -- 힘
+    stat_dexterity INTEGER DEFAULT 10,        -- 민첩
+    stat_intelligence INTEGER DEFAULT 10,     -- 지능
+    stat_wisdom INTEGER DEFAULT 10,           -- 지혜
+    stat_constitution INTEGER DEFAULT 10,     -- 체력
+    stat_charisma INTEGER DEFAULT 10,         -- 매력
+    stat_level INTEGER DEFAULT 1,             -- 레벨
+    stat_experience INTEGER DEFAULT 0,        -- 경험치
+    stat_experience_to_next INTEGER DEFAULT 100,  -- 다음 레벨까지 필요 경험치
+    stat_equipment_bonuses TEXT DEFAULT '{}', -- 장비 보너스 (JSON)
+    stat_temporary_effects TEXT DEFAULT '{}', -- 임시 효과 (JSON)
+    
+    -- 게임 상태
+    gold INTEGER DEFAULT 100,                 -- 골드
+    last_room_id TEXT DEFAULT 'town_square',  -- 마지막 위치
+    last_room_x INTEGER DEFAULT 0,            -- 마지막 X 좌표
+    last_room_y INTEGER DEFAULT 0,            -- 마지막 Y 좌표
+    
+    -- 사용자 정보
+    display_name TEXT,                        -- 표시 이름
+    last_name_change TIMESTAMP                -- 마지막 이름 변경 시간
 );
 ```
 
@@ -51,19 +80,16 @@ CREATE TABLE players (
 
 ### 2. characters
 
-플레이어 캐릭터 정보를 저장합니다.
+플레이어 캐릭터 정보를 저장합니다. (현재 사용되지 않음 - players 테이블에 통합됨)
 
 ```sql
 CREATE TABLE characters (
     id TEXT PRIMARY KEY,              -- UUID
     player_id TEXT NOT NULL,          -- players.id (외래 키)
     name TEXT NOT NULL,               -- 캐릭터 이름
-    level INTEGER DEFAULT 1,          -- 레벨
-    experience INTEGER DEFAULT 0,     -- 경험치
-    gold INTEGER DEFAULT 0,           -- 골드
-    stats TEXT DEFAULT '{}',          -- 능력치 (JSON)
+    current_room_id TEXT,             -- 현재 방 ID
     inventory TEXT DEFAULT '[]',      -- 인벤토리 (JSON)
-    equipment TEXT DEFAULT '{}',      -- 장비 (JSON)
+    stats TEXT DEFAULT '{}',          -- 능력치 (JSON)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (player_id) REFERENCES players(id)
 );
@@ -71,6 +97,8 @@ CREATE TABLE characters (
 
 **인덱스**:
 - `player_id`
+
+**참고**: 현재 시스템에서는 players 테이블에 캐릭터 정보가 통합되어 있습니다.
 
 ---
 
@@ -189,19 +217,24 @@ CREATE TABLE game_objects (
     description_en TEXT,              -- 영어 설명
     description_ko TEXT,              -- 한국어 설명
     object_type TEXT NOT NULL,        -- 오브젝트 타입 (ITEM, WEAPON, ARMOR, etc.)
+    location_type TEXT NOT NULL,      -- 위치 타입 (ROOM, INVENTORY, EQUIPPED)
+    location_id TEXT,                 -- 위치 ID (room_id or player_id)
     properties TEXT DEFAULT '{}',     -- 속성 (JSON)
-    room_id TEXT,                     -- 위치한 방 ID (rooms.id, UUID)
-    owner_id TEXT,                    -- 소유자 ID (players.id or characters.id)
+    weight REAL DEFAULT 1.0,          -- 무게
+    category TEXT DEFAULT 'misc',     -- 카테고리
+    equipment_slot TEXT,              -- 장비 슬롯 (HEAD, BODY, WEAPON, etc.)
+    is_equipped BOOLEAN DEFAULT FALSE, -- 장착 여부
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 **인덱스**:
-- `room_id`
-- `owner_id`
+- `location_id`
+- `location_type`
 
 **변경 이력**:
-- v1.1.0: `room_id`가 참조하는 room ID가 UUID로 변경
+- v1.1.0: `location_id`가 참조하는 room ID가 UUID로 변경
+- v1.2.0: location_type, category, equipment_slot, is_equipped 필드 추가
 
 ---
 
@@ -216,19 +249,22 @@ CREATE TABLE npcs (
     name_ko TEXT NOT NULL,            -- 한국어 이름
     description_en TEXT,              -- 영어 설명
     description_ko TEXT,              -- 한국어 설명
-    npc_type TEXT NOT NULL,           -- NPC 타입 (MERCHANT, QUEST_GIVER, etc.)
+    current_room_id TEXT NOT NULL,    -- 현재 위치한 방 ID (rooms.id, UUID)
+    npc_type TEXT DEFAULT 'generic',  -- NPC 타입 (MERCHANT, QUEST_GIVER, etc.)
     dialogue TEXT DEFAULT '{}',       -- 대화 (JSON)
-    room_id TEXT,                     -- 위치한 방 ID (rooms.id, UUID)
+    shop_inventory TEXT DEFAULT '[]', -- 상점 인벤토리 (JSON, MERCHANT 타입용)
     properties TEXT DEFAULT '{}',     -- 추가 속성 (JSON)
+    is_active BOOLEAN DEFAULT TRUE,   -- 활성 상태
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 **인덱스**:
-- `room_id`
+- `current_room_id`
 
 **변경 이력**:
-- v1.1.0: `room_id`가 참조하는 room ID가 UUID로 변경
+- v1.1.0: `current_room_id`가 참조하는 room ID가 UUID로 변경
+- v1.2.0: shop_inventory, is_active 필드 추가
 
 ---
 
@@ -238,18 +274,15 @@ CREATE TABLE npcs (
 
 ```sql
 CREATE TABLE translations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
     key TEXT NOT NULL,                -- 번역 키
     locale TEXT NOT NULL,             -- 언어 코드 (en, ko, etc.)
     value TEXT NOT NULL,              -- 번역 값
-    category TEXT,                    -- 카테고리
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(key, locale)
+    PRIMARY KEY (key, locale)         -- 복합 PRIMARY KEY
 );
 ```
 
 **인덱스**:
-- `key, locale` (UNIQUE 복합 인덱스)
+- `key, locale` (복합 PRIMARY KEY)
 
 ---
 
@@ -359,6 +392,6 @@ cp data/mud_engine.db.backup_YYYYMMDD_HHMMSS data/mud_engine.db
 
 ---
 
-**문서 버전**: 1.1.0  
+**문서 버전**: 1.2.0  
 **작성자**: Kiro AI  
-**최종 수정**: 2025-11-28
+**최종 수정**: 2025-11-29
