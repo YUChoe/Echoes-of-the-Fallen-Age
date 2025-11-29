@@ -1,7 +1,7 @@
 # Database Schema Documentation
 
 **Last Updated**: 2025-11-29  
-**Database Version**: 1.2.0 (Schema Documentation Sync)
+**Database Version**: 1.3.0 (Faction System)
 
 ## Overview
 
@@ -15,6 +15,13 @@
 - **영향받는 테이블**: `rooms`, `monsters`
 - **마이그레이션 스크립트**: `scripts/migrate_to_uuid_safe.py`
 - **이유**: 고유성 보장, 자동 생성, 확장성 향상
+
+### 2025-11-29: Faction System Added (v1.3.0)
+- **변경사항**: 종족(Faction) 시스템 추가
+- **새 테이블**: factions, faction_relations
+- **monsters, npcs, players 테이블**: faction_id 컬럼 추가
+- **기본 종족**: 잿빛 기사단, 고블린, 동물
+- **종족 관계**: 적대, 중립, 비우호 관계 설정
 
 ### 2025-11-29: Schema Documentation Update (v1.2.0)
 - **변경사항**: 실제 DB 스키마와 문서 동기화
@@ -66,7 +73,11 @@ CREATE TABLE players (
     
     -- 사용자 정보
     display_name TEXT,                        -- 표시 이름
-    last_name_change TIMESTAMP                -- 마지막 이름 변경 시간
+    last_name_change TIMESTAMP,               -- 마지막 이름 변경 시간
+    
+    -- 종족
+    faction_id TEXT DEFAULT 'ash_knights',    -- 종족 ID (factions.id)
+    FOREIGN KEY (faction_id) REFERENCES factions(id)
 );
 ```
 
@@ -166,7 +177,9 @@ CREATE TABLE monsters (
     aggro_range INTEGER DEFAULT 0,    -- 어그로 범위
     roaming_range INTEGER DEFAULT 0,  -- 로밍 범위
     properties TEXT DEFAULT '{}',     -- 추가 속성 (JSON)
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    faction_id TEXT,                  -- 종족 ID (factions.id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (faction_id) REFERENCES factions(id)
 );
 ```
 
@@ -255,7 +268,9 @@ CREATE TABLE npcs (
     shop_inventory TEXT DEFAULT '[]', -- 상점 인벤토리 (JSON, MERCHANT 타입용)
     properties TEXT DEFAULT '{}',     -- 추가 속성 (JSON)
     is_active BOOLEAN DEFAULT TRUE,   -- 활성 상태
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    faction_id TEXT,                  -- 종족 ID (factions.id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (faction_id) REFERENCES factions(id)
 );
 ```
 
@@ -283,6 +298,61 @@ CREATE TABLE translations (
 
 **인덱스**:
 - `key, locale` (복합 PRIMARY KEY)
+
+---
+
+### 8. factions
+
+종족(Faction) 정보를 저장합니다.
+
+```sql
+CREATE TABLE factions (
+    id TEXT PRIMARY KEY,              -- 종족 ID (예: ash_knights, goblins)
+    name_en TEXT NOT NULL,            -- 영어 이름
+    name_ko TEXT NOT NULL,            -- 한국어 이름
+    description_en TEXT,              -- 영어 설명
+    description_ko TEXT,              -- 한국어 설명
+    default_stance TEXT DEFAULT 'NEUTRAL',  -- 기본 태도 (FRIENDLY, NEUTRAL, HOSTILE)
+    properties TEXT DEFAULT '{}',     -- 추가 속성 (JSON)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**기본 종족**:
+- `ash_knights`: 잿빛 기사단 (플레이어 기본 종족)
+- `goblins`: 고블린
+- `animals`: 동물
+
+---
+
+### 9. faction_relations
+
+종족 간 관계(우호도)를 저장합니다.
+
+```sql
+CREATE TABLE faction_relations (
+    faction_a_id TEXT NOT NULL,       -- 종족 A ID
+    faction_b_id TEXT NOT NULL,       -- 종족 B ID
+    relation_value INTEGER DEFAULT 0, -- 관계 값 (-100 ~ 100)
+    relation_status TEXT DEFAULT 'NEUTRAL',  -- 관계 상태
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (faction_a_id, faction_b_id),
+    FOREIGN KEY (faction_a_id) REFERENCES factions(id),
+    FOREIGN KEY (faction_b_id) REFERENCES factions(id)
+);
+```
+
+**관계 값 범위**:
+- `-100 ~ -50`: HOSTILE (적대)
+- `-49 ~ -1`: UNFRIENDLY (비우호)
+- `0`: NEUTRAL (중립)
+- `1 ~ 49`: FRIENDLY (우호)
+- `50 ~ 100`: ALLIED (동맹)
+
+**기본 관계**:
+- 잿빛 기사단 ↔ 고블린: HOSTILE (-80)
+- 잿빛 기사단 ↔ 동물: NEUTRAL (0)
+- 고블린 ↔ 동물: UNFRIENDLY (-20)
 
 ---
 
@@ -326,8 +396,12 @@ CREATE TABLE translations (
 ```
 players (1) ─────< (N) characters
 rooms (1) ─────< (N) monsters (spawn_room_id, current_room_id)
-rooms (1) ─────< (N) game_objects (room_id)
-rooms (1) ─────< (N) npcs (room_id)
+rooms (1) ─────< (N) game_objects (location_id)
+rooms (1) ─────< (N) npcs (current_room_id)
+factions (1) ─────< (N) monsters (faction_id)
+factions (1) ─────< (N) npcs (faction_id)
+factions (1) ─────< (N) players (faction_id)
+factions (N) ─────< (N) factions (faction_relations)
 ```
 
 ---
@@ -392,6 +466,6 @@ cp data/mud_engine.db.backup_YYYYMMDD_HHMMSS data/mud_engine.db
 
 ---
 
-**문서 버전**: 1.2.0  
+**문서 버전**: 1.3.0  
 **작성자**: Kiro AI  
 **최종 수정**: 2025-11-29
