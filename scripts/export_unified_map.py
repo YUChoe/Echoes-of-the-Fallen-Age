@@ -24,12 +24,25 @@ async def get_all_rooms(db_manager: DatabaseManager):
 
 
 async def get_monsters_by_room(db_manager: DatabaseManager):
-    """방별 몬스터 수 가져오기"""
+    """방별 몬스터 수 가져오기 (플레이어와 적대적인 종족만)
+    
+    몬스터 정의:
+    - 플레이어 종족(ash_knights)과 적대적(HOSTILE, UNFRIENDLY)인 종족
+    """
     cursor = await db_manager.execute("""
-        SELECT current_room_id, COUNT(*) as count
-        FROM monsters
-        WHERE is_alive = 1 AND current_room_id IS NOT NULL
-        GROUP BY current_room_id
+        SELECT m.current_room_id, COUNT(*) as count
+        FROM monsters m
+        LEFT JOIN faction_relations fr ON (
+            (fr.faction_a_id = 'ash_knights' AND fr.faction_b_id = m.faction_id)
+            OR (fr.faction_b_id = 'ash_knights' AND fr.faction_a_id = m.faction_id)
+        )
+        WHERE m.is_alive = 1 
+        AND m.current_room_id IS NOT NULL
+        AND (
+            fr.relation_status IN ('HOSTILE', 'UNFRIENDLY')
+            OR m.faction_id IS NULL
+        )
+        GROUP BY m.current_room_id
     """)
     result = await cursor.fetchall()
     return {row[0]: row[1] for row in result}
@@ -47,16 +60,69 @@ async def get_players_by_room(db_manager: DatabaseManager):
     return {row[0]: row[1] for row in result}
 
 
+async def get_faction_relations(db_manager: DatabaseManager):
+    """종족 관계 정보 가져오기"""
+    # 종족 정보
+    cursor = await db_manager.execute("""
+        SELECT id, name_ko, name_en
+        FROM factions
+        ORDER BY id
+    """)
+    factions = await cursor.fetchall()
+    
+    # 종족 관계
+    cursor = await db_manager.execute("""
+        SELECT faction_a_id, faction_b_id, relation_value, relation_status
+        FROM faction_relations
+        WHERE faction_a_id = 'ash_knights'
+        ORDER BY faction_b_id
+    """)
+    relations = await cursor.fetchall()
+    
+    return factions, relations
+
+
 async def get_npcs_by_room(db_manager: DatabaseManager):
-    """방별 NPC 수 가져오기"""
+    """방별 NPC 수 가져오기 (플레이어와 우호적인 종족)
+    
+    NPC 정의:
+    1. npcs 테이블의 모든 엔티티
+    2. monsters 테이블에서 플레이어 종족(ash_knights)과 같거나 우호적(FRIENDLY, ALLIED, NEUTRAL)인 종족
+    """
+    # 1. npcs 테이블에서 가져오기
     cursor = await db_manager.execute("""
         SELECT current_room_id, COUNT(*) as count
         FROM npcs
         WHERE is_active = 1 AND current_room_id IS NOT NULL
         GROUP BY current_room_id
     """)
-    result = await cursor.fetchall()
-    return {row[0]: row[1] for row in result}
+    npcs_result = await cursor.fetchall()
+    npc_counts = {row[0]: row[1] for row in npcs_result}
+    
+    # 2. monsters 테이블에서 우호적인 종족 가져오기
+    cursor = await db_manager.execute("""
+        SELECT m.current_room_id, COUNT(*) as count
+        FROM monsters m
+        LEFT JOIN faction_relations fr ON (
+            (fr.faction_a_id = 'ash_knights' AND fr.faction_b_id = m.faction_id)
+            OR (fr.faction_b_id = 'ash_knights' AND fr.faction_a_id = m.faction_id)
+        )
+        WHERE m.is_alive = 1 
+        AND m.current_room_id IS NOT NULL
+        AND (
+            m.faction_id = 'ash_knights'
+            OR fr.relation_status IN ('FRIENDLY', 'ALLIED', 'NEUTRAL')
+        )
+        GROUP BY m.current_room_id
+    """)
+    monsters_result = await cursor.fetchall()
+    
+    # 두 결과 합치기
+    for row in monsters_result:
+        room_id, count = row
+        npc_counts[room_id] = npc_counts.get(room_id, 0) + count
+    
+    return npc_counts
 
 
 def create_unified_grid():
@@ -145,7 +211,7 @@ def map_room_to_grid(room_id):
     return None
 
 
-def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room):
+def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room, factions, relations):
     """HTML 생성"""
     # 방 데이터를 그리드에 매핑
     grid = {}
@@ -209,7 +275,7 @@ def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room):
             background-color: #2a2a2a;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
-        td {
+        .map-container td {
             width: 15px;
             height: 15px;
             border: 1px solid #333;
@@ -417,17 +483,80 @@ def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room):
     
     <div style="text-align: center; margin-top: 30px; color: #888;">
         <p>방 위에 마우스를 올리면 상세 정보를 볼 수 있습니다</p>
-        <p>툴팁 형식: [출구화살표][방이름] (x,y) [방ID]</p>
+        <p>툴팁 형식: [출구화살표][방이름] (x,y) [엔티티정보]</p>
         <p>화살표: ↑북 ↓남 →동 ←서</p>
+    </div>
+    
+    <div style="margin: 40px auto; max-width: 800px; padding: 20px; background-color: #2a2a2a; border-radius: 8px;">
+        <h2 style="text-align: center; color: #4a9eff; margin-bottom: 20px;">🤝 종족 관계 (잿빛 기사단 기준)</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #1a1a1a;">
+                    <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">종족</th>
+                    <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">관계</th>
+                    <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">우호도</th>
+                    <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">설명</th>
+                </tr>
+            </thead>
+            <tbody>
+{faction_rows}
+            </tbody>
+        </table>
+        <div style="margin-top: 20px; padding: 15px; background-color: #1a1a1a; border-radius: 4px; color: #888;">
+            <p style="margin: 5px 0;"><strong>우호도 범위:</strong></p>
+            <p style="margin: 5px 0;">• 50 ~ 100: <span style="color: #00ff00;">ALLIED (동맹)</span></p>
+            <p style="margin: 5px 0;">• 1 ~ 49: <span style="color: #90ee90;">FRIENDLY (우호)</span></p>
+            <p style="margin: 5px 0;">• 0: <span style="color: #ffff00;">NEUTRAL (중립)</span></p>
+            <p style="margin: 5px 0;">• -1 ~ -49: <span style="color: #ffa500;">UNFRIENDLY (비우호)</span></p>
+            <p style="margin: 5px 0;">• -50 ~ -100: <span style="color: #ff0000;">HOSTILE (적대)</span></p>
+        </div>
     </div>
 </body>
 </html>
+"""
+    
+    # 종족 관계 테이블 생성
+    faction_rows = ""
+    relation_colors = {
+        'ALLIED': '#00ff00',
+        'FRIENDLY': '#90ee90',
+        'NEUTRAL': '#ffff00',
+        'UNFRIENDLY': '#ffa500',
+        'HOSTILE': '#ff0000'
+    }
+    
+    for faction_a, faction_b, value, status in relations:
+        # 종족 이름 찾기
+        faction_name = next((f[1] for f in factions if f[0] == faction_b), faction_b)
+        color = relation_colors.get(status, '#888')
+        
+        # 설명 생성
+        if status == 'HOSTILE':
+            desc = '적대적 - 공격 대상'
+        elif status == 'UNFRIENDLY':
+            desc = '비우호적 - 경계 대상'
+        elif status == 'NEUTRAL':
+            desc = '중립 - 무관심'
+        elif status == 'FRIENDLY':
+            desc = '우호적 - 협력 가능'
+        elif status == 'ALLIED':
+            desc = '동맹 - 강력한 협력'
+        else:
+            desc = '-'
+        
+        faction_rows += f"""                <tr>
+                    <td style="padding: 10px; border: 1px solid #444; color: #e0e0e0;">{faction_name}</td>
+                    <td style="padding: 10px; border: 1px solid #444; color: {color}; font-weight: bold;">{status}</td>
+                    <td style="padding: 10px; border: 1px solid #444; color: #e0e0e0; text-align: center;">{value}</td>
+                    <td style="padding: 10px; border: 1px solid #444; color: #888;">{desc}</td>
+                </tr>
 """
     
     # 통계 정보 삽입
     html = html.replace('{total_rooms}', str(len(rooms_data)))
     html = html.replace('{width}', str(max_x - min_x + 1))
     html = html.replace('{height}', str(max_y - min_y + 1))
+    html = html.replace('{faction_rows}', faction_rows)
     
     return html
 
@@ -452,9 +581,14 @@ async def main():
         npcs_by_room = await get_npcs_by_room(db_manager)
         print(f"✅ 몬스터: {sum(monsters_by_room.values())}마리, 플레이어: {sum(players_by_room.values())}명, NPC: {sum(npcs_by_room.values())}명")
         
+        # 종족 관계 정보 가져오기
+        print("종족 관계 정보 로딩 중...")
+        factions, relations = await get_faction_relations(db_manager)
+        print(f"✅ 종족: {len(factions)}개, 관계: {len(relations)}개")
+        
         # HTML 생성
         print("\nHTML 생성 중...")
-        html_content = generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room)
+        html_content = generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room, factions, relations)
         
         # 파일 저장
         output_file = "world_map_unified.html"
