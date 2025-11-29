@@ -23,6 +23,42 @@ async def get_all_rooms(db_manager: DatabaseManager):
     return await cursor.fetchall()
 
 
+async def get_monsters_by_room(db_manager: DatabaseManager):
+    """방별 몬스터 수 가져오기"""
+    cursor = await db_manager.execute("""
+        SELECT current_room_id, COUNT(*) as count
+        FROM monsters
+        WHERE is_alive = 1 AND current_room_id IS NOT NULL
+        GROUP BY current_room_id
+    """)
+    result = await cursor.fetchall()
+    return {row[0]: row[1] for row in result}
+
+
+async def get_players_by_room(db_manager: DatabaseManager):
+    """방별 플레이어 수 가져오기"""
+    cursor = await db_manager.execute("""
+        SELECT last_room_id, COUNT(*) as count
+        FROM players
+        WHERE last_room_id IS NOT NULL
+        GROUP BY last_room_id
+    """)
+    result = await cursor.fetchall()
+    return {row[0]: row[1] for row in result}
+
+
+async def get_npcs_by_room(db_manager: DatabaseManager):
+    """방별 NPC 수 가져오기"""
+    cursor = await db_manager.execute("""
+        SELECT current_room_id, COUNT(*) as count
+        FROM npcs
+        WHERE is_active = 1 AND current_room_id IS NOT NULL
+        GROUP BY current_room_id
+    """)
+    result = await cursor.fetchall()
+    return {row[0]: row[1] for row in result}
+
+
 def create_unified_grid():
     """통합 그리드 생성
     
@@ -109,7 +145,7 @@ def map_room_to_grid(room_id):
     return None
 
 
-def generate_html(rooms_data):
+def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room):
     """HTML 생성"""
     # 방 데이터를 그리드에 매핑
     grid = {}
@@ -196,38 +232,33 @@ def generate_html(rooms_data):
             background-color: #1a1a1a;
             border: 1px solid #222;
         }
-        .forest {
-            background-color: #1a4d1a;
-            color: #90ee90;
-            border: 2px solid #2d6b2d;
+        .room {
+            background-color: #d0d0d0;
+            color: #333;
+            border: 1px solid #999;
+            position: relative;
         }
-        .plains {
-            background-color: #4a6b2a;
-            color: #f0e68c;
-            border: 2px solid #6b8b3d;
+        .indicators {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            display: flex;
+            gap: 1px;
+            pointer-events: none;
         }
-        .town {
-            background-color: #8b4513;
-            color: #ffd700;
-            font-weight: bold;
-            border: 3px solid #daa520;
+        .indicator {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
         }
-        .special {
-            background-color: #4a4a8a;
-            color: #ffd700;
-            font-weight: bold;
-            border: 2px solid #6a6aaa;
+        .monster-indicator {
+            background-color: #ff0000;
         }
-        .road {
-            background-color: #5a5a5a;
-            color: #ddd;
-            border: 2px solid #7a7a7a;
+        .player-indicator {
+            background-color: #00ff00;
         }
-        .dock {
-            background-color: #2a4a6a;
-            color: #87ceeb;
-            font-weight: bold;
-            border: 2px solid #4a6a8a;
+        .npc-indicator {
+            background-color: #ffff00;
         }
         .tooltip {
             display: none;
@@ -295,28 +326,20 @@ def generate_html(rooms_data):
     
     <div class="legend">
         <div class="legend-item">
-            <div class="legend-box plains"></div>
-            <span>평원 (Plains)</span>
+            <div class="legend-box room"></div>
+            <span>방 (Room)</span>
         </div>
         <div class="legend-item">
-            <div class="legend-box town"></div>
-            <span>광장 (Town Square)</span>
+            <div style="width: 10px; height: 10px; background-color: #ff0000; border-radius: 50%;"></div>
+            <span>몬스터 (Monster)</span>
         </div>
         <div class="legend-item">
-            <div class="legend-box forest"></div>
-            <span>숲 (Forest)</span>
+            <div style="width: 10px; height: 10px; background-color: #00ff00; border-radius: 50%;"></div>
+            <span>플레이어 (Player)</span>
         </div>
         <div class="legend-item">
-            <div class="legend-box special"></div>
-            <span>특수 지역</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-box road"></div>
-            <span>도로</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-box dock"></div>
-            <span>선착장</span>
+            <div style="width: 10px; height: 10px; background-color: #ffff00; border-radius: 50%;"></div>
+            <span>NPC</span>
         </div>
     </div>
     
@@ -334,33 +357,8 @@ def generate_html(rooms_data):
                 name = room['name_ko']
                 exits = room['exits']
                 
-                # 방 타입 결정 (좌표 기반)
-                css_class = 'empty'
-                
-                # 좌표 기반 영역 판단
-                # 평원: y < 9
-                if y < 9:
-                    css_class = 'plains'
-                # 광장: (9, 9)
-                elif x == 9 and y == 9:
-                    css_class = 'town'
-                # 숲: x < 9 and y >= 10
-                elif x < 9 and y >= 10:
-                    css_class = 'forest'
-                # 동쪽 경로: x > 9 and y == 9
-                elif x > 9 and y == 9:
-                    css_class = 'special'
-                # 남쪽 도로: x == 9 and y > 9
-                elif x == 9 and y > 9:
-                    if y == 18:  # 선착장
-                        css_class = 'dock'
-                    else:
-                        css_class = 'road'
-                # 서쪽 성문 및 고블린 지역: x < 9 and y == 9
-                elif x < 9 and y == 9:
-                    css_class = 'special'
-                else:
-                    css_class = 'special'
+                # 모든 방을 동일한 스타일로 표시
+                css_class = 'room'
                 
                 # 출구 화살표
                 exit_arrows = ''
@@ -373,10 +371,41 @@ def generate_html(rooms_data):
                 if 'west' in exits:
                     exit_arrows += '←'
                 
+                # 엔티티 정보 수집
+                has_monster = room_id in monsters_by_room
+                has_player = room_id in players_by_room
+                has_npc = room_id in npcs_by_room
+                
+                monster_count = monsters_by_room.get(room_id, 0)
+                player_count = players_by_room.get(room_id, 0)
+                npc_count = npcs_by_room.get(room_id, 0)
+                
+                # 인디케이터 HTML 생성
+                indicators_html = ''
+                if has_monster or has_player or has_npc:
+                    indicators_html = '<div class="indicators">'
+                    if has_monster:
+                        indicators_html += '<div class="indicator monster-indicator"></div>'
+                    if has_player:
+                        indicators_html += '<div class="indicator player-indicator"></div>'
+                    if has_npc:
+                        indicators_html += '<div class="indicator npc-indicator"></div>'
+                    indicators_html += '</div>'
+                
                 # 툴팁 텍스트 생성
-                tooltip_text = f"{exit_arrows}{name} ({x},{y}) {room_id}"
+                entity_info = []
+                if has_monster:
+                    entity_info.append(f"🔴몬스터:{monster_count}")
+                if has_player:
+                    entity_info.append(f"🟢플레이어:{player_count}")
+                if has_npc:
+                    entity_info.append(f"🟡NPC:{npc_count}")
+                
+                entity_text = ' '.join(entity_info) if entity_info else ''
+                tooltip_text = f"{exit_arrows}{name} ({x},{y}) {entity_text}"
                 
                 html += f"""                <td class="{css_class}">
+                    {indicators_html}
                     <div class="tooltip">{tooltip_text}</div>
                 </td>\n"""
             else:
@@ -416,9 +445,16 @@ async def main():
         rooms_data = await get_all_rooms(db_manager)
         print(f"✅ {len(rooms_data)}개의 방 로딩 완료")
         
+        # 엔티티 정보 가져오기
+        print("엔티티 정보 로딩 중...")
+        monsters_by_room = await get_monsters_by_room(db_manager)
+        players_by_room = await get_players_by_room(db_manager)
+        npcs_by_room = await get_npcs_by_room(db_manager)
+        print(f"✅ 몬스터: {sum(monsters_by_room.values())}마리, 플레이어: {sum(players_by_room.values())}명, NPC: {sum(npcs_by_room.values())}명")
+        
         # HTML 생성
         print("\nHTML 생성 중...")
-        html_content = generate_html(rooms_data)
+        html_content = generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room)
         
         # 파일 저장
         output_file = "world_map_unified.html"
