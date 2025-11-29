@@ -4,11 +4,18 @@
 
 import sqlite3
 import json
+import sys
+import io
+
+# Windows 콘솔 UTF-8 출력 설정
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 conn = sqlite3.connect('data/mud_engine.db')
 cursor = conn.cursor()
 
-# 전체 몬스터 조회
+# 전체 몬스터 조회 (템플릿 제외)
 cursor.execute("""
     SELECT name_ko, current_room_id, properties 
     FROM monsters 
@@ -22,8 +29,19 @@ monsters = cursor.fetchall()
 total_counts = {}
 # 방별 몬스터 카운트
 room_monsters = {}
+# 템플릿 카운트
+template_count = 0
 
 for name, room_id, properties_str in monsters:
+    # properties에서 is_template 확인
+    try:
+        properties = json.loads(properties_str) if properties_str else {}
+        if properties.get('is_template', False):
+            template_count += 1
+            continue  # 템플릿은 카운트에서 제외
+    except:
+        pass
+    
     # 전체 카운트
     total_counts[name] = total_counts.get(name, 0) + 1
     
@@ -34,11 +52,14 @@ for name, room_id, properties_str in monsters:
 
 # 전체 요약 출력
 print("=" * 60)
-print("전체 몬스터 요약")
+print("전체 몬스터 요약 (템플릿 제외)")
 print("=" * 60)
 for name, count in sorted(total_counts.items()):
     print(f"  {name}: {count}마리")
-print(f"  총: {len(monsters)}마리")
+total_actual = sum(total_counts.values())
+print(f"  총: {total_actual}마리")
+if template_count > 0:
+    print(f"  (템플릿: {template_count}개 제외됨)")
 
 # 방별 상세 출력
 print("\n" + "=" * 60)

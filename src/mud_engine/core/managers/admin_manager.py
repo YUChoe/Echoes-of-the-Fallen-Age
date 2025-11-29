@@ -324,7 +324,7 @@ class AdminManager:
         """방 통계 정보 조회"""
         try:
             # 모든 방 조회 (간단한 통계만)
-            rooms = await self.game_engine.world_manager._room_repo.get_all()
+            rooms = await self.game_engine.world_manager.get_all_rooms_for_stats()
 
             return {
                 "total_rooms": len(rooms),
@@ -344,7 +344,7 @@ class AdminManager:
         """객체 통계 정보 조회"""
         try:
             # 모든 객체 조회 (간단한 통계만)
-            objects = await self.game_engine.world_manager._object_repo.get_all()
+            objects = await self.game_engine.world_manager.get_all_objects_for_stats()
 
             object_types: Dict[str, int] = {}
             for obj in objects:
