@@ -123,16 +123,11 @@ class WhoCommand(BaseCommand):
             )
 
         # SessionManager를 통해 실제 접속자 목록 가져오기
-        authenticated_sessions = self.session_manager.get_authenticated_sessions()
-
-        if not authenticated_sessions:
-            return self.create_info_result("현재 접속 중인 플레이어가 없습니다.")
-
         players = []
-        # 리스트인 경우와 딕셔너리인 경우 모두 처리
-        sessions_to_check = authenticated_sessions.values() if isinstance(authenticated_sessions, dict) else authenticated_sessions
+        logger.info(f"who 명령어 실행 - 세션 수: {len(self.session_manager.sessions)}")
         
-        for sess in sessions_to_check:
+        for sess in self.session_manager.iter_authenticated_sessions():
+            logger.info(f"세션 확인: {sess.session_id}, is_authenticated: {sess.is_authenticated}, player: {sess.player}")
             if sess.player:
                 session_time = (sess.last_activity - sess.created_at).total_seconds()
                 players.append({
@@ -140,6 +135,11 @@ class WhoCommand(BaseCommand):
                     "session_time": int(session_time),
                     "is_self": sess.session_id == session.session_id
                 })
+        
+        logger.info(f"who 명령어 - 찾은 플레이어 수: {len(players)}")
+        
+        if not players:
+            return self.create_info_result("현재 접속 중인 플레이어가 없습니다.")
 
         response = f"📋 접속 중인 플레이어 ({len(players)}명):\n"
         for player in players:

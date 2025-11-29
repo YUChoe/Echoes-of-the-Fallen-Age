@@ -236,11 +236,7 @@ class FollowCommand(BaseCommand):
 
         # 대상 플레이어 찾기
         target_session = None
-        authenticated_sessions = session.game_engine.session_manager.get_authenticated_sessions()
-        # 리스트인 경우와 딕셔너리인 경우 모두 처리
-        sessions_to_check = authenticated_sessions.values() if isinstance(authenticated_sessions, dict) else authenticated_sessions
-        
-        for other_session in sessions_to_check:
+        for other_session in session.game_engine.session_manager.iter_authenticated_sessions():
             if (other_session.player and
                 other_session.player.username.lower() == target_player_name.lower() and
                 getattr(other_session, 'current_room_id', None) == current_room_id and
@@ -381,11 +377,7 @@ class PlayersCommand(BaseCommand):
 
         # 같은 방에 있는 플레이어들 찾기
         players_in_room = []
-        authenticated_sessions = session.game_engine.session_manager.get_authenticated_sessions()
-        # 리스트인 경우와 딕셔너리인 경우 모두 처리
-        sessions_to_check = authenticated_sessions.values() if isinstance(authenticated_sessions, dict) else authenticated_sessions
-        
-        for other_session in sessions_to_check:
+        for other_session in session.game_engine.session_manager.iter_authenticated_sessions():
             if (other_session.player and
                 getattr(other_session, 'current_room_id', None) == current_room_id):
 

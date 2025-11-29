@@ -211,28 +211,14 @@ class TimeManager:
             message = "🌙 어둠이 내려앉습니다. 밤이 되었습니다."
             color = "\033[94m"  # 파란색
 
-        # 모든 활성 세션에 알림 (웹 + Telnet)
+        # 모든 활성 세션에 알림
         from typing import Any, List
         all_sessions: List[Any] = []
         
-        # 웹 세션
-        web_sessions = self.game_engine.session_manager.get_all_sessions()
-        # 리스트인 경우와 딕셔너리인 경우 모두 처리
-        if isinstance(web_sessions, dict):
-            all_sessions.extend(web_sessions.values())
-        else:
-            all_sessions.extend(web_sessions)
+        # SessionManager를 통해 모든 세션 가져오기
+        all_sessions.extend(self.game_engine.session_manager.iter_all_sessions())
         
-        # Telnet 세션
-        telnet_sessions = {}
-        if hasattr(self.game_engine, 'telnet_server') and self.game_engine.telnet_server:
-            telnet_sessions = self.game_engine.telnet_server.sessions
-            if isinstance(telnet_sessions, dict):
-                all_sessions.extend(telnet_sessions.values())
-            else:
-                all_sessions.extend(telnet_sessions)
-        
-        logger.info(f"전체 세션 수: {len(all_sessions)} (웹: {len(web_sessions)}, Telnet: {len(telnet_sessions) if hasattr(self.game_engine, 'telnet_server') and self.game_engine.telnet_server else 0})")
+        logger.info(f"전체 세션 수: {len(all_sessions)}")
         
         sent_count = 0
         for session in all_sessions:

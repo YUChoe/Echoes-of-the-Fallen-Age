@@ -181,6 +181,11 @@ class GameEngine:
             session: 세션 객체 (Session 또는 TelnetSession)
             player: 플레이어 객체
         """
+        # SessionManager에 세션 추가
+        self.session_manager.add_session(session)
+        self.session_manager.authenticate_session(session.session_id, player)
+        logger.info(f"SessionManager에 세션 추가: {session.session_id}, 플레이어: {player.username}")
+        
         # 세션에 게임 엔진 참조 설정
         session.game_engine = self
         session.locale = player.preferred_locale
@@ -298,7 +303,7 @@ class GameEngine:
 
         # 실제 브로드캐스트 수행 - 해당 방에 있는 플레이어들만 대상
         count = 0
-        for session in self.session_manager.get_authenticated_sessions():
+        for session in self.session_manager.iter_authenticated_sessions():
             if (session.player and
                 session.session_id != exclude_session and
                 getattr(session, 'current_room_id', None) == room_id):

@@ -139,3 +139,25 @@ class SessionManager:
             if await session.send_message(message):
                 count += 1
         return count
+
+    def iter_authenticated_sessions(self):
+        """인증된 세션을 순회하는 이터레이터 반환
+        
+        리스트/딕셔너리 호환성 문제를 해결하는 헬퍼 메서드
+        
+        Yields:
+            TelnetSession: 인증된 세션
+        """
+        for session in self.sessions.values():
+            if session.is_authenticated:
+                yield session
+    
+    def iter_all_sessions(self):
+        """모든 세션을 순회하는 이터레이터 반환
+        
+        리스트/딕셔너리 호환성 문제를 해결하는 헬퍼 메서드
+        
+        Yields:
+            TelnetSession: 세션
+        """
+        return iter(self.sessions.values())
