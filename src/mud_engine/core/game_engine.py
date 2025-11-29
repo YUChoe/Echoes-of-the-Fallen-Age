@@ -105,6 +105,15 @@ class GameEngine:
 
         # 몬스터 스폰 시스템 시작
         try:
+            # 글로벌 스폰 제한 설정
+            self.world_manager.set_global_spawn_limit('template_small_rat', 20)
+            self.world_manager.set_global_spawn_limit('template_forest_goblin', 10)
+            self.world_manager.set_global_spawn_limit('template_town_guard', 4)
+            logger.info("글로벌 스폰 제한 설정 완료")
+            
+            # 초과 몬스터 정리
+            await self.world_manager.cleanup_all_excess_monsters()
+            
             await self.world_manager.setup_default_spawn_points()
             await self.world_manager.start_spawn_scheduler()
             logger.info("몬스터 스폰 시스템 시작 완료")

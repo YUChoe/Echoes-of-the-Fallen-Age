@@ -54,6 +54,7 @@ class WorldManager:
         self._monster_repo: MonsterRepository = monster_repo
         self._spawn_scheduler_task: Optional[asyncio.Task] = None
         self._spawn_points: Dict[str, List[Dict[str, Any]]] = {}  # room_id -> spawn_configs
+        self._global_spawn_limits: Dict[str, int] = {}  # template_id -> max_count (글로벌 제한)
         logger.info("WorldManager 초기화 완료")
 
     # === 방 관리 기능 ===
@@ -701,21 +702,40 @@ class WorldManager:
             logger.error(f"초기 스폰 처리 실패: {e}")
 
     async def _check_and_spawn_monster(self, room_id: str, spawn_config: Dict[str, Any]) -> None:
-        """특정 방에 몬스터 스폰이 필요한지 확인하고 스폰합니다."""
+        """특정 방에 몬스터 스폰이 필요한지 확인하고 스폰합니다.
+        
+        주의: 
+        1. 방별 초기 스폰 수(max_count)를 초과하지 않도록 제한
+        2. 글로벌 최대 수량 제한을 초과하지 않도록 제한
+        """
         try:
             monster_template_id = spawn_config.get('monster_template_id')
             max_count = spawn_config.get('max_count', 1)
             spawn_chance = spawn_config.get('spawn_chance', 1.0)
 
-            # 현재 방에 있는 해당 몬스터 수 확인
-            current_monsters = await self._monster_repo.get_monsters_in_room(room_id)
-            template_monsters = [m for m in current_monsters if m.get_property('template_id') == monster_template_id]
+            # 글로벌 제한 확인
+            global_limit = self._global_spawn_limits.get(monster_template_id)
+            if global_limit is not None:
+                # 전체 맵에서 해당 템플릿의 살아있는 몬스터 수 확인
+                all_monsters = await self.get_all_monsters()
+                global_count = sum(1 for m in all_monsters 
+                                 if m.get_property('template_id') == monster_template_id and m.is_alive)
+                
+                if global_count >= global_limit:
+                    logger.debug(f"글로벌 스폰 제한 도달: {monster_template_id} ({global_count}/{global_limit})")
+                    return
 
+            # 현재 방에 있는 해당 몬스터 수 확인 (살아있는 것만)
+            current_monsters = await self._monster_repo.get_monsters_in_room(room_id)
+            template_monsters = [m for m in current_monsters if m.get_property('template_id') == monster_template_id and m.is_alive]
+
+            # 방별 초기 스폰 수보다 작은 경우에만 스폰
             if len(template_monsters) < max_count:
                 # 스폰 확률 체크
                 import random
                 if random.random() <= spawn_chance:
                     await self._spawn_monster_from_template(room_id, monster_template_id)
+                    logger.info(f"몬스터 자동 스폰: {room_id}, 현재 {len(template_monsters)+1}/{max_count}")
 
         except Exception as e:
             logger.error(f"몬스터 스폰 체크 실패 ({room_id}): {e}")
@@ -860,6 +880,88 @@ class WorldManager:
 
         except Exception as e:
             logger.error(f"스폰 포인트 정리 실패: {e}")
+
+    def set_global_spawn_limit(self, template_id: str, max_count: int) -> None:
+        """특정 몬스터 템플릿의 글로벌 최대 스폰 수를 설정합니다.
+        
+        Args:
+            template_id: 몬스터 템플릿 ID
+            max_count: 전체 맵에서 허용되는 최대 수량
+        """
+        self._global_spawn_limits[template_id] = max_count
+        logger.info(f"글로벌 스폰 제한 설정: {template_id} -> {max_count}마리")
+
+    def get_global_spawn_limit(self, template_id: str) -> Optional[int]:
+        """특정 몬스터 템플릿의 글로벌 최대 스폰 수를 조회합니다."""
+        return self._global_spawn_limits.get(template_id)
+
+    def get_all_global_spawn_limits(self) -> Dict[str, int]:
+        """모든 글로벌 스폰 제한 설정을 반환합니다."""
+        return self._global_spawn_limits.copy()
+
+    async def cleanup_excess_monsters(self, template_id: str) -> int:
+        """글로벌 제한을 초과하는 몬스터를 DB에서 삭제합니다.
+        
+        Args:
+            template_id: 몬스터 템플릿 ID
+            
+        Returns:
+            int: 삭제된 몬스터 수
+        """
+        try:
+            global_limit = self._global_spawn_limits.get(template_id)
+            if global_limit is None:
+                logger.warning(f"글로벌 제한이 설정되지 않음: {template_id}")
+                return 0
+
+            # 해당 템플릿의 모든 몬스터 조회 (살아있는 것만)
+            all_monsters = await self.get_all_monsters()
+            template_monsters = [m for m in all_monsters 
+                               if m.get_property('template_id') == template_id and m.is_alive]
+
+            # 초과 수량 계산
+            excess_count = len(template_monsters) - global_limit
+            if excess_count <= 0:
+                logger.info(f"초과 몬스터 없음: {template_id} ({len(template_monsters)}/{global_limit})")
+                return 0
+
+            # 오래된 몬스터부터 삭제 (created_at 기준)
+            template_monsters.sort(key=lambda m: m.created_at)
+            monsters_to_delete = template_monsters[:excess_count]
+
+            deleted_count = 0
+            for monster in monsters_to_delete:
+                success = await self.delete_monster(monster.id)
+                if success:
+                    deleted_count += 1
+                    logger.info(f"초과 몬스터 삭제: {monster.id} ({monster.get_localized_name('ko')})")
+
+            logger.info(f"초과 몬스터 정리 완료: {template_id} - {deleted_count}마리 삭제")
+            return deleted_count
+
+        except Exception as e:
+            logger.error(f"초과 몬스터 정리 실패 ({template_id}): {e}")
+            return 0
+
+    async def cleanup_all_excess_monsters(self) -> Dict[str, int]:
+        """모든 템플릿에 대해 글로벌 제한을 초과하는 몬스터를 정리합니다.
+        
+        Returns:
+            Dict[str, int]: 템플릿별 삭제된 몬스터 수
+        """
+        try:
+            result = {}
+            for template_id in self._global_spawn_limits.keys():
+                deleted_count = await self.cleanup_excess_monsters(template_id)
+                if deleted_count > 0:
+                    result[template_id] = deleted_count
+
+            logger.info(f"전체 초과 몬스터 정리 완료: {result}")
+            return result
+
+        except Exception as e:
+            logger.error(f"전체 초과 몬스터 정리 실패: {e}")
+            return {}
 
     async def get_monsters_in_room(self, room_id: str) -> List[Monster]:
         """특정 방에 있는 모든 살아있는 몬스터를 조회합니다."""

@@ -181,6 +181,7 @@ class Monster(BaseModel):
     properties: Dict[str, Any] = field(default_factory=dict)  # 추가 속성
     created_at: datetime = field(default_factory=datetime.now)
     _level: int = field(default=1)  # 내부 레벨 저장용
+    faction_id: Optional[str] = None  # 세력 ID (예: 'goblins', 'animals')
 
     def __post_init__(self):
         """초기화 후 검증"""

@@ -36,6 +36,7 @@
   "roaming_range": 0,
   "spawn_config": {
     "count": 4,
+    "global_max_count": 4,
     "area_filter": {
       "name_contains": "마을"
     },

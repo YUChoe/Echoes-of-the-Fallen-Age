@@ -32,6 +32,7 @@
   "roaming_range": 3,
   "spawn_config": {
     "count": 10,
+    "global_max_count": 10,
     "area_filter": {
       "name_contains": "숲",
       "x_range": [-5, 5],

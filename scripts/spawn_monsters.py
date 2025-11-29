@@ -179,9 +179,27 @@ class MonsterSpawner:
         """설정에 따라 몬스터들을 스폰합니다."""
         spawn_config = config['spawn_config']
         count = spawn_config['count']
+        global_max_count = spawn_config.get('global_max_count')
         area_filter = spawn_config.get('area_filter', {})
         distribution = spawn_config.get('distribution', 'random')
         roaming_config = spawn_config.get('roaming', {})
+        
+        # 글로벌 제한 확인
+        if global_max_count is not None:
+            template_id = config['template_id']
+            all_monsters = await self.monster_repo.get_all()
+            existing_count = sum(1 for m in all_monsters 
+                               if m.get_property('template_id') == template_id and m.is_alive)
+            
+            if existing_count >= global_max_count:
+                print(f"⚠️  글로벌 제한 도달: {existing_count}/{global_max_count}마리 (스폰 중단)")
+                return []
+            
+            # 스폰 가능한 수량 조정
+            available_count = global_max_count - existing_count
+            if count > available_count:
+                print(f"⚠️  글로벌 제한으로 스폰 수량 조정: {count} -> {available_count}마리")
+                count = available_count
         
         # 스폰 가능한 방 찾기
         spawn_rooms = await self.find_spawn_rooms(area_filter)
@@ -192,6 +210,8 @@ class MonsterSpawner:
         
         print(f"\n📍 스폰 가능한 방: {len(spawn_rooms)}개")
         print(f"📍 스폰할 개체 수: {count}마리")
+        if global_max_count is not None:
+            print(f"📍 글로벌 최대 수량: {global_max_count}마리")
         print(f"📍 분배 방식: {distribution}")
         print(f"📍 로밍 활성화: {roaming_config.get('enabled', False)}")
         
@@ -303,6 +323,35 @@ class MonsterSpawner:
         except Exception as e:
             print(f"❌ 몬스터 삭제 실패: {e}")
             return 0
+    
+    async def cleanup_excess_monsters(self, template_id: str, global_max_count: int) -> int:
+        """글로벌 제한을 초과하는 몬스터를 삭제합니다."""
+        try:
+            all_monsters = await self.monster_repo.get_all()
+            template_monsters = [m for m in all_monsters 
+                               if m.get_property('template_id') == template_id and m.is_alive]
+            
+            excess_count = len(template_monsters) - global_max_count
+            if excess_count <= 0:
+                print(f"✅ 초과 몬스터 없음: {template_id} ({len(template_monsters)}/{global_max_count})")
+                return 0
+            
+            # 오래된 몬스터부터 삭제 (created_at 기준)
+            template_monsters.sort(key=lambda m: m.created_at)
+            monsters_to_delete = template_monsters[:excess_count]
+            
+            deleted_count = 0
+            for monster in monsters_to_delete:
+                await self.monster_repo.delete(monster.id)
+                deleted_count += 1
+                monster_name = monster.get_localized_name('ko')
+                print(f"  🗑️  초과 몬스터 삭제: {monster_name} (ID: {monster.id[:8]}...)")
+            
+            print(f"✅ 초과 몬스터 정리 완료: {template_id} - {deleted_count}마리 삭제")
+            return deleted_count
+        except Exception as e:
+            print(f"❌ 초과 몬스터 정리 실패: {e}")
+            return 0
 
 
 async def spawn_from_config(config_path: str, clean: bool = False):
@@ -335,8 +384,14 @@ async def spawn_from_config(config_path: str, clean: bool = False):
         print("\n1️⃣ 템플릿 생성 중...")
         await spawner.create_template(config)
         
+        # 글로벌 제한 초과 몬스터 정리
+        global_max_count = config['spawn_config'].get('global_max_count')
+        if global_max_count is not None:
+            print(f"\n2️⃣ 글로벌 제한 초과 몬스터 정리 중... (최대: {global_max_count}마리)")
+            await spawner.cleanup_excess_monsters(config['template_id'], global_max_count)
+        
         # 몬스터 스폰
-        print("\n2️⃣ 몬스터 스폰 중...")
+        print("\n3️⃣ 몬스터 스폰 중...")
         spawned = await spawner.spawn_monsters(config)
         
         print(f"\n✅ 총 {len(spawned)}마리의 몬스터가 스폰되었습니다!")
@@ -348,6 +403,8 @@ async def spawn_from_config(config_path: str, clean: bool = False):
         monster_name = config['name'].get('ko', config['name'].get('en'))
         print(f"  - 몬스터: {monster_name}")
         print(f"  - 개체 수: {len(spawned)}마리")
+        if global_max_count is not None:
+            print(f"  - 글로벌 최대: {global_max_count}마리")
         print(f"  - 레벨: {config['stats']['level']}")
         print(f"  - 타입: {config['monster_type']}")
         print(f"  - 행동: {config['behavior']}")

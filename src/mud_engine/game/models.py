@@ -42,6 +42,9 @@ class Player(BaseModel):
     # 경제 시스템
     gold: int = 100  # 기본 골드 100
 
+    # 세력 시스템
+    faction_id: Optional[str] = 'ash_knights'  # 기본 세력: 잿빛 기사단
+
     def __post_init__(self):
         """초기화 후 검증"""
         self.validate()
