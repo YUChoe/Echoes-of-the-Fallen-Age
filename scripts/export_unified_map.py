@@ -334,18 +334,31 @@ def generate_html(rooms_data):
                 name = room['name_ko']
                 exits = room['exits']
                 
-                # 방 타입 결정
+                # 방 타입 결정 (좌표 기반)
                 css_class = 'empty'
-                if room_id.startswith('forest') or 'forest' in room_id.lower():
-                    css_class = 'forest'
-                elif room_id.startswith('plains') or 'plains' in room_id.lower():
+                
+                # 좌표 기반 영역 판단
+                # 평원: y < 9
+                if y < 9:
                     css_class = 'plains'
-                elif room_id in ['town_square', 'room_001'] or 'town' in room_id.lower():
+                # 광장: (9, 9)
+                elif x == 9 and y == 9:
                     css_class = 'town'
-                elif room_id.startswith('road') or 'road' in room_id.lower():
-                    css_class = 'road'
-                elif room_id == 'dock' or 'dock' in room_id.lower():
-                    css_class = 'dock'
+                # 숲: x < 9 and y >= 10
+                elif x < 9 and y >= 10:
+                    css_class = 'forest'
+                # 동쪽 경로: x > 9 and y == 9
+                elif x > 9 and y == 9:
+                    css_class = 'special'
+                # 남쪽 도로: x == 9 and y > 9
+                elif x == 9 and y > 9:
+                    if y == 18:  # 선착장
+                        css_class = 'dock'
+                    else:
+                        css_class = 'road'
+                # 서쪽 성문 및 고블린 지역: x < 9 and y == 9
+                elif x < 9 and y == 9:
+                    css_class = 'special'
                 else:
                     css_class = 'special'
                 
