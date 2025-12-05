@@ -357,7 +357,7 @@ class Room(BaseModel):
             raise ValueError("출구는 딕셔너리 형태여야 합니다")
 
         # 출구 방향 검증
-        valid_directions = {'north', 'south', 'east', 'west', 'up', 'down', 'northeast', 'northwest', 'southeast', 'southwest'}
+        valid_directions = {'north', 'south', 'east', 'west', 'up', 'down'}
         for direction in self.exits.keys():
             if direction not in valid_directions:
                 raise ValueError(f"올바르지 않은 출구 방향입니다: {direction}")

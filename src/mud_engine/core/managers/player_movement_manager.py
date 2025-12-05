@@ -159,6 +159,7 @@ class PlayerMovementManager:
                             "level": monster.level,
                             "current_hp": monster.current_hp,
                             "max_hp": monster.max_hp,
+                            "faction_id": monster.faction_id,
                             "monster_type": monster.monster_type.value if hasattr(monster.monster_type, 'value') else str(monster.monster_type),
                             "behavior": monster.behavior.value if hasattr(monster.behavior, 'value') else str(monster.behavior),
                             "is_aggressive": monster.is_aggressive(),

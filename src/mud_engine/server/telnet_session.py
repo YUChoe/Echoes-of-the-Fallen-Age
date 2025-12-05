@@ -222,39 +222,105 @@ class TelnetSession:
                 obj_name = obj.get("name", "알 수 없음")
                 lines.append(f"  • {ANSIColors.item_name(obj_name)}")
         
-        # NPC
+        # NPC 및 우호적인 몬스터
         npcs = room_data.get("npcs", [])
-        if npcs:
+        monsters = room_data.get("monsters", [])
+        
+        # 몬스터를 우호도에 따라 분류
+        friendly_monsters = []
+        hostile_monsters = []
+        
+        if monsters and self.player:
+            player_faction = self.player.faction_id or 'ash_knights'
+            
+            for monster in monsters:
+                monster_faction = monster.get("faction_id")
+                is_friendly = self._is_friendly_faction(player_faction, monster_faction)
+                
+                if is_friendly:
+                    friendly_monsters.append(monster)
+                else:
+                    hostile_monsters.append(monster)
+        elif monsters:
+            # 플레이어 정보가 없으면 모두 적대적으로 처리
+            hostile_monsters = monsters
+        
+        # NPC와 우호적인 몬스터를 함께 표시
+        all_npcs = list(npcs) + friendly_monsters
+        if all_npcs:
             lines.append("")
             lines.append("🧑‍💼 이곳에 있는 NPC들:")
-            for npc in npcs:
+            for npc in all_npcs:
                 npc_name = npc.get("name", "알 수 없음")
-                npc_type = npc.get("npc_type", "generic")
-                is_merchant = npc.get("is_merchant", False)
                 
-                icon = "🧑‍💼" if is_merchant else "👤"
-                type_text = " (상인)" if is_merchant else ""
-                lines.append(f"  • {icon} {ANSIColors.npc_name(npc_name)}{type_text}")
+                # 실제 NPC인지 우호적인 몬스터인지 구분
+                if npc in npcs:
+                    npc_type = npc.get("npc_type", "generic")
+                    is_merchant = npc.get("is_merchant", False)
+                    icon = "🧑‍💼" if is_merchant else "👤"
+                    type_text = " (상인)" if is_merchant else ""
+                    lines.append(f"  • {icon} {ANSIColors.npc_name(npc_name)}{type_text}")
+                else:
+                    # 우호적인 몬스터
+                    monster_id = npc.get("id", "")
+                    id_suffix = monster_id[-4:] if len(monster_id) >= 4 else monster_id
+                    lines.append(f"  • 👤 {ANSIColors.npc_name(npc_name)} #{id_suffix}")
         
-        # 몬스터 (각각 개별 표시)
-        monsters = room_data.get("monsters", [])
-        if monsters:
+        # 적대적인 몬스터만 표시
+        if hostile_monsters:
             lines.append("")
             lines.append("👹 이곳에 있는 몬스터들:")
-            for i, monster in enumerate(monsters, 1):
+            for monster in hostile_monsters:
                 monster_name = monster.get("name", "알 수 없음")
                 monster_id = monster.get("id", "")
-                level = monster.get("level", 1)
-                hp = monster.get("current_hp", 0)
-                max_hp = monster.get("max_hp", 0)
                 
                 # 각 몬스터를 개별 ID로 구분하여 표시
                 # ID의 마지막 4자리를 사용하여 구분
                 id_suffix = monster_id[-4:] if len(monster_id) >= 4 else monster_id
-                lines.append(f"  • {ANSIColors.monster_name(monster_name)} #{id_suffix} (레벨 {level}, HP: {hp}/{max_hp})")
+                lines.append(f"  • {ANSIColors.monster_name(monster_name)} #{id_suffix}")
         
         lines.append("")
         return "\r\n".join(lines)
+    
+    def _is_friendly_faction(self, player_faction: str, monster_faction: Optional[str]) -> bool:
+        """플레이어와 몬스터 종족 간의 우호 관계 확인
+        
+        Args:
+            player_faction: 플레이어 종족 ID
+            monster_faction: 몬스터 종족 ID
+            
+        Returns:
+            bool: 우호 관계이면 True
+        """
+        # 같은 종족이면 우호적
+        if monster_faction == player_faction:
+            return True
+        
+        # 몬스터 종족이 없으면 적대적으로 간주
+        if not monster_faction:
+            return False
+        
+        # 하드코딩된 종족 관계 (추후 DB에서 동적으로 로드 가능)
+        # ash_knights 기준
+        friendly_factions = {
+            'ash_knights': ['ash_knights'],  # 같은 종족
+            # 추가 우호 종족은 여기에 추가
+        }
+        
+        neutral_factions = {
+            'ash_knights': ['animals'],  # 중립 종족
+        }
+        
+        # 우호 또는 중립 종족이면 True
+        if player_faction in friendly_factions:
+            if monster_faction in friendly_factions[player_faction]:
+                return True
+        
+        if player_faction in neutral_factions:
+            if monster_faction in neutral_factions[player_faction]:
+                return True
+        
+        return False
 
     async def send_text(self, text: str, newline: bool = True) -> bool:
         """
