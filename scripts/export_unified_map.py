@@ -15,7 +15,7 @@ from src.mud_engine.database.connection import DatabaseManager
 async def get_all_rooms(db_manager: DatabaseManager):
     """모든 방 정보 가져오기"""
     cursor = await db_manager.execute("""
-        SELECT id, name_ko, name_en, description_ko, exits, x, y
+        SELECT id, description_ko, description_en, exits, x, y
         FROM rooms 
         WHERE x IS NOT NULL AND y IS NOT NULL
         ORDER BY x, y
@@ -218,7 +218,7 @@ def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room, f
     room_info = {}
     
     for room in rooms_data:
-        room_id, name_ko, name_en, desc_ko, exits_str, x, y = room
+        room_id, desc_ko, desc_en, exits_str, x, y = room
         
         # x, y 좌표가 있으면 직접 사용
         if x is not None and y is not None:
@@ -233,6 +233,9 @@ def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room, f
                 exits = json.loads(exits_str) if exits_str else {}
             except:
                 exits = {}
+            
+            # description에서 첫 줄을 이름으로 사용
+            name_ko = desc_ko.split('\n')[0] if desc_ko else room_id
             
             grid[coord] = {
                 'id': room_id,
@@ -467,8 +470,9 @@ def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room, f
                 if has_npc:
                     entity_info.append(f"🟡NPC:{npc_count}")
                 
+                # tooltip에는 좌표와 엔티티 정보만 표시 (name 제외)
                 entity_text = ' '.join(entity_info) if entity_info else ''
-                tooltip_text = f"{exit_arrows}{name} ({x},{y}) {entity_text}"
+                tooltip_text = f"{exit_arrows}({x},{y}) {entity_text}"
                 
                 html += f"""                <td class="{css_class}">
                     {indicators_html}
