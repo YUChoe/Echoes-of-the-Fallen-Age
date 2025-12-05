@@ -95,6 +95,7 @@ class CommandManager:
             CreateObjectCommand, KickPlayerCommand, AdminListCommand, GotoCommand,
             RoomInfoCommand
         )
+        from ...commands.admin.scheduler_command import SchedulerCommand
         self.command_processor.register_command(CreateRoomCommand())
         self.command_processor.register_command(EditRoomCommand())
         self.command_processor.register_command(CreateExitCommand())
@@ -103,6 +104,7 @@ class CommandManager:
         self.command_processor.register_command(AdminListCommand())
         self.command_processor.register_command(GotoCommand())
         self.command_processor.register_command(RoomInfoCommand())
+        self.command_processor.register_command(SchedulerCommand())
 
         # 플레이어 상호작용 명령어들 등록
         from ...commands.interaction_commands import (
