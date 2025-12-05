@@ -337,7 +337,6 @@ class Room(BaseModel):
     """방 모델"""
 
     id: str = field(default_factory=lambda: str(uuid4()))
-    name: Dict[str, str] = field(default_factory=dict)  # {'en': 'name', 'ko': '이름'}
     description: Dict[str, str] = field(default_factory=dict)
     exits: Dict[str, str] = field(default_factory=dict)  # {'north': 'room_id'}
     x: Optional[int] = None  # X 좌표
@@ -351,12 +350,6 @@ class Room(BaseModel):
 
     def validate(self) -> None:
         """방 데이터 유효성 검증"""
-        if not isinstance(self.name, dict):
-            raise ValueError("방 이름은 딕셔너리 형태여야 합니다")
-
-        if not self.name.get('en') and not self.name.get('ko'):
-            raise ValueError("방 이름은 최소 하나의 언어로 설정되어야 합니다")
-
         if not isinstance(self.description, dict):
             raise ValueError("방 설명은 딕셔너리 형태여야 합니다")
 
@@ -368,10 +361,6 @@ class Room(BaseModel):
         for direction in self.exits.keys():
             if direction not in valid_directions:
                 raise ValueError(f"올바르지 않은 출구 방향입니다: {direction}")
-
-    def get_localized_name(self, locale: str = 'en') -> str:
-        """로케일에 따른 방 이름 반환"""
-        return self.name.get(locale, self.name.get('en', self.name.get('ko', 'Unknown Room')))
 
     def get_localized_description(self, locale: str = 'en') -> str:
         """로케일에 따른 방 설명 반환"""
@@ -405,18 +394,7 @@ class Room(BaseModel):
         """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""
         data = super().to_dict()
 
-        # name과 description을 개별 컬럼으로 분리하고 원본 제거
-        if 'name' in data:
-            name_dict = data.pop('name')
-            # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
-            if isinstance(name_dict, str):
-                try:
-                    name_dict = json.loads(name_dict)
-                except (json.JSONDecodeError, TypeError):
-                    name_dict = {}
-            data['name_en'] = name_dict.get('en', '') if isinstance(name_dict, dict) else ''
-            data['name_ko'] = name_dict.get('ko', '') if isinstance(name_dict, dict) else ''
-
+        # description을 개별 컬럼으로 분리
         if 'description' in data:
             desc_dict = data.pop('description')
             # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
@@ -439,8 +417,8 @@ class Room(BaseModel):
         # 데이터베이스 컬럼명이나 JSON 문자열을 모델 필드로 변환
         converted_data = data.copy()
 
-        # name, description, exits가 JSON 문자열인 경우 딕셔너리로 변환
-        for key in ['name', 'description', 'exits']:
+        # description, exits가 JSON 문자열인 경우 딕셔너리로 변환
+        for key in ['description', 'exits']:
             value = converted_data.get(key)
             if isinstance(value, str):
                 try:
@@ -448,16 +426,9 @@ class Room(BaseModel):
                 except (json.JSONDecodeError, TypeError):
                     converted_data[key] = {}
 
-        # DB 컬럼명 (name_en, name_ko 등)을 딕셔너리 필드로 통합
-        if 'name' not in converted_data:
-            converted_data['name'] = {}
+        # description 통합
         if 'description' not in converted_data:
             converted_data['description'] = {}
-
-        if 'name_en' in converted_data:
-            converted_data['name']['en'] = converted_data.pop('name_en')
-        if 'name_ko' in converted_data:
-            converted_data['name']['ko'] = converted_data.pop('name_ko')
         if 'description_en' in converted_data:
             converted_data['description']['en'] = converted_data.pop('description_en')
         if 'description_ko' in converted_data:

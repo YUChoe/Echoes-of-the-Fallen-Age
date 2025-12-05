@@ -180,10 +180,7 @@ class TelnetSession:
 
         lines = []
         
-        # 방 이름
-        room_name = room_data.get("name", "알 수 없는 장소")
         lines.append("")
-        lines.append(ANSIColors.room_name(f"🏰 {room_name}"))
         lines.append("=" * 60)
         
         # 방 설명

@@ -142,7 +142,6 @@ class PlayerMovementManager:
                     logger.debug(f"몬스터 {i+1}: {monster.get_localized_name(session.locale)}, 타입: {monster.monster_type}, 행동: {monster.behavior}")
                 room_data = {
                     "id": room_info['room'].id,
-                    "name": room_info['room'].get_localized_name(session.locale),
                     "description": room_info['room'].get_localized_description(session.locale),
                     "exits": room_info['exits'],
                     "objects": [

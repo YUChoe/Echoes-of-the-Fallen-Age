@@ -400,7 +400,6 @@ class MoveCommand(BaseCommand):
                 return self.create_error_result("이동에 실패했습니다.")
 
             # 이동 성공 메시지
-            room_name = target_room.get_localized_name(session.locale)
             player_message = f"🚶 {self.direction} 방향으로 이동했습니다."
 
             # 이전 방의 다른 플레이어들에게 알림
@@ -416,7 +415,6 @@ class MoveCommand(BaseCommand):
                     "direction": self.direction,
                     "from_room": current_room_id,
                     "to_room": target_room_id,
-                    "room_name": room_name,
                     "leave_message": leave_message,
                     "enter_message": enter_message
                 }

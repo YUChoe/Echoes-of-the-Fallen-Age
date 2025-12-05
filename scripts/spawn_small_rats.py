@@ -33,11 +33,11 @@ async def find_north_plains_rooms(room_repo: RoomRepository) -> list:
     # 평원 관련 방들 조회
     all_rooms = await room_repo.get_all()
     
-    # 이름에 '평원'이 포함된 방들 필터링
+    # 설명에 '평원'이 포함된 방들 필터링
     plains_rooms = []
     for room in all_rooms:
-        name_ko = room.name.get('ko', '')
-        if '평원' in name_ko and room.x is not None and room.y is not None:
+        desc_ko = room.description.get('ko', '')
+        if '평원' in desc_ko and room.x is not None and room.y is not None:
             plains_rooms.append(room)
     
     # 좌표 기준으로 정렬 (북쪽 = y값이 큰 것)
@@ -196,8 +196,7 @@ async def spawn_small_rats(monster_repo: MonsterRepository, spawn_info: dict, co
         created_rat = await monster_repo.create(rat.to_dict())
         spawned_rats.append(created_rat)
         
-        room_name = spawn_room.name.get('ko', spawn_room.id)
-        print(f"  🐀 작은 쥐 #{i+1} 스폰됨: {room_name} ({spawn_room.x}, {spawn_room.y})")
+        print(f"  🐀 작은 쥐 #{i+1} 스폰됨: 좌표 ({spawn_room.x}, {spawn_room.y})")
     
     return spawned_rats
 
@@ -214,8 +213,7 @@ async def setup_spawn_points(world_manager, spawn_info: dict) -> None:
             spawn_chance=0.5  # 50% 확률로 스폰
         )
         
-        room_name = room.name.get('ko', room.id)
-        print(f"  📌 스폰 포인트 설정: {room_name} (최대 5마리)")
+        print(f"  📌 스폰 포인트 설정: 좌표 ({room.x}, {room.y}) (최대 5마리)")
 
 
 async def main():
@@ -269,13 +267,12 @@ async def main():
         print("서버 시작 시 WorldManager에서 다음과 같이 스폰 포인트를 설정하세요:")
         print()
         for room in spawn_info['rooms']:
-            room_name = room.name.get('ko', room.id)
             print(f"  await world_manager.add_spawn_point(")
             print(f"      room_id='{room.id}',")
             print(f"      monster_template_id='template_small_rat',")
             print(f"      max_count=5,")
             print(f"      spawn_chance=0.5")
-            print(f"  )  # {room_name}")
+            print(f"  )  # 좌표 ({room.x}, {room.y})")
             print()
         
         print("=" * 60)

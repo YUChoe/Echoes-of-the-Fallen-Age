@@ -53,21 +53,19 @@ class CreateRoomCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """방 생성 실행"""
-        if len(args) < 2:
+        if len(args) < 1:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="사용법: createroom <방ID> <방이름> [설명]"
+                message="사용법: createroom <방ID> [설명]"
             )
 
         room_id = args[0]
-        room_name = args[1]
-        room_description = " ".join(args[2:]) if len(args) > 2 else f"{room_name}입니다."
+        room_description = " ".join(args[1:]) if len(args) > 1 else "새로 생성된 방입니다."
 
         try:
             # 게임 엔진을 통해 방 생성
             room_data = {
                 "id": room_id,
-                "name": {"ko": room_name, "en": room_name},
                 "description": {"ko": room_description, "en": room_description},
                 "exits": {}
             }
@@ -77,9 +75,9 @@ class CreateRoomCommand(AdminCommand):
             if success:
                 return CommandResult(
                     result_type=CommandResultType.SUCCESS,
-                    message=f"✅ 방 '{room_name}' (ID: {room_id})이 성공적으로 생성되었습니다.",
+                    message=f"✅ 방 (ID: {room_id})이 성공적으로 생성되었습니다.",
                     broadcast=True,
-                    broadcast_message=f"🏗️ 관리자가 새로운 방 '{room_name}'을 생성했습니다."
+                    broadcast_message=f"🏗️ 관리자가 새로운 방을 생성했습니다."
                 )
             else:
                 return CommandResult(
@@ -98,14 +96,15 @@ class CreateRoomCommand(AdminCommand):
         return """
 🏗️ **방 생성 명령어**
 
-**사용법:** `createroom <방ID> <방이름> [설명]`
+**사용법:** `createroom <방ID> [설명]`
 
 **예시:**
-- `createroom garden 정원` - 기본 설명으로 정원 방 생성
-- `createroom library 도서관 조용한 도서관입니다` - 상세 설명과 함께 생성
+- `createroom garden` - 기본 설명으로 방 생성
+- `createroom library 조용한 도서관입니다` - 상세 설명과 함께 생성
 
 **별칭:** `cr`, `mkroom`
 **권한:** 관리자 전용
+**참고:** 방 이름은 좌표로 자동 표시됩니다.
         """
 
 
@@ -121,36 +120,27 @@ class EditRoomCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """방 편집 실행"""
-        if len(args) < 3:
+        if len(args) < 2:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="사용법: editroom <방ID> <속성> <값>"
+                message="사용법: editroom <방ID> <설명>"
             )
 
         room_id = args[0]
-        property_name = args[1].lower()
-        new_value = " ".join(args[2:])
-
-        if property_name not in ["name", "description"]:
-            return CommandResult(
-                result_type=CommandResultType.ERROR,
-                message="편집 가능한 속성: name, description"
-            )
+        new_description = " ".join(args[1:])
 
         try:
             # 방 편집 데이터 준비
-            updates = {}
-            if property_name == "name":
-                updates["name"] = {"ko": new_value, "en": new_value}
-            elif property_name == "description":
-                updates["description"] = {"ko": new_value, "en": new_value}
+            updates = {
+                "description": {"ko": new_description, "en": new_description}
+            }
 
             success = await session.game_engine.update_room_realtime(room_id, updates, session)
 
             if success:
                 return CommandResult(
                     result_type=CommandResultType.SUCCESS,
-                    message=f"✅ 방 {room_id}의 {property_name}이 '{new_value}'로 변경되었습니다.",
+                    message=f"✅ 방 {room_id}의 설명이 변경되었습니다.",
                     broadcast=True,
                     broadcast_message=f"🔧 관리자가 방 {room_id}을 수정했습니다."
                 )
@@ -171,18 +161,15 @@ class EditRoomCommand(AdminCommand):
         return """
 🔧 **방 편집 명령어**
 
-**사용법:** `editroom <방ID> <속성> <값>`
-
-**편집 가능한 속성:**
-- `name` - 방 이름
-- `description` - 방 설명
+**사용법:** `editroom <방ID> <설명>`
 
 **예시:**
-- `editroom garden name 아름다운 정원` - 방 이름 변경
-- `editroom library description 고요한 분위기의 도서관` - 방 설명 변경
+- `editroom garden 아름다운 정원입니다` - 방 설명 변경
+- `editroom library 고요한 분위기의 도서관` - 방 설명 변경
 
 **별칭:** `er`, `modroom`
 **권한:** 관리자 전용
+**참고:** 방 이름은 좌표로 자동 표시되므로 설명만 편집 가능합니다.
         """
 
 
@@ -543,12 +530,10 @@ class GotoCommand(AdminCommand):
                 exclude_session=session.session_id
             )
 
-            # 방 이름 가져오기
-            room_name = target_room.name.get('ko', target_room.name.get('en', '알 수 없는 방'))
-
+            # 좌표 정보 사용
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
-                message=f"✅ '{room_name}' (좌표: {x}, {y})로 이동했습니다."
+                message=f"✅ 좌표 ({x}, {y})로 이동했습니다."
             )
 
         except Exception as e:
@@ -688,8 +673,8 @@ class AdminListCommand(AdminCommand):
 🔧 **관리자 명령어 목록**
 
 **방 관리:**
-- `createroom <ID> <이름> [설명]` - 새 방 생성
-- `editroom <ID> <속성> <값>` - 방 편집
+- `createroom <ID> [설명]` - 새 방 생성
+- `editroom <ID> <설명>` - 방 설명 편집
 - `createexit <출발방> <방향> <도착방>` - 출구 생성
 - `goto <x> <y>` - 지정한 좌표로 순간이동
 - `info` - 현재 방의 상세 정보 표시

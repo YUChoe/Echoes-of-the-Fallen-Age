@@ -538,8 +538,8 @@ class MonsterManager:
                 all_rooms = await room_manager.get_all_rooms()
                 plains_rooms = []
                 for room in all_rooms:
-                    name_ko = room.name.get('ko', '')
-                    if '평원' in name_ko and room.x is not None and room.y is not None:
+                    desc_ko = room.description.get('ko', '')
+                    if '평원' in desc_ko and room.x is not None and room.y is not None:
                         if room.y >= -2:
                             plains_rooms.append(room)
 

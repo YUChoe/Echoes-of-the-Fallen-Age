@@ -138,8 +138,9 @@ class RoomRepository(BaseRepository[Room]):
             matching_rooms = []
 
             for room in all_rooms:
-                room_name = room.get_localized_name(locale).lower()
-                if name_pattern.lower() in room_name:
+                # 방 설명으로 검색
+                room_desc = room.get_localized_description(locale).lower()
+                if name_pattern.lower() in room_desc:
                     matching_rooms.append(room)
 
             return matching_rooms

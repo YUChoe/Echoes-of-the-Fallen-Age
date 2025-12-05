@@ -37,7 +37,7 @@ class AdminManager:
 
             # 관리자에게 성공 알림
             await admin_session.send_success(
-                f"새 방이 생성되었습니다: {new_room.get_localized_name('ko')} (ID: {new_room.id})"
+                f"새 방이 생성되었습니다 (ID: {new_room.id})"
             )
 
             # 세계 변경 이벤트 발행
@@ -80,7 +80,7 @@ class AdminManager:
 
             # 관리자에게 성공 알림
             await admin_session.send_success(
-                f"방이 수정되었습니다: {updated_room.get_localized_name('ko')} (ID: {room_id})"
+                f"방이 수정되었습니다 (ID: {room_id})"
             )
 
             # 해당 방에 있는 모든 플레이어에게 변경사항 알림
@@ -89,7 +89,6 @@ class AdminManager:
                 "message": "방 정보가 업데이트되었습니다.",
                 "room": {
                     "id": updated_room.id,
-                    "name": updated_room.name,
                     "description": updated_room.description,
                     "exits": updated_room.exits
                 }

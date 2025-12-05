@@ -79,10 +79,10 @@ class MonsterSpawner:
         max_y = area_filter.get('max_y')
         
         for room in all_rooms:
-            # 이름 필터 적용
+            # 설명 필터 적용
             if name_contains:
-                name_ko = room.name.get('ko', '')
-                if name_contains not in name_ko:
+                desc_ko = room.description.get('ko', '')
+                if name_contains not in desc_ko:
                     continue
             
             # 좌표 필터 적용
@@ -301,9 +301,8 @@ class MonsterSpawner:
             created_monster = await self.monster_repo.create(monster.to_dict())
             spawned_monsters.append(created_monster)
             
-            room_name = spawn_room.name.get('ko', spawn_room.id)
             monster_name = config['name'].get('ko', config['name'].get('en'))
-            print(f"  🎯 {monster_name} #{i+1} 스폰됨: {room_name} ({spawn_room.x}, {spawn_room.y})")
+            print(f"  🎯 {monster_name} #{i+1} 스폰됨: 좌표 ({spawn_room.x}, {spawn_room.y})")
         
         return spawned_monsters
     
