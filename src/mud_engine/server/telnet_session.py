@@ -116,6 +116,11 @@ class TelnetSession:
         try:
             # 메시지 타입에 따라 적절한 포맷으로 변환
             text = self._format_message(message)
+            
+            # 빈 문자열이면 전송하지 않음 (내부 업데이트 메시지)
+            if not text or text.strip() == "":
+                return True
+            
             return await self.send_text(text)
 
         except Exception as e:
@@ -155,6 +160,10 @@ class TelnetSession:
         # 시스템 메시지
         if msg_type == "system_message":
             return ANSIColors.info(message.get("message", ""))
+        
+        # 내부 업데이트 메시지 (클라이언트에 표시하지 않음)
+        if msg_type in ["room_players_update", "player_status_update"]:
+            return ""
         
         # 일반 응답
         if "response" in message:
