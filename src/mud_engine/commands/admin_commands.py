@@ -583,6 +583,94 @@ class GotoCommand(AdminCommand):
         """
 
 
+class RoomInfoCommand(AdminCommand):
+    """방 정보 조회 명령어"""
+
+    def __init__(self):
+        super().__init__(
+            name="info",
+            description="현재 방의 상세 정보를 표시합니다",
+            aliases=["roominfo", "ri"]
+        )
+
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
+        """방 정보 조회 실행"""
+        if not session.current_room_id:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message="❌ 현재 방 정보를 찾을 수 없습니다."
+            )
+
+        try:
+            # DB에서 방 정보 직접 조회
+            cursor = await session.game_engine.db_manager.execute(
+                "SELECT * FROM rooms WHERE id = ?",
+                (session.current_room_id,)
+            )
+            room_row = await cursor.fetchone()
+
+            if not room_row:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message=f"❌ 방 ID '{session.current_room_id}'를 데이터베이스에서 찾을 수 없습니다."
+                )
+
+            # 컬럼 이름 가져오기
+            column_names = [description[0] for description in cursor.description]
+
+            # 방 정보를 딕셔너리로 변환
+            room_data = dict(zip(column_names, room_row))
+
+            # 정보 포맷팅
+            info_lines = ["🔍 **방 상세 정보**", ""]
+
+            for key, value in room_data.items():
+                # exits는 JSON 문자열이므로 파싱하여 표시
+                if key == "exits":
+                    try:
+                        exits_dict = json.loads(value) if isinstance(value, str) else value
+                        if exits_dict:
+                            exits_str = ", ".join([f"{direction} → {target}" for direction, target in exits_dict.items()])
+                            info_lines.append(f"**{key}:** {exits_str}")
+                        else:
+                            info_lines.append(f"**{key}:** (없음)")
+                    except (json.JSONDecodeError, TypeError):
+                        info_lines.append(f"**{key}:** {value}")
+                else:
+                    # None 값 처리
+                    display_value = value if value is not None else "(null)"
+                    info_lines.append(f"**{key}:** {display_value}")
+
+            return CommandResult(
+                result_type=CommandResultType.SUCCESS,
+                message="\n".join(info_lines)
+            )
+
+        except Exception as e:
+            logger.error(f"방 정보 조회 중 오류: {e}")
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message=f"❌ 방 정보 조회 중 오류가 발생했습니다: {str(e)}"
+            )
+
+    def get_help(self) -> str:
+        return """
+🔍 **방 정보 조회 명령어**
+
+**사용법:** `info`
+
+**설명:**
+현재 위치한 방의 데이터베이스 정보를 모두 표시합니다.
+방 ID, 이름, 설명, 출구, 좌표, 생성/수정 시간 등 모든 필드를 확인할 수 있습니다.
+
+**예시:**
+- `info` - 현재 방의 상세 정보 표시
+
+**별칭:** `roominfo`, `ri`
+**권한:** 관리자 전용
+        """
+
+
 class AdminListCommand(AdminCommand):
     """관리자 명령어 목록"""
 
@@ -603,7 +691,8 @@ class AdminListCommand(AdminCommand):
 - `createroom <ID> <이름> [설명]` - 새 방 생성
 - `editroom <ID> <속성> <값>` - 방 편집
 - `createexit <출발방> <방향> <도착방>` - 출구 생성
-- `goto <방ID>` - 지정한 방으로 순간이동
+- `goto <x> <y>` - 지정한 좌표로 순간이동
+- `info` - 현재 방의 상세 정보 표시
 
 **객체 관리:**
 - `createobject <ID> <이름> <타입> [위치]` - 객체 생성
