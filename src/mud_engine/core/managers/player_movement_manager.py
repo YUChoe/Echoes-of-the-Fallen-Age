@@ -166,6 +166,16 @@ class PlayerMovementManager:
                             "is_neutral": monster.is_neutral()
                         }
                         for monster in room_info.get('monsters', [])
+                    ],
+                    "npcs": [
+                        {
+                            "id": npc.id,
+                            "name": npc.get_localized_name(session.locale),
+                            "description": npc.get_localized_description(session.locale),
+                            "npc_type": npc.npc_type,
+                            "is_merchant": npc.is_merchant()
+                        }
+                        for npc in room_info.get('npcs', [])
                     ]
                 }
 

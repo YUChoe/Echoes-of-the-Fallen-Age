@@ -53,6 +53,24 @@ class UIManager:
                     ]
                 })
 
+            # NPC 버튼 생성
+            npc_buttons = []
+            for npc in room_info.get('npcs', []):
+                npc_name = npc.get_localized_name(session.locale)
+                actions = [
+                    {"text": "대화하기", "command": f"talk {npc_name}"}
+                ]
+                if npc.is_merchant():
+                    actions.append({"text": "상점 보기", "command": f"shop {npc_name}"})
+                
+                npc_buttons.append({
+                    "type": "npc",
+                    "text": npc_name,
+                    "command": f"talk {npc_name}",
+                    "icon": "🧑‍💼" if npc.is_merchant() else "👤",
+                    "actions": actions
+                })
+
             # 기본 액션 버튼들
             action_buttons = [
                 {"type": "action", "text": "둘러보기", "command": "look", "icon": "👀"},
@@ -68,6 +86,7 @@ class UIManager:
                 "buttons": {
                     "exits": exit_buttons,
                     "objects": object_buttons,
+                    "npcs": npc_buttons,
                     "actions": action_buttons
                 },
                 "autocomplete": autocomplete_hints,
@@ -139,5 +158,16 @@ class UIManager:
                 f"get {obj_name}",
                 f"look at {obj_name}"
             ])
+
+        # NPC 관련 명령어들
+        for npc in room_info.get('npcs', []):
+            npc_name = npc.get_localized_name(session.locale)
+            hints.append(f"talk {npc_name}")
+            if npc.is_merchant():
+                hints.extend([
+                    f"shop {npc_name}",
+                    f"buy",
+                    f"sell"
+                ])
 
         return sorted(list(set(hints)))

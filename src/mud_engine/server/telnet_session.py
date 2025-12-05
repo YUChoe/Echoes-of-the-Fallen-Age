@@ -222,6 +222,20 @@ class TelnetSession:
                 obj_name = obj.get("name", "알 수 없음")
                 lines.append(f"  • {ANSIColors.item_name(obj_name)}")
         
+        # NPC
+        npcs = room_data.get("npcs", [])
+        if npcs:
+            lines.append("")
+            lines.append("🧑‍💼 이곳에 있는 NPC들:")
+            for npc in npcs:
+                npc_name = npc.get("name", "알 수 없음")
+                npc_type = npc.get("npc_type", "generic")
+                is_merchant = npc.get("is_merchant", False)
+                
+                icon = "🧑‍💼" if is_merchant else "👤"
+                type_text = " (상인)" if is_merchant else ""
+                lines.append(f"  • {icon} {ANSIColors.npc_name(npc_name)}{type_text}")
+        
         # 몬스터 (각각 개별 표시)
         monsters = room_data.get("monsters", [])
         if monsters:

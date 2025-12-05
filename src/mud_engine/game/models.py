@@ -825,6 +825,10 @@ class NPC(BaseModel):
         if 'properties' not in converted_data:
             converted_data['properties'] = {}
 
+        # DB에만 있고 모델에 없는 필드 제거
+        if 'faction_id' in converted_data:
+            converted_data.pop('faction_id')
+
         # 날짜 필드 처리
         for date_field in ['created_at']:
             if date_field in converted_data and isinstance(converted_data[date_field], str):

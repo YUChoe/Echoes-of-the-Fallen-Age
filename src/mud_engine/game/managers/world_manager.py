@@ -3,8 +3,8 @@
 import logging
 from typing import Dict, List, Optional, Any
 
-from ..repositories import RoomRepository, GameObjectRepository, MonsterRepository
-from ..models import Room, GameObject
+from ..repositories import RoomRepository, GameObjectRepository, MonsterRepository, NPCRepository
+from ..models import Room, GameObject, NPC
 from ..monster import Monster
 
 from .room_manager import RoomManager
@@ -17,11 +17,12 @@ logger = logging.getLogger(__name__)
 class WorldManager:
     """게임 세계 관리자 - 하위 매니저들을 통합하는 인터페이스"""
 
-    def __init__(self, room_repo: RoomRepository, object_repo: GameObjectRepository, monster_repo: MonsterRepository) -> None:
+    def __init__(self, room_repo: RoomRepository, object_repo: GameObjectRepository, monster_repo: MonsterRepository, npc_repo: NPCRepository) -> None:
         """WorldManager를 초기화합니다."""
         self._room_manager = RoomManager(room_repo)
         self._object_manager = ObjectManager(object_repo)
         self._monster_manager = MonsterManager(monster_repo)
+        self._npc_repo = npc_repo
         logger.info("WorldManager 초기화 완료")
 
     # === 방 관리 위임 ===
@@ -189,7 +190,7 @@ class WorldManager:
             if obj.location_type == 'room' and obj.location_id:
                 room = await self._room_manager.get_room(obj.location_id)
                 if room:
-                    location_info['location_name'] = room.get_localized_name('en')
+                    location_info['location_name'] = room.id
             elif obj.location_type == 'inventory' and obj.location_id:
                 location_info['location_name'] = f"Character {obj.location_id}"
 
@@ -207,12 +208,14 @@ class WorldManager:
 
             objects = await self._object_manager.get_room_objects(room_id)
             monsters = await self._monster_manager.get_monsters_in_room(room_id)
+            npcs = await self._npc_repo.get_npcs_in_room(room_id)
             connected_rooms = await self._room_manager.get_connected_rooms(room_id)
 
             return {
                 'room': room,
                 'objects': objects,
                 'monsters': monsters,
+                'npcs': npcs,
                 'exits': room.exits,
                 'connected_rooms': connected_rooms
             }

@@ -49,9 +49,10 @@ class GameEngine:
         # WorldManager 초기화
         room_repo = RoomRepository(db_manager)
         object_repo = GameObjectRepository(db_manager)
-        from ..game.repositories import MonsterRepository
+        from ..game.repositories import MonsterRepository, NPCRepository
         monster_repo = MonsterRepository(db_manager)
-        self.world_manager = WorldManager(room_repo, object_repo, monster_repo)
+        npc_repo = NPCRepository(db_manager)
+        self.world_manager = WorldManager(room_repo, object_repo, monster_repo, npc_repo)
 
         # CombatManager 및 CombatHandler 초기화
         from ..game.combat import CombatManager
