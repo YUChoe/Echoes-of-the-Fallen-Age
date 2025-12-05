@@ -59,11 +59,10 @@ class CommandManager:
         self.command_processor.register_command(ExitsCommand())
 
         # 객체 상호작용 명령어들 등록
-        from ...commands.object_commands import GetCommand, DropCommand, InventoryCommand, ExamineCommand, EquipCommand, UnequipCommand, UseCommand
+        from ...commands.object_commands import GetCommand, DropCommand, InventoryCommand, EquipCommand, UnequipCommand, UseCommand
         self.command_processor.register_command(GetCommand())
         self.command_processor.register_command(DropCommand())
         self.command_processor.register_command(InventoryCommand())
-        self.command_processor.register_command(ExamineCommand())
         self.command_processor.register_command(EquipCommand())
         self.command_processor.register_command(UnequipCommand())
         self.command_processor.register_command(UseCommand())
@@ -73,13 +72,7 @@ class CommandManager:
             ('north', ['n']),
             ('south', ['s']),
             ('east', ['e']),
-            ('west', ['w']),
-            ('up', ['u']),
-            ('down', ['d']),
-            ('northeast', ['ne']),
-            ('northwest', ['nw']),
-            ('southeast', ['se']),
-            ('southwest', ['sw'])
+            ('west', ['w'])
         ]
 
         for direction, aliases in directions:
@@ -92,7 +85,7 @@ class CommandManager:
         # 관리자 명령어들 등록
         from ...commands.admin_commands import (
             CreateRoomCommand, EditRoomCommand, CreateExitCommand,
-            CreateObjectCommand, KickPlayerCommand, AdminListCommand, GotoCommand,
+            CreateObjectCommand, AdminListCommand, GotoCommand,
             RoomInfoCommand
         )
         from ...commands.admin.scheduler_command import SchedulerCommand
@@ -100,7 +93,6 @@ class CommandManager:
         self.command_processor.register_command(EditRoomCommand())
         self.command_processor.register_command(CreateExitCommand())
         self.command_processor.register_command(CreateObjectCommand())
-        self.command_processor.register_command(KickPlayerCommand())
         self.command_processor.register_command(AdminListCommand())
         self.command_processor.register_command(GotoCommand())
         self.command_processor.register_command(RoomInfoCommand())
@@ -108,9 +100,8 @@ class CommandManager:
 
         # 플레이어 상호작용 명령어들 등록
         from ...commands.interaction_commands import (
-            EmoteCommand, GiveCommand, FollowCommand, WhisperCommand, PlayersCommand
+            GiveCommand, FollowCommand, WhisperCommand, PlayersCommand
         )
-        self.command_processor.register_command(EmoteCommand())
         self.command_processor.register_command(GiveCommand())
         self.command_processor.register_command(FollowCommand())
         self.command_processor.register_command(WhisperCommand())
