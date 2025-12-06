@@ -231,12 +231,13 @@ class TelnetSession:
                 obj_name = obj.get("name", "알 수 없음")
                 lines.append(f"  • {ANSIColors.item_name(obj_name)}")
         
-        # NPC 및 우호적인 몬스터
+        # NPC 및 몬스터 분류
         npcs = room_data.get("npcs", [])
         monsters = room_data.get("monsters", [])
         
         # 몬스터를 우호도에 따라 분류
         friendly_monsters = []
+        neutral_monsters = []
         hostile_monsters = []
         
         if monsters and self.player:
@@ -244,10 +245,14 @@ class TelnetSession:
             
             for monster in monsters:
                 monster_faction = monster.get("faction_id")
-                is_friendly = self._is_friendly_faction(player_faction, monster_faction)
                 
-                if is_friendly:
+                # 같은 종족이면 우호적
+                if monster_faction == player_faction:
                     friendly_monsters.append(monster)
+                # 중립 종족 확인
+                elif self._is_neutral_faction(player_faction, monster_faction):
+                    neutral_monsters.append(monster)
+                # 그 외는 적대적
                 else:
                     hostile_monsters.append(monster)
         elif monsters:
@@ -275,7 +280,17 @@ class TelnetSession:
                     id_suffix = monster_id[-4:] if len(monster_id) >= 4 else monster_id
                     lines.append(f"  • 👤 {ANSIColors.npc_name(npc_name)} #{id_suffix}")
         
-        # 적대적인 몬스터만 표시
+        # 중립 몬스터 표시
+        if neutral_monsters:
+            lines.append("")
+            lines.append("🐾 이곳에 있는 동물들:")
+            for monster in neutral_monsters:
+                monster_name = monster.get("name", "알 수 없음")
+                monster_id = monster.get("id", "")
+                id_suffix = monster_id[-4:] if len(monster_id) >= 4 else monster_id
+                lines.append(f"  • 🐾 {ANSIColors.neutral_name(monster_name)} #{id_suffix}")
+        
+        # 적대적인 몬스터 표시
         if hostile_monsters:
             lines.append("")
             lines.append("👹 이곳에 있는 몬스터들:")
@@ -299,7 +314,7 @@ class TelnetSession:
             monster_faction: 몬스터 종족 ID
             
         Returns:
-            bool: 우호 관계이면 True
+            bool: 우호 관계이면 True (같은 종족 또는 동맹)
         """
         # 같은 종족이면 우호적
         if monster_faction == player_faction:
@@ -309,22 +324,39 @@ class TelnetSession:
         if not monster_faction:
             return False
         
-        # 하드코딩된 종족 관계 (추후 DB에서 동적으로 로드 가능)
-        # ash_knights 기준
+        # 하드코딩된 우호 종족 관계 (추후 DB에서 동적으로 로드 가능)
         friendly_factions = {
-            'ash_knights': ['ash_knights'],  # 같은 종족
-            # 추가 우호 종족은 여기에 추가
+            'ash_knights': ['ash_knights'],  # 같은 종족만 우호적
+            # 추가 동맹 종족은 여기에 추가
         }
         
-        neutral_factions = {
-            'ash_knights': ['animals'],  # 중립 종족
-        }
-        
-        # 우호 또는 중립 종족이면 True
+        # 우호 종족이면 True
         if player_faction in friendly_factions:
             if monster_faction in friendly_factions[player_faction]:
                 return True
         
+        return False
+    
+    def _is_neutral_faction(self, player_faction: str, monster_faction: Optional[str]) -> bool:
+        """플레이어와 몬스터 종족 간의 중립 관계 확인
+        
+        Args:
+            player_faction: 플레이어 종족 ID
+            monster_faction: 몬스터 종족 ID
+            
+        Returns:
+            bool: 중립 관계이면 True
+        """
+        # 몬스터 종족이 없으면 중립이 아님
+        if not monster_faction:
+            return False
+        
+        # 하드코딩된 중립 종족 관계 (추후 DB에서 동적으로 로드 가능)
+        neutral_factions = {
+            'ash_knights': ['animals'],  # 동물은 중립
+        }
+        
+        # 중립 종족이면 True
         if player_faction in neutral_factions:
             if monster_faction in neutral_factions[player_faction]:
                 return True
@@ -519,7 +551,7 @@ class TelnetSession:
 
     async def read_line(self, timeout: Optional[float] = None) -> Optional[str]:
         """
-        클라이언트로부터 한 줄 읽기
+        클라이언트로부터 한 줄 읽기 (백스페이스 처리 포함)
 
         Args:
             timeout: 타임아웃 시간 (초)
@@ -527,40 +559,99 @@ class TelnetSession:
         Returns:
             Optional[str]: 읽은 문자열 (타임아웃 또는 연결 종료 시 None, 빈 줄은 "")
         """
+        # 백스페이스 및 제어 문자
+        BACKSPACE = 0x08  # ^H (Ctrl+H)
+        DELETE = 0x7F     # DEL
+        CR = 0x0D         # Carriage Return (\r)
+        LF = 0x0A         # Line Feed (\n)
+        IAC = 0xFF        # Telnet IAC
+        
+        buffer = bytearray()
+        start_time = asyncio.get_event_loop().time() if timeout else None
+        
         try:
-            if timeout:
-                line = await asyncio.wait_for(
-                    self.reader.readline(),
-                    timeout=timeout
-                )
-            else:
-                line = await self.reader.readline()
-
-            # 연결 종료 확인 (빈 바이트)
-            if not line:
-                logger.debug(f"Telnet 세션 {self.session_id}: 연결 종료 감지 (빈 바이트)")
-                return None
-
-            # Telnet 프로토콜 명령어 필터링
-            filtered_line = self._filter_telnet_commands(line)
-
-            # 필터링 후 아무것도 남지 않은 경우 (프로토콜 바이트만 있었음)
-            if not filtered_line or filtered_line == b'\r\n' or filtered_line == b'\n':
-                logger.debug(f"Telnet 세션 {self.session_id}: 프로토콜 바이트만 수신, 계속 대기")
-                return ""  # 빈 문자열 반환 (연결은 유지)
-
-            # 디코딩 및 공백 제거
+            while True:
+                # 타임아웃 체크
+                if timeout and start_time:
+                    elapsed = asyncio.get_event_loop().time() - start_time
+                    if elapsed >= timeout:
+                        logger.debug(f"Telnet 세션 {self.session_id} 읽기 타임아웃")
+                        return None
+                    remaining = timeout - elapsed
+                else:
+                    remaining = None
+                
+                # 1바이트씩 읽기
+                try:
+                    if remaining:
+                        byte_data = await asyncio.wait_for(
+                            self.reader.read(1),
+                            timeout=remaining
+                        )
+                    else:
+                        byte_data = await self.reader.read(1)
+                except asyncio.TimeoutError:
+                    logger.debug(f"Telnet 세션 {self.session_id} 읽기 타임아웃")
+                    return None
+                
+                # 연결 종료 확인
+                if not byte_data:
+                    logger.debug(f"Telnet 세션 {self.session_id}: 연결 종료 감지")
+                    return None
+                
+                byte_val = byte_data[0]
+                
+                # Telnet IAC 명령어 처리
+                if byte_val == IAC:
+                    # IAC 명령어 시퀀스 읽기 (최대 2바이트 더)
+                    try:
+                        cmd_byte = await asyncio.wait_for(self.reader.read(1), timeout=0.1)
+                        if cmd_byte:
+                            cmd = cmd_byte[0]
+                            # DO, DONT, WILL, WONT는 3바이트 명령어
+                            if cmd in (251, 252, 253, 254):  # WILL, WONT, DO, DONT
+                                await asyncio.wait_for(self.reader.read(1), timeout=0.1)
+                    except asyncio.TimeoutError:
+                        pass
+                    continue
+                
+                # 백스페이스 처리
+                if byte_val in (BACKSPACE, DELETE):
+                    if len(buffer) > 0:
+                        buffer.pop()
+                        # 클라이언트에 백스페이스 에코 (선택사항)
+                        # await self.send_text("\b \b", newline=False)
+                    continue
+                
+                # 줄바꿈 처리
+                if byte_val in (CR, LF):
+                    # CR+LF 또는 LF만 처리
+                    if byte_val == CR:
+                        # 다음 바이트가 LF인지 확인 (peek)
+                        try:
+                            next_byte = await asyncio.wait_for(self.reader.read(1), timeout=0.05)
+                            if next_byte and next_byte[0] != LF:
+                                # LF가 아니면 다시 버퍼에 넣어야 하지만 불가능하므로 무시
+                                pass
+                        except asyncio.TimeoutError:
+                            pass
+                    
+                    # 입력 완료
+                    break
+                
+                # 일반 문자 추가
+                if 32 <= byte_val <= 126 or byte_val >= 128:  # 출력 가능한 문자
+                    buffer.append(byte_val)
+            
+            # 디코딩
             try:
-                decoded_line = filtered_line.decode('utf-8', errors='ignore').strip()
+                decoded_line = buffer.decode('utf-8', errors='ignore').strip()
                 self.update_activity()
                 return decoded_line
             except Exception as e:
                 logger.warning(f"Telnet 세션 {self.session_id} 디코딩 오류: {e}")
-                return ""  # 빈 문자열 반환 (연결은 유지)
-
-        except asyncio.TimeoutError:
-            logger.debug(f"Telnet 세션 {self.session_id} 읽기 타임아웃")
-            return None
+                return ""
+        
         except Exception as e:
             logger.error(f"Telnet 세션 {self.session_id} 읽기 오류: {e}")
             return None

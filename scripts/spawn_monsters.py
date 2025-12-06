@@ -166,7 +166,8 @@ class MonsterSpawner:
                 'level': stats_data['level'],
                 'is_template': True
             },
-            created_at=datetime.now()
+            created_at=datetime.now(),
+            faction_id=config.get('faction_id')
         )
         
         # 데이터베이스에 저장
@@ -294,7 +295,8 @@ class MonsterSpawner:
                 roaming_range=config['roaming_range'],
                 properties=properties,
                 is_alive=True,
-                created_at=datetime.now()
+                created_at=datetime.now(),
+                faction_id=config.get('faction_id')
             )
             
             # 데이터베이스에 저장

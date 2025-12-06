@@ -111,3 +111,8 @@ class ANSIColors:
     def exit_direction(text: str) -> str:
         """출구 방향 (밝은 녹색)"""
         return ANSIColors.colorize(text, ANSIColors.BRIGHT_GREEN)
+
+    @staticmethod
+    def neutral_name(text: str) -> str:
+        """중립 몬스터/동물 이름 (밝은 흰색)"""
+        return ANSIColors.colorize(text, ANSIColors.BRIGHT_WHITE)

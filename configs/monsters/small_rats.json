@@ -10,6 +10,7 @@
   },
   "monster_type": "PASSIVE",
   "behavior": "ROAMING",
+  "faction_id": "animals",
   "stats": {
     "strength": 6,
     "dexterity": 16,

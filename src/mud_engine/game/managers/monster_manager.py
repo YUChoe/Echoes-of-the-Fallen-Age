@@ -140,7 +140,8 @@ class MonsterManager:
                 aggro_range=template.aggro_range,
                 roaming_range=template.roaming_range,
                 properties={'template_id': template_id},
-                created_at=datetime.now()
+                created_at=datetime.now(),
+                faction_id=template.faction_id
             )
 
             created_monster = await self._monster_repo.create(new_monster.to_dict())
