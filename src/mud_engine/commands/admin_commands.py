@@ -525,7 +525,7 @@ class GotoCommand(AdminCommand):
                 target_room_id,
                 {
                     "type": "room_message",
-                    "message": f"✨ {session.player.username}이(가) 순간이동으로 나타났습니다."
+                    "message": f"✨ {session.player.get_display_name()}님이 순간이동으로 나타났습니다."
                 },
                 exclude_session=session.session_id
             )

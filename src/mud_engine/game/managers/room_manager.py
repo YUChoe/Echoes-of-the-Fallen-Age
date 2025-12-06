@@ -31,9 +31,10 @@ class RoomManager:
         try:
             room = Room(
                 id=room_data.get('id'),
-                name=room_data.get('name', {}),
                 description=room_data.get('description', {}),
                 exits=room_data.get('exits', {}),
+                x=room_data.get('x'),
+                y=room_data.get('y'),
                 created_at=datetime.now(),
                 updated_at=datetime.now()
             )

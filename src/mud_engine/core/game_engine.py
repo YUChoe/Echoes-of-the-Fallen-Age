@@ -54,6 +54,9 @@ class GameEngine:
         monster_repo = MonsterRepository(db_manager)
         npc_repo = NPCRepository(db_manager)
         self.world_manager = WorldManager(room_repo, object_repo, monster_repo, npc_repo)
+        
+        # WorldManager에 GameEngine 참조 설정 (순환 참조 방지)
+        self.world_manager.set_game_engine(self)
 
         # CombatManager 및 CombatHandler 초기화
         from ..game.combat import CombatManager

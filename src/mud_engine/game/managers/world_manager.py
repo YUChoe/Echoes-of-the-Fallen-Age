@@ -23,7 +23,16 @@ class WorldManager:
         self._object_manager = ObjectManager(object_repo)
         self._monster_manager = MonsterManager(monster_repo)
         self._npc_repo = npc_repo
+        
+        # MonsterManager에 RoomManager 참조 설정
+        self._monster_manager.set_room_manager(self._room_manager)
+        
         logger.info("WorldManager 초기화 완료")
+    
+    def set_game_engine(self, game_engine: Any) -> None:
+        """GameEngine 참조를 설정합니다 (순환 참조 방지를 위해 초기화 후 설정)"""
+        self._monster_manager.set_game_engine(game_engine)
+        logger.debug("WorldManager에 GameEngine 참조 설정됨")
 
     # === 방 관리 위임 ===
 
@@ -121,8 +130,8 @@ class WorldManager:
     async def delete_monster(self, monster_id: str) -> bool:
         return await self._monster_manager.delete_monster(monster_id)
 
-    async def move_monster_to_room(self, monster_id: str, room_id: str) -> bool:
-        return await self._monster_manager.move_monster_to_room(monster_id, room_id, self._room_manager)
+    async def move_monster_to_room(self, monster_id: str, room_id: str, game_engine=None) -> bool:
+        return await self._monster_manager.move_monster_to_room(monster_id, room_id, self._room_manager, game_engine)
 
     async def find_monsters_by_name(self, name_pattern: str, locale: str = 'ko') -> List[Monster]:
         return await self._monster_manager.find_monsters_by_name(name_pattern, locale)

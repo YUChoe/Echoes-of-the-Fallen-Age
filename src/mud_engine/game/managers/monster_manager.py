@@ -21,7 +21,19 @@ class MonsterManager:
         self._spawn_scheduler_task: Optional[asyncio.Task] = None
         self._spawn_points: Dict[str, List[Dict[str, Any]]] = {}
         self._global_spawn_limits: Dict[str, int] = {}
+        self._game_engine: Optional[Any] = None  # GameEngine 참조 (순환 참조 방지를 위해 Optional)
+        self._room_manager: Optional[Any] = None  # RoomManager 참조
         logger.info("MonsterManager 초기화 완료")
+    
+    def set_game_engine(self, game_engine: Any) -> None:
+        """GameEngine 참조를 설정합니다 (순환 참조 방지를 위해 초기화 후 설정)"""
+        self._game_engine = game_engine
+        logger.debug("MonsterManager에 GameEngine 참조 설정됨")
+    
+    def set_room_manager(self, room_manager: Any) -> None:
+        """RoomManager 참조를 설정합니다"""
+        self._room_manager = room_manager
+        logger.debug("MonsterManager에 RoomManager 참조 설정됨")
 
     # === 스폰 스케줄러 ===
 
@@ -383,7 +395,7 @@ class MonsterManager:
             logger.error(f"몬스터 삭제 실패 ({monster_id}): {e}")
             raise
 
-    async def move_monster_to_room(self, monster_id: str, room_id: str, room_manager=None) -> bool:
+    async def move_monster_to_room(self, monster_id: str, room_id: str, room_manager=None, game_engine=None) -> bool:
         """몬스터를 특정 방으로 이동시킵니다."""
         try:
             if room_manager:
@@ -397,10 +409,37 @@ class MonsterManager:
                 logger.warning(f"몬스터가 존재하지 않음: {monster_id}")
                 return False
 
+            # 이전 방 ID 저장
+            old_room_id = monster.current_room_id
+
+            # 몬스터 위치 업데이트
             monster.current_room_id = room_id
             success = await self.update_monster(monster)
+            
             if success:
                 logger.info(f"몬스터 {monster_id}를 방 {room_id}로 이동")
+                
+                # 이동 메시지 브로드캐스트 (game_engine이 제공된 경우)
+                if game_engine:
+                    monster_name = monster.get_localized_name('ko')
+                    
+                    # 이전 방의 플레이어들에게 퇴장 알림
+                    if old_room_id and old_room_id != room_id:
+                        leave_message = {
+                            "type": "room_message",
+                            "message": f"🐾 {monster_name}이(가) 떠났습니다.",
+                            "timestamp": datetime.now().isoformat()
+                        }
+                        await game_engine.broadcast_to_room(old_room_id, leave_message)
+                    
+                    # 새 방의 플레이어들에게 입장 알림
+                    enter_message = {
+                        "type": "room_message",
+                        "message": f"🐾 {monster_name}이(가) 나타났습니다.",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    await game_engine.broadcast_to_room(room_id, enter_message)
+                    
             return success
         except Exception as e:
             logger.error(f"몬스터 방 이동 실패 ({monster_id} -> {room_id}): {e}")
@@ -443,11 +482,11 @@ class MonsterManager:
                 if random.random() > roam_chance:
                     continue
 
-                await self._roam_monster(monster, roaming_config)
+                await self._roam_monster(monster, roaming_config, self._room_manager, self._game_engine)
         except Exception as e:
             logger.error(f"몬스터 로밍 처리 실패: {e}")
 
-    async def _roam_monster(self, monster: Monster, roaming_config: Dict[str, Any], room_manager=None) -> None:
+    async def _roam_monster(self, monster: Monster, roaming_config: Dict[str, Any], room_manager=None, game_engine=None) -> None:
         """몬스터를 로밍 범위 내에서 이동시킵니다."""
         try:
             if not monster.current_room_id:
@@ -486,7 +525,7 @@ class MonsterManager:
 
                 import random
                 _, target_room_id = random.choice(available_exits)
-                success = await self.move_monster_to_room(monster.id, target_room_id, room_manager)
+                success = await self.move_monster_to_room(monster.id, target_room_id, room_manager, game_engine)
                 if success:
                     logger.debug(f"몬스터 {monster.get_localized_name('ko')}가 {target_room_id}로 이동")
         except Exception as e:
