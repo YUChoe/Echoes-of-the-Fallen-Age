@@ -9,6 +9,7 @@ from .base import BaseCommand, CommandResult, CommandResultType
 from ..core.types import SessionType
 from ..game.combat import CombatAction, CombatInstance
 from ..game.combat_handler import CombatHandler
+from ..server.ansi_colors import ANSIColors
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ class AttackCommand(BaseCommand):
             
             # 전투 시작 메시지 (몬스터 턴 처리 후)
             start_message = f"""
-⚔️ {monster_name}와(과) 전투를 시작합니다!
+{ANSIColors.RED}⚔️ {monster_name}와(과) 전투를 시작합니다!{ANSIColors.RESET}
 
 {self._get_combat_status_message(combat)}
 
@@ -235,7 +236,7 @@ class AttackCommand(BaseCommand):
 
         if player_won:
             message = f"""
-🎉 전투에서 승리했습니다!
+{ANSIColors.RED}🎉 전투에서 승리했습니다!{ANSIColors.RESET}
 
 💰 보상:
   - 경험치: {rewards['experience']}
@@ -244,7 +245,7 @@ class AttackCommand(BaseCommand):
 원래 위치로 돌아갑니다...
 """
         else:
-            message = "💀 전투에서 패배했습니다...\n\n원래 위치로 돌아갑니다..."
+            message = f"{ANSIColors.RED}💀 전투에서 패배했습니다...{ANSIColors.RESET}\n\n원래 위치로 돌아갑니다..."
 
         # 원래 방으로 복귀
         original_room_id = getattr(session, 'original_room_id', None)
@@ -270,7 +271,7 @@ class AttackCommand(BaseCommand):
 
     def _get_combat_status_message(self, combat: CombatInstance) -> str:
         """전투 상태 메시지 생성"""
-        lines = ["━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
+        lines = [f"{ANSIColors.RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
         lines.append(f"⚔️ 전투 라운드 {combat.turn_number}")
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
@@ -293,7 +294,7 @@ class AttackCommand(BaseCommand):
                 lines.append(f"     HP: {hp_bar} {monster.current_hp}/{monster.max_hp}")
                 lines.append(f"     민첩: {monster.agility}")
 
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{ANSIColors.RESET}")
         return "\n".join(lines)
 
     def _get_turn_message(self, combat: CombatInstance, player_id: str) -> str:
@@ -312,7 +313,7 @@ class AttackCommand(BaseCommand):
 
 명령어를 입력하세요:"""
         else:
-            return f"⏳ {current.name}의 턴입니다..."
+            return f"{ANSIColors.RED}⏳ {current.name}의 턴입니다...{ANSIColors.RESET}"
 
     def _get_hp_bar(self, current: int, maximum: int, length: int = 10) -> str:
         """HP 바 생성"""

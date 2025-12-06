@@ -9,6 +9,7 @@ from typing import Optional, List, Dict, Any
 from .combat import CombatManager, CombatInstance, CombatAction, CombatTurn, Combatant
 from .monster import Monster, MonsterType
 from .models import Player
+from ..server.ansi_colors import ANSIColors
 
 # D&D 전투 엔진 import
 try:
@@ -246,8 +247,8 @@ class CombatHandler:
         
         # 빗나감
         if not hit and not is_critical:
-            message = f"🎲 {actor.name}의 공격! (굴림: {attack_roll} vs AC {target_ac})\n"
-            message += f"❌ {target.name}을(를) 빗나갔습니다!"
+            message = f"{ANSIColors.RED}🎲 {actor.name}의 공격! (굴림: {attack_roll} vs AC {target_ac})\n"
+            message += f"❌ {target.name}을(를) 빗나갔습니다!{ANSIColors.RESET}"
             
             return {
                 'success': True,
@@ -276,7 +277,7 @@ class CombatHandler:
         target.current_hp = max(0, target.current_hp - actual_damage)
         
         # 메시지 생성
-        message = f"🎲 {actor.name}의 공격! (굴림: {attack_roll} vs AC {target_ac})\n"
+        message = f"{ANSIColors.RED}🎲 {actor.name}의 공격! (굴림: {attack_roll} vs AC {target_ac})\n"
         
         if is_critical:
             message += f"💥 크리티컬 히트! "
@@ -290,6 +291,8 @@ class CombatHandler:
         
         if not target.is_alive():
             message += f"\n💀 {target.name}이(가) 쓰러졌습니다!"
+        
+        message += ANSIColors.RESET
         
         return {
             'success': True,
@@ -347,7 +350,7 @@ class CombatHandler:
         
         return {
             'success': True,
-            'message': f"{actor.name}이(가) 방어 자세를 취했습니다. (다음 공격 데미지 50% 감소)"
+            'message': f"{ANSIColors.RED}{actor.name}이(가) 방어 자세를 취했습니다. (다음 공격 데미지 50% 감소){ANSIColors.RESET}"
         }
     
     async def _execute_flee(
@@ -366,13 +369,13 @@ class CombatHandler:
             
             return {
                 'success': True,
-                'message': f"{actor.name}이(가) 전투에서 도망쳤습니다!",
+                'message': f"{ANSIColors.RED}{actor.name}이(가) 전투에서 도망쳤습니다!{ANSIColors.RESET}",
                 'fled': True
             }
         else:
             return {
                 'success': True,
-                'message': f"{actor.name}이(가) 도망치려 했지만 실패했습니다!",
+                'message': f"{ANSIColors.RED}{actor.name}이(가) 도망치려 했지만 실패했습니다!{ANSIColors.RESET}",
                 'fled': False
             }
     
@@ -383,7 +386,7 @@ class CombatHandler:
         
         return {
             'success': True,
-            'message': f"{actor.name}이(가) 대기합니다."
+            'message': f"{ANSIColors.RED}{actor.name}이(가) 대기합니다.{ANSIColors.RESET}"
         }
     
     async def process_monster_turn(self, combat_id: str) -> Dict[str, Any]:
