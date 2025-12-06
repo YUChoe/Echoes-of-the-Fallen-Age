@@ -138,6 +138,47 @@ class CommandProcessor:
         
         return command_line
 
+    async def _execute_combat_command(self, session: SessionType, command_name: str, args: List[str]) -> CommandResult:
+        """
+        전투 전용 명령어 동적 실행
+        
+        Args:
+            session: 세션 객체
+            command_name: 명령어 이름
+            args: 인수 목록
+        
+        Returns:
+            CommandResult: 실행 결과
+        """
+        from ..commands.combat_commands import DefendCommand, FleeCommand
+        
+        # 명령어 별칭 매핑
+        defend_aliases = ['defend', 'def', 'guard', 'block']
+        flee_aliases = ['flee', 'run', 'escape', 'retreat']
+        
+        # combat_handler 가져오기
+        game_engine = getattr(session, 'game_engine', None)
+        if not game_engine:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message="게임 엔진에 접근할 수 없습니다."
+            )
+        
+        combat_handler = game_engine.combat_handler
+        
+        # 명령어 실행
+        if command_name in defend_aliases:
+            command = DefendCommand(combat_handler)
+            return await command.execute(session, args)
+        elif command_name in flee_aliases:
+            command = FleeCommand(combat_handler)
+            return await command.execute(session, args)
+        else:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message=f"알 수 없는 전투 명령어: '{command_name}'"
+            )
+
     def parse_command(self, command_line: str) -> tuple[str, List[str]]:
         """
         명령어 라인 파싱
@@ -209,6 +250,19 @@ class CommandProcessor:
                 result_type=CommandResultType.ERROR,
                 message="명령어가 비어있습니다."
             )
+
+        # 전투 전용 명령어 처리 (defend, flee)
+        in_combat = getattr(session, 'in_combat', False)
+        combat_only_commands = ['defend', 'flee', 'def', 'guard', 'block', 'run', 'escape', 'retreat']
+        
+        if command_name in combat_only_commands:
+            if not in_combat:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message="전투 중에만 사용할 수 있는 명령어입니다."
+                )
+            # 전투 중이면 동적으로 명령어 생성하여 실행
+            return await self._execute_combat_command(session, command_name, args)
 
         # 명령어 조회
         command = self.get_command(command_name)

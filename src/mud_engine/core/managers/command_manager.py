@@ -118,12 +118,11 @@ class CommandManager:
 
         # 전투 명령어들 등록
         from ...commands.combat_commands import (
-            AttackCommand, DefendCommand, FleeCommand, CombatStatusCommand
+            AttackCommand, CombatStatusCommand
         )
         self.command_processor.register_command(AttackCommand(self.game_engine.combat_handler))
-        self.command_processor.register_command(DefendCommand(self.game_engine.combat_handler))
-        self.command_processor.register_command(FleeCommand(self.game_engine.combat_handler))
         self.command_processor.register_command(CombatStatusCommand(self.game_engine.combat_handler))
+        # defend, flee는 전투 중에만 사용 가능하므로 일반 명령어 목록에서 제외
 
         # 사용자 이름 명령어들 등록
         from ...commands.name_commands import (
