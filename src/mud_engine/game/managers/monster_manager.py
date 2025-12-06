@@ -495,7 +495,10 @@ class MonsterManager:
                 if not current_room or current_room.x is None or current_room.y is None:
                     return
 
-                roaming_area = roaming_config.get('roaming_area', {})
+                roaming_area = roaming_config.get('roaming_area')
+                if not roaming_area:
+                    roaming_area = {}
+                
                 min_x = roaming_area.get('min_x')
                 max_x = roaming_area.get('max_x')
                 min_y = roaming_area.get('min_y')
