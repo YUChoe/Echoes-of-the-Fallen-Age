@@ -27,36 +27,90 @@ class TalkCommand(BaseCommand):
         """NPC와 대화 실행"""
         try:
             if not args:
-                return self.create_error_result("누구와 대화하시겠습니까? 사용법: talk <NPC이름>")
+                return self.create_error_result("누구와 대화하시겠습니까? 사용법: talk <NPC이름 또는 번호>")
 
-            npc_name = " ".join(args)
+            npc_input = " ".join(args)
 
             # GameEngine을 통해 NPC 조회
             game_engine = getattr(session, 'game_engine', None)
             if not game_engine:
                 return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
-            # 현재 방의 NPC들 조회
-            npcs_in_room = await game_engine.model_manager.npcs.get_npcs_in_room(session.current_room_id)
+            # 번호로 입력된 경우 처리
+            target_entity = None
+            entity_type = None
+            
+            if npc_input.isdigit():
+                entity_num = int(npc_input)
+                entity_map = getattr(session, 'room_entity_map', {})
+                
+                if entity_num in entity_map:
+                    entity_info = entity_map[entity_num]
+                    target_entity = entity_info['entity']
+                    entity_type = entity_info['type']
+                else:
+                    return self.create_error_result(
+                        f"번호 [{entity_num}]에 해당하는 대상을 찾을 수 없습니다."
+                    )
+            else:
+                # 이름으로 검색 - NPC 먼저
+                npc_name = npc_input
+                npcs_in_room = await game_engine.model_manager.npcs.get_npcs_in_room(session.current_room_id)
 
-            # 이름으로 NPC 찾기
-            target_npc = None
-            for npc in npcs_in_room:
-                if (npc_name.lower() in npc.get_localized_name(session.locale).lower() or
-                    npc_name.lower() in npc.get_localized_name('en').lower() or
-                    npc_name.lower() in npc.get_localized_name('ko').lower()):
-                    target_npc = npc
-                    break
+                for npc in npcs_in_room:
+                    if (npc_name.lower() in npc.get_localized_name(session.locale).lower() or
+                        npc_name.lower() in npc.get_localized_name('en').lower() or
+                        npc_name.lower() in npc.get_localized_name('ko').lower()):
+                        target_entity = npc
+                        entity_type = 'npc'
+                        break
+                
+                # NPC를 못 찾았으면 몬스터 검색
+                if not target_entity:
+                    monsters = await game_engine.world_manager.get_monsters_in_room(session.current_room_id)
+                    for monster in monsters:
+                        if (npc_name.lower() in monster.get_localized_name(session.locale).lower() or
+                            npc_name.lower() in monster.get_localized_name('en').lower() or
+                            npc_name.lower() in monster.get_localized_name('ko').lower()):
+                            target_entity = monster
+                            entity_type = 'monster'
+                            break
 
-            if not target_npc:
-                return self.create_error_result(f"'{npc_name}'라는 NPC를 찾을 수 없습니다.")
+            if not target_entity:
+                return self.create_error_result(f"'{npc_input}'을(를) 찾을 수 없습니다.")
+            
+            # 몬스터인 경우 우호도 확인
+            if entity_type == 'monster':
+                player_faction = session.player.faction_id or 'ash_knights'
+                monster_faction = target_entity.faction_id
+                
+                # 우호도 확인 (같은 종족이거나 중립 이상)
+                if monster_faction != player_faction:
+                    # 적대적이면 대화 불가
+                    if not self._is_neutral_or_friendly(player_faction, monster_faction):
+                        return self.create_error_result(
+                            f"{target_entity.get_localized_name(session.locale)}은(는) 적대적이어서 대화할 수 없습니다."
+                        )
+            
+            target_npc = target_entity
 
-            # NPC 대화 가져오기
-            dialogue = target_npc.get_random_dialogue(session.locale)
+            # 대화 가져오기
             npc_display_name = target_npc.get_localized_name(session.locale)
+            
+            # NPC인 경우 대화 내용 가져오기
+            if entity_type == 'npc':
+                dialogue = target_npc.get_random_dialogue(session.locale)
+            else:
+                # 몬스터인 경우 기본 대화
+                dialogue = "..."  # 몬스터는 말을 하지 않음
+                if hasattr(target_npc, 'get_random_dialogue'):
+                    dialogue = target_npc.get_random_dialogue(session.locale)
 
             # 대화 메시지 생성
-            message = f"{npc_display_name}: \"{dialogue}\""
+            if dialogue == "...":
+                message = f"{npc_display_name}은(는) 당신을 조용히 바라봅니다."
+            else:
+                message = f"{npc_display_name}: \"{dialogue}\""
 
             # 같은 방의 다른 플레이어들에게도 알림
             await game_engine.broadcast_to_room(
@@ -73,6 +127,36 @@ class TalkCommand(BaseCommand):
         except Exception as e:
             logger.error(f"대화 명령어 실행 실패: {e}", exc_info=True)
             return self.create_error_result("대화 중 오류가 발생했습니다.")
+    
+    def _is_neutral_or_friendly(self, player_faction: str, monster_faction: Optional[str]) -> bool:
+        """플레이어와 몬스터 종족 간의 중립 또는 우호 관계 확인
+        
+        Args:
+            player_faction: 플레이어 종족 ID
+            monster_faction: 몬스터 종족 ID
+            
+        Returns:
+            bool: 중립 이상이면 True
+        """
+        # 같은 종족이면 우호적
+        if monster_faction == player_faction:
+            return True
+        
+        # 몬스터 종족이 없으면 적대적으로 간주
+        if not monster_faction:
+            return False
+        
+        # 중립 종족 목록 (추후 DB에서 동적으로 로드 가능)
+        neutral_factions: dict[str, list[str]] = {
+            'ash_knights': [],  # 현재는 중립 종족 없음
+        }
+        
+        # 중립 종족이면 True
+        if player_faction in neutral_factions:
+            if monster_faction in neutral_factions[player_faction]:
+                return True
+        
+        return False
 
 
 class ShopCommand(BaseCommand):
@@ -104,16 +188,43 @@ class ShopCommand(BaseCommand):
             # 특정 상인 지정된 경우
             target_merchant = None
             if args:
-                merchant_name = " ".join(args)
-                for merchant in merchants:
-                    if (merchant_name.lower() in merchant.get_localized_name(session.locale).lower() or
-                        merchant_name.lower() in merchant.get_localized_name('en').lower() or
-                        merchant_name.lower() in merchant.get_localized_name('ko').lower()):
-                        target_merchant = merchant
-                        break
+                merchant_input = " ".join(args)
+                
+                # 번호로 입력된 경우 처리
+                if merchant_input.isdigit():
+                    entity_num = int(merchant_input)
+                    entity_map = getattr(session, 'room_entity_map', {})
+                    
+                    if entity_num in entity_map:
+                        entity_info = entity_map[entity_num]
+                        if entity_info['type'] == 'npc':
+                            npc = entity_info['entity']
+                            if npc.is_merchant():
+                                target_merchant = npc
+                            else:
+                                return self.create_error_result(
+                                    f"[{entity_num}]은(는) 상인이 아닙니다."
+                                )
+                        else:
+                            return self.create_error_result(
+                                f"[{entity_num}]은(는) NPC가 아닙니다."
+                            )
+                    else:
+                        return self.create_error_result(
+                            f"번호 [{entity_num}]에 해당하는 대상을 찾을 수 없습니다."
+                        )
+                else:
+                    # 이름으로 검색
+                    merchant_name = merchant_input
+                    for merchant in merchants:
+                        if (merchant_name.lower() in merchant.get_localized_name(session.locale).lower() or
+                            merchant_name.lower() in merchant.get_localized_name('en').lower() or
+                            merchant_name.lower() in merchant.get_localized_name('ko').lower()):
+                            target_merchant = merchant
+                            break
 
-                if not target_merchant:
-                    return self.create_error_result(f"'{merchant_name}'라는 상인을 찾을 수 없습니다.")
+                    if not target_merchant:
+                        return self.create_error_result(f"'{merchant_name}'라는 상인을 찾을 수 없습니다.")
             else:
                 # 첫 번째 상인 선택
                 target_merchant = merchants[0]

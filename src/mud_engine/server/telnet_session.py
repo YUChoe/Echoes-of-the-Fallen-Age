@@ -151,7 +151,9 @@ class TelnetSession:
         
         # 방 정보
         if msg_type == "room_info":
-            return self._format_room_info(message.get("room", {}))
+            room_data = message.get("room", {})
+            entity_map = message.get("entity_map", {})
+            return self._format_room_info(room_data, entity_map)
         
         # 방 메시지
         if msg_type == "room_message":
@@ -176,11 +178,12 @@ class TelnetSession:
         # 기본값
         return str(message)
 
-    def _format_room_info(self, room_data: Dict[str, Any]) -> str:
+    def _format_room_info(self, room_data: Dict[str, Any], entity_map: Dict[int, Dict[str, Any]] = None) -> str:
         """방 정보를 Telnet 포맷으로 변환
 
         Args:
             room_data: 방 정보 딕셔너리
+            entity_map: 엔티티 번호 매핑
 
         Returns:
             str: 포맷된 방 정보
@@ -259,6 +262,15 @@ class TelnetSession:
             # 플레이어 정보가 없으면 모두 적대적으로 처리
             hostile_monsters = monsters
         
+        # 엔티티 번호 매핑 사용 (파라미터로 전달받음)
+        if entity_map is None:
+            entity_map = {}
+        
+        # 번호로 엔티티 ID 역매핑 생성
+        id_to_number = {}
+        for num, entity_info in entity_map.items():
+            id_to_number[entity_info['id']] = num
+        
         # NPC와 우호적인 몬스터를 함께 표시
         all_npcs = list(npcs) + friendly_monsters
         if all_npcs:
@@ -266,6 +278,8 @@ class TelnetSession:
             lines.append("🧑‍💼 이곳에 있는 NPC들:")
             for npc in all_npcs:
                 npc_name = npc.get("name", "알 수 없음")
+                npc_id = npc.get("id", "")
+                entity_num = id_to_number.get(npc_id, "?")
                 
                 # 실제 NPC인지 우호적인 몬스터인지 구분
                 if npc in npcs:
@@ -273,12 +287,10 @@ class TelnetSession:
                     is_merchant = npc.get("is_merchant", False)
                     icon = "🧑‍💼" if is_merchant else "👤"
                     type_text = " (상인)" if is_merchant else ""
-                    lines.append(f"  • {icon} {ANSIColors.npc_name(npc_name)}{type_text}")
+                    lines.append(f"  [{entity_num}] {icon} {ANSIColors.npc_name(npc_name)}{type_text}")
                 else:
                     # 우호적인 몬스터
-                    monster_id = npc.get("id", "")
-                    id_suffix = monster_id[-4:] if len(monster_id) >= 4 else monster_id
-                    lines.append(f"  • 👤 {ANSIColors.npc_name(npc_name)} #{id_suffix}")
+                    lines.append(f"  [{entity_num}] 👤 {ANSIColors.npc_name(npc_name)}")
         
         # 중립 몬스터 표시
         if neutral_monsters:
@@ -287,8 +299,8 @@ class TelnetSession:
             for monster in neutral_monsters:
                 monster_name = monster.get("name", "알 수 없음")
                 monster_id = monster.get("id", "")
-                id_suffix = monster_id[-4:] if len(monster_id) >= 4 else monster_id
-                lines.append(f"  • 🐾 {ANSIColors.neutral_name(monster_name)} #{id_suffix}")
+                entity_num = id_to_number.get(monster_id, "?")
+                lines.append(f"  [{entity_num}] 🐾 {ANSIColors.neutral_name(monster_name)}")
         
         # 적대적인 몬스터 표시
         if hostile_monsters:
@@ -297,11 +309,8 @@ class TelnetSession:
             for monster in hostile_monsters:
                 monster_name = monster.get("name", "알 수 없음")
                 monster_id = monster.get("id", "")
-                
-                # 각 몬스터를 개별 ID로 구분하여 표시
-                # ID의 마지막 4자리를 사용하여 구분
-                id_suffix = monster_id[-4:] if len(monster_id) >= 4 else monster_id
-                lines.append(f"  • {ANSIColors.monster_name(monster_name)} #{id_suffix}")
+                entity_num = id_to_number.get(monster_id, "?")
+                lines.append(f"  [{entity_num}] {ANSIColors.monster_name(monster_name)}")
         
         lines.append("")
         return "\r\n".join(lines)

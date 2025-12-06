@@ -140,6 +140,34 @@ class PlayerMovementManager:
                 logger.debug(f"방 {room_id}에서 {len(monsters)}마리 몬스터 발견")
                 for i, monster in enumerate(monsters):
                     logger.debug(f"몬스터 {i+1}: {monster.get_localized_name(session.locale)}, 타입: {monster.monster_type}, 행동: {monster.behavior}")
+                
+                # 세션에 엔티티 번호 매핑 저장
+                entity_map = {}
+                entity_index = 1
+                
+                # 몬스터 번호 매핑
+                for monster in room_info.get('monsters', []):
+                    entity_map[entity_index] = {
+                        'type': 'monster',
+                        'id': monster.id,
+                        'name': monster.get_localized_name(session.locale),
+                        'entity': monster
+                    }
+                    entity_index += 1
+                
+                # NPC 번호 매핑
+                for npc in room_info.get('npcs', []):
+                    entity_map[entity_index] = {
+                        'type': 'npc',
+                        'id': npc.id,
+                        'name': npc.get_localized_name(session.locale),
+                        'entity': npc
+                    }
+                    entity_index += 1
+                
+                # 세션에 저장
+                session.room_entity_map = entity_map
+                
                 room_data = {
                     "id": room_info['room'].id,
                     "description": room_info['room'].get_localized_description(session.locale),
@@ -182,7 +210,8 @@ class PlayerMovementManager:
 
                 await session.send_message({
                     "type": "room_info",
-                    "room": room_data
+                    "room": room_data,
+                    "entity_map": entity_map
                 })
 
                 # UI 업데이트 정보 전송
