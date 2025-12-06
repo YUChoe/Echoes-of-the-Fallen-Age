@@ -131,7 +131,11 @@ class CommandManager:
         self.command_processor.register_command(ChangeNameCommand())
         self.command_processor.register_command(AdminChangeNameCommand())
 
-        logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용, NPC 상호작용, 전투, 사용자 이름 명령어 포함)")
+        # 조사 명령어 등록
+        from ...commands.inspect_commands import InspectCommand
+        self.command_processor.register_command(InspectCommand())
+
+        logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용, NPC 상호작용, 전투, 사용자 이름, 조사 명령어 포함)")
 
     async def handle_player_command(self, session: SessionType, command: str):
         """

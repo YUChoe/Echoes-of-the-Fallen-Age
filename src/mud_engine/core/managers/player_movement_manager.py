@@ -636,7 +636,6 @@ class PlayerMovementManager:
             hp_bar = self._get_hp_bar(player.current_hp, player.max_hp)
             lines.append(f"\n👤 {player.name}")
             lines.append(f"   HP: {hp_bar} {player.current_hp}/{player.max_hp}")
-            lines.append(f"   민첩: {player.agility}")
         
         # 몬스터 정보
         monsters = [c for c in combat.combatants if c.combatant_type == CombatantType.MONSTER and c.is_alive()]
@@ -646,7 +645,6 @@ class PlayerMovementManager:
                 hp_bar = self._get_hp_bar(monster.current_hp, monster.max_hp)
                 lines.append(f"   • {monster.name}")
                 lines.append(f"     HP: {hp_bar} {monster.current_hp}/{monster.max_hp}")
-                lines.append(f"     민첩: {monster.agility}")
         
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         return "\n".join(lines)

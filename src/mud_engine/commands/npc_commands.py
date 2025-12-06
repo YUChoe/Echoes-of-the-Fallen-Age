@@ -226,8 +226,10 @@ class ShopCommand(BaseCommand):
                     if not target_merchant:
                         return self.create_error_result(f"'{merchant_name}'라는 상인을 찾을 수 없습니다.")
             else:
-                # 첫 번째 상인 선택
-                target_merchant = merchants[0]
+                # 상인을 지정하지 않은 경우 에러
+                return self.create_error_result(
+                    "상인을 지정해주세요.\n사용법: shop <번호 또는 상인이름>"
+                )
 
             # 상점 아이템 목록 조회
             shop_items = []
