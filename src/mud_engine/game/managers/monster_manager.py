@@ -142,7 +142,6 @@ class MonsterManager:
                     level=template.stats.level,
                     current_hp=template.stats.get_max_hp()
                 ),
-                experience_reward=template.experience_reward,
                 gold_reward=template.gold_reward,
                 drop_items=template.drop_items.copy(),
                 spawn_room_id=room_id,
@@ -355,7 +354,6 @@ class MonsterManager:
                 monster_type=monster_data.get('monster_type', MonsterType.PASSIVE),
                 behavior=monster_data.get('behavior', MonsterBehavior.STATIONARY),
                 stats=monster_data.get('stats', MonsterStats()),
-                experience_reward=monster_data.get('experience_reward', 50),
                 gold_reward=monster_data.get('gold_reward', 10),
                 drop_items=monster_data.get('drop_items', []),
                 spawn_room_id=monster_data.get('spawn_room_id'),

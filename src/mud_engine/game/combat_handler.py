@@ -450,9 +450,9 @@ class CombatHandler:
         """
         winners = combat.get_winners()
         rewards: Dict[str, Any] = {
-            'experience': 0,
             'gold': 0,
-            'items': []
+            'items': [],
+            'dropped_items': []  # 땅에 드롭된 아이템 정보
         }
         
         # 승리자 로그
@@ -474,32 +474,37 @@ class CombatHandler:
                     # monster_combatant.data에 Monster 객체의 보상 정보가 저장되어 있음
                     monster_data = monster_combatant.data
                     if monster_data:
-                        exp_reward = monster_data.get('experience_reward', 50)
                         gold_reward = monster_data.get('gold_reward', 10)
-                        rewards['experience'] += exp_reward
                         rewards['gold'] += gold_reward
-                        logger.debug(f"몬스터 {monster_combatant.name} 보상: 경험치 {exp_reward}, 골드 {gold_reward}")
+                        logger.debug(f"몬스터 {monster_combatant.name} 보상: 골드 {gold_reward}")
                     else:
                         # 데이터가 없으면 기본 보상
-                        rewards['experience'] += 50
                         rewards['gold'] += 10
                 
-                logger.info(f"전투 보상: 경험치 {rewards['experience']}, 골드 {rewards['gold']}")
+                logger.info(f"전투 보상: 골드 {rewards['gold']}")
         else:
             logger.info(f"전투 {combat.id} 종료 - 무승부")
         
-        # 죽은 몬스터들을 DB에 저장
+        # 죽은 몬스터들을 DB에 저장하고 아이템 드롭 처리
         from .combat import CombatantType
         if self.world_manager:
             for combatant in combat.combatants:
                 if combatant.combatant_type != CombatantType.PLAYER and not combatant.is_alive():
-                    # 몬스터가 죽었으면 DB에 저장
+                    # 몬스터가 죽었으면 DB에 저장하고 아이템 드롭
                     try:
                         monster = await self.world_manager.get_monster(combatant.id)
-                        if monster and monster.is_alive:
-                            monster.die()
-                            await self.world_manager.update_monster(monster)
-                            logger.info(f"몬스터 {combatant.name} ({combatant.id}) 사망 처리 완료")
+                        if monster:
+                            # 아이템 드롭 처리 (사망 처리 전에 실행)
+                            dropped = await self._drop_monster_loot(monster, combat.room_id)
+                            if dropped:
+                                rewards['dropped_items'].extend(dropped)
+                                logger.info(f"몬스터 {combatant.name}이(가) {len(dropped)}개 아이템 드롭")
+                            
+                            # 몬스터 사망 처리
+                            if monster.is_alive:
+                                monster.die()
+                                await self.world_manager.update_monster(monster)
+                                logger.info(f"몬스터 {combatant.name} ({combatant.id}) 사망 처리 완료")
                     except Exception as e:
                         logger.error(f"몬스터 사망 처리 실패 ({combatant.id}): {e}")
         
@@ -507,6 +512,65 @@ class CombatHandler:
         self.combat_manager.end_combat(combat.id)
         
         return rewards
+    
+    async def _drop_monster_loot(self, monster: Monster, room_id: str) -> List[Dict[str, Any]]:
+        """
+        몬스터 사망 시 아이템 드롭
+        
+        Args:
+            monster: 사망한 몬스터
+            room_id: 현재 방 ID
+        
+        Returns:
+            List[Dict]: 드롭된 아이템 정보 목록
+        """
+        dropped_items = []
+        
+        try:
+            from .item_templates import ItemTemplateManager
+            item_manager = ItemTemplateManager()
+            
+            # 몬스터 타입에 따른 드롭 아이템 결정
+            monster_name = monster.get_localized_name('en').lower()
+            logger.info(f"아이템 드롭 처리 시작 - 몬스터: {monster_name}, 방: {room_id}")
+            
+            # 쥐 처치 시: 1골드 (땅에 드롭) + 1 EOL (플레이어 인벤토리)
+            if 'rat' in monster_name:
+                # 1골드 드롭 (땅에)
+                gold_data = item_manager.create_item(
+                    template_id="gold_coin",
+                    location_type="room",
+                    location_id=room_id,
+                    quantity=1
+                )
+                if gold_data:
+                    gold_obj = await self.world_manager.create_game_object(gold_data)
+                    dropped_items.append({
+                        'item_id': gold_obj.id,
+                        'name_ko': gold_obj.get_localized_name('ko'),
+                        'name_en': gold_obj.get_localized_name('en'),
+                        'quantity': 1,
+                        'location': 'ground'  # 땅에 떨어짐
+                    })
+                    logger.debug(f"골드 1개 드롭 (방: {room_id})")
+                
+                # 1 EOL (플레이어 인벤토리에 직접 추가)
+                dropped_items.append({
+                    'item_id': 'essence_of_life',
+                    'template_id': 'essence_of_life',
+                    'name_ko': '생명의 정수',
+                    'name_en': 'Essence of Life',
+                    'quantity': 1,
+                    'location': 'inventory'  # 인벤토리 직접 추가
+                })
+                logger.debug(f"생명의 정수 1개 획득 (플레이어 인벤토리)")
+            
+            # 다른 몬스터 타입도 여기에 추가 가능
+            
+        except Exception as e:
+            logger.error(f"아이템 드롭 처리 실패: {e}", exc_info=True)
+        
+        return dropped_items
     
     def get_combat_status(self, combat_id: str) -> Optional[Dict[str, Any]]:
         """전투 상태 조회"""

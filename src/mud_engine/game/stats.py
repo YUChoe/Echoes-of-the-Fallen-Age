@@ -44,8 +44,6 @@ class PlayerStats:
 
     # 레벨 관련
     level: int = 1
-    experience: int = 0
-    experience_to_next: int = 100
 
     # 장비 보너스 (착용한 장비로부터 받는 추가 능력치)
     equipment_bonuses: Dict[str, int] = field(default_factory=dict)
@@ -69,9 +67,6 @@ class PlayerStats:
 
         if self.level < 1 or self.level > 100:
             raise ValueError("레벨은 1-100 범위여야 합니다")
-
-        if self.experience < 0:
-            raise ValueError("경험치는 0 이상이어야 합니다")
 
     def get_primary_stat(self, stat_type: StatType) -> int:
         """1차 능력치 조회 (장비 보너스 포함)"""
@@ -189,19 +184,7 @@ class PlayerStats:
             if self.equipment_bonuses[stat_name] <= 0:
                 del self.equipment_bonuses[stat_name]
 
-    def add_experience(self, exp: int) -> bool:
-        """경험치 추가 및 레벨업 확인"""
-        self.experience += exp
-        leveled_up = False
 
-        while self.experience >= self.experience_to_next and self.level < 100:
-            self.experience -= self.experience_to_next
-            self.level += 1
-            leveled_up = True
-            # 다음 레벨까지 필요한 경험치 증가
-            self.experience_to_next = int(self.experience_to_next * 1.2)
-
-        return leveled_up
 
     def level_up_stat(self, stat_type: StatType, points: int = 1) -> bool:
         """능력치 레벨업 (스탯 포인트 사용)"""
@@ -230,8 +213,6 @@ class PlayerStats:
 
         # 레벨 정보
         stats['level'] = self.level
-        stats['experience'] = self.experience
-        stats['experience_to_next'] = self.experience_to_next
         stats['max_carry_weight'] = self.get_max_carry_weight()
 
         return stats
@@ -246,8 +227,6 @@ class PlayerStats:
             'constitution': self.constitution,
             'charisma': self.charisma,
             'level': self.level,
-            'experience': self.experience,
-            'experience_to_next': self.experience_to_next,
             'equipment_bonuses': json.dumps(self.equipment_bonuses, ensure_ascii=False),
             'temporary_effects': json.dumps(self.temporary_effects, ensure_ascii=False)
         }
@@ -255,25 +234,30 @@ class PlayerStats:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'PlayerStats':
         """딕셔너리에서 객체 생성"""
+        # 하위 호환성: 경험치 필드 제거 (더 이상 사용하지 않음)
+        data_copy = data.copy()
+        data_copy.pop('experience', None)
+        data_copy.pop('experience_to_next', None)
+        
         # JSON 문자열 필드 파싱
-        if isinstance(data.get('equipment_bonuses'), str):
+        if isinstance(data_copy.get('equipment_bonuses'), str):
             try:
-                data['equipment_bonuses'] = json.loads(data['equipment_bonuses'])
+                data_copy['equipment_bonuses'] = json.loads(data_copy['equipment_bonuses'])
             except (json.JSONDecodeError, TypeError):
-                data['equipment_bonuses'] = {}
+                data_copy['equipment_bonuses'] = {}
 
-        if isinstance(data.get('temporary_effects'), str):
+        if isinstance(data_copy.get('temporary_effects'), str):
             try:
-                data['temporary_effects'] = json.loads(data['temporary_effects'])
+                data_copy['temporary_effects'] = json.loads(data_copy['temporary_effects'])
             except (json.JSONDecodeError, TypeError):
-                data['temporary_effects'] = {}
+                data_copy['temporary_effects'] = {}
 
         # 기본값 설정
         for field in ['equipment_bonuses', 'temporary_effects']:
-            if field not in data:
-                data[field] = {}
+            if field not in data_copy:
+                data_copy[field] = {}
 
-        return cls(**data)
+        return cls(**data_copy)
 
 
 @dataclass

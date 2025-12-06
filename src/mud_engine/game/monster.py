@@ -168,7 +168,6 @@ class Monster(BaseModel):
     monster_type: MonsterType = MonsterType.PASSIVE
     behavior: MonsterBehavior = MonsterBehavior.STATIONARY
     stats: MonsterStats = field(default_factory=MonsterStats)
-    experience_reward: int = 50  # 처치 시 주는 경험치
     gold_reward: int = 10  # 처치 시 주는 골드
     drop_items: List[DropItem] = field(default_factory=list)  # 드롭 아이템 목록
     spawn_room_id: Optional[str] = None  # 스폰 방 ID
@@ -209,9 +208,6 @@ class Monster(BaseModel):
 
         if not isinstance(self.stats, MonsterStats):
             raise ValueError("몬스터 능력치는 MonsterStats 객체여야 합니다")
-
-        if self.experience_reward < 0:
-            raise ValueError("경험치 보상은 0 이상이어야 합니다")
 
         if self.gold_reward < 0:
             raise ValueError("골드 보상은 0 이상이어야 합니다")
@@ -478,5 +474,9 @@ class Monster(BaseModel):
                         converted_data[date_field] = datetime.now()
                     else:
                         converted_data[date_field] = None
+
+        # 더 이상 사용하지 않는 필드 제거 (하위 호환성)
+        if 'experience_reward' in converted_data:
+            del converted_data['experience_reward']
 
         return cls(**converted_data)

@@ -297,34 +297,69 @@ class InventoryCommand(BaseCommand):
                 response += "⚠️ 과부하 상태입니다!\n"
             response += "\n"
 
-            # 카테고리별로 정렬
-            categories: Dict[str, List[GameObject]] = {}
+            # 카테고리별로 정렬 및 같은 아이템 집계
+            categories: Dict[str, Dict[str, Dict]] = {}
             for obj in filtered_objects:
                 category = obj.category
                 if category not in categories:
-                    categories[category] = []
-                categories[category].append(obj)
+                    categories[category] = {}
+                
+                # 아이템 이름으로 그룹화
+                obj_name = obj.get_localized_name(session.locale)
+                if obj_name not in categories[category]:
+                    categories[category][obj_name] = {
+                        'objects': [],
+                        'total_weight': 0.0,
+                        'equipped_count': 0
+                    }
+                
+                categories[category][obj_name]['objects'].append(obj)
+                categories[category][obj_name]['total_weight'] += obj.weight
+                if obj.is_equipped:
+                    categories[category][obj_name]['equipped_count'] += 1
 
             object_list = []
-            for category, objects in sorted(categories.items()):
-                category_display = objects[0].get_category_display(session.locale) if objects else category
+            for category in sorted(categories.keys()):
+                items = categories[category]
+                if not items:
+                    continue
+                
+                # 카테고리 표시명 가져오기
+                first_obj = next(iter(items.values()))['objects'][0]
+                category_display = first_obj.get_category_display(session.locale)
                 response += f"📂 {category_display}:\n"
 
-                for obj in sorted(objects, key=lambda x: x.get_localized_name(session.locale)):
-                    obj_name = obj.get_localized_name(session.locale)
-                    weight_display = obj.get_weight_display()
-                    equipped_mark = " [착용중]" if obj.is_equipped else ""
+                for obj_name in sorted(items.keys()):
+                    item_data = items[obj_name]
+                    count = len(item_data['objects'])
+                    total_weight = item_data['total_weight']
+                    equipped_count = item_data['equipped_count']
+                    
+                    # 무게 표시 (무게가 0이면 표시하지 않음)
+                    if total_weight > 0:
+                        weight_display = f"({total_weight:.1f}kg)"
+                    else:
+                        weight_display = ""
+                    
+                    # 개수 표시 (1개보다 많으면 표시)
+                    count_display = f" x{count}" if count > 1 else ""
+                    
+                    # 착용 표시
+                    equipped_mark = " [착용중]" if equipped_count > 0 else ""
+                    
+                    response += f"  • {obj_name}{count_display} {weight_display}{equipped_mark}\n"
 
-                    response += f"  • {obj_name} ({weight_display}){equipped_mark}\n"
-
+                    # 첫 번째 객체 정보를 대표로 사용
+                    first_obj = item_data['objects'][0]
                     object_list.append({
-                        "id": obj.id,
+                        "id": first_obj.id,
                         "name": obj_name,
-                        "category": obj.category,
-                        "weight": obj.weight,
-                        "is_equipped": obj.is_equipped,
-                        "equipment_slot": obj.equipment_slot,
-                        "description": obj.get_localized_description(session.locale)
+                        "category": first_obj.category,
+                        "count": count,
+                        "total_weight": total_weight,
+                        "is_equipped": equipped_count > 0,
+                        "equipment_slot": first_obj.equipment_slot,
+                        "description": first_obj.get_localized_description(session.locale)
                     })
 
                 response += "\n"

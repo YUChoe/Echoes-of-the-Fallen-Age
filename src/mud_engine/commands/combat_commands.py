@@ -247,22 +247,67 @@ class AttackCommand(BaseCommand):
     ) -> CommandResult:
         """전투 종료 처리"""
         winners = combat.get_winners()
-        rewards = result.get('rewards', {'experience': 0, 'gold': 0, 'items': []})
+        rewards = result.get('rewards', {'experience': 0, 'gold': 0, 'items': [], 'dropped_items': []})
 
         # 승리/패배 메시지
         from ..game.combat import CombatantType
         player_won = any(w.combatant_type == CombatantType.PLAYER for w in winners)
 
         if player_won:
+            # 보상 지급
+            game_engine = getattr(session, 'game_engine', None)
+            
+            # 골드 지급
+            if rewards['gold'] > 0:
+                session.player.earn_gold(rewards['gold'])
+                logger.info(f"플레이어 {session.player.username}이(가) 골드 {rewards['gold']} 획득")
+            
+            # 플레이어 정보는 세션에 저장되어 있으므로 별도 DB 업데이트 불필요
+            # (세션 종료 시 자동으로 저장됨)
+            
+            # 드롭된 아이템 처리
+            dropped_items_msg = []
+            if rewards.get('dropped_items'):
+                from ..game.item_templates import ItemTemplateManager
+                item_manager = ItemTemplateManager()
+                
+                for drop_info in rewards['dropped_items']:
+                    if drop_info.get('location') == 'inventory':
+                        # 플레이어 인벤토리에 직접 추가
+                        template_id = drop_info.get('template_id')
+                        if template_id and game_engine:
+                            item_data = item_manager.create_item(
+                                template_id=template_id,
+                                location_type="inventory",
+                                location_id=session.player.id,
+                                quantity=drop_info.get('quantity', 1)
+                            )
+                            if item_data:
+                                await game_engine.world_manager.create_game_object(item_data)
+                                dropped_items_msg.append(
+                                    f"  - {drop_info['name_ko']} x{drop_info.get('quantity', 1)} (인벤토리)"
+                                )
+                                logger.info(
+                                    f"플레이어 {session.player.username}이(가) "
+                                    f"{drop_info['name_ko']} {drop_info.get('quantity', 1)}개 획득"
+                                )
+                    elif drop_info.get('location') == 'ground':
+                        # 땅에 떨어진 아이템
+                        dropped_items_msg.append(
+                            f"  - {drop_info['name_ko']} x{drop_info.get('quantity', 1)} (땅에 떨어짐)"
+                        )
+            
+            # 승리 메시지 생성
             message = f"""
 {ANSIColors.RED}🎉 전투에서 승리했습니다!{ANSIColors.RESET}
 
 💰 보상:
-  - 경험치: {rewards['experience']}
-  - 골드: {rewards['gold']}
-
-원래 위치로 돌아갑니다...
-"""
+  - 골드: {rewards['gold']}"""
+            
+            if dropped_items_msg:
+                message += "\n\n📦 획득한 아이템:\n" + "\n".join(dropped_items_msg)
+            
+            message += "\n\n원래 위치로 돌아갑니다..."
         else:
             message = f"{ANSIColors.RED}💀 전투에서 패배했습니다...{ANSIColors.RESET}\n\n원래 위치로 돌아갑니다..."
 

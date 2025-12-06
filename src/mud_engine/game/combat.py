@@ -452,7 +452,6 @@ class CombatManager:
             'armor_class': monster.stats.armor_class,
             'attack_bonus': monster.stats.attack_bonus,
             'initiative_bonus': monster.stats.initiative_bonus,
-            'experience_reward': monster.experience_reward,
             'gold_reward': monster.gold_reward,
             'level': monster.stats.level
         }
