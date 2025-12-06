@@ -289,3 +289,9 @@ class WorldManager:
     async def get_all_objects_for_stats(self) -> List[GameObject]:
         """통계 조회를 위한 모든 객체 목록 반환"""
         return await self._object_manager._object_repo.get_all()
+
+    # === NPC 관리 (몬스터 시스템 활용) ===
+
+    async def get_npcs_in_room(self, room_id: str) -> List[NPC]:
+        """특정 방에 있는 NPC들을 조회합니다."""
+        return await self._npc_repo.get_npcs_in_room(room_id)

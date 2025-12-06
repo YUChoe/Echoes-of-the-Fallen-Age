@@ -2,14 +2,15 @@
   "template_id": "template_town_guard",
   "name": {
     "en": "Town Guard",
-    "ko": "마을 경비병"
+    "ko": "경비병"
   },
   "description": {
-    "en": "A vigilant guard protecting the town. He stands firm at his post.",
-    "ko": "마을을 지키는 경계심 강한 경비병입니다. 그는 자신의 위치를 굳건히 지키고 있습니다."
+    "en": "A vigilant guard patrolling the area between the town square and the harbor.",
+    "ko": "광장과 항구 사이를 순찰하는 경계심 많은 경비병입니다."
   },
-  "monster_type": "PASSIVE",
-  "behavior": "STATIONARY",
+  "monster_type": "NEUTRAL",
+  "behavior": "ROAMING",
+  "faction_id": "ash_knights",
   "stats": {
     "strength": 14,
     "dexterity": 12,
@@ -17,34 +18,49 @@
     "intelligence": 10,
     "wisdom": 12,
     "charisma": 10,
-    "level": 10
+    "level": 8
   },
-  "experience_reward": 100,
-  "gold_reward": 25,
-  "drop_items": [
-    {
-      "item_id": "guard_sword",
-      "drop_chance": 0.1
-    },
-    {
-      "item_id": "guard_helmet",
-      "drop_chance": 0.15
-    }
-  ],
-  "respawn_time": 1800,
-  "aggro_range": 1,
-  "roaming_range": 0,
+  "experience_reward": 0,
+  "gold_reward": 0,
+  "drop_items": [],
+  "respawn_time": 0,
+  "aggro_range": 0,
+  "roaming_range": 3,
   "spawn_config": {
-    "count": 4,
-    "global_max_count": 4,
+    "count": 1,
+    "global_max_count": 1,
     "area_filter": {
-      "name_contains": "마을"
+      "x_range": [0, 0],
+      "y_range": [0, 9]
     },
-    "distribution": "fixed",
+    "distribution": "random",
     "roaming": {
-      "enabled": false,
-      "roam_chance": 0.0,
-      "use_spawn_area": false
+      "enabled": true,
+      "roam_chance": 0.3,
+      "roaming_area": {
+        "min_x": 0,
+        "max_x": 0,
+        "min_y": 0,
+        "max_y": 9
+      }
+    }
+  },
+  "properties": {
+    "dialogue": {
+      "en": [
+        "Stay alert, citizen. These streets aren't always safe.",
+        "I'm on patrol. Keep moving.",
+        "Report any suspicious activity to me immediately."
+      ],
+      "ko": [
+        "경계를 늦추지 마시오, 시민. 이 거리가 항상 안전한 것은 아니니까.",
+        "순찰 중이오. 계속 가시오.",
+        "수상한 활동이 있으면 즉시 나에게 보고하시오."
+      ]
+    },
+    "greeting": {
+      "en": "The guard eyes you suspiciously.",
+      "ko": "경비병이 당신을 의심스럽게 쳐다봅니다."
     }
   }
 }

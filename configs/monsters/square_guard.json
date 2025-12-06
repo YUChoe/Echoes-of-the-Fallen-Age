@@ -1,0 +1,59 @@
+{
+  "template_id": "template_square_guard",
+  "name": {
+    "en": "Town Square Guard",
+    "ko": "광장 경비병"
+  },
+  "description": {
+    "en": "A vigilant guard maintaining order in the town square.",
+    "ko": "광장의 질서를 지키는 경계심 많은 경비병입니다."
+  },
+  "monster_type": "NEUTRAL",
+  "behavior": "STATIONARY",
+  "faction_id": "ash_knights",
+  "stats": {
+    "strength": 14,
+    "dexterity": 12,
+    "constitution": 14,
+    "intelligence": 10,
+    "wisdom": 12,
+    "charisma": 10,
+    "level": 8
+  },
+  "experience_reward": 0,
+  "gold_reward": 0,
+  "drop_items": [],
+  "respawn_time": 0,
+  "aggro_range": 0,
+  "roaming_range": 0,
+  "spawn_config": {
+    "count": 3,
+    "global_max_count": 3,
+    "area_filter": {
+      "x_range": [0, 0],
+      "y_range": [0, 0]
+    },
+    "distribution": "fixed",
+    "roaming": {
+      "enabled": false
+    }
+  },
+  "properties": {
+    "dialogue": {
+      "en": [
+        "Keep the peace, citizen.",
+        "The town square is under our protection.",
+        "Move along, nothing to see here."
+      ],
+      "ko": [
+        "평화를 지키시오, 시민.",
+        "광장은 우리의 보호 아래 있소.",
+        "지나가시오, 여기 볼 것 없소."
+      ]
+    },
+    "greeting": {
+      "en": "The guard stands at attention.",
+      "ko": "경비병이 경계 자세로 서 있습니다."
+    }
+  }
+}
