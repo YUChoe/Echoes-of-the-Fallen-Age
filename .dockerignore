@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# 가상환경
+mud_engine_env/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# 데이터 및 로그 (volumes로 관리)
+data/
+logs/
+volumes/
+
+# 백업 파일
+*.tar.gz
+*.zip
+*.bak
+*_backup.*
+
+# 테스트
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# 환경 설정
+.env
+.env.local
+
+# 문서
+docs/
+*.md
+README.md
+
+# 스크립트
+scripts/
+export_map.sh
+
+# 기타
+world_map_unified.html

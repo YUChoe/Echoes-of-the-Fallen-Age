@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mud-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mud-engine-dev
+    restart: unless-stopped
+    
+    # 포트 매핑
+    ports:
+      - "4000:4000"  # Telnet 서버
+    
+    # 개발 환경용 볼륨 마운트 (소스 코드도 마운트)
+    volumes:
+      - ./src:/app/src
+      - ./configs:/app/configs
+      - data:/app/data
+      - logs:/app/logs
+    
+    # 개발 환경 변수
+    environment:
+      - DATABASE_URL=sqlite:///data/mud_engine.db
+      - TELNET_HOST=0.0.0.0
+      - TELNET_PORT=4000
+      - SECRET_KEY=dev-secret-key-not-for-production
+      - DEBUG=True
+      - LOG_LEVEL=DEBUG
+      - DEFAULT_LOCALE=ko
+      - SUPPORTED_LOCALES=en,ko
+      - USERNAME_MIN_LENGTH=3
+      - USERNAME_MAX_LENGTH=20
+      - PASSWORD_MIN_LENGTH=6
+    
+    # 네트워크 설정
+    networks:
+      - mud-network
+    
+    # 로깅 설정
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # 개발 환경용 명령어 (코드 변경 시 자동 재시작)
+    command: python -m src.mud_engine.main
+
+networks:
+  mud-network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
+  logs:
+    driver: local
