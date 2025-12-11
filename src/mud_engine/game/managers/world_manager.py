@@ -269,7 +269,7 @@ class WorldManager:
         try:
             repair_count = {'exits_fixed': 0, 'objects_moved': 0}
             issues = await self.validate_world_integrity()
-            default_room_id = 'room_001'
+            default_room_id = 'town_square'
 
             for invalid_exit in issues['invalid_exits']:
                 room_id, direction_target = invalid_exit.split(':', 1)

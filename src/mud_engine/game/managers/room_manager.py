@@ -76,7 +76,7 @@ class RoomManager:
         try:
             if object_manager:
                 objects_in_room = await object_manager.get_room_objects(room_id)
-                default_room_id = 'room_001'
+                default_room_id = 'town_square'
                 for obj in objects_in_room:
                     await object_manager.move_object_to_room(obj.id, default_room_id)
                     logger.info(f"객체 {obj.id}를 기본 방으로 이동")

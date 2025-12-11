@@ -366,7 +366,7 @@ class ModelManager:
         try:
             # 존재하지 않는 방을 참조하는 캐릭터들을 기본 방으로 이동
             all_characters = await self.characters.get_all()
-            default_room_id = 'room_001'  # 기본 방 ID
+            default_room_id = 'town_square'  # 기본 방 ID
 
             for character in all_characters:
                 if character.current_room_id:

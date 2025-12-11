@@ -156,7 +156,7 @@ class WorldManager:
         try:
             # 방에 있는 객체들을 다른 곳으로 이동 (기본 방으로)
             objects_in_room = await self.get_room_objects(room_id)
-            default_room_id = 'room_001'  # 기본 방 ID
+            default_room_id = 'town_square'  # 기본 방 ID
 
             for obj in objects_in_room:
                 await self.move_object_to_room(obj.id, default_room_id)
@@ -617,7 +617,7 @@ class WorldManager:
 
             # 무결성 검증
             issues = await self.validate_world_integrity()
-            default_room_id = 'room_001'  # 기본 방 ID
+            default_room_id = 'town_square'  # 기본 방 ID
 
             # 잘못된 출구 수정
             for invalid_exit in issues['invalid_exits']:

@@ -22,19 +22,28 @@ class SayCommand(BaseCommand):
         )
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
+        from ..core.localization import get_localization_manager
+        
+        localization = get_localization_manager()
+        locale = session.player.preferred_locale if session.player else "en"
+        
         if not self.validate_args(args, min_args=1):
-            return self.create_error_result(
-                "말할 내용을 입력해주세요.\n사용법: say <메시지>"
-            )
+            if locale == "ko":
+                error_msg = "말할 내용을 입력해주세요.\n사용법: say <메시지>"
+            else:
+                error_msg = "Please enter a message to say.\nUsage: say <message>"
+            return self.create_error_result(error_msg)
 
         message = " ".join(args)
         username = session.player.username
 
         # 플레이어에게 확인 메시지
-        player_message = f"💬 당신이 말했습니다: \"{message}\""
-
-        # 다른 플레이어들에게 브로드캐스트할 메시지
-        broadcast_message = f"💬 {username}님이 말했습니다: \"{message}\""
+        if locale == "ko":
+            player_message = f"💬 당신이 말했습니다: \"{message}\""
+            broadcast_message = f"💬 {username}님이 말했습니다: \"{message}\""
+        else:
+            player_message = f"💬 You say: \"{message}\""
+            broadcast_message = f"💬 {username} says: \"{message}\""
 
         return self.create_success_result(
             message=player_message,

@@ -162,22 +162,7 @@ DATABASE_SCHEMA: List[str] = [
 
 # 초기 데이터
 INITIAL_DATA: List[str] = [
-    """
-    -- 기본 방 생성
-    INSERT OR IGNORE INTO rooms (id, description_en, description_ko, exits) VALUES
-    ('room_001',
-     'A bustling town square with a fountain in the center. People gather here to chat and trade.',
-     '중앙에 분수가 있는 번화한 마을 광장입니다. 사람들이 모여 대화하고 거래를 합니다.',
-     '{"north": "room_002", "east": "room_003"}'),
-    ('room_002',
-     'A quiet street leading north from the town square. Small shops line both sides.',
-     '마을 광장에서 북쪽으로 이어지는 조용한 거리입니다. 양쪽에 작은 상점들이 늘어서 있습니다.',
-     '{"south": "room_001"}'),
-    ('room_003',
-     'A busy marketplace filled with merchants selling various goods.',
-     '다양한 상품을 파는 상인들로 가득한 번화한 시장입니다.',
-     '{"west": "room_001"}');
-    """,
+    # 기본 방 생성은 제거됨 - UUID 기반 시스템 사용
 
     """
     -- 기본 번역 텍스트

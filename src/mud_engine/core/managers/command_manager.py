@@ -131,6 +131,10 @@ class CommandManager:
         self.command_processor.register_command(ChangeNameCommand())
         self.command_processor.register_command(AdminChangeNameCommand())
 
+        # 언어 설정 명령어들 등록
+        from ...commands.language_commands import LanguageCommand
+        self.command_processor.register_command(LanguageCommand())
+
         # 조사 명령어 등록
         from ...commands.inspect_commands import InspectCommand
         self.command_processor.register_command(InspectCommand())

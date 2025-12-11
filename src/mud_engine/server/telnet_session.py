@@ -103,6 +103,12 @@ class TelnetSession:
         """마지막 활동 시간 업데이트"""
         self.last_activity = datetime.now()
 
+    def update_locale(self) -> None:
+        """플레이어의 선호 언어로 세션 locale 업데이트"""
+        if self.player:
+            self.locale = self.player.preferred_locale
+            logger.debug(f"세션 {self.session_id} 언어 업데이트: {self.locale}")
+
     async def send_message(self, message: Dict[str, Any]) -> bool:
         """
         클라이언트에게 메시지 전송 (WebSocket 호환 인터페이스)
@@ -137,8 +143,10 @@ class TelnetSession:
             str: 포맷된 텍스트
         """
         from .ansi_colors import ANSIColors
+        from ..core.localization import get_localization_manager
 
         msg_type = message.get("type", "")
+        localization = get_localization_manager()
         
         # 에러 메시지
         if "error" in message:

@@ -220,13 +220,13 @@ class GameEngine:
         session.locale = player.preferred_locale
 
         # 플레이어를 마지막 위치 또는 기본 방으로 이동
-        target_room_id = player.last_room_id if player.last_room_id else "room_001"
+        target_room_id = player.last_room_id if player.last_room_id else "town_square"
         
         # 방이 존재하는지 확인
         room = await self.world_manager.get_room(target_room_id)
         if not room:
             logger.warning(f"저장된 방 {target_room_id}이 존재하지 않음. 기본 방으로 이동")
-            target_room_id = "room_001"
+            target_room_id = "town_square"
         
         await self.movement_manager.move_player_to_room(session, target_room_id)
         logger.info(f"플레이어 {player.username} 로그인: 위치 {target_room_id}로 복원")
