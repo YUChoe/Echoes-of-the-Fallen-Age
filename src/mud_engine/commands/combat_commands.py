@@ -121,12 +121,16 @@ class AttackCommand(BaseCommand):
                     return await self._end_combat(session, combat, {})
             
             # 전투 시작 메시지 (몬스터 턴 처리 후)
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            locale = session.player.preferred_locale if session.player else "en"
+            
             start_message = f"""
-{ANSIColors.RED}⚔️ {monster_name}와(과) 전투를 시작합니다!{ANSIColors.RESET}
+{ANSIColors.RED}{localization.get_message("combat.start", locale, monster=monster_name)}{ANSIColors.RESET}
 
-{self._get_combat_status_message(combat)}
+{self._get_combat_status_message(combat, locale)}
 
-{self._get_turn_message(combat, session.player.id)}
+{self._get_turn_message(combat, session.player.id, locale)}
 """
 
             return self.create_success_result(
@@ -206,15 +210,16 @@ class AttackCommand(BaseCommand):
             return result_end
 
         # 다음 턴 메시지
+        locale = session.player.preferred_locale if session.player else "ko"
         message = f"{result.get('message', '')}\n"
         
         # 몬스터 턴 메시지 추가
         if monster_messages:
             message += "\n" + "\n".join(monster_messages) + "\n"
         
-        message += "\n" + self._get_combat_status_message(combat)
+        message += "\n" + self._get_combat_status_message(combat, locale)
         message += "\n\n"
-        message += self._get_turn_message(combat, session.player.id)
+        message += self._get_turn_message(combat, session.player.id, locale)
 
         return self.create_success_result(
             message=message,
@@ -251,6 +256,10 @@ class AttackCommand(BaseCommand):
 
         # 승리/패배 메시지
         from ..game.combat import CombatantType
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        locale = session.player.preferred_locale if session.player else "en"
+        
         player_won = any(w.combatant_type == CombatantType.PLAYER for w in winners)
 
         if player_won:
@@ -284,8 +293,11 @@ class AttackCommand(BaseCommand):
                             )
                             if item_data:
                                 await game_engine.world_manager.create_game_object(item_data)
+                                item_name = drop_info.get(f'name_{locale}', drop_info.get('name_ko', 'Unknown Item'))
                                 dropped_items_msg.append(
-                                    f"  - {drop_info['name_ko']} x{drop_info.get('quantity', 1)} (인벤토리)"
+                                    localization.get_message("combat.item_inventory", locale, 
+                                                           name=item_name, 
+                                                           quantity=drop_info.get('quantity', 1))
                                 )
                                 logger.info(
                                     f"플레이어 {session.player.username}이(가) "
@@ -293,30 +305,35 @@ class AttackCommand(BaseCommand):
                                 )
                             else:
                                 # 템플릿이 없어서 아이템 생성 실패
+                                item_name = drop_info.get(f'name_{locale}', drop_info.get('name_ko', 'Unknown Item'))
                                 await session.send_message({
                                     "type": "room_message",
-                                    "message": f"💨 {drop_info['name_ko']}이(가) 눈앞에서 사라졌습니다."
+                                    "message": localization.get_message("item.disappeared", locale, item=item_name)
                                 })
                                 logger.error(f"아이템 드롭 실패 - 템플릿 없음: {template_id}")
                     elif drop_info.get('location') == 'ground':
                         # 땅에 떨어진 아이템
+                        item_name = drop_info.get(f'name_{locale}', drop_info.get('name_ko', 'Unknown Item'))
                         dropped_items_msg.append(
-                            f"  - {drop_info['name_ko']} x{drop_info.get('quantity', 1)} (땅에 떨어짐)"
+                            localization.get_message("combat.item_ground", locale, 
+                                                    name=item_name, 
+                                                    quantity=drop_info.get('quantity', 1))
                         )
             
             # 승리 메시지 생성
+            
             message = f"""
-{ANSIColors.RED}🎉 전투에서 승리했습니다!{ANSIColors.RESET}
+{ANSIColors.RED}{localization.get_message("combat.victory_message", locale)}{ANSIColors.RESET}
 
-💰 보상:
-  - 골드: {rewards['gold']}"""
+{localization.get_message("combat.rewards_header", locale)}
+{localization.get_message("combat.gold_reward", locale, gold=rewards['gold'])}"""
             
             if dropped_items_msg:
-                message += "\n\n📦 획득한 아이템:\n" + "\n".join(dropped_items_msg)
+                message += f"\n\n{localization.get_message('combat.items_obtained', locale)}\n" + "\n".join(dropped_items_msg)
             
-            message += "\n\n원래 위치로 돌아갑니다..."
+            message += f"\n\n{localization.get_message('combat.returning_location', locale)}"
         else:
-            message = f"{ANSIColors.RED}💀 전투에서 패배했습니다...{ANSIColors.RESET}\n\n원래 위치로 돌아갑니다..."
+            message = f"{ANSIColors.RED}{localization.get_message('combat.defeat_message', locale)}{ANSIColors.RESET}\n\n{localization.get_message('combat.returning_location', locale)}"
 
         # 원래 방으로 복귀
         original_room_id = getattr(session, 'original_room_id', None)
@@ -340,10 +357,13 @@ class AttackCommand(BaseCommand):
             }
         )
 
-    def _get_combat_status_message(self, combat: CombatInstance) -> str:
+    def _get_combat_status_message(self, combat: CombatInstance, locale: str = "ko") -> str:
         """전투 상태 메시지 생성"""
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        
         lines = [f"{ANSIColors.RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
-        lines.append(f"⚔️ 전투 라운드 {combat.turn_number}")
+        lines.append(localization.get_message("combat.round", locale, round=combat.turn_number))
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         # 플레이어 정보
@@ -351,38 +371,47 @@ class AttackCommand(BaseCommand):
         if players:
             player = players[0]
             hp_bar = self._get_hp_bar(player.current_hp, player.max_hp)
-            lines.append(f"\n👤 {player.name}")
+            lines.append(f"\n{localization.get_message('combat.player_hp', locale, name=player.name)}")
             lines.append(f"   HP: {hp_bar} {player.current_hp}/{player.max_hp}")
 
         # 몬스터 정보
         monsters = combat.get_alive_monsters()
         if monsters:
-            lines.append("\n👹 몬스터:")
+            lines.append(f"\n{localization.get_message('combat.monsters', locale)}")
             for monster in monsters:
                 hp_bar = self._get_hp_bar(monster.current_hp, monster.max_hp)
-                lines.append(f"   • {monster.name}")
-                lines.append(f"     HP: {hp_bar} {monster.current_hp}/{monster.max_hp}")
+                lines.append(localization.get_message("combat.monster_entry", locale, name=monster.name))
+                lines.append(localization.get_message("combat.hp_display", locale, 
+                                                    hp_bar=hp_bar, 
+                                                    current=monster.current_hp, 
+                                                    max=monster.max_hp))
 
         lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{ANSIColors.RESET}")
         return "\n".join(lines)
 
-    def _get_turn_message(self, combat: CombatInstance, player_id: str) -> str:
+    def _get_turn_message(self, combat: CombatInstance, player_id: str, locale: str = "en") -> str:
         """턴 메시지 생성"""
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        
         current = combat.get_current_combatant()
         if not current:
             return ""
 
         if current.id == player_id:
-            return """
-🎯 당신의 턴입니다! 행동을 선택하세요:
+            return f"""
+{localization.get_message("combat.your_turn", locale)}
 
-[1] attack  - 무기로 공격
-[2] defend  - 방어 자세 (다음 데미지 50% 감소)
-[3] flee    - 도망치기 (50% 확률)
+1️⃣ {localization.get_message("combat.action_attack", locale)}
+2️⃣ {localization.get_message("combat.action_defend", locale)}
+3️⃣ {localization.get_message("combat.action_flee", locale)}
 
-명령어를 입력하세요:"""
+{localization.get_message("combat.enter_command", locale)}"""
         else:
-            return f"{ANSIColors.RED}⏳ {current.name}의 턴입니다...{ANSIColors.RESET}"
+            if locale == "ko":
+                return f"{ANSIColors.RED}⏳ {current.name}의 턴입니다...{ANSIColors.RESET}"
+            else:
+                return f"{ANSIColors.RED}⏳ {current.name}'s turn...{ANSIColors.RESET}"
 
     def _get_hp_bar(self, current: int, maximum: int, length: int = 10) -> str:
         """HP 바 생성"""
@@ -469,15 +498,16 @@ class DefendCommand(BaseCommand):
 
         # 다음 턴 메시지
         attack_cmd = AttackCommand(self.combat_handler)
+        locale = session.player.preferred_locale if session.player else "ko"
         message = f"{result.get('message', '')}\n"
         
         # 몬스터 턴 메시지 추가
         if monster_messages:
             message += "\n" + "\n".join(monster_messages) + "\n"
         
-        message += "\n" + attack_cmd._get_combat_status_message(combat)
+        message += "\n" + attack_cmd._get_combat_status_message(combat, locale)
         message += "\n\n"
-        message += attack_cmd._get_turn_message(combat, session.player.id)
+        message += attack_cmd._get_turn_message(combat, session.player.id, locale)
 
         return self.create_success_result(
             message=message,
@@ -564,10 +594,14 @@ class FleeCommand(BaseCommand):
                 if isinstance(exits, str):
                     exits = json.loads(exits)
                 
+                from ..core.localization import get_localization_manager
+                localization = get_localization_manager()
+                locale = session.player.preferred_locale if session.player else "en"
+                
                 if not exits or len(exits) == 0:
                     # 출구가 없으면 원래 방으로 복귀
                     session.current_room_id = original_room_id
-                    flee_message = "💨 전투에서 도망쳤습니다!\n\n원래 위치로 돌아왔습니다."
+                    flee_message = f"{localization.get_message('combat.flee_success', locale)}\n\n{localization.get_message('combat.return_location', locale)}"
                 else:
                     # 랜덤 출구 선택
                     import random
@@ -579,11 +613,11 @@ class FleeCommand(BaseCommand):
                     target_room = await game_engine.world_manager.get_room(target_room_id)
                     if target_room:
                         session.current_room_id = target_room_id
-                        flee_message = f"💨 전투에서 도망쳤습니다!\n\n{random_direction} 방향으로 도망쳐 {target_room.get_localized_name('ko')}에 도착했습니다."
+                        flee_message = f"{localization.get_message('combat.flee_success', locale)}\n\n{random_direction} 방향으로 도망쳐 {target_room.get_localized_name(locale)}에 도착했습니다."
                     else:
                         # 대상 방이 없으면 원래 방으로
                         session.current_room_id = original_room_id
-                        flee_message = "💨 전투에서 도망쳤습니다!\n\n원래 위치로 돌아왔습니다."
+                        flee_message = f"{localization.get_message('combat.flee_success', locale)}\n\n{localization.get_message('combat.return_location', locale)}"
                 
                 # 전투 상태 초기화
                 session.in_combat = False
@@ -608,8 +642,12 @@ class FleeCommand(BaseCommand):
                 session.combat_id = None
                 self.combat_handler.combat_manager.end_combat(combat_id)
                 
+                from ..core.localization import get_localization_manager
+                localization = get_localization_manager()
+                locale = session.player.preferred_locale if session.player else "en"
+                
                 return self.create_success_result(
-                    message="💨 전투에서 도망쳤습니다!\n\n원래 위치로 돌아왔습니다.",
+                    message=f"{localization.get_message('combat.flee_success', locale)}\n\n{localization.get_message('combat.return_location', locale)}",
                     data={"action": "flee_success"}
                 )
 
@@ -640,15 +678,16 @@ class FleeCommand(BaseCommand):
 
         # 다음 턴 메시지
         attack_cmd = AttackCommand(self.combat_handler)
+        locale = session.player.preferred_locale if session.player else "ko"
         message = f"{result.get('message', '')}\n"
         
         # 몬스터 턴 메시지 추가
         if monster_messages:
             message += "\n" + "\n".join(monster_messages) + "\n"
         
-        message += "\n" + attack_cmd._get_combat_status_message(combat)
+        message += "\n" + attack_cmd._get_combat_status_message(combat, locale)
         message += "\n\n"
-        message += attack_cmd._get_turn_message(combat, session.player.id)
+        message += attack_cmd._get_turn_message(combat, session.player.id, locale)
 
         return self.create_success_result(
             message=message,
@@ -697,9 +736,10 @@ class CombatStatusCommand(BaseCommand):
             return self.create_error_result("전투를 찾을 수 없습니다.")
 
         attack_cmd = AttackCommand(self.combat_handler)
-        message = attack_cmd._get_combat_status_message(combat)
+        locale = session.player.preferred_locale if session.player else "ko"
+        message = attack_cmd._get_combat_status_message(combat, locale)
         message += "\n\n"
-        message += attack_cmd._get_turn_message(combat, session.player.id)
+        message += attack_cmd._get_turn_message(combat, session.player.id, locale)
 
         return self.create_success_result(
             message=message,

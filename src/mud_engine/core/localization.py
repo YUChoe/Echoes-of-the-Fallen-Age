@@ -111,6 +111,146 @@ class LocalizationManager:
                 "en": "❌ Failed to flee!",
                 "ko": "❌ 도망치지 못했습니다!"
             },
+            "combat.round": {
+                "en": "⚔️ Combat Round {round}",
+                "ko": "⚔️ 전투 라운드 {round}"
+            },
+            "combat.player_hp": {
+                "en": "👤 {name}",
+                "ko": "👤 {name}"
+            },
+            "combat.monsters": {
+                "en": "👹 Monsters:",
+                "ko": "👹 몬스터:"
+            },
+            "combat.monster_entry": {
+                "en": "   • {name}",
+                "ko": "   • {name}"
+            },
+            "combat.hp_display": {
+                "en": "     HP: {hp_bar} {current}/{max}",
+                "ko": "     HP: {hp_bar} {current}/{max}"
+            },
+            "combat.action_attack": {
+                "en": "[1] attack  - Attack with weapon",
+                "ko": "[1] attack  - 무기로 공격"
+            },
+            "combat.action_defend": {
+                "en": "[2] defend  - Defensive stance (50% damage reduction next turn)",
+                "ko": "[2] defend  - 방어 자세 (다음 데미지 50% 감소)"
+            },
+            "combat.action_flee": {
+                "en": "[3] flee    - Flee from combat (50% chance)",
+                "ko": "[3] flee    - 도망치기 (50% 확률)"
+            },
+            "combat.enter_command": {
+                "en": "Enter command:",
+                "ko": "명령어를 입력하세요:"
+            },
+            "combat.defend_stance": {
+                "en": "{actor} takes a defensive stance. (Next damage reduced by 50%)",
+                "ko": "{actor}이(가) 방어 자세를 취했습니다. (다음 공격 데미지 50% 감소)"
+            },
+            "combat.fled_from_combat": {
+                "en": "{actor} fled from combat!",
+                "ko": "{actor}이(가) 전투에서 도망쳤습니다!"
+            },
+            "combat.wait_action": {
+                "en": "{actor} waits.",
+                "ko": "{actor}이(가) 대기합니다."
+            },
+            "combat.help_title": {
+                "en": "⚔️ Combat Commands Available:",
+                "ko": "⚔️ 전투 중 사용 가능한 명령어:"
+            },
+            "combat.help_attack": {
+                "en": "[1] attack (or number 1) - Attack with weapon",
+                "ko": "[1] attack (또는 숫자 1) - 무기로 공격"
+            },
+            "combat.help_defend": {
+                "en": "[2] defend (or number 2) - Defensive stance (50% damage reduction next turn)",
+                "ko": "[2] defend (또는 숫자 2) - 방어 자세 (다음 데미지 50% 감소)"
+            },
+            "combat.help_flee": {
+                "en": "[3] flee (or number 3) - Flee from combat (50% chance)",
+                "ko": "[3] flee (또는 숫자 3) - 도망치기 (50% 확률)"
+            },
+            "combat.help_other": {
+                "en": "📋 Other Commands:",
+                "ko": "📋 기타 명령어:"
+            },
+            "combat.victory": {
+                "en": "🎉 Victory in combat!",
+                "ko": "🎉 전투에서 승리했습니다!"
+            },
+            "combat.defeat": {
+                "en": "💀 Defeated in combat...",
+                "ko": "💀 전투에서 패배했습니다..."
+            },
+            "combat.rewards": {
+                "en": "💰 Rewards:",
+                "ko": "💰 보상:"
+            },
+            "combat.exp_gained": {
+                "en": "  - Experience: {exp}",
+                "ko": "  - 경험치: {exp}"
+            },
+            "combat.gold_gained": {
+                "en": "  - Gold: {gold}",
+                "ko": "  - 골드: {gold}"
+            },
+            "combat.return_location": {
+                "en": "Returning to original location...",
+                "ko": "원래 위치로 돌아왔습니다."
+            },
+            "combat.victory_message": {
+                "en": "🎉 Victory in combat!",
+                "ko": "🎉 전투에서 승리했습니다!"
+            },
+            "combat.defeat_message": {
+                "en": "💀 Defeated in combat...",
+                "ko": "💀 전투에서 패배했습니다..."
+            },
+            "combat.rewards_header": {
+                "en": "💰 Rewards:",
+                "ko": "💰 보상:"
+            },
+            "combat.gold_reward": {
+                "en": "  - Gold: {gold}",
+                "ko": "  - 골드: {gold}"
+            },
+            "combat.items_obtained": {
+                "en": "📦 Items obtained:",
+                "ko": "📦 획득한 아이템:"
+            },
+            "combat.item_ground": {
+                "en": "  - {name} x{quantity} (dropped on ground)",
+                "ko": "  - {name} x{quantity} (땅에 떨어짐)"
+            },
+            "combat.item_inventory": {
+                "en": "  - {name} x{quantity} (inventory)",
+                "ko": "  - {name} x{quantity} (인벤토리)"
+            },
+            "combat.returning_location": {
+                "en": "Returning to original location...",
+                "ko": "원래 위치로 돌아갑니다..."
+            },
+            "help.look_combat": {
+                "en": "Check combat status",
+                "ko": "전투 상태 확인"
+            },
+            "help.status": {
+                "en": "Check attributes",
+                "ko": "능력치 확인"
+            },
+            "help.combat_detail": {
+                "en": "Detailed combat information",
+                "ko": "전투 상태 상세 정보"
+            },
+            "help.tip_numbers": {
+                "en": "Tip: You can just enter numbers to select actions!",
+                "ko": "팁: 숫자만 입력해도 행동을 선택할 수 있습니다!"
+            },
             
             # 아이템 관련
             "item.not_found": {
@@ -190,6 +330,312 @@ class LocalizationManager:
             "help.footer": {
                 "en": "Type 'help <command>' for detailed information.",
                 "ko": "'help <명령어>'로 자세한 정보를 확인하세요."
+            },
+            
+            # 기본 명령어 메시지
+            "look.refresh": {
+                "en": "✅ You look around again.",
+                "ko": "✅ 주변을 다시 둘러봅니다."
+            },
+            "look.error": {
+                "en": "❌ Failed to look around.",
+                "ko": "❌ 방 정보를 조회하는 중 오류가 발생했습니다."
+            },
+            "movement.success": {
+                "en": "✅ 🚶 You moved {direction}.",
+                "ko": "✅ 🚶 {direction} 방향으로 이동했습니다."
+            },
+            "movement.failed": {
+                "en": "❌ Failed to move.",
+                "ko": "❌ 이동에 실패했습니다."
+            },
+            "movement.player_left": {
+                "en": "🚶 {username} left to the {direction}.",
+                "ko": "🚶 {username}님이 {direction} 방향으로 떠났습니다."
+            },
+            "movement.player_arrived": {
+                "en": "🚶 {username} arrived.",
+                "ko": "🚶 {username}님이 도착했습니다."
+            },
+            
+            # 채팅 메시지
+            "say.success": {
+                "en": "💬 You say: \"{message}\"",
+                "ko": "💬 당신이 말했습니다: \"{message}\""
+            },
+            "say.broadcast": {
+                "en": "💬 {username} says: \"{message}\"",
+                "ko": "💬 {username}님이 말합니다: \"{message}\""
+            },
+            "say.usage_error": {
+                "en": "Please enter a message to say.\nUsage: say <message>",
+                "ko": "말할 내용을 입력해주세요.\n사용법: say <메시지>"
+            },
+            
+            # 이동 관련 추가 메시지
+            "movement.combat_blocked": {
+                "en": "❌ You cannot move during combat. Flee or win the battle first.",
+                "ko": "❌ 전투 중에는 이동할 수 없습니다. 먼저 전투에서 도망치거나 승리하세요."
+            },
+            "movement.no_location": {
+                "en": "❌ Cannot determine current location.",
+                "ko": "❌ 현재 위치를 확인할 수 없습니다."
+            },
+            
+            # Go 명령어 메시지
+            "go.usage_error": {
+                "en": "Please specify a direction to move.\nUsage: go <direction>\nAvailable directions: north, south, east, west, up, down, northeast, northwest, southeast, southwest",
+                "ko": "이동할 방향을 지정해주세요.\n사용법: go <방향>\n사용 가능한 방향: north, south, east, west, up, down, northeast, northwest, southeast, southwest"
+            },
+            "go.invalid_direction": {
+                "en": "'{direction}' is not a valid direction.\nAvailable directions: north, south, east, west, up, down, northeast, northwest, southeast, southwest",
+                "ko": "'{direction}'은(는) 올바른 방향이 아닙니다.\n사용 가능한 방향: north, south, east, west, up, down, northeast, northwest, southeast, southwest"
+            },
+            
+            # 출구 관련 메시지
+            "exits.no_exits": {
+                "en": "🚪 There are no exits from this room.",
+                "ko": "🚪 이 방에는 출구가 없습니다."
+            },
+            "exits.available": {
+                "en": "🚪 Available exits: {exits}",
+                "ko": "🚪 사용 가능한 출구: {exits}"
+            },
+            "exits.error": {
+                "en": "❌ Failed to check exits.",
+                "ko": "❌ 출구 정보를 확인하는 중 오류가 발생했습니다."
+            },
+            
+            # 능력치 관련 메시지
+            "stats.error": {
+                "en": "❌ Failed to retrieve stats.",
+                "ko": "❌ 능력치 정보를 확인하는 중 오류가 발생했습니다."
+            },
+            
+            # 종료 메시지
+            "quit.message": {
+                "en": "Goodbye! Thanks for playing.",
+                "ko": "안전하게 게임을 종료합니다. 안녕히 가세요!"
+            },
+            
+            # 방 정보 표시 관련
+            "room.time_day": {
+                "en": "☀️  Day",
+                "ko": "☀️  낮"
+            },
+            "room.time_night": {
+                "en": "🌙 Night",
+                "ko": "🌙 밤"
+            },
+            "room.exits": {
+                "en": "🚪 Exits: {exits}",
+                "ko": "🚪 출구: {exits}"
+            },
+            "room.players_here": {
+                "en": "👥 Players here:",
+                "ko": "👥 이곳에 있는 플레이어들:"
+            },
+            "room.objects_here": {
+                "en": "📦 Objects here:",
+                "ko": "📦 이곳에 있는 물건들:"
+            },
+            "room.npcs_here": {
+                "en": "🧑‍💼 NPCs here:",
+                "ko": "🧑‍💼 이곳에 있는 NPC들:"
+            },
+            "room.animals_here": {
+                "en": "🐾 Animals here:",
+                "ko": "🐾 이곳에 있는 동물들:"
+            },
+            "room.monsters_here": {
+                "en": "👹 Monsters here:",
+                "ko": "👹 이곳에 있는 몬스터들:"
+            },
+            "room.merchant_type": {
+                "en": " (merchant)",
+                "ko": " (상인)"
+            },
+            
+            # 도움말 명령어 관련
+            "help.available_commands": {
+                "en": "🎮 Available Commands:",
+                "ko": "🎮 사용 가능한 명령어:"
+            },
+            "help.admin_commands": {
+                "en": "🔧 Administrator Commands:",
+                "ko": "🔧 관리자 명령어:"
+            },
+            "help.detailed_help": {
+                "en": "Type 'help <command>' for detailed information about a specific command.",
+                "ko": "특정 명령어의 자세한 도움말을 보려면 'help <명령어>'를 입력하세요."
+            },
+            
+            # 명령어 설명들
+            "cmd.attack.desc": {
+                "en": "Attack a monster",
+                "ko": "몬스터를 공격합니다"
+            },
+            "cmd.buy.desc": {
+                "en": "Buy items from merchants",
+                "ko": "상인에게서 아이템을 구매합니다"
+            },
+            "cmd.changename.desc": {
+                "en": "Change your display name (once per day)",
+                "ko": "게임 내 표시 이름을 변경합니다 (하루에 한 번만 가능)"
+            },
+            "cmd.combat.desc": {
+                "en": "Check current combat status",
+                "ko": "현재 전투 상태를 확인합니다"
+            },
+            "cmd.drop.desc": {
+                "en": "Drop an item from inventory to current room",
+                "ko": "인벤토리의 객체를 현재 방에 놓습니다"
+            },
+            "cmd.east.desc": {
+                "en": "Move east",
+                "ko": "east 방향으로 이동합니다"
+            },
+            "cmd.equip.desc": {
+                "en": "Equip an item from inventory",
+                "ko": "인벤토리의 장비를 착용합니다"
+            },
+            "cmd.exits.desc": {
+                "en": "Check available exits from current room",
+                "ko": "현재 방의 출구를 확인합니다"
+            },
+            "cmd.follow.desc": {
+                "en": "Follow another player",
+                "ko": "다른 플레이어를 따라갑니다"
+            },
+            "cmd.get.desc": {
+                "en": "Pick up an object from the room",
+                "ko": "방에 있는 객체를 인벤토리에 추가합니다"
+            },
+            "cmd.give.desc": {
+                "en": "Give an item to another player",
+                "ko": "다른 플레이어에게 아이템을 줍니다"
+            },
+            "cmd.go.desc": {
+                "en": "Move in a specified direction",
+                "ko": "지정한 방향으로 이동합니다"
+            },
+            "cmd.help.desc": {
+                "en": "Show command help",
+                "ko": "명령어 도움말을 표시합니다"
+            },
+            "cmd.inspect.desc": {
+                "en": "Examine monsters or NPCs in detail",
+                "ko": "몬스터나 NPC의 상세 정보를 확인합니다"
+            },
+            "cmd.inventory.desc": {
+                "en": "Show your current inventory",
+                "ko": "현재 소지하고 있는 객체들을 표시합니다"
+            },
+            "cmd.language.desc": {
+                "en": "Change language settings",
+                "ko": "언어 설정을 변경합니다"
+            },
+            "cmd.look.desc": {
+                "en": "Look around or examine a specific target",
+                "ko": "주변을 둘러보거나 특정 대상을 자세히 살펴봅니다"
+            },
+            "cmd.north.desc": {
+                "en": "Move north",
+                "ko": "north 방향으로 이동합니다"
+            },
+            "cmd.players.desc": {
+                "en": "Show players in current room",
+                "ko": "현재 방에 있는 플레이어들을 표시합니다"
+            },
+            "cmd.quit.desc": {
+                "en": "Exit the game",
+                "ko": "게임을 종료합니다"
+            },
+            "cmd.say.desc": {
+                "en": "Send a message to all players in the same room",
+                "ko": "같은 방에 있는 모든 플레이어에게 메시지를 전달합니다"
+            },
+            "cmd.sell.desc": {
+                "en": "Sell items to merchants",
+                "ko": "상인에게 아이템을 판매합니다"
+            },
+            "cmd.shop.desc": {
+                "en": "View merchant's inventory",
+                "ko": "상점의 상품 목록을 봅니다"
+            },
+            "cmd.south.desc": {
+                "en": "Move south",
+                "ko": "south 방향으로 이동합니다"
+            },
+            "cmd.stats.desc": {
+                "en": "Check your character stats and status",
+                "ko": "플레이어의 능력치와 상태를 확인합니다"
+            },
+            "cmd.talk.desc": {
+                "en": "Talk to NPCs",
+                "ko": "NPC와 대화합니다"
+            },
+            "cmd.tell.desc": {
+                "en": "Send a private message to a specific player",
+                "ko": "특정 플레이어에게 개인 메시지를 전달합니다"
+            },
+            "cmd.unequip.desc": {
+                "en": "Unequip currently equipped items",
+                "ko": "착용 중인 장비를 해제합니다"
+            },
+            "cmd.use.desc": {
+                "en": "Use consumable items or activate objects",
+                "ko": "소모품이나 사용 가능한 아이템을 사용합니다"
+            },
+            "cmd.west.desc": {
+                "en": "Move west",
+                "ko": "west 방향으로 이동합니다"
+            },
+            "cmd.whisper.desc": {
+                "en": "Whisper to another player",
+                "ko": "다른 플레이어에게 귓속말을 합니다"
+            },
+            "cmd.who.desc": {
+                "en": "Show list of currently connected players",
+                "ko": "현재 접속 중인 플레이어 목록을 표시합니다"
+            },
+            
+            # 관리자 명령어 설명들
+            "cmd.admin.desc": {
+                "en": "Show administrator command list",
+                "ko": "관리자 명령어 목록을 표시합니다"
+            },
+            "cmd.adminchangename.desc": {
+                "en": "Change another player's name (admin only)",
+                "ko": "다른 플레이어의 이름을 변경합니다 (관리자 전용)"
+            },
+            "cmd.createexit.desc": {
+                "en": "Create exits between rooms",
+                "ko": "방 사이에 출구를 생성합니다"
+            },
+            "cmd.createobject.desc": {
+                "en": "Create new game objects",
+                "ko": "새로운 게임 객체를 생성합니다"
+            },
+            "cmd.createroom.desc": {
+                "en": "Create new rooms",
+                "ko": "새로운 방을 생성합니다"
+            },
+            "cmd.editroom.desc": {
+                "en": "Edit existing rooms",
+                "ko": "기존 방을 편집합니다"
+            },
+            "cmd.goto.desc": {
+                "en": "Teleport to specified coordinates",
+                "ko": "지정한 좌표로 바로 이동합니다"
+            },
+            "cmd.info.desc": {
+                "en": "Show detailed room information",
+                "ko": "현재 방의 상세 정보를 표시합니다"
+            },
+            "cmd.scheduler.desc": {
+                "en": "Manage global scheduler (list/info/enable/disable)",
+                "ko": "글로벌 스케줄러 관리 (list/info/enable/disable)"
             }
         }
         
