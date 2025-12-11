@@ -127,10 +127,10 @@ class PlayerStats:
         return base_atk + str_bonus + level_bonus
 
     def _calculate_defense(self) -> int:
-        """방어력 계산: 기본 5 + (체력 * 1.5) + (레벨 * 0.5)"""
-        base_def = 5
-        con_bonus = int(self.get_primary_stat(StatType.CON) * 1.5)
-        level_bonus = int(self.level * 0.5)
+        """방어력 계산: 기본 2 + (체력 * 0.3) + (레벨 * 0.2)"""
+        base_def = 2
+        con_bonus = int(self.get_primary_stat(StatType.CON) * 0.3)
+        level_bonus = int(self.level * 0.2)
         return base_def + con_bonus + level_bonus
 
     def _calculate_speed(self) -> int:

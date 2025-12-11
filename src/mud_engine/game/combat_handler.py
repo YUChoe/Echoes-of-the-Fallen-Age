@@ -391,8 +391,11 @@ class CombatHandler:
     
     async def process_monster_turn(self, combat_id: str) -> Dict[str, Any]:
         """몬스터 턴 처리 (AI)"""
+        logger.info(f"몬스터 턴 처리 시작 - combat_id: {combat_id}")
+        
         combat = self.combat_manager.get_combat(combat_id)
         if not combat or not combat.is_active:
+            logger.warning(f"전투를 찾을 수 없거나 비활성 상태 - combat_id: {combat_id}")
             return {
                 'success': False,
                 'message': '전투를 찾을 수 없거나 이미 종료되었습니다.'
@@ -400,23 +403,29 @@ class CombatHandler:
         
         current_combatant = combat.get_current_combatant()
         if not current_combatant:
+            logger.warning(f"현재 턴의 참가자를 찾을 수 없음 - combat_id: {combat_id}")
             return {
                 'success': False,
                 'message': '현재 턴의 참가자를 찾을 수 없습니다.'
             }
         
+        logger.info(f"몬스터 {current_combatant.name}의 턴 처리 중...")
+        
         # 몬스터 AI: 랜덤한 플레이어 공격
         alive_players = combat.get_alive_players()
         if not alive_players:
+            logger.warning(f"공격할 플레이어가 없음 - combat_id: {combat_id}")
             return {
                 'success': False,
                 'message': '공격할 대상이 없습니다.'
             }
         
         target = random.choice(alive_players)
+        logger.info(f"몬스터 {current_combatant.name}이(가) {target.name}을(를) 공격 시도")
         
         # 공격 실행
         result = await self._execute_attack(combat, current_combatant, target.id)
+        logger.info(f"몬스터 공격 결과: {result.get('success', False)}, 메시지: {result.get('message', 'N/A')}")
         
         # 턴 로그 추가
         turn = CombatTurn(
