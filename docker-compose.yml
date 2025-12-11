@@ -14,8 +14,8 @@ services:
     
     # 볼륨 마운트 (데이터 및 로그 영속화)
     volumes:
-      - data:/app/data
-      - logs:/app/logs
+      - ./data:/app/data
+      - ./logs:/app/logs
     
     # 환경 변수
     environment:
@@ -45,9 +45,3 @@ services:
 networks:
   mud-network:
     driver: bridge
-
-volumes:
-  data:
-    driver: local
-  logs:
-    driver: local
