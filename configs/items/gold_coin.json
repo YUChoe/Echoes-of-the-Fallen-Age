@@ -1,0 +1,15 @@
+{
+  "template_id": "gold_coin",
+  "name_en": "Gold Coin",
+  "name_ko": "골드",
+  "description_en": "A shiny gold coin.",
+  "description_ko": "반짝이는 금화입니다.",
+  "object_type": "item",
+  "category": "currency",
+  "weight": 0.005,
+  "properties": {
+    "value": 1
+  },
+  "stackable": true,
+  "max_stack": 9999
+}

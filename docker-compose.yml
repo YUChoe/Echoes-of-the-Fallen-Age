@@ -12,10 +12,11 @@ services:
     ports:
       - "4000:4000"  # Telnet 서버
     
-    # 볼륨 마운트 (데이터 및 로그 영속화)
+    # 볼륨 마운트 (데이터, 로그, 설정 파일 영속화)
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+      - ./configs:/app/configs
     
     # 환경 변수
     environment:

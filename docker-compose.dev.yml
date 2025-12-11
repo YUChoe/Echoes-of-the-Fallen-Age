@@ -16,8 +16,8 @@ services:
     volumes:
       - ./src:/app/src
       - ./configs:/app/configs
-      - data:/app/data
-      - logs:/app/logs
+      - ./data:/app/data
+      - ./logs:/app/logs
     
     # 개발 환경 변수
     environment:

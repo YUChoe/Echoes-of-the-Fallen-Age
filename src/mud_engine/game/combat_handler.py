@@ -553,6 +553,9 @@ class CombatHandler:
                         'location': 'ground'  # 땅에 떨어짐
                     })
                     logger.debug(f"골드 1개 드롭 (방: {room_id})")
+                else:
+                    # 골드 템플릿이 없어서 드롭 실패
+                    logger.error("골드 드롭 실패 - gold_coin 템플릿을 찾을 수 없음")
                 
                 # 1 EOL (플레이어 인벤토리에 직접 추가)
                 dropped_items.append({

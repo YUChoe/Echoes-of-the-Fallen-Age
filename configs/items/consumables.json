@@ -1,0 +1,62 @@
+{
+  "bread": {
+    "template_id": "bread",
+    "name_en": "Bread",
+    "name_ko": "빵",
+    "description_en": "A loaf of fresh bread.",
+    "description_ko": "갓 구운 빵 한 덩어리입니다.",
+    "object_type": "consumable",
+    "category": "consumable",
+    "weight": 0.3,
+    "properties": {
+      "hunger_restore": 20
+    },
+    "stackable": true,
+    "max_stack": 10
+  },
+  "health_potion": {
+    "template_id": "health_potion",
+    "name_en": "Health Potion",
+    "name_ko": "체력 물약",
+    "description_en": "A red potion that restores health.",
+    "description_ko": "체력을 회복시켜주는 빨간 물약입니다.",
+    "object_type": "consumable",
+    "category": "consumable",
+    "weight": 0.2,
+    "properties": {
+      "hp_restore": 50
+    },
+    "stackable": true,
+    "max_stack": 20
+  },
+  "wild_berries": {
+    "template_id": "wild_berries",
+    "name_en": "Wild Berries",
+    "name_ko": "야생 베리",
+    "description_en": "Sweet berries found in the wild.",
+    "description_ko": "야생에서 발견한 달콤한 베리입니다.",
+    "object_type": "consumable",
+    "category": "consumable",
+    "weight": 0.1,
+    "properties": {
+      "hunger_restore": 5
+    },
+    "stackable": true,
+    "max_stack": 50
+  },
+  "forest_mushroom": {
+    "template_id": "forest_mushroom",
+    "name_en": "Forest Mushroom",
+    "name_ko": "숲 버섯",
+    "description_en": "A mushroom found in the forest.",
+    "description_ko": "숲에서 발견한 버섯입니다.",
+    "object_type": "consumable",
+    "category": "consumable",
+    "weight": 0.1,
+    "properties": {
+      "hunger_restore": 10
+    },
+    "stackable": true,
+    "max_stack": 30
+  }
+}

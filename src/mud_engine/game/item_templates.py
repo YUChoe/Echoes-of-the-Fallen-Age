@@ -4,6 +4,8 @@
 """
 
 import logging
+import json
+import os
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
 from uuid import uuid4
@@ -71,44 +73,61 @@ class ItemTemplate:
 class ItemTemplateManager:
     """아이템 템플릿 관리자"""
     
-    def __init__(self):
+    def __init__(self, config_dir: str = "configs/items"):
         """아이템 템플릿 관리자 초기화"""
         self.templates: Dict[str, ItemTemplate] = {}
-        self._register_default_templates()
+        self.config_dir = config_dir
+        self._load_templates_from_config()
         logger.info(f"ItemTemplateManager 초기화 완료 - {len(self.templates)}개 템플릿 등록")
     
-    def _register_default_templates(self):
-        """기본 아이템 템플릿 등록"""
+    def _load_templates_from_config(self):
+        """설정 파일에서 아이템 템플릿 로드"""
+        if not os.path.exists(self.config_dir):
+            logger.warning(f"아이템 템플릿 디렉토리가 존재하지 않습니다: {self.config_dir}")
+            return
         
-        # 골드 코인
-        self.register_template(ItemTemplate(
-            template_id="gold_coin",
-            name_en="Gold Coin",
-            name_ko="골드",
-            description_en="A shiny gold coin.",
-            description_ko="반짝이는 금화입니다.",
-            object_type="item",
-            category="currency",
-            weight=0.01,
-            properties={'value': 1},
-            stackable=True,
-            max_stack=9999
-        ))
-        
-        # EOL (Essence of Life)
-        self.register_template(ItemTemplate(
-            template_id="essence_of_life",
-            name_en="Essence of Life",
-            name_ko="생명의 정수",
-            description_en="A glowing essence extracted from a defeated creature.",
-            description_ko="처치한 생명체에서 추출한 빛나는 정수입니다.",
-            object_type="consumable",
-            category="consumable",
-            weight=0.0,  # 무게 없음
-            properties={'essence_type': 'life', 'power': 1},
-            stackable=True,
-            max_stack=999
-        ))
+        for filename in os.listdir(self.config_dir):
+            if filename.endswith('.json'):
+                filepath = os.path.join(self.config_dir, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    
+                    # 단일 템플릿 파일인지 다중 템플릿 파일인지 확인
+                    if 'template_id' in data:
+                        # 단일 템플릿
+                        self._create_template_from_data(data)
+                    else:
+                        # 다중 템플릿 (딕셔너리 형태)
+                        for template_data in data.values():
+                            self._create_template_from_data(template_data)
+                    
+                    logger.debug(f"아이템 템플릿 파일 로드 완료: {filename}")
+                    
+                except Exception as e:
+                    logger.error(f"아이템 템플릿 파일 로드 실패 {filename}: {e}")
+    
+    def _create_template_from_data(self, data: Dict[str, Any]):
+        """데이터에서 ItemTemplate 생성 및 등록"""
+        try:
+            template = ItemTemplate(
+                template_id=data['template_id'],
+                name_en=data['name_en'],
+                name_ko=data['name_ko'],
+                description_en=data['description_en'],
+                description_ko=data['description_ko'],
+                object_type=data['object_type'],
+                category=data['category'],
+                weight=data.get('weight', 0.1),
+                properties=data.get('properties', {}),
+                stackable=data.get('stackable', True),
+                max_stack=data.get('max_stack', 999)
+            )
+            self.register_template(template)
+        except KeyError as e:
+            logger.error(f"아이템 템플릿 데이터에 필수 필드가 없습니다: {e}")
+        except Exception as e:
+            logger.error(f"아이템 템플릿 생성 실패: {e}")
     
     def register_template(self, template: ItemTemplate):
         """템플릿 등록"""

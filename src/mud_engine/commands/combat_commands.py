@@ -291,6 +291,13 @@ class AttackCommand(BaseCommand):
                                     f"플레이어 {session.player.username}이(가) "
                                     f"{drop_info['name_ko']} {drop_info.get('quantity', 1)}개 획득"
                                 )
+                            else:
+                                # 템플릿이 없어서 아이템 생성 실패
+                                await session.send_message({
+                                    "type": "room_message",
+                                    "message": f"💨 {drop_info['name_ko']}이(가) 눈앞에서 사라졌습니다."
+                                })
+                                logger.error(f"아이템 드롭 실패 - 템플릿 없음: {template_id}")
                     elif drop_info.get('location') == 'ground':
                         # 땅에 떨어진 아이템
                         dropped_items_msg.append(
