@@ -42,16 +42,18 @@ class SessionManager:
         if not session:
             return False
 
-        # 플레이어 매핑 제거
+        # 플레이어 매핑 제거 (해당 세션 ID와 일치하는 경우만)
         if session.player and session.player.id in self.player_sessions:
-            del self.player_sessions[session.player.id]
+            if self.player_sessions[session.player.id] == session_id:
+                del self.player_sessions[session.player.id]
+                logger.debug(f"플레이어 매핑 제거: {session.player.id} -> {session_id}")
 
         # 세션 제거
         del self.sessions[session_id]
         logger.debug(f"세션 제거: {session_id}")
         return True
 
-    def authenticate_session(self, session_id: str, player: Player) -> None:
+    async def authenticate_session(self, session_id: str, player: Player) -> None:
         """세션 인증
 
         Args:
@@ -59,10 +61,33 @@ class SessionManager:
             player: 플레이어 객체
         """
         session = self.sessions.get(session_id)
-        if session:
-            session.authenticate(player)
-            self.player_sessions[player.id] = session_id
-            logger.info(f"세션 인증: {session_id}, 플레이어: {player.username}")
+        if not session:
+            return
+
+        # 기존 세션이 있는지 확인
+        existing_session_id = self.player_sessions.get(player.id)
+        if existing_session_id and existing_session_id != session_id:
+            # 기존 세션 종료
+            existing_session = self.sessions.get(existing_session_id)
+            if existing_session:
+                logger.info(f"중복 로그인 감지 - 기존 세션 종료: {existing_session_id}, 플레이어: {player.username}")
+                # 기존 세션에 종료 메시지 전송 후 연결 종료
+                try:
+                    await existing_session.send_message({
+                        "type": "system_message",
+                        "message": "다른 곳에서 로그인하여 연결이 종료됩니다."
+                    })
+                    await existing_session.close("다른 곳에서 로그인하여 연결이 종료됩니다.")
+                except Exception as e:
+                    logger.warning(f"기존 세션 종료 처리 실패: {e}")
+                
+                # 기존 세션 정리
+                self.remove_session(existing_session_id)
+
+        # 새 세션 인증
+        session.authenticate(player)
+        self.player_sessions[player.id] = session_id
+        logger.info(f"세션 인증: {session_id}, 플레이어: {player.username}")
 
     def get_session(self, session_id: str) -> Optional[TelnetSession]:
         """세션 조회

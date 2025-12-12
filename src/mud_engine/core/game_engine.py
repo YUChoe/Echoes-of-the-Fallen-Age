@@ -212,7 +212,7 @@ class GameEngine:
         """
         # SessionManager에 세션 추가
         self.session_manager.add_session(session)
-        self.session_manager.authenticate_session(session.session_id, player)
+        await self.session_manager.authenticate_session(session.session_id, player)
         logger.info(f"SessionManager에 세션 추가: {session.session_id}, 플레이어: {player.username}")
         
         # 세션에 게임 엔진 참조 설정
