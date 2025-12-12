@@ -147,12 +147,16 @@ class TelnetServer:
 ║                                                               ║
 ║        {ANSIColors.BRIGHT_YELLOW}Echoes of the Fallen Age{ANSIColors.BRIGHT_CYAN}                        ║
 ║                                                               ║
+║        {ANSIColors.WHITE}Welcome to Karnas, the Fallen Continent{ANSIColors.BRIGHT_CYAN}           ║
 ║        {ANSIColors.WHITE}몰락의 대륙, 카르나스에 오신 것을 환영합니다{ANSIColors.BRIGHT_CYAN}        ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
 {ANSIColors.RESET}
 
-{ANSIColors.CYAN}황금 제국이 무너진 뒤 수백 년...
+{ANSIColors.CYAN}Centuries after the fall of the Golden Empire...
+Your adventure begins in a world transformed into ruins and monster lairs.
+
+황금 제국이 무너진 뒤 수백 년...
 폐허와 괴물의 소굴로 변한 세상에서 당신의 모험이 시작됩니다.{ANSIColors.RESET}
 
 """
@@ -173,11 +177,11 @@ class TelnetServer:
         while attempts < max_attempts:
             try:
                 await session.send_text("")
-                await session.send_info("1. 로그인 (login)")
-                await session.send_info("2. 회원가입 (register)")
-                await session.send_info("3. 종료 (quit)")
+                await session.send_info("1. Login / 로그인")
+                await session.send_info("2. Register / 회원가입")
+                await session.send_info("3. Quit / 종료")
                 await session.send_text("")
-                await session.send_prompt("선택> ")
+                await session.send_prompt("Choice / 선택> ")
 
                 choice = await session.read_line(timeout=60.0)
 
@@ -188,7 +192,7 @@ class TelnetServer:
                 choice = choice.lower().strip()
 
                 if choice in ['3', 'quit', 'exit', 'q']:
-                    await session.send_text("안녕히 가세요!")
+                    await session.send_text("Goodbye! / 안녕히 가세요!")
                     return False
 
                 if choice in ['1', 'login', 'l']:
@@ -199,7 +203,7 @@ class TelnetServer:
                         # 회원가입 후 자동 로그인
                         return True
                 else:
-                    await session.send_error("잘못된 선택입니다. 1, 2, 또는 3을 입력하세요.")
+                    await session.send_error("Invalid choice. Please enter 1, 2, or 3. / 잘못된 선택입니다. 1, 2, 또는 3을 입력하세요.")
 
                 attempts += 1
 
@@ -224,23 +228,23 @@ class TelnetServer:
             bool: 로그인 성공 여부
         """
         await session.send_text("")
-        await session.send_info("=== 로그인 ===")
-        await session.send_prompt("사용자명: ")
+        await session.send_info("=== Login / 로그인 ===")
+        await session.send_prompt("Username / 사용자명: ")
         username = await session.read_line(timeout=60.0)
 
         if not username:
-            await session.send_error("사용자명을 입력하지 않았습니다.")
+            await session.send_error("Username not entered. / 사용자명을 입력하지 않았습니다.")
             return False
 
         # 패스워드 입력 시 에코 비활성화
         await session.disable_echo()
-        await session.send_prompt("비밀번호: ")
+        await session.send_prompt("Password / 비밀번호: ")
         password = await session.read_line(timeout=60.0)
         await session.enable_echo()
         await session.send_text("")  # 줄바꿈 추가
 
         if not password:
-            await session.send_error("비밀번호를 입력하지 않았습니다.")
+            await session.send_error("Password not entered. / 비밀번호를 입력하지 않았습니다.")
             return False
 
         try:
@@ -258,12 +262,33 @@ class TelnetServer:
             # 세션 인증
             session.authenticate(player)
             self.player_sessions[player.id] = session.session_id
+            
+            # 세션의 locale을 플레이어의 preferred_locale로 설정
+            session.locale = player.preferred_locale
 
             # 게임 엔진에 세션 추가
             if self.game_engine:
                 await self.game_engine.add_player_session(session, player)
 
-            await session.send_success(f"'{player.get_display_name()}'님, 환영합니다!")
+            # 다국어 환영 메시지
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            welcome_msg = localization.get_message("auth.login_success", session.locale, username=player.get_display_name())
+            
+            await session.send_success(welcome_msg)
+            
+            # 게임 입장 메시지
+            game_entered_msg = localization.get_message("game.entered", session.locale)
+            await session.send_info(game_entered_msg)
+            
+            # 선호 언어 설정 표시
+            language_name = "English" if session.locale == "en" else "한국어"
+            language_info = localization.get_message("auth.language_preference", session.locale, language=language_name)
+            await session.send_message({
+                "type": "system_message", 
+                "message": language_info
+            })
+            
             logger.info(f"✅ Telnet 로그인 성공: 사용자명='{username}', 플레이어ID={player.id}")
             return True
 
@@ -282,36 +307,36 @@ class TelnetServer:
             bool: 회원가입 성공 여부
         """
         await session.send_text("")
-        await session.send_info("=== 회원가입 ===")
-        await session.send_prompt("사용자명 (3-20자, 공백 불가): ")
+        await session.send_info("=== Register / 회원가입 ===")
+        await session.send_prompt("Username (3-20 chars, no spaces) / 사용자명 (3-20자, 공백 불가): ")
         username = await session.read_line(timeout=60.0)
 
         if not username:
-            await session.send_error("사용자명을 입력하지 않았습니다.")
+            await session.send_error("Username not entered. / 사용자명을 입력하지 않았습니다.")
             return False
         
         # 사용자명 검증: 공백 불허
         if ' ' in username:
-            await session.send_error("사용자명에 공백을 사용할 수 없습니다.")
+            await session.send_error("Username cannot contain spaces. / 사용자명에 공백을 사용할 수 없습니다.")
             return False
         
         # 사용자명 길이 검증
         if len(username) < 3 or len(username) > 20:
-            await session.send_error("사용자명은 3-20자여야 합니다.")
+            await session.send_error("Username must be 3-20 characters. / 사용자명은 3-20자여야 합니다.")
             return False
 
         # 패스워드 입력 시 에코 비활성화
         await session.disable_echo()
-        await session.send_prompt("비밀번호 (최소 6자): ")
+        await session.send_prompt("Password (min 6 chars) / 비밀번호 (최소 6자): ")
         password = await session.read_line(timeout=60.0)
         await session.send_text("")  # 줄바꿈 추가
 
         if not password:
             await session.enable_echo()
-            await session.send_error("비밀번호를 입력하지 않았습니다.")
+            await session.send_error("Password not entered. / 비밀번호를 입력하지 않았습니다.")
             return False
 
-        await session.send_prompt("비밀번호 확인: ")
+        await session.send_prompt("Confirm password / 비밀번호 확인: ")
         password_confirm = await session.read_line(timeout=60.0)
         await session.enable_echo()
         await session.send_text("")  # 줄바꿈 추가
@@ -348,9 +373,13 @@ class TelnetServer:
         Args:
             session: Telnet 세션
         """
+        # 다국어 게임 입장 메시지
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        
         await session.send_text("")
-        await session.send_info("게임에 입장했습니다!")
-        await session.send_info("'help' 명령어로 도움말을 확인하세요.")
+        game_entered_msg = localization.get_message("game.entered", session.locale)
+        await session.send_info(game_entered_msg)
         await session.send_text("")
 
         while session.is_active():

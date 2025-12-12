@@ -41,6 +41,10 @@ class LocalizationManager:
                 "en": "❌ You are not authenticated.",
                 "ko": "❌ 인증되지 않은 사용자입니다."
             },
+            "auth.language_preference": {
+                "en": "🌐 Language preference: {language}",
+                "ko": "🌐 언어 설정: {language}"
+            },
             
             # 게임 입장
             "game.entered": {
@@ -454,6 +458,16 @@ class LocalizationManager:
             "room.merchant_type": {
                 "en": " (merchant)",
                 "ko": " (상인)"
+            },
+            
+            # 시간 변화 알림
+            "time.dawn": {
+                "en": "🌅 The eastern sky brightens. Day has come.",
+                "ko": "🌅 동쪽 하늘이 밝아옵니다. 낮이 되었습니다."
+            },
+            "time.dusk": {
+                "en": "🌙 Darkness falls. Night has come.",
+                "ko": "🌙 어둠이 내려앉습니다. 밤이 되었습니다."
             },
             
             # 도움말 명령어 관련

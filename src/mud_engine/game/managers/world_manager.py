@@ -239,14 +239,17 @@ class WorldManager:
             objects = await self._object_manager.get_room_objects(room_id)
             monsters = await self._monster_manager.get_monsters_in_room(room_id)
             npcs = await self._npc_repo.get_npcs_in_room(room_id)
-            connected_rooms = await self._room_manager.get_connected_rooms(room_id)
+            
+            # 좌표 기반 출구 계산
+            coordinate_exits = await self._room_manager.get_coordinate_based_exits(room_id)
+            connected_rooms = await self._room_manager.get_connected_rooms_by_coordinates(room_id)
 
             return {
                 'room': room,
                 'objects': objects,
                 'monsters': monsters,
                 'npcs': npcs,
-                'exits': room.exits,
+                'exits': coordinate_exits,
                 'connected_rooms': connected_rooms
             }
         except Exception as e:

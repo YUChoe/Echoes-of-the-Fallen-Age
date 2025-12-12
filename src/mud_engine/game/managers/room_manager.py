@@ -231,3 +231,45 @@ class RoomManager:
         except Exception as e:
             logger.error(f"좌표 범위 방 조회 실패 ({min_x}-{max_x}, {min_y}-{max_y}): {e}")
             raise
+    async def get_coordinate_based_exits(self, room_id: str) -> Dict[str, str]:
+        """좌표 기반으로 방의 출구를 계산합니다."""
+        try:
+            from ...utils.coordinate_utils import Direction, calculate_new_coordinates
+            
+            room = await self.get_room(room_id)
+            if not room or room.x is None or room.y is None:
+                return {}
+            
+            exits = {}
+            all_rooms = await self._room_repo.get_all()
+            
+            # 좌표를 기반으로 인접한 방들을 찾아 출구 생성
+            for direction in Direction:
+                adj_x, adj_y = calculate_new_coordinates(room.x, room.y, direction)
+                
+                # 해당 좌표에 방이 있는지 확인
+                for other_room in all_rooms:
+                    if other_room.x == adj_x and other_room.y == adj_y:
+                        exits[direction.value] = other_room.id
+                        break
+            
+            return exits
+        except Exception as e:
+            logger.error(f"좌표 기반 출구 계산 실패 ({room_id}): {e}")
+            return {}
+
+    async def get_connected_rooms_by_coordinates(self, room_id: str) -> List[Room]:
+        """좌표 기반으로 연결된 방들을 조회합니다."""
+        try:
+            exits = await self.get_coordinate_based_exits(room_id)
+            connected_rooms = []
+            
+            for target_room_id in exits.values():
+                target_room = await self.get_room(target_room_id)
+                if target_room:
+                    connected_rooms.append(target_room)
+            
+            return connected_rooms
+        except Exception as e:
+            logger.error(f"좌표 기반 연결된 방 조회 실패 ({room_id}): {e}")
+            return []

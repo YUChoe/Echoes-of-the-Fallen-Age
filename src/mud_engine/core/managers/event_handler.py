@@ -63,32 +63,50 @@ class EventHandler:
 
     async def _on_player_login(self, event: Event) -> None:
         """플레이어 로그인 이벤트 핸들러"""
+        from ..localization import get_message
+        
         data = event.data
         username = data.get('username')
 
-        # 다른 플레이어들에게 로그인 알림
-        login_message = {
-            "type": "system_message",
-            "message": f"🎮 {username}님이 게임에 참여했습니다.",
-            "timestamp": event.timestamp.isoformat()
-        }
+        # 모든 세션에 각자의 언어로 로그인 알림 전송
+        for session in self.game_engine.session_manager.sessions.values():
+            if session.player and session.player.username != username:
+                # 각 세션의 언어 설정에 맞는 메시지 생성
+                locale = getattr(session, 'language', 'en')
+                message = get_message("game.player_joined", locale, username=username)
+                
+                login_message = {
+                    "type": "system_message",
+                    "message": message,
+                    "timestamp": event.timestamp.isoformat()
+                }
+                
+                await session.send_message(login_message)
 
-        await self.game_engine.broadcast_to_all(login_message)
         logger.info(f"플레이어 로그인 알림 브로드캐스트: {username}")
 
     async def _on_player_logout(self, event: Event) -> None:
         """플레이어 로그아웃 이벤트 핸들러"""
+        from ..localization import get_message
+        
         data = event.data
         username = data.get('username')
 
-        # 다른 플레이어들에게 로그아웃 알림
-        logout_message = {
-            "type": "system_message",
-            "message": f"👋 {username}님이 게임을 떠났습니다.",
-            "timestamp": event.timestamp.isoformat()
-        }
+        # 모든 세션에 각자의 언어로 로그아웃 알림 전송
+        for session in self.game_engine.session_manager.sessions.values():
+            if session.player and session.player.username != username:
+                # 각 세션의 언어 설정에 맞는 메시지 생성
+                locale = getattr(session, 'language', 'en')
+                message = get_message("game.player_left", locale, username=username)
+                
+                logout_message = {
+                    "type": "system_message",
+                    "message": message,
+                    "timestamp": event.timestamp.isoformat()
+                }
+                
+                await session.send_message(logout_message)
 
-        await self.game_engine.broadcast_to_all(logout_message)
         logger.info(f"플레이어 로그아웃 알림 브로드캐스트: {username}")
 
     async def _on_player_command(self, event: Event) -> None:
