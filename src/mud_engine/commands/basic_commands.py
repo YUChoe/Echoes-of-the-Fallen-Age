@@ -28,22 +28,15 @@ class SayCommand(BaseCommand):
         locale = session.player.preferred_locale if session.player else "en"
         
         if not self.validate_args(args, min_args=1):
-            if locale == "ko":
-                error_msg = "말할 내용을 입력해주세요.\n사용법: say <메시지>"
-            else:
-                error_msg = "Please enter a message to say.\nUsage: say <message>"
+            error_msg = localization.get_message("say.usage_error", locale)
             return self.create_error_result(error_msg)
 
         message = " ".join(args)
         username = session.player.username
 
         # 플레이어에게 확인 메시지
-        if locale == "ko":
-            player_message = f"💬 당신이 말했습니다: \"{message}\""
-            broadcast_message = f"💬 {username}님이 말했습니다: \"{message}\""
-        else:
-            player_message = f"💬 You say: \"{message}\""
-            broadcast_message = f"💬 {username} says: \"{message}\""
+        player_message = localization.get_message("say.success", locale, message=message)
+        broadcast_message = localization.get_message("say.broadcast", locale, username=username, message=message)
 
         return self.create_success_result(
             message=player_message,
@@ -204,16 +197,20 @@ class LookCommand(BaseCommand):
                         combat_status = movement_mgr._format_combat_status(combat)
                         
                         current = combat.get_current_combatant()
+                        from ..core.localization import get_localization_manager
+                        localization = get_localization_manager()
+                        locale = session.player.preferred_locale if session.player else "en"
+                        
                         if current and current.id == session.player.id:
-                            turn_info = """
+                            turn_info = f"""
 
-🎯 당신의 턴입니다! 행동을 선택하세요:
+{localization.get_message("combat.your_turn", locale)}
 
-[1] attack  - 무기로 공격
-[2] defend  - 방어 자세 (다음 데미지 50% 감소)
-[3] flee    - 도망치기 (50% 확률)
+1️⃣ {localization.get_message("combat.action_attack", locale)}
+2️⃣ {localization.get_message("combat.action_defend", locale)}
+3️⃣ {localization.get_message("combat.action_flee", locale)}
 
-명령어를 입력하세요:"""
+{localization.get_message("combat.enter_command", locale)}"""
                         else:
                             turn_info = f"\n\n⏳ {current.name}의 턴입니다..."
                         
@@ -236,8 +233,13 @@ class LookCommand(BaseCommand):
             # 방 정보를 플레이어에게 전송
             await game_engine.movement_manager.send_room_info_to_player(session, current_room_id)
 
+            # 다국어 메시지 사용
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            locale = session.player.preferred_locale if session.player else "en"
+            
             return self.create_success_result(
-                message="주변을 다시 둘러봅니다.",
+                message=localization.get_message("look.refresh", locale),
                 data={
                     "action": "look_refresh",
                     "room_id": current_room_id
@@ -246,7 +248,10 @@ class LookCommand(BaseCommand):
 
         except Exception as e:
             logger.error(f"방 둘러보기 중 오류: {e}")
-            return self.create_error_result("방 정보를 조회하는 중 오류가 발생했습니다.")
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            locale = session.player.preferred_locale if session.player else "en"
+            return self.create_error_result(localization.get_message("look.error", locale))
 
     async def _look_at(self, session: SessionType, target: str) -> CommandResult:
         """특정 대상 살펴보기"""
@@ -293,20 +298,25 @@ class HelpCommand(BaseCommand):
 
         # 전투 중인 경우 전투 명령어만 표시
         if getattr(session, 'in_combat', False):
-            combat_help = """
-⚔️ 전투 중 사용 가능한 명령어:
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            locale = session.player.preferred_locale if session.player else "en"
+            
+            combat_help = f"""
+{localization.get_message("combat.help_title", locale)}
 
-[1] attack (또는 숫자 1) - 무기로 공격
-[2] defend (또는 숫자 2) - 방어 자세 (다음 데미지 50% 감소)
-[3] flee (또는 숫자 3) - 도망치기 (50% 확률)
+{localization.get_message("combat.help_attack", locale)}
+{localization.get_message("combat.help_defend", locale)}
+{localization.get_message("combat.help_flee", locale)}
 
-📋 기타 명령어:
-• look - 전투 상태 확인
-• status - 능력치 확인
-• combat - 전투 상태 상세 정보
+{localization.get_message("combat.help_other", locale)}
+• look - {localization.get_message("help.look_combat", locale, default="전투 상태 확인" if locale == "ko" else "Check combat status")}
+• status - {localization.get_message("help.status", locale, default="능력치 확인" if locale == "ko" else "Check attributes")}
+• combat - {localization.get_message("help.combat_detail", locale, default="전투 상태 상세 정보" if locale == "ko" else "Detailed combat information")}
 
-💡 팁: 숫자만 입력해도 행동을 선택할 수 있습니다!
+💡 {localization.get_message("help.tip_numbers", locale, default="팁: 숫자만 입력해도 행동을 선택할 수 있습니다!" if locale == "ko" else "Tip: You can just enter numbers to select actions!")}
 """
+            
             return self.create_success_result(
                 message=combat_help.strip(),
                 data={"action": "help_combat"}
@@ -374,12 +384,18 @@ class MoveCommand(BaseCommand):
 
         # 전투 중에는 이동 불가
         if getattr(session, 'in_combat', False):
-            return self.create_error_result("❌ 전투 중에는 이동할 수 없습니다. 먼저 전투에서 도망치거나 승리하세요.")
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            locale = session.player.preferred_locale if session.player else "en"
+            return self.create_error_result(localization.get_message("movement.combat_blocked", locale))
 
         # 현재 방 ID 가져오기 (세션에서 또는 캐릭터에서)
         current_room_id = getattr(session, 'current_room_id', None)
         if not current_room_id:
-            return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            locale = session.player.preferred_locale if session.player else "en"
+            return self.create_error_result(localization.get_message("movement.no_location", locale))
 
         # GameEngine을 통해 이동 처리
         from ..core.game_engine import GameEngine
@@ -388,50 +404,25 @@ class MoveCommand(BaseCommand):
             return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
         try:
-            # 현재 방 정보 조회
-            current_room = await game_engine.world_manager.get_room(current_room_id)
-            if not current_room:
-                return self.create_error_result("현재 방을 찾을 수 없습니다.")
+            # 좌표 기반 이동 시스템 사용
+            success = await game_engine.movement_manager.move_player_by_direction(session, self.direction)
+            
+            if success:
+                from ..core.localization import get_localization_manager
+                localization = get_localization_manager()
+                locale = session.player.preferred_locale if session.player else "en"
+                return self.create_success_result(localization.get_message("movement.success", locale, direction=self.direction))
+            else:
+                # 에러 메시지는 move_player_by_direction에서 이미 전송됨
+                return self.create_error_result("")
 
-            # 해당 방향으로 출구가 있는지 확인
-            target_room_id = current_room.get_exit(self.direction)
-            if not target_room_id:
-                return self.create_error_result(f"{self.direction} 방향으로는 갈 수 없습니다.")
-
-            # 목적지 방 존재 확인
-            target_room = await game_engine.world_manager.get_room(target_room_id)
-            if not target_room:
-                return self.create_error_result("목적지 방을 찾을 수 없습니다.")
-
-            # 플레이어 이동 처리
-            success = await game_engine.move_player_to_room(session, target_room_id)
-            if not success:
-                return self.create_error_result("이동에 실패했습니다.")
-
-            # 이동 성공 메시지
-            player_message = f"🚶 {self.direction} 방향으로 이동했습니다."
-
-            # 이전 방의 다른 플레이어들에게 알림
-            leave_message = f"🚶 {session.player.username}님이 {self.direction} 방향으로 떠났습니다."
-
-            # 새 방의 다른 플레이어들에게 알림
-            enter_message = f"🚶 {session.player.username}님이 도착했습니다."
-
-            return self.create_success_result(
-                message=player_message,
-                data={
-                    "action": "move",
-                    "direction": self.direction,
-                    "from_room": current_room_id,
-                    "to_room": target_room_id,
-                    "leave_message": leave_message,
-                    "enter_message": enter_message
-                }
-            )
 
         except Exception as e:
             logger.error(f"이동 명령어 실행 중 오류: {e}")
-            return self.create_error_result("이동 중 오류가 발생했습니다.")
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            locale = session.player.preferred_locale if session.player else "en"
+            return self.create_error_result(localization.get_message("error.generic", locale))
 
 
 class GoCommand(BaseCommand):
@@ -446,11 +437,12 @@ class GoCommand(BaseCommand):
         )
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        locale = session.player.preferred_locale if session.player else "en"
+        
         if not self.validate_args(args, min_args=1):
-            return self.create_error_result(
-                "이동할 방향을 지정해주세요.\n사용법: go <방향>\n"
-                "사용 가능한 방향: north, south, east, west, up, down, northeast, northwest, southeast, southwest"
-            )
+            return self.create_error_result(localization.get_message("go.usage_error", locale))
 
         direction = args[0].lower()
         valid_directions = {
@@ -470,10 +462,7 @@ class GoCommand(BaseCommand):
             direction = direction_map[direction]
 
         if direction not in valid_directions:
-            return self.create_error_result(
-                f"'{args[0]}'은(는) 올바른 방향이 아닙니다.\n"
-                "사용 가능한 방향: north, south, east, west, up, down, northeast, northwest, southeast, southwest"
-            )
+            return self.create_error_result(localization.get_message("go.invalid_direction", locale, direction=args[0]))
 
         # MoveCommand를 임시로 생성하여 실행
         move_command = MoveCommand(direction)
@@ -492,13 +481,17 @@ class ExitsCommand(BaseCommand):
         )
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        locale = session.player.preferred_locale if session.player else "en"
+        
         if not session.is_authenticated or not session.player:
-            return self.create_error_result("인증되지 않은 사용자입니다.")
+            return self.create_error_result(localization.get_message("auth.not_authenticated", locale))
 
         # 현재 방 ID 가져오기
         current_room_id = getattr(session, 'current_room_id', None)
         if not current_room_id:
-            return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+            return self.create_error_result(localization.get_message("movement.no_location", locale))
 
         # GameEngine을 통해 방 정보 조회
         from ..core.game_engine import GameEngine
@@ -513,11 +506,11 @@ class ExitsCommand(BaseCommand):
 
             exits = current_room.get_available_exits()
             if not exits:
-                return self.create_info_result("🚪 이 방에는 출구가 없습니다.")
+                return self.create_info_result(localization.get_message("exits.no_exits", locale))
 
             # 출구 목록 생성
             exit_list = ", ".join(exits)
-            message = f"🚪 사용 가능한 출구: {exit_list}"
+            message = localization.get_message("exits.available", locale, exits=exit_list)
 
             return self.create_success_result(
                 message=message,
@@ -530,7 +523,7 @@ class ExitsCommand(BaseCommand):
 
         except Exception as e:
             logger.error(f"출구 확인 명령어 실행 중 오류: {e}")
-            return self.create_error_result("출구 정보를 확인하는 중 오류가 발생했습니다.")
+            return self.create_error_result(localization.get_message("exits.error", locale))
 
 
 class StatsCommand(BaseCommand):

@@ -6,7 +6,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 from ..database.repository import BaseModel
@@ -389,6 +389,20 @@ class Room(BaseModel):
     def get_available_exits(self) -> List[str]:
         """사용 가능한 출구 방향 목록 반환"""
         return list(self.exits.keys())
+
+    def get_coordinates(self) -> Tuple[int, int]:
+        """방의 좌표 반환"""
+        return (self.x or 0, self.y or 0)
+
+    def set_coordinates(self, x: int, y: int) -> None:
+        """방의 좌표 설정"""
+        self.x = x
+        self.y = y
+        self.updated_at = datetime.now()
+
+    def is_at_coordinates(self, x: int, y: int) -> bool:
+        """특정 좌표에 위치하는지 확인"""
+        return self.x == x and self.y == y
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""

@@ -63,6 +63,27 @@ class WorldManager:
     async def remove_room_exit(self, room_id: str, direction: str) -> bool:
         return await self._room_manager.remove_room_exit(room_id, direction)
 
+    # === 좌표 기반 방 관리 ===
+
+    async def get_room_at_coordinates(self, x: int, y: int) -> Optional[Room]:
+        """특정 좌표의 방을 조회합니다."""
+        return await self._room_manager.get_room_at_coordinates(x, y)
+
+    async def get_adjacent_room(self, x: int, y: int, direction: str) -> Optional[Room]:
+        """현재 좌표에서 특정 방향으로 인접한 방을 조회합니다."""
+        from ...utils.coordinate_utils import get_direction_from_string, calculate_new_coordinates
+        
+        direction_enum = get_direction_from_string(direction)
+        if not direction_enum:
+            return None
+        
+        new_x, new_y = calculate_new_coordinates(x, y, direction_enum)
+        return await self.get_room_at_coordinates(new_x, new_y)
+
+    async def get_rooms_in_area(self, center_x: int, center_y: int, radius: int) -> List[Room]:
+        """특정 좌표 주변의 방들을 조회합니다."""
+        return await self._room_manager.get_rooms_in_area(center_x, center_y, radius)
+
     # === 게임 객체 관리 위임 ===
 
     async def get_game_object(self, object_id: str) -> Optional[GameObject]:

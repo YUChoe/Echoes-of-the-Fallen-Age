@@ -185,3 +185,49 @@ class RoomManager:
         except Exception as e:
             logger.error(f"방으로의 출구 제거 실패 ({target_room_id}): {e}")
             raise
+    # === 좌표 기반 방 관리 ===
+
+    async def get_room_at_coordinates(self, x: int, y: int) -> Optional[Room]:
+        """특정 좌표의 방을 조회합니다."""
+        try:
+            rooms = await self._room_repo.get_all()
+            for room in rooms:
+                if room.x == x and room.y == y:
+                    return room
+            return None
+        except Exception as e:
+            logger.error(f"좌표 기반 방 조회 실패 ({x}, {y}): {e}")
+            raise
+
+    async def get_rooms_in_area(self, center_x: int, center_y: int, radius: int) -> List[Room]:
+        """특정 좌표 주변의 방들을 조회합니다."""
+        try:
+            rooms = await self._room_repo.get_all()
+            area_rooms = []
+            
+            for room in rooms:
+                if room.x is not None and room.y is not None:
+                    distance = ((room.x - center_x) ** 2 + (room.y - center_y) ** 2) ** 0.5
+                    if distance <= radius:
+                        area_rooms.append(room)
+            
+            return area_rooms
+        except Exception as e:
+            logger.error(f"영역 내 방 조회 실패 ({center_x}, {center_y}, radius={radius}): {e}")
+            raise
+
+    async def find_rooms_by_coordinates(self, min_x: int, max_x: int, min_y: int, max_y: int) -> List[Room]:
+        """좌표 범위 내의 방들을 조회합니다."""
+        try:
+            rooms = await self._room_repo.get_all()
+            filtered_rooms = []
+            
+            for room in rooms:
+                if (room.x is not None and room.y is not None and
+                    min_x <= room.x <= max_x and min_y <= room.y <= max_y):
+                    filtered_rooms.append(room)
+            
+            return filtered_rooms
+        except Exception as e:
+            logger.error(f"좌표 범위 방 조회 실패 ({min_x}-{max_x}, {min_y}-{max_y}): {e}")
+            raise
