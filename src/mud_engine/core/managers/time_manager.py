@@ -204,11 +204,12 @@ class TimeManager:
 
     async def _notify_time_change(self) -> None:
         """모든 접속 유저에게 시간 변경 알림"""
+        from ..localization import get_localization_manager
+        localization = get_localization_manager()
+        
         if self.current_time == TimeOfDay.DAY:
-            message = "🌅 동쪽 하늘이 밝아옵니다. 낮이 되었습니다."
             color = "\033[93m"  # 노란색
         else:
-            message = "🌙 어둠이 내려앉습니다. 밤이 되었습니다."
             color = "\033[94m"  # 파란색
 
         # 모든 활성 세션에 알림
@@ -224,6 +225,14 @@ class TimeManager:
         for session in all_sessions:
             if hasattr(session, 'is_authenticated') and session.is_authenticated:
                 try:
+                    # 세션의 언어 설정에 따라 메시지 선택
+                    session_locale = getattr(session, 'locale', 'en')
+                    
+                    if self.current_time == TimeOfDay.DAY:
+                        message = localization.get_message("time.dawn", session_locale)
+                    else:
+                        message = localization.get_message("time.dusk", session_locale)
+                    
                     await session.send_message({
                         "type": "system_message",
                         "message": f"{color}{message}\033[0m"
@@ -233,4 +242,4 @@ class TimeManager:
                     session_id = getattr(session, 'session_id', 'unknown')
                     logger.error(f"시간 변경 알림 전송 실패 (세션 {session_id}): {e}")
 
-        logger.info(f"시간 변경 알림 전송 완료: {message} (전송: {sent_count}/{len(all_sessions)})")
+        logger.info(f"시간 변경 알림 전송 완료 (전송: {sent_count}/{len(all_sessions)})")

@@ -107,7 +107,9 @@ class AttackCommand(BaseCommand):
             session.combat_id = combat.id
             session.current_room_id = f"combat_{combat.id}"  # 전투 인스턴스로 이동
 
-            monster_name = target_monster.get_localized_name('ko')
+            # 플레이어의 언어 설정에 따라 몬스터 이름 표시
+            locale = session.player.preferred_locale if session.player else "en"
+            monster_name = target_monster.get_localized_name(locale)
             
             # 몬스터가 선공이면 자동으로 턴 처리
             current = combat.get_current_combatant()
@@ -380,7 +382,13 @@ class AttackCommand(BaseCommand):
             lines.append(f"\n{localization.get_message('combat.monsters', locale)}")
             for monster in monsters:
                 hp_bar = self._get_hp_bar(monster.current_hp, monster.max_hp)
-                lines.append(localization.get_message("combat.monster_entry", locale, name=monster.name))
+                # 몬스터 이름을 언어별로 동적 조회
+                monster_name = monster.name  # 기본값
+                if monster.data and 'monster' in monster.data:
+                    monster_obj = monster.data['monster']
+                    monster_name = monster_obj.get_localized_name(locale)
+                
+                lines.append(localization.get_message("combat.monster_entry", locale, name=monster_name))
                 lines.append(localization.get_message("combat.hp_display", locale, 
                                                     hp_bar=hp_bar, 
                                                     current=monster.current_hp, 

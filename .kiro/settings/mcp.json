@@ -42,7 +42,7 @@
         "-y",
         "@modelcontextprotocol/server-memory@latest"
       ],
-      "disabled": false,
+      "disabled": true,
       "autoApprove": [
         "search_nodes",
         "create_entities",

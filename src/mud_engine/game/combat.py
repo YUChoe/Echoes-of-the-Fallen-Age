@@ -77,6 +77,25 @@ class Combatant:
             return 0.0
         return (self.current_hp / self.max_hp) * 100
     
+    def get_display_name(self, locale: str = "en", world_manager=None) -> str:
+        """표시용 이름 반환 (언어별)"""
+        if self.combatant_type == CombatantType.PLAYER:
+            return self.name  # 플레이어는 이름 그대로
+        elif self.combatant_type == CombatantType.MONSTER:
+            # 몬스터는 world_manager를 통해 동적으로 이름 조회
+            if world_manager:
+                try:
+                    # 비동기 함수를 동기적으로 호출할 수 없으므로 data에서 조회
+                    if self.data and 'monster' in self.data:
+                        monster = self.data['monster']
+                        return monster.get_localized_name(locale)
+                except Exception:
+                    pass
+            # 폴백: ID 또는 기본 이름 사용
+            return self.name
+        else:
+            return self.name
+    
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환"""
         return {
@@ -436,9 +455,10 @@ class CombatManager:
             return False
         
         # Combatant 생성 (D&D 능력치 사용)
+        # 몬스터 이름은 원본 Monster 객체를 참조하여 동적으로 처리
         combatant = Combatant(
             id=monster.id,
-            name=monster.get_localized_name('ko'),
+            name=monster.id,  # ID로 저장하고 표시 시 동적으로 언어별 이름 조회
             combatant_type=CombatantType.MONSTER,
             agility=monster.stats.dexterity,  # 민첩 사용
             max_hp=monster.stats.max_hp,
@@ -449,6 +469,7 @@ class CombatManager:
         
         # Monster 객체의 추가 정보를 data에 저장 (전투 계산에 사용)
         combatant.data = {
+            'monster': monster,  # Monster 객체 전체 저장 (다국어 이름 조회용)
             'armor_class': monster.stats.armor_class,
             'attack_bonus': monster.stats.attack_bonus,
             'initiative_bonus': monster.stats.initiative_bonus,

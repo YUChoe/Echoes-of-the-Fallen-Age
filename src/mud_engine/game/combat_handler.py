@@ -30,6 +30,19 @@ class CombatHandler:
         self.dnd_engine = DnDCombatEngine()
         logger.info("CombatHandler 초기화 완료 (D&D 5e 룰 적용)")
     
+    def _get_combatant_name(self, combatant, locale: str = "en") -> str:
+        """전투 참가자의 언어별 이름 반환"""
+        if combatant.combatant_type.value == "player":
+            return combatant.name
+        elif combatant.combatant_type.value == "monster":
+            # 몬스터는 data에서 Monster 객체를 가져와서 언어별 이름 조회
+            if combatant.data and 'monster' in combatant.data:
+                monster_obj = combatant.data['monster']
+                return monster_obj.get_localized_name(locale)
+            return combatant.name
+        else:
+            return combatant.name
+    
     async def check_and_start_combat(
         self,
         room_id: str,
@@ -247,8 +260,13 @@ class CombatHandler:
         
         # 빗나감
         if not hit and not is_critical:
-            message = f"{ANSIColors.RED}🎲 {actor.name}의 공격! (굴림: {attack_roll} vs AC {target_ac})\n"
-            message += f"❌ {target.name}을(를) 빗나갔습니다!{ANSIColors.RESET}"
+            # 기본 언어는 영어로 설정 (추후 세션 정보에서 가져올 수 있도록 개선 필요)
+            locale = "en"
+            actor_name = self._get_combatant_name(actor, locale)
+            target_name = self._get_combatant_name(target, locale)
+            
+            message = f"{ANSIColors.RED}🎲 {actor_name}의 공격! (굴림: {attack_roll} vs AC {target_ac})\n"
+            message += f"❌ {target_name}을(를) 빗나갔습니다!{ANSIColors.RESET}"
             
             return {
                 'success': True,
@@ -277,20 +295,24 @@ class CombatHandler:
         target.current_hp = max(0, target.current_hp - actual_damage)
         
         # 메시지 생성
-        message = f"{ANSIColors.RED}🎲 {actor.name}의 공격! (굴림: {attack_roll} vs AC {target_ac})\n"
+        locale = "en"  # 기본 언어는 영어로 설정 (추후 세션 정보에서 가져올 수 있도록 개선 필요)
+        actor_name = self._get_combatant_name(actor, locale)
+        target_name = self._get_combatant_name(target, locale)
+        
+        message = f"{ANSIColors.RED}🎲 {actor_name}의 공격! (굴림: {attack_roll} vs AC {target_ac})\n"
         
         if is_critical:
             message += f"💥 크리티컬 히트! "
         else:
             message += f"✅ 명중! "
         
-        message += f"{target.name}에게 {actual_damage} 데미지!"
+        message += f"{target_name}에게 {actual_damage} 데미지!"
         
         if target.is_defending:
             message += " (방어 중 - 50% 감소)"
         
         if not target.is_alive():
-            message += f"\n💀 {target.name}이(가) 쓰러졌습니다!"
+            message += f"\n💀 {target_name}이(가) 쓰러졌습니다!"
         
         message += ANSIColors.RESET
         
@@ -348,9 +370,17 @@ class CombatHandler:
         """방어 실행"""
         actor.is_defending = True
         
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        
+        # 기본 언어는 영어로 설정 (세션 정보가 없는 경우)
+        locale = "en"
+        
+        message = localization.get_message("combat.defend_stance", locale, actor=actor.name)
+        
         return {
             'success': True,
-            'message': f"{ANSIColors.RED}{actor.name}이(가) 방어 자세를 취했습니다. (다음 공격 데미지 50% 감소){ANSIColors.RESET}"
+            'message': f"{ANSIColors.RED}{message}{ANSIColors.RESET}"
         }
     
     async def _execute_flee(
@@ -363,19 +393,29 @@ class CombatHandler:
         flee_chance = 0.5
         success = random.random() < flee_chance
         
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        
+        # 기본 언어는 영어로 설정 (세션 정보가 없는 경우)
+        locale = "en"
+        
         if success:
             # 전투에서 제거
             combat.remove_combatant(actor.id)
             
+            message = localization.get_message("combat.fled_from_combat", locale, actor=actor.name)
+            
             return {
                 'success': True,
-                'message': f"{ANSIColors.RED}{actor.name}이(가) 전투에서 도망쳤습니다!{ANSIColors.RESET}",
+                'message': f"{ANSIColors.RED}{message}{ANSIColors.RESET}",
                 'fled': True
             }
         else:
+            message = localization.get_message("combat.flee_failed", locale, actor=actor.name)
+            
             return {
                 'success': True,
-                'message': f"{ANSIColors.RED}{actor.name}이(가) 도망치려 했지만 실패했습니다!{ANSIColors.RESET}",
+                'message': f"{ANSIColors.RED}{message}{ANSIColors.RESET}",
                 'fled': False
             }
     
@@ -384,9 +424,17 @@ class CombatHandler:
         # 방어 상태 해제
         actor.is_defending = False
         
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        
+        # 기본 언어는 영어로 설정 (세션 정보가 없는 경우)
+        locale = "en"
+        
+        message = localization.get_message("combat.wait_action", locale, actor=actor.name)
+        
         return {
             'success': True,
-            'message': f"{ANSIColors.RED}{actor.name}이(가) 대기합니다.{ANSIColors.RESET}"
+            'message': f"{ANSIColors.RED}{message}{ANSIColors.RESET}"
         }
     
     async def process_monster_turn(self, combat_id: str) -> Dict[str, Any]:

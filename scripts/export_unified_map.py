@@ -211,12 +211,50 @@ def map_room_to_grid(room_id):
     return None
 
 
+def calculate_coordinate_based_exits(x, y, all_rooms_coords):
+    """좌표 기반으로 출구를 계산합니다."""
+    from src.mud_engine.utils.coordinate_utils import Direction, calculate_new_coordinates
+    
+    exits = {}
+    
+    # 모든 방향에 대해 인접한 방이 있는지 확인
+    for direction in Direction:
+        try:
+            adj_x, adj_y = calculate_new_coordinates(x, y, direction)
+            
+            # 해당 좌표에 방이 있는지 확인
+            if (adj_x, adj_y) in all_rooms_coords:
+                target_room_id = all_rooms_coords[(adj_x, adj_y)]
+                exits[direction.value] = target_room_id
+        except Exception:
+            # UP, DOWN 등 좌표 변화가 없는 방향은 무시
+            continue
+    
+    return exits
+
+
 def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room, factions, relations):
     """HTML 생성"""
     # 방 데이터를 그리드에 매핑
     grid = {}
     room_info = {}
+    all_rooms_coords = {}  # 좌표 -> 방 ID 매핑
     
+    # 1단계: 모든 방의 좌표 정보 수집
+    for room in rooms_data:
+        room_id, desc_ko, desc_en, exits_str, x, y = room
+        
+        # x, y 좌표가 있으면 직접 사용
+        if x is not None and y is not None:
+            coord = (x, y)
+            all_rooms_coords[coord] = room_id
+        else:
+            # 좌표가 없으면 기존 매핑 함수 사용
+            coord = map_room_to_grid(room_id)
+            if coord:
+                all_rooms_coords[coord] = room_id
+    
+    # 2단계: 각 방의 좌표 기반 출구 계산
     for room in rooms_data:
         room_id, desc_ko, desc_en, exits_str, x, y = room
         
@@ -228,11 +266,8 @@ def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room, f
             coord = map_room_to_grid(room_id)
         
         if coord:
-            # exits 파싱
-            try:
-                exits = json.loads(exits_str) if exits_str else {}
-            except:
-                exits = {}
+            # 좌표 기반 출구 계산
+            exits = calculate_coordinate_based_exits(coord[0], coord[1], all_rooms_coords)
             
             # description에서 첫 줄을 이름으로 사용
             name_ko = desc_ko.split('\n')[0] if desc_ko else room_id

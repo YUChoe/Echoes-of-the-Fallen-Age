@@ -211,24 +211,33 @@ class TelnetSession:
         
         # 시간대 정보
         if self.game_engine and hasattr(self.game_engine, 'time_manager'):
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            
             time_of_day = self.game_engine.time_manager.get_current_time()
             if time_of_day.value == "day":
-                lines.append("☀️  낮")
+                lines.append(localization.get_message("room.time_day", self.locale))
             else:
-                lines.append("🌙 밤")
+                lines.append(localization.get_message("room.time_night", self.locale))
             lines.append("")
         
         # 출구
         exits = room_data.get("exits", {})
         if exits:
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            
             exit_list = ", ".join([ANSIColors.exit_direction(direction) for direction in exits.keys()])
-            lines.append(f"🚪 출구: {exit_list}")
+            lines.append(localization.get_message("room.exits", self.locale, exits=exit_list))
         
         # 플레이어
         players = room_data.get("players", [])
         if players:
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            
             lines.append("")
-            lines.append("👥 이곳에 있는 플레이어들:")
+            lines.append(localization.get_message("room.players_here", self.locale))
             for player in players:
                 player_name = player.get("username", "알 수 없음")
                 lines.append(f"  • {ANSIColors.player_name(player_name)}")
@@ -236,8 +245,11 @@ class TelnetSession:
         # 객체
         objects = room_data.get("objects", [])
         if objects:
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            
             lines.append("")
-            lines.append("📦 이곳에 있는 물건들:")
+            lines.append(localization.get_message("room.objects_here", self.locale))
             for obj in objects:
                 obj_name = obj.get("name", "알 수 없음")
                 lines.append(f"  • {ANSIColors.item_name(obj_name)}")
@@ -282,8 +294,11 @@ class TelnetSession:
         # NPC와 우호적인 몬스터를 함께 표시
         all_npcs = list(npcs) + friendly_monsters
         if all_npcs:
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            
             lines.append("")
-            lines.append("🧑‍💼 이곳에 있는 NPC들:")
+            lines.append(localization.get_message("room.npcs_here", self.locale))
             for npc in all_npcs:
                 npc_name = npc.get("name", "알 수 없음")
                 npc_id = npc.get("id", "")
@@ -294,7 +309,7 @@ class TelnetSession:
                     npc_type = npc.get("npc_type", "generic")
                     is_merchant = npc.get("is_merchant", False)
                     icon = "🧑‍💼" if is_merchant else "👤"
-                    type_text = " (상인)" if is_merchant else ""
+                    type_text = localization.get_message("room.merchant_type", self.locale) if is_merchant else ""
                     lines.append(f"  [{entity_num}] {icon} {ANSIColors.npc_name(npc_name)}{type_text}")
                 else:
                     # 우호적인 몬스터
@@ -302,8 +317,11 @@ class TelnetSession:
         
         # 중립 몬스터 표시
         if neutral_monsters:
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            
             lines.append("")
-            lines.append("🐾 이곳에 있는 동물들:")
+            lines.append(localization.get_message("room.animals_here", self.locale))
             for monster in neutral_monsters:
                 monster_name = monster.get("name", "알 수 없음")
                 monster_id = monster.get("id", "")
@@ -312,8 +330,11 @@ class TelnetSession:
         
         # 적대적인 몬스터 표시
         if hostile_monsters:
+            from ..core.localization import get_localization_manager
+            localization = get_localization_manager()
+            
             lines.append("")
-            lines.append("👹 이곳에 있는 몬스터들:")
+            lines.append(localization.get_message("room.monsters_here", self.locale))
             for monster in hostile_monsters:
                 monster_name = monster.get("name", "알 수 없음")
                 monster_id = monster.get("id", "")
