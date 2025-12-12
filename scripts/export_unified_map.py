@@ -417,7 +417,7 @@ def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room, f
 """
     
     # 테이블 생성
-    for y in range(min_y, max_y + 1):
+    for y in range(max_y, min_y - 1, -1):  # y 좌표를 역순으로 렌더링 (y+1이 북쪽/위쪽이 되도록)
         html += "            <tr>\n"
         for x in range(min_x, max_x + 1):
             if (x, y) in grid:
