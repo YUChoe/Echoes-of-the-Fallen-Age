@@ -305,6 +305,22 @@ class LocalizationManager:
                 "en": "🔧 Server maintenance in progress.",
                 "ko": "🔧 서버 점검 중입니다."
             },
+            "system.input_timeout": {
+                "en": "❌ Input timeout exceeded.",
+                "ko": "❌ 입력 시간이 초과되었습니다."
+            },
+            "system.connection_closed": {
+                "en": "Connection closed",
+                "ko": "연결 종료"
+            },
+            "system.max_attempts_exceeded": {
+                "en": "❌ Maximum attempts exceeded.",
+                "ko": "❌ 최대 시도 횟수를 초과했습니다."
+            },
+            "system.auth_error": {
+                "en": "❌ An error occurred during authentication.",
+                "ko": "❌ 인증 처리 중 오류가 발생했습니다."
+            },
             
             # 에러 메시지
             "error.generic": {

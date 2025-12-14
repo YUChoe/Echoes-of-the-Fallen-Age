@@ -11,6 +11,7 @@ from .telnet_session import TelnetSession
 from .ansi_colors import ANSIColors
 from ..core.game_engine import GameEngine
 from ..core.event_bus import initialize_event_bus, shutdown_event_bus
+from ..core.localization import get_localization_manager
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +187,10 @@ Your adventure begins in a world transformed into ruins and monster lairs.
                 choice = await session.read_line(timeout=60.0)
 
                 if not choice:
-                    await session.send_error("입력 시간이 초과되었습니다.")
+                    localization = get_localization_manager()
+                    # 로그인 전이므로 기본 언어 사용
+                    timeout_msg = localization.get_message("system.input_timeout", "ko")
+                    await session.send_error(timeout_msg)
                     return False
 
                 choice = choice.lower().strip()
@@ -212,10 +216,14 @@ Your adventure begins in a world transformed into ruins and monster lairs.
                 attempts += 1
             except Exception as e:
                 logger.error(f"인증 처리 중 오류: {e}", exc_info=True)
-                await session.send_error("인증 처리 중 오류가 발생했습니다.")
+                localization = get_localization_manager()
+                auth_error_msg = localization.get_message("system.auth_error", "ko")
+                await session.send_error(auth_error_msg)
                 return False
 
-        await session.send_error("최대 시도 횟수를 초과했습니다.")
+        localization = get_localization_manager()
+        max_attempts_msg = localization.get_message("system.max_attempts_exceeded", "ko")
+        await session.send_error(max_attempts_msg)
         return False
 
     async def handle_login(self, session: TelnetSession) -> bool:
