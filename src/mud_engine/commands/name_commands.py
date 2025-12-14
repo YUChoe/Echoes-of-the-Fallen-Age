@@ -147,13 +147,15 @@ class AdminChangeNameCommand(BaseCommand):
 
         # 인자 확인
         if len(args) < 2:
+            from ..core.localization import get_message
+            locale = getattr(session, 'locale', 'en')
             await session.send_message({
                 "type": "info",
-                "message": "사용법: adminchangename <사용자명> <새로운 이름>"
+                "message": get_message("admin.changename.usage", locale)
             })
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="인자 부족"
+                message=get_message("admin.changename.insufficient_args", locale)
             )
 
         target_username = args[0]
@@ -172,14 +174,18 @@ class AdminChangeNameCommand(BaseCommand):
         try:
             from ..game.repositories import PlayerRepository
             from ..database import get_database_manager
-            from ..server.session import SessionManager
+            from ..server.session_manager import SessionManager
             
             db_manager = await get_database_manager()
             player_repo = PlayerRepository(db_manager)
             target_player = await player_repo.get_by_username(target_username)
             
             if not target_player:
-                await session.send_error(f"❌ 플레이어 '{target_username}'을(를) 찾을 수 없습니다.")
+                from ..core.localization import get_message
+                locale = getattr(session, 'locale', 'en')
+                await session.send_error(get_message("admin.changename.player_not_found", 
+                                                   locale, 
+                                                   player_id=target_username))
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
                     message="플레이어를 찾을 수 없음"
@@ -198,7 +204,12 @@ class AdminChangeNameCommand(BaseCommand):
             }
             await player_repo.update(target_player.id, update_data)
             
-            await session.send_success(f"✅ {target_username}의 이름이 '{old_name}'에서 '{new_name}'(으)로 변경되었습니다!")
+            from ..core.localization import get_message
+            locale = getattr(session, 'locale', 'en')
+            await session.send_success(get_message("admin.changename.success", 
+                                                  locale,
+                                                  old_name=old_name, 
+                                                  new_name=new_name))
             
             # 대상 플레이어가 온라인인 경우 알림 (브로드캐스트는 생략)
             # 실제 브로드캐스트는 GameEngine을 통해야 하지만, 명령어에서는 직접 접근 불가
@@ -211,8 +222,10 @@ class AdminChangeNameCommand(BaseCommand):
 
         except Exception as e:
             self.logger.error(f"관리자 이름 변경 중 오류 발생: {e}", exc_info=True)
-            await session.send_error("❌ 이름 변경 중 오류가 발생했습니다.")
+            from ..core.localization import get_message
+            locale = getattr(session, 'locale', 'en')
+            await session.send_error(get_message("admin.changename.error", locale))
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"이름 변경 실패: {e}"
+                message=get_message("admin.changename.failed", locale, error=str(e))
             )

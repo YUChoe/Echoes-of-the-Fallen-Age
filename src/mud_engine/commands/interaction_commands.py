@@ -388,27 +388,37 @@ class PlayersCommand(BaseCommand):
                 }
                 players_in_room.append(player_info)
 
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        locale = getattr(session, 'locale', 'en')
+        
         if not players_in_room:
             logger.info(f"PlayersCommand: 빈 방 - {current_room_id}")
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
-                message="이 방에는 아무도 없습니다."
+                message=localization.get_message("players.no_players_in_room", locale)
             )
 
         # 플레이어 목록 생성
         player_list = []
         for player in players_in_room:
             if player["is_self"]:
-                player_text = f"👤 {player['name']} (나)"
+                me_marker = localization.get_message("players.me_marker", locale)
+                player_text = localization.get_message("players.player_entry", locale,
+                                                     username=player['name'],
+                                                     marker=me_marker)
             else:
-                player_text = f"👤 {player['name']}"
+                player_text = localization.get_message("players.player_entry", locale,
+                                                     username=player['name'],
+                                                     marker="")
 
             if player["following"]:
                 player_text += f" (→ {player['following']}님을 따라가는 중)"
 
             player_list.append(player_text)
 
-        message = f"📍 현재 방에 있는 플레이어들 ({len(players_in_room)}명):\n" + "\n".join(player_list)
+        header = localization.get_message("players.in_room", locale, count=len(players_in_room))
+        message = header + "\n" + "\n".join(player_list)
 
         logger.info(f"PlayersCommand 완료: 방={current_room_id}, 플레이어 수={len(players_in_room)}")
 

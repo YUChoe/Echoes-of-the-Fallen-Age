@@ -106,14 +106,22 @@ class WhoCommand(BaseCommand):
         self.session_manager = session_manager
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+        # preferred_locale 우선, 없으면 session.locale, 최종적으로 'en' 기본값
+        locale = getattr(session.player, 'preferred_locale', None) if session.player else None
+        if not locale:
+            locale = getattr(session, 'locale', 'en')
+        
         if not self.session_manager:
             # 기본 구현
-            response = f"""
-📋 접속 중인 플레이어:
-• {session.player.username} (당신)
-
-총 1명이 접속 중입니다.
-            """.strip()
+            header = localization.get_message("who.connected_players", locale, count=1)
+            you_marker = localization.get_message("who.you_marker", locale)
+            player_entry = localization.get_message("who.player_entry", locale, 
+                                                   username=session.player.username, 
+                                                   marker=you_marker, 
+                                                   time=0)
+            response = f"{header}\n{player_entry}"
 
             return self.create_success_result(
                 message=response,
@@ -141,15 +149,21 @@ class WhoCommand(BaseCommand):
         logger.info(f"who 명령어 - 찾은 플레이어 수: {len(players)}")
         
         if not players:
-            return self.create_info_result("현재 접속 중인 플레이어가 없습니다.")
+            return self.create_info_result(localization.get_message("who.no_players", locale))
 
-        response = f"📋 접속 중인 플레이어 ({len(players)}명):\n"
+        header = localization.get_message("who.connected_players", locale, count=len(players))
+        response_lines = [header]
+        
         for player in players:
-            marker = " (당신)" if player["is_self"] else ""
-            response += f"• {player['username']}{marker} (접속시간: {player['session_time']}초)\n"
+            marker = localization.get_message("who.you_marker", locale) if player["is_self"] else ""
+            player_entry = localization.get_message("who.player_entry", locale,
+                                                   username=player['username'],
+                                                   marker=marker,
+                                                   time=player['session_time'])
+            response_lines.append(player_entry)
 
         return self.create_success_result(
-            message=response.strip(),
+            message="\n".join(response_lines),
             data={
                 "action": "who",
                 "player_count": len(players),

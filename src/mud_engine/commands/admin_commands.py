@@ -656,6 +656,7 @@ class RoomInfoCommand(AdminCommand):
         """
 
 
+
 class AdminListCommand(AdminCommand):
     """관리자 명령어 목록"""
 
@@ -684,6 +685,7 @@ class AdminListCommand(AdminCommand):
 
 **플레이어 관리:**
 - `kick <플레이어명> [사유]` - 플레이어 추방
+- `adminchangename <사용자명> <새이름>` - 플레이어 이름 변경
 
 **도움말:**
 - `admin` - 이 목록 표시

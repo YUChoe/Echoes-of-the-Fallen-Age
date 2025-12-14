@@ -680,6 +680,68 @@ class LocalizationManager:
             "cmd.scheduler.desc": {
                 "en": "Manage global scheduler (list/info/enable/disable)",
                 "ko": "글로벌 스케줄러 관리 (list/info/enable/disable)"
+            },
+            
+            # 관리자 이름 변경 명령어
+            "admin.changename.usage": {
+                "en": "Usage: adminchangename <player_id> <new_name>",
+                "ko": "사용법: adminchangename <플레이어아이디> <새이름>"
+            },
+            "admin.changename.insufficient_args": {
+                "en": "❌ Insufficient arguments",
+                "ko": "❌ 인자 부족"
+            },
+            "admin.changename.success": {
+                "en": "✅ Successfully changed {old_name}'s name to '{new_name}'",
+                "ko": "✅ {old_name}님의 이름을 '{new_name}'(으)로 변경했습니다"
+            },
+            "admin.changename.player_not_found": {
+                "en": "❌ Player '{player_id}' not found",
+                "ko": "❌ 플레이어 '{player_id}'을(를) 찾을 수 없습니다"
+            },
+            "admin.changename.error": {
+                "en": "❌ An error occurred while changing the name.",
+                "ko": "❌ 이름 변경 중 오류가 발생했습니다."
+            },
+            "admin.changename.failed": {
+                "en": "❌ Name change failed: {error}",
+                "ko": "❌ 이름 변경 실패: {error}"
+            },
+            
+            # who 명령어 메시지
+            "who.connected_players": {
+                "en": "📋 Connected players ({count}):",
+                "ko": "📋 접속 중인 플레이어 ({count}명):"
+            },
+            "who.no_players": {
+                "en": "No players currently connected.",
+                "ko": "현재 접속 중인 플레이어가 없습니다."
+            },
+            "who.player_entry": {
+                "en": "• {username}{marker} (online: {time}s)",
+                "ko": "• {username}{marker} (접속시간: {time}초)"
+            },
+            "who.you_marker": {
+                "en": " (you)",
+                "ko": " (당신)"
+            },
+            
+            # players 명령어 메시지
+            "players.in_room": {
+                "en": "📍 Players in current room ({count}):",
+                "ko": "📍 현재 방에 있는 플레이어들 ({count}명):"
+            },
+            "players.no_players_in_room": {
+                "en": "No other players in this room.",
+                "ko": "이 방에는 다른 플레이어가 없습니다."
+            },
+            "players.player_entry": {
+                "en": "👤 {username}{marker}",
+                "ko": "👤 {username}{marker}"
+            },
+            "players.me_marker": {
+                "en": " (me)",
+                "ko": " (나)"
             }
         }
         
