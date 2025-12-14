@@ -357,8 +357,15 @@ class QuitCommand(BaseCommand):
         )
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
+        from ..core.localization import get_localization_manager
+        
+        localization = get_localization_manager()
+        locale = getattr(session.player, 'preferred_locale', 'en') if session.player else 'en'
+        
+        message = localization.get_message("quit.message", locale)
+        
         return self.create_success_result(
-            message="안전하게 게임을 종료합니다. 안녕히 가세요!",
+            message=message,
             data={
                 "action": "quit",
                 "disconnect": True

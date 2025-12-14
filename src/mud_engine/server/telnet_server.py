@@ -425,7 +425,13 @@ Your adventure begins in a world transformed into ruins and monster lairs.
 
         # 종료 명령어
         if command.lower() in ['quit', 'exit', 'logout']:
-            await session.send_success("게임을 종료합니다. 안녕히 가세요!")
+            from ..core.localization import get_localization_manager
+            
+            localization = get_localization_manager()
+            locale = getattr(session.player, 'preferred_locale', 'en') if session.player else 'en'
+            
+            message = localization.get_message("quit.message", locale)
+            await session.send_success(message)
             await session.close("플레이어 요청으로 종료")
             return
 
