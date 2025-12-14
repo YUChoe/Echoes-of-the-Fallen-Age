@@ -415,7 +415,26 @@ class MonsterManager:
             success = await self.update_monster(monster)
             
             if success:
-                logger.info(f"몬스터 {monster_id}를 방 {room_id}로 이동")
+                # 좌표 정보를 포함한 로그 출력
+                try:
+                    # 이전 방과 새 방의 좌표 정보 조회
+                    old_room = None
+                    new_room = None
+                    
+                    if room_manager:
+                        if old_room_id:
+                            old_room = await room_manager.get_room(old_room_id)
+                        new_room = await room_manager.get_room(room_id)
+                    
+                    # 좌표 정보로 로그 출력
+                    old_coord = f"({old_room.x}, {old_room.y})" if old_room else "알 수 없음"
+                    new_coord = f"({new_room.x}, {new_room.y})" if new_room else "알 수 없음"
+                    
+                    logger.info(f"몬스터 {monster_id}를 {old_coord} -> {new_coord}로 이동")
+                except Exception as coord_error:
+                    # 좌표 조회 실패 시 기존 방식으로 로그
+                    logger.info(f"몬스터 {monster_id}를 방 {room_id}로 이동")
+                    logger.debug(f"좌표 조회 실패: {coord_error}")
                 
                 # 이동 메시지 브로드캐스트 (game_engine이 제공된 경우)
                 if game_engine:
