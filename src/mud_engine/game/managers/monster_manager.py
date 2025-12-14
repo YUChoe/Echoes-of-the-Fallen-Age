@@ -375,7 +375,7 @@ class MonsterManager:
         try:
             updated_monster = await self._monster_repo.update(monster.id, monster.to_dict())
             if updated_monster:
-                logger.info(f"몬스터 업데이트됨: {monster.id}")
+                logger.debug(f"몬스터 업데이트됨: {monster.id}")
                 return True
             return False
         except Exception as e:
