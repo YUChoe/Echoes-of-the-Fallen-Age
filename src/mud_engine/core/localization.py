@@ -73,6 +73,10 @@ class LocalizationManager:
                 "en": "{username} moved {direction}.",
                 "ko": "{username}님이 {direction}(으)로 이동했습니다."
             },
+            "movement.error": {
+                "en": "❌ An error occurred during movement.",
+                "ko": "❌ 이동 중 오류가 발생했습니다."
+            },
             
             # 전투 관련
             "combat.start": {

@@ -121,7 +121,10 @@ class PlayerMovementManager:
 
         except Exception as e:
             logger.error(f"플레이어 방 이동 실패 ({session.player.username} -> {room_id}): {e}")
-            await session.send_error("방 이동 중 오류가 발생했습니다.")
+            from ..localization import get_localization_manager
+            localization = get_localization_manager()
+            message = localization.get_message("movement.error", session.locale)
+            await session.send_error(message)
             return False
 
     async def send_room_info_to_player(self, session: SessionType, room_id: str) -> None:
@@ -800,7 +803,10 @@ class PlayerMovementManager:
             
             direction_enum = get_direction_from_string(direction)
             if not direction_enum:
-                await session.send_error(f"올바르지 않은 방향입니다: {direction}")
+                from ..localization import get_localization_manager
+                localization = get_localization_manager()
+                message = localization.get_message("go.invalid_direction", session.locale, direction=direction)
+                await session.send_error(message)
                 return False
 
             new_x, new_y = calculate_new_coordinates(current_room.x, current_room.y, direction_enum)
@@ -808,7 +814,10 @@ class PlayerMovementManager:
             # 목적지 방 확인
             target_room = await self.game_engine.world_manager.get_room_at_coordinates(new_x, new_y)
             if not target_room:
-                await session.send_error(f"{direction} 방향으로는 갈 수 없습니다.")
+                from ..localization import get_localization_manager
+                localization = get_localization_manager()
+                message = localization.get_message("movement.no_exit", session.locale, direction=direction)
+                await session.send_error(message)
                 return False
 
             # 기존 이동 메서드 사용
@@ -816,7 +825,10 @@ class PlayerMovementManager:
 
         except Exception as e:
             logger.error(f"방향 기반 이동 실패 ({session.player.username}, {direction}): {e}")
-            await session.send_error("이동 중 오류가 발생했습니다.")
+            from ..localization import get_localization_manager
+            localization = get_localization_manager()
+            message = localization.get_message("movement.error", session.locale)
+            await session.send_error(message)
             return False
 
     async def move_player_to_coordinates(self, session: SessionType, x: int, y: int, skip_followers: bool = False) -> bool:
@@ -847,7 +859,10 @@ class PlayerMovementManager:
 
         except Exception as e:
             logger.error(f"좌표 기반 이동 실패 ({session.player.username}, {x}, {y}): {e}")
-            await session.send_error("이동 중 오류가 발생했습니다.")
+            from ..localization import get_localization_manager
+            localization = get_localization_manager()
+            message = localization.get_message("movement.error", session.locale)
+            await session.send_error(message)
             return False
 
     def get_player_coordinates(self, session: SessionType) -> Optional[tuple[int, int]]:
