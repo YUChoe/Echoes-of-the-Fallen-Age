@@ -232,10 +232,8 @@ class RoomManager:
             logger.error(f"좌표 범위 방 조회 실패 ({min_x}-{max_x}, {min_y}-{max_y}): {e}")
             raise
     async def get_coordinate_based_exits(self, room_id: str) -> Dict[str, str]:
-        """좌표 기반으로 방의 출구를 계산합니다."""
+        """좌표 기반으로 방의 출구를 계산합니다 (동서남북 + enter만)."""
         try:
-            from ...utils.coordinate_utils import Direction, calculate_new_coordinates
-            
             room = await self.get_room(room_id)
             if not room or room.x is None or room.y is None:
                 return {}
@@ -243,20 +241,88 @@ class RoomManager:
             exits = {}
             all_rooms = await self._room_repo.get_all()
             
+            # 방향별 좌표 오프셋 (동서남북만)
+            direction_offsets = {
+                'north': (0, 1),
+                'south': (0, -1),
+                'east': (1, 0),
+                'west': (-1, 0)
+            }
+            
             # 좌표를 기반으로 인접한 방들을 찾아 출구 생성
-            for direction in Direction:
-                adj_x, adj_y = calculate_new_coordinates(room.x, room.y, direction)
+            for direction, (dx, dy) in direction_offsets.items():
+                adj_x = room.x + dx
+                adj_y = room.y + dy
                 
                 # 해당 좌표에 방이 있는지 확인
                 for other_room in all_rooms:
                     if other_room.x == adj_x and other_room.y == adj_y:
-                        exits[direction.value] = other_room.id
+                        exits[direction] = other_room.id
                         break
+            
+            # 기존 enter 출구 유지 (특별한 출구)
+            if 'enter' in room.exits:
+                exits['enter'] = room.exits['enter']
             
             return exits
         except Exception as e:
             logger.error(f"좌표 기반 출구 계산 실패 ({room_id}): {e}")
             return {}
+
+    async def update_room_exits_by_coordinates(self, room_id: str) -> bool:
+        """방의 출구를 좌표 기반으로 업데이트합니다."""
+        try:
+            room = await self.get_room(room_id)
+            if not room:
+                return False
+                
+            # 좌표 기반 출구 계산
+            new_exits = await self.get_coordinate_based_exits(room_id)
+            
+            # 출구가 변경된 경우에만 업데이트
+            if room.exits != new_exits:
+                old_exits = room.exits.copy()
+                room.exits = new_exits
+                
+                updated_room = await self.update_room(room_id, {
+                    'exits': room.exits,
+                    'updated_at': datetime.now()
+                })
+                
+                if updated_room:
+                    logger.info(f"방 {room_id} ({room.x}, {room.y}) 출구 좌표 기반 업데이트:")
+                    logger.info(f"  이전: {old_exits}")
+                    logger.info(f"  변경: {new_exits}")
+                    return True
+            
+            return False
+        except Exception as e:
+            logger.error(f"좌표 기반 출구 업데이트 실패 ({room_id}): {e}")
+            return False
+
+    async def update_all_rooms_exits_by_coordinates(self) -> Dict[str, int]:
+        """모든 방의 출구를 좌표 기반으로 업데이트합니다."""
+        try:
+            all_rooms = await self.get_all_rooms()
+            stats = {'total': len(all_rooms), 'updated': 0, 'errors': 0}
+            
+            logger.info(f"총 {stats['total']}개 방의 출구를 좌표 기반으로 업데이트 시작")
+            
+            for room in all_rooms:
+                try:
+                    if await self.update_room_exits_by_coordinates(room.id):
+                        stats['updated'] += 1
+                except Exception as e:
+                    logger.error(f"방 {room.id} 출구 업데이트 실패: {e}")
+                    stats['errors'] += 1
+            
+            logger.info(f"출구 업데이트 완료: 총 {stats['total']}개, "
+                       f"업데이트 {stats['updated']}개, 오류 {stats['errors']}개")
+            
+            return stats
+        except Exception as e:
+            logger.error(f"전체 방 출구 업데이트 실패: {e}")
+            return {'total': 0, 'updated': 0, 'errors': 1}
 
     async def get_connected_rooms_by_coordinates(self, room_id: str) -> List[Room]:
         """좌표 기반으로 연결된 방들을 조회합니다."""

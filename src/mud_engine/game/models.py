@@ -356,8 +356,8 @@ class Room(BaseModel):
         if not isinstance(self.exits, dict):
             raise ValueError("출구는 딕셔너리 형태여야 합니다")
 
-        # 출구 방향 검증
-        valid_directions = {'north', 'south', 'east', 'west', 'up', 'down'}
+        # 출구 방향 검증 (동서남북 + enter만 허용)
+        valid_directions = {'north', 'south', 'east', 'west', 'enter'}
         for direction in self.exits.keys():
             if direction not in valid_directions:
                 raise ValueError(f"올바르지 않은 출구 방향입니다: {direction}")
@@ -368,7 +368,7 @@ class Room(BaseModel):
 
     def add_exit(self, direction: str, room_id: str) -> None:
         """출구 추가"""
-        valid_directions = {'north', 'south', 'east', 'west', 'up', 'down', 'northeast', 'northwest', 'southeast', 'southwest'}
+        valid_directions = {'north', 'south', 'east', 'west', 'enter'}
         if direction not in valid_directions:
             raise ValueError(f"올바르지 않은 출구 방향입니다: {direction}")
         self.exits[direction] = room_id
