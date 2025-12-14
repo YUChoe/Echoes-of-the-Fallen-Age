@@ -419,24 +419,9 @@ class MonsterManager:
                 
                 # 이동 메시지 브로드캐스트 (game_engine이 제공된 경우)
                 if game_engine:
-                    monster_name = monster.get_localized_name('ko')
-                    
-                    # 이전 방의 플레이어들에게 퇴장 알림
-                    if old_room_id and old_room_id != room_id:
-                        leave_message = {
-                            "type": "room_message",
-                            "message": f"🐾 {monster_name}이(가) 떠났습니다.",
-                            "timestamp": datetime.now().isoformat()
-                        }
-                        await game_engine.broadcast_to_room(old_room_id, leave_message)
-                    
-                    # 새 방의 플레이어들에게 입장 알림
-                    enter_message = {
-                        "type": "room_message",
-                        "message": f"🐾 {monster_name}이(가) 나타났습니다.",
-                        "timestamp": datetime.now().isoformat()
-                    }
-                    await game_engine.broadcast_to_room(room_id, enter_message)
+                    await self._send_localized_monster_message(
+                        game_engine, old_room_id, room_id, monster
+                    )
                     
             return success
         except Exception as e:
@@ -602,3 +587,50 @@ class MonsterManager:
                 logger.info(f"작은 쥐 스폰 포인트 {spawn_count}개 설정 완료")
         except Exception as e:
             logger.error(f"기본 스폰 포인트 설정 실패: {e}")
+    async def _send_localized_monster_message(self, game_engine, old_room_id: str, new_room_id: str, monster) -> None:
+        """각 플레이어의 언어 설정에 따라 몬스터 이동 메시지를 전송합니다."""
+        try:
+            from ...core.localization import get_localization_manager
+            localization = get_localization_manager()
+            
+            # 이전 방의 플레이어들에게 퇴장 알림
+            if old_room_id and old_room_id != new_room_id:
+                sessions_in_old_room = []
+                for session in game_engine.session_manager.get_all_sessions():
+                    if hasattr(session, 'current_room_id') and session.current_room_id == old_room_id:
+                        sessions_in_old_room.append(session)
+                
+                for session in sessions_in_old_room:
+                    if session.player:
+                        locale = getattr(session.player, 'preferred_locale', 'en')
+                        monster_name = monster.get_localized_name(locale)
+                        
+                        message = localization.get_message("monster.leaves", locale, monster_name=monster_name)
+                        
+                        await session.send_message({
+                            "type": "room_message",
+                            "message": message,
+                            "timestamp": datetime.now().isoformat()
+                        })
+            
+            # 새 방의 플레이어들에게 입장 알림
+            sessions_in_new_room = []
+            for session in game_engine.session_manager.get_all_sessions():
+                if hasattr(session, 'current_room_id') and session.current_room_id == new_room_id:
+                    sessions_in_new_room.append(session)
+            
+            for session in sessions_in_new_room:
+                if session.player:
+                    locale = getattr(session.player, 'preferred_locale', 'en')
+                    monster_name = monster.get_localized_name(locale)
+                    
+                    message = localization.get_message("monster.appears", locale, monster_name=monster_name)
+                    
+                    await session.send_message({
+                        "type": "room_message",
+                        "message": message,
+                        "timestamp": datetime.now().isoformat()
+                    })
+                    
+        except Exception as e:
+            logger.error(f"다국어 몬스터 메시지 전송 실패: {e}")

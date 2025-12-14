@@ -460,6 +460,16 @@ class LocalizationManager:
                 "ko": " (상인)"
             },
             
+            # 몬스터 이동 메시지
+            "monster.appears": {
+                "en": "🐾 {monster_name} appears.",
+                "ko": "🐾 {monster_name}이(가) 나타났습니다."
+            },
+            "monster.leaves": {
+                "en": "🐾 {monster_name} leaves.",
+                "ko": "🐾 {monster_name}이(가) 떠났습니다."
+            },
+            
             # 시간 변화 알림
             "time.dawn": {
                 "en": "🌅 The eastern sky brightens. Day has come.",
