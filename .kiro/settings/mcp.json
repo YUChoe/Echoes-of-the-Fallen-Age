@@ -67,6 +67,18 @@
         "telnet_disconnect",
         "telnet_list"
       ]
+    },
+    "sqlite-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "git+https://github.com/YUChoe/sqlite-mcp"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": []
     }
   }
 }
