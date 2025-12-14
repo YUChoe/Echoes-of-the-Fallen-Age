@@ -253,7 +253,7 @@ class BaseRepository(Generic[T], ABC):
 
             # 업데이트된 레코드 반환
             updated_record = await self.get_by_id(record_id)
-            logger.info(f"{self._table_name} 레코드 업데이트: {record_id}")
+            logger.debug(f"{self._table_name} 레코드 업데이트: {record_id}")
 
             return updated_record
 
