@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
+from pathlib import Path
 
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
@@ -32,6 +33,7 @@ class TimeManager:
         self.game_engine = game_engine
         self._task: Optional[asyncio.Task] = None
         self._running: bool = False
+        self._map_export_counter: int = 0  # 맵 생성 카운터 (15초 * 40 = 10분)
         
         # 현재 시간에 맞게 초기 시간대 설정
         now = datetime.now()
@@ -77,7 +79,19 @@ class TimeManager:
 
         self._running = True
         self._task = asyncio.create_task(self._time_cycle_loop())
+        
+        # 스케줄러에 맵 생성 이벤트 등록
+        from ..managers.scheduler_manager import ScheduleInterval
+        self.game_engine.scheduler_manager.register_event(
+            "map_export",
+            self._export_unified_map_scheduled,
+            [ScheduleInterval.SECOND_15]  # 매분 15초에 실행
+        )
+        
         logger.info("시간 시스템 시작 완료")
+        
+        # 서버 시작 시 즉시 맵 생성
+        await self._export_unified_map()
 
     async def stop(self) -> None:
         """시간 시스템 중지"""
@@ -85,12 +99,17 @@ class TimeManager:
             return
 
         self._running = False
+        
+        # 시간 주기 태스크 중지
         if self._task and not self._task.done():
             self._task.cancel()
             try:
                 await self._task
             except asyncio.CancelledError:
                 pass
+
+        # 스케줄러에서 맵 생성 이벤트 제거
+        self.game_engine.scheduler_manager.unregister_event("map_export")
 
         logger.info("시간 시스템 중지 완료")
 
@@ -243,3 +262,33 @@ class TimeManager:
                     logger.error(f"시간 변경 알림 전송 실패 (세션 {session_id}): {e}")
 
         logger.info(f"시간 변경 알림 전송 완료 (전송: {sent_count}/{len(all_sessions)})")
+
+    async def _export_unified_map_scheduled(self) -> None:
+        """스케줄러에서 호출되는 맵 생성 메서드 - 15초마다 실행"""
+        try:
+            await self._export_unified_map()
+        except Exception as e:
+            logger.error(f"스케줄된 맵 생성 중 오류 발생: {e}", exc_info=True)
+
+    async def _export_unified_map(self) -> None:
+        """통합 맵 HTML 생성"""
+        try:
+            from ...utils.map_exporter import MapExporter
+            
+            # 출력 파일 경로 설정 (data 디렉토리)
+            # DB와 동일한 방식으로 현재 작업 디렉토리 기준 상대 경로 사용
+            output_path = Path("data/world_map_unified.html")
+            
+            # MapExporter 인스턴스 생성
+            map_exporter = MapExporter(self.game_engine.db_manager)
+            
+            # 맵 생성 실행
+            success = await map_exporter.export_to_file(str(output_path))
+            
+            if success:
+                logger.info(f"통합 맵 HTML 생성 완료: {output_path}")
+            else:
+                logger.error("통합 맵 HTML 생성 실패")
+                
+        except Exception as e:
+            logger.error(f"통합 맵 생성 중 오류 발생: {e}", exc_info=True)
