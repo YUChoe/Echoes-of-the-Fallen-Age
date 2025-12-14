@@ -22,8 +22,7 @@ ENV/
 *.swo
 *~
 
-# Git
-.git/
+# Git (버전 정보 생성을 위해 .git은 포함, .gitignore만 제외)
 .gitignore
 
 # 데이터 및 로그 (volumes로 관리)
@@ -52,8 +51,9 @@ docs/
 *.md
 README.md
 
-# 스크립트
+# 스크립트 (버전 생성 스크립트는 포함)
 scripts/
+!scripts/generate_version_info.py
 export_map.sh
 
 # 기타

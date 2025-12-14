@@ -12,6 +12,7 @@ from .ansi_colors import ANSIColors
 from ..core.game_engine import GameEngine
 from ..core.event_bus import initialize_event_bus, shutdown_event_bus
 from ..core.localization import get_localization_manager
+from ..utils.version_manager import get_version_manager
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,10 @@ class TelnetServer:
         Args:
             session: Telnet 세션
         """
+        # 버전 정보 가져오기
+        version_manager = get_version_manager()
+        version_string = version_manager.get_version_string()
+        
         welcome_text = f"""
 {ANSIColors.BOLD}{ANSIColors.BRIGHT_CYAN}
 ╔═══════════════════════════════════════════════════════════════╗
@@ -150,6 +155,8 @@ class TelnetServer:
 ║                                                               ║
 ║        {ANSIColors.WHITE}Welcome to Karnas, the Fallen Continent{ANSIColors.BRIGHT_CYAN}           ║
 ║        {ANSIColors.WHITE}몰락의 대륙, 카르나스에 오신 것을 환영합니다{ANSIColors.BRIGHT_CYAN}        ║
+║                                                               ║
+║        {ANSIColors.DIM}Version: {version_string}{ANSIColors.BRIGHT_CYAN}                           ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
 {ANSIColors.RESET}
