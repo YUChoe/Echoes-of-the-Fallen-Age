@@ -56,7 +56,8 @@ class TelnetSession:
         if peername:
             self.ip_address = peername[0]
 
-        logger.info(f"새 Telnet 세션 생성: {self.session_id} (IP: {self.ip_address})")
+        short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+        logger.info(f"새 Telnet 세션 생성: {short_session_id} (IP: {self.ip_address})")
 
     async def initialize_telnet(self) -> None:
         """
@@ -97,7 +98,8 @@ class TelnetSession:
         self.is_authenticated = True
         self.locale = player.preferred_locale
         self.update_activity()
-        logger.info(f"Telnet 세션 {self.session_id}에 플레이어 '{player.username}' 인증 완료")
+        short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+        logger.info(f"Telnet 세션 {short_session_id}에 플레이어 '{player.username}' 인증 완료")
 
     def update_activity(self) -> None:
         """마지막 활동 시간 업데이트"""
@@ -414,7 +416,8 @@ class TelnetSession:
         """
         try:
             if self.writer.is_closing():
-                logger.warning(f"Telnet 세션 {self.session_id}: 연결이 이미 닫혀있음")
+                short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+                logger.warning(f"Telnet 세션 {short_session_id}: 연결이 이미 닫혀있음")
                 return False
 
             # 텍스트 인코딩 및 전송
@@ -706,9 +709,11 @@ class TelnetSession:
                 await self.send_text(f"\r\n{message}\r\n")
                 self.writer.close()
                 await self.writer.wait_closed()
-                logger.info(f"Telnet 세션 {self.session_id} 연결 종료: {message}")
+                short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+                logger.info(f"Telnet 세션 {short_session_id} 연결 종료: {message}")
         except Exception as e:
-            logger.error(f"Telnet 세션 {self.session_id} 종료 중 오류: {e}")
+            short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+            logger.error(f"Telnet 세션 {short_session_id} 종료 중 오류: {e}")
 
     def is_active(self, timeout_seconds: int = 300) -> bool:
         """
@@ -750,7 +755,8 @@ class TelnetSession:
     def __str__(self) -> str:
         """세션 문자열 표현"""
         player_info = f"({self.player.username})" if self.player else "(미인증)"
-        return f"TelnetSession[{self.session_id[:8]}...]{player_info}"
+        short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+        return f"TelnetSession[{short_session_id}]{player_info}"
 
     def __repr__(self) -> str:
         """세션 상세 표현"""

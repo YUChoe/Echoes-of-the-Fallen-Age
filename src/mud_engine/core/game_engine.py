@@ -213,7 +213,8 @@ class GameEngine:
         # SessionManager에 세션 추가
         self.session_manager.add_session(session)
         await self.session_manager.authenticate_session(session.session_id, player)
-        logger.info(f"SessionManager에 세션 추가: {session.session_id}, 플레이어: {player.username}")
+        short_session_id = session.session_id.split('-')[-1] if '-' in session.session_id else session.session_id
+        logger.info(f"SessionManager에 세션 추가: {short_session_id}, 플레이어: {player.username}")
         
         # 세션에 게임 엔진 참조 설정
         session.game_engine = self
@@ -229,7 +230,16 @@ class GameEngine:
             target_room_id = "town_square"
         
         await self.movement_manager.move_player_to_room(session, target_room_id)
-        logger.info(f"플레이어 {player.username} 로그인: 위치 {target_room_id}로 복원")
+        
+        # 방 정보를 가져와서 좌표로 로그 표시
+        try:
+            room = await self.world_manager.get_room(target_room_id)
+            if room and hasattr(room, 'x') and hasattr(room, 'y'):
+                logger.info(f"플레이어 {player.username} 로그인: 위치 ({room.x}, {room.y})로 복원")
+            else:
+                logger.info(f"플레이어 {player.username} 로그인: 위치 {target_room_id}로 복원")
+        except Exception:
+            logger.info(f"플레이어 {player.username} 로그인: 위치 {target_room_id}로 복원")
 
         # 플레이어 연결 이벤트 발행
         await self.event_bus.publish(Event(
@@ -276,7 +286,15 @@ class GameEngine:
                 try:
                     session.player.last_room_id = current_room_id
                     await self.player_manager.save_player(session.player)
-                    logger.info(f"플레이어 {session.player.username} 로그아웃: 위치 {current_room_id} 저장")
+                    
+                    # 방 좌표 가져오기
+                    try:
+                        room = await self.world_manager.get_room(current_room_id)
+                        coord = f"({room.x}, {room.y})" if room else "알 수 없음"
+                    except Exception:
+                        coord = "알 수 없음"
+                    
+                    logger.info(f"플레이어 {session.player.username} 로그아웃: 위치 {coord} 저장")
                 except Exception as e:
                     logger.error(f"플레이어 위치 저장 실패: {e}")
             # 플레이어 로그아웃 이벤트 발행

@@ -52,7 +52,9 @@ class EventHandler:
     async def _on_player_connected(self, event: Event) -> None:
         """플레이어 연결 이벤트 핸들러"""
         data = event.data
-        logger.info(f"플레이어 연결: {data.get('username')} (세션: {data.get('session_id')})")
+        session_id = data.get('session_id', '')
+        short_session_id = session_id.split('-')[-1] if '-' in session_id else session_id
+        logger.info(f"플레이어 연결: {data.get('username')} (세션: {short_session_id})")
 
     async def _on_player_disconnected(self, event: Event) -> None:
         """플레이어 연결 해제 이벤트 핸들러"""
@@ -123,14 +125,39 @@ class EventHandler:
         data = event.data
         username = data.get('username')
         room_id = event.room_id
-        logger.info(f"방 입장: {username} -> 방 {room_id}")
+        
+        # 방 좌표 가져오기
+        try:
+            room = await self.game_engine.world_manager.get_room(room_id)
+            if room:
+                coord = f"({room.x}, {room.y})"
+            else:
+                coord = "알 수 없음"
+        except Exception:
+            coord = "알 수 없음"
+        
+        logger.info(f"방 입장: {username} -> {coord}")
 
     async def _on_room_left(self, event: Event) -> None:
         """방 퇴장 이벤트 핸들러"""
         data = event.data
         username = data.get('username')
         room_id = event.room_id
-        logger.info(f"방 퇴장: {username} <- 방 {room_id}")
+        
+        # 방 정보를 가져와서 좌표로 표시
+        try:
+            if self.game_engine and self.game_engine.world_manager:
+                room = await self.game_engine.world_manager.get_room(room_id)
+                if room and hasattr(room, 'x') and hasattr(room, 'y'):
+                    coord = f"({room.x}, {room.y})"
+                else:
+                    coord = f"방 {room_id}"
+            else:
+                coord = f"방 {room_id}"
+        except Exception:
+            coord = f"방 {room_id}"
+        
+        logger.info(f"방 퇴장: {username} <- {coord}")
 
     async def _on_room_message(self, event: Event) -> None:
         """방 메시지 이벤트 핸들러"""

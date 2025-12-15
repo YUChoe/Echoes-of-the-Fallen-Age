@@ -108,7 +108,8 @@ class TelnetServer:
         session = TelnetSession(reader, writer)
         self.sessions[session.session_id] = session
 
-        logger.info(f"새로운 Telnet 클라이언트 연결: {session} (총 {len(self.sessions)}개)")
+        short_session_id = session.session_id.split('-')[-1] if '-' in session.session_id else session.session_id
+        logger.info(f"새로운 Telnet 클라이언트 연결: TelnetSession[{short_session_id}](미인증) (총 {len(self.sessions)}개)")
 
         try:
             # Telnet 프로토콜 초기화
@@ -488,7 +489,8 @@ Your adventure begins in a world transformed into ruins and monster lairs.
         if session_id in self.sessions:
             del self.sessions[session_id]
 
-        logger.info(f"Telnet 세션 {session_id[:8]}... 제거: {reason} (남은 세션: {len(self.sessions)}개)")
+        short_session_id = session_id.split('-')[-1] if '-' in session_id else session_id
+        logger.info(f"Telnet 세션 {short_session_id} 제거: {reason} (남은 세션: {len(self.sessions)}개)")
         return True
 
     async def _cleanup_inactive_sessions(self) -> None:

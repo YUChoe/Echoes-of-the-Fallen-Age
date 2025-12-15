@@ -116,7 +116,15 @@ class PlayerMovementManager:
             # 플레이어 좌표 업데이트
             await self._update_player_coordinates(session, room_id)
 
-            logger.info(f"플레이어 {session.player.username}이 방 {room_id}로 이동")
+            # 방 정보를 가져와서 좌표로 로그 표시
+            try:
+                room = await self.game_engine.world_manager.get_room(room_id)
+                if room and hasattr(room, 'x') and hasattr(room, 'y'):
+                    logger.info(f"플레이어 {session.player.username}이 ({room.x}, {room.y})로 이동")
+                else:
+                    logger.info(f"플레이어 {session.player.username}이 방 {room_id}로 이동")
+            except Exception:
+                logger.info(f"플레이어 {session.player.username}이 방 {room_id}로 이동")
             return True
 
         except Exception as e:
@@ -425,7 +433,7 @@ class PlayerMovementManager:
             room_id: 입장한 방 ID
         """
         try:
-            logger.info(f"선공형 몬스터 체크 시작: 플레이어 {session.player.username}, 방 {room_id}")
+            logger.debug(f"선공형 몬스터 체크 시작: 플레이어 {session.player.username}, 방 {room_id}")
 
             # 플레이어가 이미 전투 중인지 확인
             if self.game_engine.combat_manager.is_player_in_combat(session.player.id):
@@ -439,14 +447,14 @@ class PlayerMovementManager:
 
             aggressive_monsters = []
             for monster in room_info['monsters']:
-                logger.info(f"몬스터 체크: {monster.get_localized_name(session.locale)}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
+                logger.debug(f"몬스터 체크: {monster.get_localized_name(session.locale)}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
                 # 선공형이고 살아있는 몬스터만
                 if monster.is_aggressive() and monster.is_alive:
                     aggressive_monsters.append(monster)
                     logger.info(f"선공형 몬스터 발견: {monster.get_localized_name(session.locale)}")
 
             if not aggressive_monsters:
-                logger.info(f"방 {room_id}에 선공형 몬스터 없음")
+                logger.debug(f"방 {room_id}에 선공형 몬스터 없음")
                 return
 
             # 첫 번째 선공형 몬스터가 공격 (우선순위: 레벨 높은 순)

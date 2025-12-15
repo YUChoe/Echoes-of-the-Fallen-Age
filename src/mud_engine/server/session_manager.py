@@ -84,10 +84,10 @@ class SessionManager:
                 # 기존 세션 정리
                 self.remove_session(existing_session_id)
 
-        # 새 세션 인증
-        session.authenticate(player)
+        # 세션 등록 (인증은 telnet_server에서 수행)
         self.player_sessions[player.id] = session_id
-        logger.info(f"세션 인증: {session_id}, 플레이어: {player.username}")
+        short_session_id = session_id.split('-')[-1] if '-' in session_id else session_id
+        logger.info(f"세션 등록: {short_session_id}, 플레이어: {player.username}")
 
     def get_session(self, session_id: str) -> Optional[TelnetSession]:
         """세션 조회

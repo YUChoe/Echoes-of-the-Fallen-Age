@@ -199,7 +199,19 @@ class MonsterManager:
                 'spawn_chance': spawn_chance
             }
             self._spawn_points[room_id].append(spawn_config)
-            logger.info(f"스폰 포인트 추가됨: {room_id} -> {monster_template_id} (최대 {max_count}마리)")
+            
+            # 방 정보를 가져와서 좌표로 로그 표시
+            try:
+                if room_manager:
+                    room = await room_manager.get_room(room_id)
+                    if room and hasattr(room, 'x') and hasattr(room, 'y'):
+                        logger.info(f"스폰 포인트 추가됨: ({room.x}, {room.y}) -> {monster_template_id} (최대 {max_count}마리)")
+                    else:
+                        logger.info(f"스폰 포인트 추가됨: {room_id} -> {monster_template_id} (최대 {max_count}마리)")
+                else:
+                    logger.info(f"스폰 포인트 추가됨: {room_id} -> {monster_template_id} (최대 {max_count}마리)")
+            except Exception:
+                logger.info(f"스폰 포인트 추가됨: {room_id} -> {monster_template_id} (최대 {max_count}마리)")
         except Exception as e:
             logger.error(f"스폰 포인트 추가 실패: {e}")
 
