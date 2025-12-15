@@ -74,6 +74,7 @@ data/*.db.backup*
 
 # 생성된 맵 파일
 world_map*.html
+data/announcements.txt 
 
 # 빌드 시점 생성 파일
 src/mud_engine/version_info.json
