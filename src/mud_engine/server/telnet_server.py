@@ -170,6 +170,47 @@ Your adventure begins in a world transformed into ruins and monster lairs.
 
 """
         await session.send_text(welcome_text)
+        
+        # 공지사항 읽기 및 표시
+        await self._send_announcements(session)
+
+    async def _send_announcements(self, session: TelnetSession) -> None:
+        """공지사항 파일을 읽어서 표시
+
+        Args:
+            session: Telnet 세션
+        """
+        try:
+            import os
+            announcements_path = os.path.join("data", "announcements.txt")
+            
+            if os.path.exists(announcements_path):
+                with open(announcements_path, 'r', encoding='utf-8') as f:
+                    announcements = f.read().strip()
+                
+                if announcements:
+                    # 공지사항을 박스로 감싸서 표시
+                    announcement_text = f"""
+{ANSIColors.BRIGHT_YELLOW}
+╔═══════════════════════════════════════════════════════════════╗
+║                         공지사항 / NOTICE                      ║
+╚═══════════════════════════════════════════════════════════════╝
+{ANSIColors.RESET}
+
+{ANSIColors.WHITE}{announcements}{ANSIColors.RESET}
+
+{ANSIColors.BRIGHT_YELLOW}═══════════════════════════════════════════════════════════════{ANSIColors.RESET}
+
+"""
+                    await session.send_text(announcement_text)
+                else:
+                    logger.debug("공지사항 파일이 비어있습니다")
+            else:
+                logger.debug(f"공지사항 파일을 찾을 수 없습니다: {announcements_path}")
+                
+        except Exception as e:
+            logger.error(f"공지사항 읽기 실패: {e}")
+            # 공지사항 읽기 실패해도 게임 진행에는 영향 없음
 
     async def handle_authentication(self, session: TelnetSession) -> bool:
         """인증 처리
