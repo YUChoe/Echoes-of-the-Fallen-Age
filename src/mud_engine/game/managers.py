@@ -1160,12 +1160,14 @@ class WorldManager:
             success = await self.update_monster(monster)
 
             if success:
-                logger.info(f"몬스터 {monster_id}를 방 {room_id}로 이동")
+                short_id = monster_id.split('-')[-1] if '-' in monster_id else monster_id
+                logger.info(f"몬스터 {short_id} 방 {room_id} 이동")
 
             return success
 
         except Exception as e:
-            logger.error(f"몬스터 방 이동 실패 ({monster_id} -> {room_id}): {e}")
+            short_id = monster_id.split('-')[-1] if '-' in monster_id else monster_id
+            logger.error(f"몬스터 방 이동 실패 ({short_id} -> {room_id}): {e}")
             raise
 
     async def find_monsters_by_name(self, name_pattern: str, locale: str = 'ko') -> List[Monster]:

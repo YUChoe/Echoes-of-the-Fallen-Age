@@ -593,22 +593,22 @@ class MapExporter:
             
             # 모든 방 정보 가져오기
             rooms_data = await self.get_all_rooms()
-            logger.info(f"방 정보 로딩 완료: {len(rooms_data)}개")
+            logger.debug(f"방 정보 로딩 완료: {len(rooms_data)}개")
             
             # 엔티티 정보 가져오기
             monsters_by_room = await self.get_monsters_by_room()
             players_by_room = await self.get_players_by_room()
             npcs_by_room = await self.get_npcs_by_room()
-            logger.info(f"엔티티 정보 로딩 완료: 몬스터 {sum(monsters_by_room.values())}마리, "
+            logger.debug(f"엔티티 정보 로딩 완료: 몬스터 {sum(monsters_by_room.values())}마리, "
                        f"플레이어 {sum(players_by_room.values())}명, NPC {sum(npcs_by_room.values())}명")
             
             # 종족 관계 정보 가져오기
             factions, relations = await self.get_faction_relations()
-            logger.info(f"종족 관계 정보 로딩 완료: 종족 {len(factions)}개, 관계 {len(relations)}개")
+            logger.debug(f"종족 관계 정보 로딩 완료: 종족 {len(factions)}개, 관계 {len(relations)}개")
             
             # 플레이어 목록 가져오기
             all_players = await self.get_all_players()
-            logger.info(f"플레이어 목록 로딩 완료: {len(all_players)}명")
+            logger.debug(f"플레이어 목록 로딩 완료: {len(all_players)}명")
             
             # HTML 생성
             html_content = self.generate_html(rooms_data, monsters_by_room, players_by_room, 
@@ -621,7 +621,7 @@ class MapExporter:
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(html_content)
             
-            logger.info(f"통합 월드 맵 HTML 생성 완료: {output_path}")
+            logger.debug(f"통합 월드 맵 HTML 생성 완료: {output_path}")
             return True
             
         except Exception as e:

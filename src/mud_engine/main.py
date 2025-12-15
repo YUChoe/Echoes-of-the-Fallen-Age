@@ -34,13 +34,19 @@ def setup_logging():
             ms = int(record.created * 1000) % 1000
             time_with_ms = f"{timestamp}.{ms:03d}"
 
+            # 모듈명에서 마지막 부분만 추출 (클래스명)
+            module_name = record.name
+            if '.' in module_name:
+                short_name = module_name.split('.')[-1]
+            else:
+                short_name = module_name
+            
             # 파일명과 라인 번호
             filename = record.filename
             lineno = record.lineno
-            # location = f"[{filename}:{lineno}]"
-            location = f"[{record.name}:{lineno}]"
+            location = f"[{short_name}:{lineno}]"
 
-            # 최종 포맷: {시분초.ms} {LEVEL} [{filename.py:line}] {logstring}
+            # 최종 포맷: {시분초.ms} {LEVEL} [{short_name:line}] {logstring}
             return f"{time_with_ms} {record.levelname} {location} {record.getMessage()}"
 
     # 커스텀 로테이팅 핸들러

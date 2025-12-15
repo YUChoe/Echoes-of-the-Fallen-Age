@@ -430,10 +430,13 @@ class MonsterManager:
                     old_coord = f"({old_room.x}, {old_room.y})" if old_room else "알 수 없음"
                     new_coord = f"({new_room.x}, {new_room.y})" if new_room else "알 수 없음"
                     
-                    logger.info(f"몬스터 {monster_id}를 {old_coord} -> {new_coord}로 이동")
+                    # UUID의 마지막 부분만 사용
+                    short_id = monster_id.split('-')[-1] if '-' in monster_id else monster_id
+                    logger.info(f"몬스터 {short_id} {old_coord} -> {new_coord} 이동")
                 except Exception as coord_error:
                     # 좌표 조회 실패 시 기존 방식으로 로그
-                    logger.info(f"몬스터 {monster_id}를 방 {room_id}로 이동")
+                    short_id = monster_id.split('-')[-1] if '-' in monster_id else monster_id
+                    logger.info(f"몬스터 {short_id} 방 {room_id} 이동")
                     logger.debug(f"좌표 조회 실패: {coord_error}")
                 
                 # 이동 메시지 브로드캐스트 (game_engine이 제공된 경우)
