@@ -490,6 +490,10 @@ class MonsterManager:
             alive_monsters = [m for m in all_monsters if m.is_alive]
 
             for monster in alive_monsters:
+                # 템플릿은 로밍하지 않음
+                if monster.get_property('is_template', False):
+                    continue
+                    
                 if not monster.can_roam():
                     continue
 
@@ -506,7 +510,17 @@ class MonsterManager:
                 short_id = monster.id.split('-')[-1] if '-' in monster.id else monster.id
                 
                 if random_value > roam_chance:
-                    logger.info(f"몬스터 {short_id} 이동하지 않음 (확률: {random_value:.2f} > {roam_chance})")
+                    # 현재 위치 좌표 가져오기
+                    current_coord = "알 수 없음"
+                    try:
+                        if self._room_manager and monster.current_room_id:
+                            current_room = await self._room_manager.get_room(monster.current_room_id)
+                            if current_room and hasattr(current_room, 'x') and hasattr(current_room, 'y'):
+                                current_coord = f"({current_room.x}, {current_room.y})"
+                    except Exception:
+                        pass
+                    
+                    logger.info(f"몬스터 {short_id} {current_coord} 이동하지 않음 (확률: {random_value:.2f} > {roam_chance})")
                     continue
 
                 logger.debug(f"몬스터 {short_id} 이동 시도 (확률: {random_value:.2f} <= {roam_chance})")

@@ -607,7 +607,7 @@ class RoomInfoCommand(AdminCommand):
             room_data = dict(zip(column_names, room_row))
 
             # 정보 포맷팅
-            info_lines = ["🔍 **방 상세 정보**", ""]
+            info_lines = ["🔍 방 상세 정보", ""]
 
             for key, value in room_data.items():
                 # exits는 JSON 문자열이므로 파싱하여 표시
@@ -616,15 +616,15 @@ class RoomInfoCommand(AdminCommand):
                         exits_dict = json.loads(value) if isinstance(value, str) else value
                         if exits_dict:
                             exits_str = ", ".join([f"{direction} → {target}" for direction, target in exits_dict.items()])
-                            info_lines.append(f"**{key}:** {exits_str}")
+                            info_lines.append(f"{key}: {exits_str}")
                         else:
-                            info_lines.append(f"**{key}:** (없음)")
+                            info_lines.append(f"{key}: (없음)")
                     except (json.JSONDecodeError, TypeError):
-                        info_lines.append(f"**{key}:** {value}")
+                        info_lines.append(f"{key}: {value}")
                 else:
                     # None 값 처리
                     display_value = value if value is not None else "(null)"
-                    info_lines.append(f"**{key}:** {display_value}")
+                    info_lines.append(f"{key}: {display_value}")
 
             # 방에 있는 몬스터 정보 추가
             try:
@@ -635,7 +635,7 @@ class RoomInfoCommand(AdminCommand):
                 monster_rows = await monster_cursor.fetchall()
 
                 if monster_rows:
-                    info_lines.extend(["", "🐾 **방 내 몬스터 정보**", ""])
+                    info_lines.extend(["", "🐾 방 내 몬스터 정보", ""])
                     
                     # 몬스터 컬럼 이름 가져오기
                     monster_column_names = [description[0] for description in monster_cursor.description]
@@ -645,7 +645,7 @@ class RoomInfoCommand(AdminCommand):
                         
                         # 몬스터 ID 단축 표시
                         short_id = monster_data['id'].split('-')[-1] if '-' in monster_data['id'] else monster_data['id']
-                        info_lines.append(f"**몬스터 #{i} ({short_id}):**")
+                        info_lines.append(f"몬스터 #{i} ({short_id}):")
                         
                         for key, value in monster_data.items():
                             if key in ['properties', 'drop_items']:
@@ -653,29 +653,29 @@ class RoomInfoCommand(AdminCommand):
                                 try:
                                     parsed_value = json.loads(value) if isinstance(value, str) else value
                                     if parsed_value:
-                                        info_lines.append(f"  **{key}:** {json.dumps(parsed_value, ensure_ascii=False, indent=2)}")
+                                        info_lines.append(f"  {key}: {json.dumps(parsed_value, ensure_ascii=False, indent=2)}")
                                     else:
-                                        info_lines.append(f"  **{key}:** (없음)")
+                                        info_lines.append(f"  {key}: (없음)")
                                 except (json.JSONDecodeError, TypeError):
-                                    info_lines.append(f"  **{key}:** {value}")
+                                    info_lines.append(f"  {key}: {value}")
                             elif key == 'name_ko':
                                 # 한국어 이름 우선 표시
-                                info_lines.append(f"  **name:** {value}")
+                                info_lines.append(f"  name: {value}")
                             elif key == 'name_en':
                                 # 영어 이름은 건너뛰기 (한국어 이름으로 대체)
                                 continue
                             else:
                                 # None 값 처리
                                 display_value = value if value is not None else "(null)"
-                                info_lines.append(f"  **{key}:** {display_value}")
+                                info_lines.append(f"  {key}: {display_value}")
                         
                         info_lines.append("")  # 몬스터 간 구분선
                 else:
-                    info_lines.extend(["", "🐾 **방 내 몬스터:** 없음"])
+                    info_lines.extend(["", "🐾 방 내 몬스터: 없음"])
 
             except Exception as monster_error:
                 logger.error(f"몬스터 정보 조회 중 오류: {monster_error}")
-                info_lines.extend(["", f"❌ **몬스터 정보 조회 오류:** {str(monster_error)}"])
+                info_lines.extend(["", f"❌ 몬스터 정보 조회 오류: {str(monster_error)}"])
 
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
