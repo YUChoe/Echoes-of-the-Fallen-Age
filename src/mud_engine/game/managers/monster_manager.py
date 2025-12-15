@@ -405,7 +405,7 @@ class MonsterManager:
             logger.error(f"몬스터 삭제 실패 ({monster_id}): {e}")
             raise
 
-    async def move_monster_to_room(self, monster_id: str, room_id: str, room_manager=None, game_engine=None) -> bool:
+    async def move_monster_to_room(self, monster_id: str, room_id: str, room_manager=None, game_engine=None, random_value: float = 0.0) -> bool:
         """몬스터를 특정 방으로 이동시킵니다."""
         try:
             if room_manager:
@@ -444,7 +444,10 @@ class MonsterManager:
                     
                     # UUID의 마지막 부분만 사용
                     short_id = monster_id.split('-')[-1] if '-' in monster_id else monster_id
-                    logger.info(f"몬스터 {short_id} {old_coord} -> {new_coord} 이동")
+                    if random_value > 0.0:
+                        logger.info(f"몬스터 {short_id} {old_coord} -> {new_coord} 이동 (확률: {random_value:.2f})")
+                    else:
+                        logger.info(f"몬스터 {short_id} {old_coord} -> {new_coord} 이동")
                 except Exception as coord_error:
                     # 좌표 조회 실패 시 기존 방식으로 로그
                     short_id = monster_id.split('-')[-1] if '-' in monster_id else monster_id
@@ -494,16 +497,24 @@ class MonsterManager:
                 if not roaming_config:
                     continue
 
+                # 로밍 확률 체크 (기본 50%)
                 roam_chance = roaming_config.get('roam_chance', 0.5)
                 import random
-                if random.random() > roam_chance:
+                random_value = random.random()
+                
+                # UUID의 마지막 부분만 사용
+                short_id = monster.id.split('-')[-1] if '-' in monster.id else monster.id
+                
+                if random_value > roam_chance:
+                    logger.info(f"몬스터 {short_id} 이동하지 않음 (확률: {random_value:.2f} > {roam_chance})")
                     continue
 
-                await self._roam_monster(monster, roaming_config, self._room_manager, self._game_engine)
+                logger.debug(f"몬스터 {short_id} 이동 시도 (확률: {random_value:.2f} <= {roam_chance})")
+                await self._roam_monster(monster, roaming_config, self._room_manager, self._game_engine, random_value)
         except Exception as e:
             logger.error(f"몬스터 로밍 처리 실패: {e}")
 
-    async def _roam_monster(self, monster: Monster, roaming_config: Dict[str, Any], room_manager=None, game_engine=None) -> None:
+    async def _roam_monster(self, monster: Monster, roaming_config: Dict[str, Any], room_manager=None, game_engine=None, random_value: float = 0.0) -> None:
         """몬스터를 로밍 범위 내에서 이동시킵니다."""
         try:
             if not monster.current_room_id:
@@ -545,9 +556,7 @@ class MonsterManager:
 
                 import random
                 _, target_room_id = random.choice(available_exits)
-                success = await self.move_monster_to_room(monster.id, target_room_id, room_manager, game_engine)
-                if success:
-                    logger.debug(f"몬스터 {monster.get_localized_name('ko')}가 {target_room_id}로 이동")
+                success = await self.move_monster_to_room(monster.id, target_room_id, room_manager, game_engine, random_value)
         except Exception as e:
             logger.error(f"몬스터 로밍 실패 ({monster.id}): {e}")
 
