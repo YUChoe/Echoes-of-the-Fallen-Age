@@ -227,7 +227,14 @@ class EventHandler:
         object_name = data.get('object_name')
         room_id = event.room_id
 
-        logger.info(f"객체 획득: {player_name} -> {object_name} (방 {room_id})")
+        # 방 정보를 좌표로 표시하기 위해 room 조회
+        try:
+            room = await self.game_engine.world_manager.get_room(room_id)
+            room_location = f"({room.x}, {room.y})" if room else f"{room_id[-12:]}"
+        except Exception:
+            room_location = f"{room_id[-12:]}"
+
+        logger.info(f"객체 획득: {player_name} -> {object_name} (방 {room_location})")
 
         # 방 내 다른 플레이어들에게 객체 상태 변경 알림
         pickup_message = {

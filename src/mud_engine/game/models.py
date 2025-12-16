@@ -521,7 +521,22 @@ class GameObject(BaseModel):
 
         # 장비 슬롯 검증
         if self.equipment_slot is not None:
-            valid_slots = {'weapon', 'armor', 'accessory'}
+            valid_slots = {
+                'head',        # 머리: 모자, 헬맷, 두건 등 방어구
+                'shoulder',    # 어깨: 방어구
+                'chest',       # 몸통: 방어구
+                'right_arm',   # 오른팔: 방어구
+                'left_arm',    # 왼팔: 방어구
+                'right_hand',  # 오른손: 무기
+                'left_hand',   # 왼손: 무기, 방어구
+                'waist',       # 허리: 벨트, 스태시 등
+                'legs',        # 다리: 바지, 스커트 등 방어구
+                'feet',        # 발: 신발류 방어구
+                'back',        # 등: 방어구
+                'weapon',      # 기존 호환성을 위한 일반 무기
+                'armor',       # 기존 호환성을 위한 일반 방어구
+                'accessory'    # 기존 호환성을 위한 액세서리
+            }
             if self.equipment_slot not in valid_slots:
                 raise ValueError(f"올바르지 않은 장비 슬롯입니다: {self.equipment_slot}")
 

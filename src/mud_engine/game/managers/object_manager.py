@@ -117,7 +117,7 @@ class ObjectManager:
             updated_object = await self._object_repo.move_object_to_inventory(object_id, character_id)
             success = updated_object is not None
             if success:
-                logger.info(f"객체 {object_id}를 캐릭터 {character_id}의 인벤토리로 이동")
+                logger.info(f"객체 {object_id[-12:]}를 캐릭터 {character_id[-12:]}의 인벤토리로 이동")
             return success
         except Exception as e:
             logger.error(f"객체 인벤토리 이동 실패 ({object_id} -> {character_id}): {e}")

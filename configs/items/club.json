@@ -1,0 +1,19 @@
+{
+  "template_id": "club",
+  "name_en": "Club",
+  "name_ko": "곤봉",
+  "description_en": "A simple wooden club. Basic but effective weapon.",
+  "description_ko": "단순한 나무 곤봉입니다. 기본적이지만 효과적인 무기입니다.",
+  "object_type": "weapon",
+  "category": "weapon",
+  "weight": 2.0,
+  "equipment_slot": "right_hand",
+  "properties": {
+    "damage": 8,
+    "durability": 50,
+    "attack_speed": 1.0,
+    "weapon_type": "melee",
+    "material": "wood"
+  },
+  "stackable": false
+}
