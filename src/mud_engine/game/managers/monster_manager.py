@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from ..repositories import MonsterRepository
 from ..monster import Monster, MonsterType, MonsterBehavior, MonsterStats
+from ...config import TemplateLoader
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class MonsterManager:
         self._global_spawn_limits: Dict[str, int] = {}
         self._game_engine: Optional[Any] = None  # GameEngine 참조 (순환 참조 방지를 위해 Optional)
         self._room_manager: Optional[Any] = None  # RoomManager 참조
+        self._template_loader: TemplateLoader = TemplateLoader()
         logger.info("MonsterManager 초기화 완료")
     
     def set_game_engine(self, game_engine: Any) -> None:
@@ -34,6 +36,11 @@ class MonsterManager:
         """RoomManager 참조를 설정합니다"""
         self._room_manager = room_manager
         logger.debug("MonsterManager에 RoomManager 참조 설정됨")
+
+    async def initialize_templates(self) -> None:
+        """템플릿을 로드합니다."""
+        await self._template_loader.load_all_templates()
+        logger.info("몬스터 템플릿 로드 완료")
 
     # === 스폰 스케줄러 ===
 
@@ -121,39 +128,22 @@ class MonsterManager:
     async def _spawn_monster_from_template(self, room_id: str, template_id: str) -> Optional[Monster]:
         """템플릿을 기반으로 몬스터를 스폰합니다."""
         try:
-            template = await self._monster_repo.get_by_id(template_id)
-            if not template:
-                logger.error(f"몬스터 템플릿을 찾을 수 없음: {template_id}")
+            # 파일 기반 템플릿에서 몬스터 생성
+            new_monster = self._template_loader.create_monster_from_template(
+                template_id=template_id,
+                monster_id=str(uuid4()),
+                room_id=room_id
+            )
+            
+            if not new_monster:
+                logger.error(f"템플릿에서 몬스터 생성 실패: {template_id}")
                 return None
 
-            new_monster = Monster(
-                id=str(uuid4()),
-                name=template.name.copy(),
-                description=template.description.copy(),
-                monster_type=template.monster_type,
-                behavior=template.behavior,
-                stats=MonsterStats(
-                    strength=template.stats.strength,
-                    dexterity=template.stats.dexterity,
-                    constitution=template.stats.constitution,
-                    intelligence=template.stats.intelligence,
-                    wisdom=template.stats.wisdom,
-                    charisma=template.stats.charisma,
-                    level=template.stats.level,
-                    current_hp=template.stats.get_max_hp()
-                ),
-                gold_reward=template.gold_reward,
-                drop_items=template.drop_items.copy(),
-                spawn_room_id=room_id,
-                current_room_id=room_id,
-                respawn_time=template.respawn_time,
-                is_alive=True,
-                aggro_range=template.aggro_range,
-                roaming_range=template.roaming_range,
-                properties={'template_id': template_id},
-                created_at=datetime.now(),
-                faction_id=template.faction_id
-            )
+            # 로밍 설정 추가
+            spawn_config = self._template_loader.get_spawn_config(template_id)
+            if spawn_config and spawn_config.get('roaming', {}).get('enabled', False):
+                roaming_config = spawn_config['roaming']
+                new_monster.properties['roaming_config'] = roaming_config
 
             created_monster = await self._monster_repo.create(new_monster.to_dict())
             if created_monster:

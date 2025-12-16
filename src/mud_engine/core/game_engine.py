@@ -109,8 +109,12 @@ class GameEngine:
         self._running = True
         self._start_time = datetime.now()
 
-        # 몬스터 스폰 시스템 시작
+        # 몬스터 템플릿 및 스폰 시스템 시작
         try:
+            # 템플릿 로드
+            await self.world_manager.initialize_templates()
+            logger.info("몬스터 템플릿 로드 완료")
+            
             # 글로벌 스폰 제한 설정
             self.world_manager.set_global_spawn_limit('template_small_rat', 20)
             self.world_manager.set_global_spawn_limit('template_forest_goblin', 10)

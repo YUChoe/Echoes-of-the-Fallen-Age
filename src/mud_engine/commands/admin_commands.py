@@ -734,6 +734,10 @@ class AdminListCommand(AdminCommand):
 **객체 관리:**
 - `createobject <ID> <이름> <타입> [위치]` - 객체 생성
 
+**몬스터 관리:**
+- `spawnmonster <template_id> [room_id]` - 템플릿에서 몬스터 생성
+- `templates` - 사용 가능한 몬스터 템플릿 목록
+
 **플레이어 관리:**
 - `kick <플레이어명> [사유]` - 플레이어 추방
 - `adminchangename <사용자명> <새이름>` - 플레이어 이름 변경
@@ -760,4 +764,177 @@ class AdminListCommand(AdminCommand):
 
 **별칭:** `adminhelp`, `adm`
 **권한:** 관리자 전용
+        """
+
+
+class SpawnMonsterCommand(AdminCommand):
+    """템플릿에서 몬스터 생성 명령어"""
+
+    def __init__(self):
+        super().__init__(
+            name="spawnmonster",
+            description="템플릿에서 몬스터를 생성합니다",
+            aliases=["spawn", "createmonster"],
+            usage="spawnmonster <template_id> [room_id]"
+        )
+
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
+        """템플릿에서 몬스터 생성"""
+        if not args:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message="❌ 사용법: spawnmonster <template_id> [room_id]"
+            )
+
+        template_id = args[0]
+        room_id = args[1] if len(args) > 1 else session.current_room_id
+
+        if not room_id:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message="❌ 방 ID를 지정하거나 방에 있어야 합니다."
+            )
+
+        try:
+            # GameEngine에서 WorldManager 접근
+            game_engine = session.game_engine
+            if not game_engine:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message="❌ 게임 엔진에 접근할 수 없습니다."
+                )
+
+            # 방 존재 확인
+            room = await game_engine.world_manager.get_room(room_id)
+            if not room:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message=f"❌ 방을 찾을 수 없습니다: {room_id}"
+                )
+
+            # 템플릿에서 몬스터 생성
+            monster = await game_engine.world_manager._monster_manager._spawn_monster_from_template(
+                room_id=room_id,
+                template_id=template_id
+            )
+
+            if not monster:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message=f"❌ 템플릿에서 몬스터 생성 실패: {template_id}"
+                )
+
+            # 좌표 정보 포함한 성공 메시지
+            coord_info = f"({room.x}, {room.y})" if hasattr(room, 'x') and hasattr(room, 'y') else room_id
+            
+            return CommandResult(
+                result_type=CommandResultType.SUCCESS,
+                message=f"✅ 몬스터 생성 완료: {monster.get_localized_name('ko')} (위치: {coord_info})"
+            )
+
+        except Exception as e:
+            logger.error(f"몬스터 생성 실패: {e}")
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message=f"❌ 몬스터 생성 중 오류 발생: {str(e)}"
+            )
+
+    def get_help(self) -> str:
+        return """
+🐉 **몬스터 생성 도움말**
+
+템플릿을 사용하여 몬스터를 생성합니다.
+
+**사용법:** `spawnmonster <template_id> [room_id]`
+
+**매개변수:**
+- `template_id`: 몬스터 템플릿 ID (예: template_forest_goblin)
+- `room_id`: 생성할 방 ID (생략 시 현재 방)
+
+**예시:**
+- `spawnmonster template_forest_goblin` - 현재 방에 숲 고블린 생성
+- `spawnmonster template_small_rat room_123` - 특정 방에 작은 쥐 생성
+
+**별칭:** `spawn`, `createmonster`
+**권한:** 관리자 전용
+
+**사용 가능한 템플릿:**
+- template_small_rat (작은 쥐)
+- template_forest_goblin (숲 고블린)
+- template_town_guard (마을 경비병)
+- template_harbor_guide (항구 안내인)
+- template_square_guard (광장 경비병)
+- template_light_armored_guard (경장 경비병)
+        """
+
+
+class ListTemplatesCommand(AdminCommand):
+    """템플릿 목록 조회 명령어"""
+
+    def __init__(self):
+        super().__init__(
+            name="templates",
+            description="사용 가능한 몬스터 템플릿 목록을 표시합니다",
+            aliases=["listtemplates", "tmpl"]
+        )
+
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
+        """템플릿 목록 표시"""
+        try:
+            game_engine = session.game_engine
+            if not game_engine:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message="❌ 게임 엔진에 접근할 수 없습니다."
+                )
+
+            # 템플릿 로더에서 템플릿 목록 가져오기
+            template_loader = game_engine.world_manager._monster_manager._template_loader
+            templates = template_loader.get_all_monster_templates()
+
+            if not templates:
+                return CommandResult(
+                    result_type=CommandResultType.INFO,
+                    message="📋 로드된 몬스터 템플릿이 없습니다."
+                )
+
+            template_list = "📋 사용 가능한 몬스터 템플릿:\n\n"
+            
+            for template_id, template_data in templates.items():
+                name_ko = template_data.get('name', {}).get('ko', '이름 없음')
+                name_en = template_data.get('name', {}).get('en', 'No name')
+                monster_type = template_data.get('monster_type', 'UNKNOWN')
+                level = template_data.get('stats', {}).get('level', 1)
+                
+                template_list += f"• {template_id}\n"
+                template_list += f"  이름: {name_ko} ({name_en})\n"
+                template_list += f"  타입: {monster_type}, 레벨: {level}\n\n"
+
+            template_list += f"총 {len(templates)}개의 템플릿이 로드되었습니다.\n"
+            template_list += "\n사용법: `spawnmonster <template_id> [room_id]`"
+
+            return CommandResult(
+                result_type=CommandResultType.SUCCESS,
+                message=template_list
+            )
+
+        except Exception as e:
+            logger.error(f"템플릿 목록 조회 실패: {e}")
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message=f"❌ 템플릿 목록 조회 중 오류 발생: {str(e)}"
+            )
+
+    def get_help(self) -> str:
+        return """
+📋 **템플릿 목록 도움말**
+
+현재 로드된 몬스터 템플릿 목록을 표시합니다.
+
+**사용법:** `templates`
+
+**별칭:** `listtemplates`, `tmpl`
+**권한:** 관리자 전용
+
+각 템플릿의 ID, 이름, 타입, 레벨 정보를 확인할 수 있습니다.
         """

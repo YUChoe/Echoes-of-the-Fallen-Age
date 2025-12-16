@@ -29,31 +29,15 @@
   "spawn_config": {
     "count": 3,
     "global_max_count": 3,
-    "area_filter": {
-      "x_range": [0, 0],
-      "y_range": [0, 0]
-    },
+    "specific_locations": [
+      {
+        "room_id": "town_square",
+        "description": "Town square guard posts"
+      }
+    ],
     "distribution": "fixed",
     "roaming": {
       "enabled": false
-    }
-  },
-  "properties": {
-    "dialogue": {
-      "en": [
-        "Keep the peace, citizen.",
-        "The town square is under our protection.",
-        "Move along, nothing to see here."
-      ],
-      "ko": [
-        "평화를 지키시오, 시민.",
-        "광장은 우리의 보호 아래 있소.",
-        "지나가시오, 여기 볼 것 없소."
-      ]
-    },
-    "greeting": {
-      "en": "The guard stands at attention.",
-      "ko": "경비병이 경계 자세로 서 있습니다."
     }
   }
 }

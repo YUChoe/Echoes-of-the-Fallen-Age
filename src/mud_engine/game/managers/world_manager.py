@@ -34,6 +34,11 @@ class WorldManager:
         self._monster_manager.set_game_engine(game_engine)
         logger.debug("WorldManager에 GameEngine 참조 설정됨")
 
+    async def initialize_templates(self) -> None:
+        """템플릿을 초기화합니다."""
+        await self._monster_manager.initialize_templates()
+        logger.info("WorldManager 템플릿 초기화 완료")
+
     # === 방 관리 위임 ===
 
     async def get_room(self, room_id: str) -> Optional[Room]:

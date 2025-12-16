@@ -1,0 +1,50 @@
+{
+  "template_id": "template_light_armored_guard",
+  "name": {
+    "en": "Light Armoured Guard",
+    "ko": "경장 경비병"
+  },
+  "description": {
+    "en": "A lightly armoured guard patrolling between the town square and harbour. Quick and alert.",
+    "ko": "광장과 항구 사이를 순찰하는 경장 경비병입니다. 빠르고 경계심이 강합니다."
+  },
+  "monster_type": "NEUTRAL",
+  "behavior": "STATIONARY",
+  "faction_id": "ash_knights",
+  "stats": {
+    "strength": 12,
+    "dexterity": 16,
+    "constitution": 13,
+    "intelligence": 11,
+    "wisdom": 14,
+    "charisma": 10,
+    "level": 6
+  },
+  "experience_reward": 0,
+  "gold_reward": 0,
+  "drop_items": [],
+  "respawn_time": 0,
+  "aggro_range": 0,
+  "roaming_range": 3,
+  "spawn_config": {
+    "count": 1,
+    "global_max_count": 1,
+    "specific_locations": [
+      {
+        "room_id": "patrol_route",
+        "description": "Light armoured guard patrol route"
+      }
+    ],
+    "distribution": "fixed",
+    "roaming": {
+      "enabled": true,
+      "roam_chance": 0.3,
+      "roaming_area": {
+        "min_x": 0,
+        "max_x": 5,
+        "min_y": 0,
+        "max_y": 0
+      }
+    }
+  }
+}

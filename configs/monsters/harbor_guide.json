@@ -10,7 +10,7 @@
   },
   "monster_type": "NEUTRAL",
   "behavior": "STATIONARY",
-  "faction_id": "ash_knights",
+  "faction_id": "townspeople",
   "stats": {
     "strength": 10,
     "dexterity": 10,
@@ -29,31 +29,15 @@
   "spawn_config": {
     "count": 1,
     "global_max_count": 1,
-    "area_filter": {
-      "x_range": [0, 0],
-      "y_range": [9, 9]
-    },
+    "specific_locations": [
+      {
+        "room_id": "harbor",
+        "description": "Harbor guide post"
+      }
+    ],
     "distribution": "fixed",
     "roaming": {
       "enabled": false
-    }
-  },
-  "properties": {
-    "dialogue": {
-      "en": [
-        "Welcome to the harbor! How can I help you?",
-        "The town square is to the north from here.",
-        "Many ships arrive here from distant lands."
-      ],
-      "ko": [
-        "항구에 오신 것을 환영합니다! 무엇을 도와드릴까요?",
-        "여기서 북쪽으로 가면 광장이 있습니다.",
-        "먼 땅에서 많은 배들이 이곳에 도착합니다."
-      ]
-    },
-    "greeting": {
-      "en": "The harbor guide nods at you.",
-      "ko": "항구 안내인이 당신에게 고개를 끄덕입니다."
     }
   }
 }

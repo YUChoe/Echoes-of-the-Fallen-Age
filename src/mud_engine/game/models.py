@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 from ..database.repository import BaseModel
-from ..config import Config
+# from ..config import Config  # Config 클래스가 없으므로 주석 처리
 from .stats import PlayerStats
 
 
@@ -72,8 +72,8 @@ class Player(BaseModel):
         if not username:
             return False
 
-        min_length = Config.USERNAME_MIN_LENGTH
-        max_length = Config.USERNAME_MAX_LENGTH
+        min_length = 3  # Config.USERNAME_MIN_LENGTH
+        max_length = 20  # Config.USERNAME_MAX_LENGTH
 
         if len(username) < min_length or len(username) > max_length:
             return False
