@@ -1,0 +1,15 @@
+{
+  "template_id": "forest_mushroom",
+  "name_en": "Forest Mushroom",
+  "name_ko": "숲 버섯",
+  "description_en": "A mushroom found in the forest.",
+  "description_ko": "숲에서 발견한 버섯입니다.",
+  "object_type": "consumable",
+  "category": "consumable",
+  "weight": 0.1,
+  "properties": {
+    "hunger_restore": 10
+  },
+  "stackable": true,
+  "max_stack": 30
+}

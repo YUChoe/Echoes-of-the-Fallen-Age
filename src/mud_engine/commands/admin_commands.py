@@ -738,6 +738,10 @@ class AdminListCommand(AdminCommand):
 - `spawnmonster <template_id> [room_id]` - 템플릿에서 몬스터 생성
 - `templates` - 사용 가능한 몬스터 템플릿 목록
 
+**아이템 관리:**
+- `spawnitem <template_id> [room_id]` - 템플릿에서 아이템 생성
+- `itemtemplates` - 사용 가능한 아이템 템플릿 목록
+
 **플레이어 관리:**
 - `kick <플레이어명> [사유]` - 플레이어 추방
 - `adminchangename <사용자명> <새이름>` - 플레이어 이름 변경
@@ -937,4 +941,188 @@ class ListTemplatesCommand(AdminCommand):
 **권한:** 관리자 전용
 
 각 템플릿의 ID, 이름, 타입, 레벨 정보를 확인할 수 있습니다.
+        """
+
+class SpawnItemCommand(AdminCommand):
+    """템플릿에서 아이템 생성 명령어"""
+
+    def __init__(self):
+        super().__init__(
+            name="spawnitem",
+            description="템플릿에서 아이템을 생성합니다",
+            aliases=["createitem", "item"],
+            usage="spawnitem <template_id> [room_id]"
+        )
+
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
+        """템플릿에서 아이템 생성"""
+        if not args:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message="❌ 사용법: spawnitem <template_id> [room_id]"
+            )
+
+        template_id = args[0]
+        room_id = args[1] if len(args) > 1 else session.current_room_id
+
+        if not room_id:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message="❌ 방 ID를 지정하거나 방에 있어야 합니다."
+            )
+
+        try:
+            # GameEngine에서 WorldManager 접근
+            game_engine = session.game_engine
+            if not game_engine:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message="❌ 게임 엔진에 접근할 수 없습니다."
+                )
+
+            # 방 존재 확인
+            room = await game_engine.world_manager.get_room(room_id)
+            if not room:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message=f"❌ 방을 찾을 수 없습니다: {room_id}"
+                )
+
+            # 템플릿에서 아이템 생성
+            from uuid import uuid4
+            item_id = str(uuid4())
+            
+            template_loader = game_engine.world_manager._monster_manager._template_loader
+            item = template_loader.create_item_from_template(
+                template_id=template_id,
+                item_id=item_id,
+                location_type="room",
+                location_id=room_id
+            )
+
+            if not item:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message=f"❌ 템플릿에서 아이템 생성 실패: {template_id}"
+                )
+
+            # 데이터베이스에 아이템 저장
+            success = await game_engine.create_object_realtime(item.to_dict(), session)
+            if not success:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message="❌ 아이템을 데이터베이스에 저장하지 못했습니다."
+                )
+
+            # 좌표 정보 포함한 성공 메시지
+            coord_info = f"({room.x}, {room.y})" if hasattr(room, 'x') and hasattr(room, 'y') else room_id
+            item_name = item.name.get('ko', item.name.get('en', 'Unknown Item'))
+            
+            return CommandResult(
+                result_type=CommandResultType.SUCCESS,
+                message=f"✅ 아이템 생성 완료: {item_name} (위치: {coord_info})"
+            )
+
+        except Exception as e:
+            logger.error(f"아이템 생성 실패: {e}")
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message=f"❌ 아이템 생성 중 오류 발생: {str(e)}"
+            )
+
+    def get_help(self) -> str:
+        return """
+📦 **아이템 생성 도움말**
+
+템플릿을 사용하여 아이템을 생성합니다.
+
+**사용법:** `spawnitem <template_id> [room_id]`
+
+**매개변수:**
+- `template_id`: 아이템 템플릿 ID (예: gold_coin)
+- `room_id`: 생성할 방 ID (생략 시 현재 방)
+
+**예시:**
+- `spawnitem gold_coin` - 현재 방에 골드 생성
+- `spawnitem essence_of_life room_123` - 특정 방에 생명의 정수 생성
+
+**별칭:** `createitem`, `item`
+**권한:** 관리자 전용
+
+**사용 가능한 템플릿:**
+- gold_coin (골드)
+- essence_of_life (생명의 정수)
+- 기타 configs/items/ 디렉토리의 템플릿들
+        """
+
+
+class ListItemTemplatesCommand(AdminCommand):
+    """아이템 템플릿 목록 조회 명령어"""
+
+    def __init__(self):
+        super().__init__(
+            name="itemtemplates",
+            description="사용 가능한 아이템 템플릿 목록을 표시합니다",
+            aliases=["listitemtemplates", "items"]
+        )
+
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
+        """아이템 템플릿 목록 표시"""
+        try:
+            game_engine = session.game_engine
+            if not game_engine:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message="❌ 게임 엔진에 접근할 수 없습니다."
+                )
+
+            # 템플릿 로더에서 아이템 템플릿 목록 가져오기
+            template_loader = game_engine.world_manager._monster_manager._template_loader
+            templates = template_loader.get_all_item_templates()
+
+            if not templates:
+                return CommandResult(
+                    result_type=CommandResultType.INFO,
+                    message="📦 로드된 아이템 템플릿이 없습니다."
+                )
+
+            template_list = "📦 사용 가능한 아이템 템플릿:\n\n"
+            
+            for template_id, template_data in templates.items():
+                name_ko = template_data.get('name_ko', '이름 없음')
+                name_en = template_data.get('name_en', 'No name')
+                object_type = template_data.get('object_type', 'item')
+                category = template_data.get('category', 'misc')
+                
+                template_list += f"• {template_id}\n"
+                template_list += f"  이름: {name_ko} ({name_en})\n"
+                template_list += f"  타입: {object_type}, 카테고리: {category}\n\n"
+
+            template_list += f"총 {len(templates)}개의 아이템 템플릿이 로드되었습니다.\n"
+            template_list += "\n사용법: `spawnitem <template_id> [room_id]`"
+
+            return CommandResult(
+                result_type=CommandResultType.SUCCESS,
+                message=template_list
+            )
+
+        except Exception as e:
+            logger.error(f"아이템 템플릿 목록 조회 실패: {e}")
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message=f"❌ 아이템 템플릿 목록 조회 중 오류 발생: {str(e)}"
+            )
+
+    def get_help(self) -> str:
+        return """
+📦 **아이템 템플릿 목록 도움말**
+
+현재 로드된 아이템 템플릿 목록을 표시합니다.
+
+**사용법:** `itemtemplates`
+
+**별칭:** `listitemtemplates`, `items`
+**권한:** 관리자 전용
+
+각 템플릿의 ID, 이름, 타입, 카테고리 정보를 확인할 수 있습니다.
         """

@@ -1,0 +1,13 @@
+{
+  "template_id": "smooth_stone",
+  "name_en": "Smooth Stone",
+  "name_ko": "매끄러운 돌",
+  "description_en": "A perfectly smooth stone.",
+  "description_ko": "완벽하게 매끄러운 돌입니다.",
+  "object_type": "item",
+  "category": "misc",
+  "weight": 0.5,
+  "properties": {},
+  "stackable": true,
+  "max_stack": 99
+}

@@ -4,9 +4,12 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TYPE_CHECKING
 
 from ..game.monster import Monster, MonsterType, MonsterBehavior, MonsterStats
+
+if TYPE_CHECKING:
+    from ..game.models import GameObject
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +147,67 @@ class TemplateLoader:
             return monster
         except Exception as e:
             logger.error(f"템플릿에서 몬스터 생성 실패 ({template_id}): {e}")
+            return None
+
+    def create_item_from_template(self, template_id: str, item_id: str, location_type: str = "room", location_id: Optional[str] = None) -> Optional['GameObject']:
+        """템플릿에서 아이템 인스턴스를 생성합니다."""
+        from ..game.models import GameObject
+        
+        template = self.get_item_template(template_id)
+        if not template:
+            logger.error(f"아이템 템플릿을 찾을 수 없음: {template_id}")
+            return None
+
+        try:
+            # 이름과 설명을 딕셔너리 형태로 변환
+            name = {}
+            if template.get('name_en'):
+                name['en'] = template['name_en']
+            if template.get('name_ko'):
+                name['ko'] = template['name_ko']
+            
+            # 이름이 비어있으면 기본값 설정
+            if not name:
+                name = {'ko': template_id, 'en': template_id}
+            
+            description = {}
+            if template.get('description_en'):
+                description['en'] = template['description_en']
+            if template.get('description_ko'):
+                description['ko'] = template['description_ko']
+            
+            # 설명이 비어있으면 기본값 설정
+            if not description:
+                description = {'ko': f'{template_id} 아이템입니다.', 'en': f'This is {template_id} item.'}
+
+            # 아이템 생성
+            item = GameObject(
+                id=item_id,
+                name=name,
+                description=description,
+                object_type=template.get('object_type', 'item'),
+                location_type=location_type,
+                location_id=location_id,
+                properties=template.get('properties', {}),
+                weight=template.get('weight', 1.0),
+                category=template.get('category', 'misc'),
+                equipment_slot=template.get('equipment_slot'),
+                is_equipped=False
+            )
+
+            # 템플릿 ID를 속성에 추가
+            item.properties['template_id'] = template_id
+            item.properties['is_template'] = False
+
+            # 스택 가능 정보 추가
+            if template.get('stackable', False):
+                item.properties['stackable'] = True
+                item.properties['max_stack'] = template.get('max_stack', 1)
+
+            logger.debug(f"템플릿에서 아이템 생성: {item_id} (템플릿: {template_id})")
+            return item
+        except Exception as e:
+            logger.error(f"템플릿에서 아이템 생성 실패 ({template_id}): {e}")
             return None
 
     def get_spawn_config(self, template_id: str) -> Optional[Dict[str, Any]]:

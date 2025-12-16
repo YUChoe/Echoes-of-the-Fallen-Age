@@ -86,7 +86,8 @@ class CommandManager:
         from ...commands.admin_commands import (
             CreateRoomCommand, EditRoomCommand, CreateExitCommand,
             CreateObjectCommand, AdminListCommand, GotoCommand,
-            RoomInfoCommand, SpawnMonsterCommand, ListTemplatesCommand
+            RoomInfoCommand, SpawnMonsterCommand, ListTemplatesCommand,
+            SpawnItemCommand, ListItemTemplatesCommand
         )
         from ...commands.admin.scheduler_command import SchedulerCommand
         self.command_processor.register_command(CreateRoomCommand())
@@ -98,6 +99,8 @@ class CommandManager:
         self.command_processor.register_command(RoomInfoCommand())
         self.command_processor.register_command(SpawnMonsterCommand())
         self.command_processor.register_command(ListTemplatesCommand())
+        self.command_processor.register_command(SpawnItemCommand())
+        self.command_processor.register_command(ListItemTemplatesCommand())
         self.command_processor.register_command(SchedulerCommand())
 
         # 플레이어 상호작용 명령어들 등록
