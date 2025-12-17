@@ -482,15 +482,15 @@ class GotoCommand(AdminCommand):
                 (x, y)
             )
             room_row = await cursor.fetchone()
-            
+
             if not room_row:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
                     message=f"❌ 좌표 ({x}, {y})에 해당하는 방을 찾을 수 없습니다."
                 )
-            
+
             target_room_id = room_row[0]
-            
+
             # 대상 방 정보 가져오기
             target_room = await session.game_engine.world_manager.get_room(target_room_id)
 
@@ -636,17 +636,17 @@ class RoomInfoCommand(AdminCommand):
 
                 if monster_rows:
                     info_lines.extend(["", "🐾 방 내 몬스터 정보", ""])
-                    
+
                     # 몬스터 컬럼 이름 가져오기
                     monster_column_names = [description[0] for description in monster_cursor.description]
-                    
+
                     for i, monster_row in enumerate(monster_rows, 1):
                         monster_data = dict(zip(monster_column_names, monster_row))
-                        
+
                         # 몬스터 ID 단축 표시
                         short_id = monster_data['id'].split('-')[-1] if '-' in monster_data['id'] else monster_data['id']
                         info_lines.append(f"몬스터 #{i} ({short_id}):")
-                        
+
                         for key, value in monster_data.items():
                             if key in ['properties', 'drop_items']:
                                 # JSON 필드 파싱
@@ -668,7 +668,7 @@ class RoomInfoCommand(AdminCommand):
                                 # None 값 처리
                                 display_value = value if value is not None else "(null)"
                                 info_lines.append(f"  {key}: {display_value}")
-                        
+
                         info_lines.append("")  # 몬스터 간 구분선
                 else:
                     info_lines.extend(["", "🐾 방 내 몬스터: 없음"])
@@ -830,7 +830,7 @@ class SpawnMonsterCommand(AdminCommand):
 
             # 좌표 정보 포함한 성공 메시지
             coord_info = f"({room.x}, {room.y})" if hasattr(room, 'x') and hasattr(room, 'y') else room_id
-            
+
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
                 message=f"✅ 몬스터 생성 완료: {monster.get_localized_name('ko')} (위치: {coord_info})"
@@ -903,13 +903,13 @@ class ListTemplatesCommand(AdminCommand):
                 )
 
             template_list = "📋 사용 가능한 몬스터 템플릿:\n\n"
-            
+
             for template_id, template_data in templates.items():
                 name_ko = template_data.get('name', {}).get('ko', '이름 없음')
                 name_en = template_data.get('name', {}).get('en', 'No name')
                 monster_type = template_data.get('monster_type', 'UNKNOWN')
                 level = template_data.get('stats', {}).get('level', 1)
-                
+
                 template_list += f"• {template_id}\n"
                 template_list += f"  이름: {name_ko} ({name_en})\n"
                 template_list += f"  타입: {monster_type}, 레벨: {level}\n\n"
@@ -991,7 +991,7 @@ class SpawnItemCommand(AdminCommand):
             # 템플릿에서 아이템 생성
             from uuid import uuid4
             item_id = str(uuid4())
-            
+
             template_loader = game_engine.world_manager._monster_manager._template_loader
             item = template_loader.create_item_from_template(
                 template_id=template_id,
@@ -1017,7 +1017,7 @@ class SpawnItemCommand(AdminCommand):
             # 좌표 정보 포함한 성공 메시지
             coord_info = f"({room.x}, {room.y})" if hasattr(room, 'x') and hasattr(room, 'y') else room_id
             item_name = item.name.get('ko', item.name.get('en', 'Unknown Item'))
-            
+
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
                 message=f"✅ 아이템 생성 완료: {item_name} (위치: {coord_info})"
@@ -1087,13 +1087,13 @@ class ListItemTemplatesCommand(AdminCommand):
                 )
 
             template_list = "📦 사용 가능한 아이템 템플릿:\n\n"
-            
+
             for template_id, template_data in templates.items():
                 name_ko = template_data.get('name_ko', '이름 없음')
                 name_en = template_data.get('name_en', 'No name')
                 object_type = template_data.get('object_type', 'item')
                 category = template_data.get('category', 'misc')
-                
+
                 template_list += f"• {template_id}\n"
                 template_list += f"  이름: {name_ko} ({name_en})\n"
                 template_list += f"  타입: {object_type}, 카테고리: {category}\n\n"
@@ -1125,4 +1125,170 @@ class ListItemTemplatesCommand(AdminCommand):
 **권한:** 관리자 전용
 
 각 템플릿의 ID, 이름, 타입, 카테고리 정보를 확인할 수 있습니다.
+        """
+
+
+class TerminateCommand(AdminCommand):
+    """객체/몬스터 완전 삭제 명령어 (respawn 방지)"""
+
+    def __init__(self):
+        super().__init__(
+            name="terminate",
+            description="지정한 객체나 몬스터를 완전히 삭제하고 respawn을 방지합니다",
+            aliases=["destroy", "delete"],
+            usage="terminate <대상_ID_또는_번호> [reason]"
+        )
+
+    async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
+        """terminate 명령어 실행"""
+        if not args:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message="❌ 삭제할 대상을 지정해주세요.\n사용법: terminate <대상_ID_또는_번호> [reason]"
+            )
+
+        target_identifier = args[0]
+        reason = " ".join(args[1:]) if len(args) > 1 else "관리자에 의한 삭제"
+
+        try:
+            # 게임 엔진 접근
+            game_engine = getattr(session, 'game_engine', None)
+            if not game_engine:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message="❌ 게임 엔진에 접근할 수 없습니다."
+                )
+
+            # 현재 방 ID 가져오기
+            current_room_id = getattr(session, 'current_room_id', None)
+            if not current_room_id:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message="❌ 현재 위치를 확인할 수 없습니다."
+                )
+
+            # 엔티티 번호 매핑에서 대상 찾기
+            entity_map = getattr(session, 'room_entity_map', {})
+            target_entity = None
+            target_type = None
+            target_id = None
+
+            # 숫자인 경우 엔티티 번호로 처리
+            if target_identifier.isdigit():
+                entity_num = int(target_identifier)
+                if entity_num in entity_map:
+                    target_entity = entity_map[entity_num]['entity']
+                    target_type = entity_map[entity_num]['type']
+                    target_id = entity_map[entity_num]['id']
+                else:
+                    return CommandResult(
+                        result_type=CommandResultType.ERROR,
+                        message=f"❌ 번호 {entity_num}에 해당하는 대상을 찾을 수 없습니다."
+                    )
+            else:
+                # ID로 직접 검색
+                target_id = target_identifier
+
+                # 몬스터 검색
+                monster = await game_engine.world_manager.get_monster(target_id)
+                if monster:
+                    target_entity = monster
+                    target_type = 'monster'
+                else:
+                    # 객체 검색
+                    obj = await game_engine.world_manager.get_game_object(target_id)
+                    if obj:
+                        target_entity = obj
+                        target_type = 'object'
+
+            if not target_entity:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message=f"❌ '{target_identifier}' 대상을 찾을 수 없습니다."
+                )
+
+            # 대상 정보 확인
+            if target_type == 'monster':
+                target_name = target_entity.get_localized_name('ko')
+                template_id = target_entity.get_property('template_id')
+            else:
+                target_name = target_entity.get_localized_name('ko')
+                template_id = target_entity.get_property('template_id')
+
+            # 삭제 실행
+            success = False
+            if target_type == 'monster':
+                # 몬스터 삭제
+                success = await game_engine.world_manager.delete_monster(target_id)
+
+                # 스폰 포인트도 제거 (respawn 방지)
+                if success and template_id:
+                    await game_engine.world_manager.remove_spawn_point(current_room_id, template_id)
+                    logger.info(f"몬스터 {target_id}의 스폰 포인트 제거됨 (방: {current_room_id}, 템플릿: {template_id})")
+
+            elif target_type == 'object':
+                # 객체 삭제
+                success = await game_engine.world_manager.delete_game_object(target_id)
+
+            if success:
+                # 성공 메시지
+                success_msg = f"🗑️ {target_name} (ID: {target_id})이(가) 완전히 삭제되었습니다."
+                if target_type == 'monster' and template_id:
+                    success_msg += f"\n📍 스폰 포인트도 제거되어 더 이상 respawn되지 않습니다."
+                if reason != "관리자에 의한 삭제":
+                    success_msg += f"\n📝 사유: {reason}"
+
+                # 방에 있는 다른 플레이어들에게 알림
+                broadcast_msg = f"🗑️ 관리자가 {target_name}을(를) 삭제했습니다."
+                await game_engine.broadcast_to_room(
+                    current_room_id,
+                    {"type": "admin_action", "message": broadcast_msg},
+                    exclude_session=session.session_id
+                )
+
+                # 방 정보 새로고침 (삭제된 대상이 사라지도록)
+                await game_engine.movement_manager.send_room_info_to_player(session, current_room_id)
+
+                logger.info(f"관리자 {session.player.username}이 {target_type} {target_id}를 삭제함 (사유: {reason})")
+
+                return CommandResult(
+                    result_type=CommandResultType.SUCCESS,
+                    message=success_msg
+                )
+            else:
+                return CommandResult(
+                    result_type=CommandResultType.ERROR,
+                    message=f"❌ {target_name} 삭제에 실패했습니다."
+                )
+
+        except Exception as e:
+            logger.error(f"terminate 명령어 실행 실패: {e}")
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message=f"❌ 삭제 중 오류가 발생했습니다: {str(e)}"
+            )
+
+    def get_help(self) -> str:
+        return """
+🗑️ **객체/몬스터 완전 삭제 명령어**
+
+지정한 객체나 몬스터를 완전히 삭제하고 respawn을 방지합니다.
+
+**사용법:** `terminate <대상_ID_또는_번호> [사유]`
+
+**별칭:** `destroy`, `delete`
+**권한:** 관리자 전용
+
+**매개변수:**
+- `대상_ID_또는_번호`: 삭제할 대상의 ID 또는 방에서의 번호
+- `사유` (선택사항): 삭제 사유
+
+**예시:**
+- `terminate 1` - 방의 1번 대상 삭제
+- `terminate goblin_001 버그 수정` - 특정 ID의 몬스터를 사유와 함께 삭제
+
+**주의사항:**
+- 몬스터 삭제 시 해당 방의 스폰 포인트도 함께 제거됩니다
+- 삭제된 대상은 더 이상 respawn되지 않습니다
+- 이 작업은 되돌릴 수 없습니다
         """
