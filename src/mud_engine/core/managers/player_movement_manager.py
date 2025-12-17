@@ -131,7 +131,8 @@ class PlayerMovementManager:
             logger.error(f"플레이어 방 이동 실패 ({session.player.username} -> {room_id}): {e}")
             from ..localization import get_localization_manager
             localization = get_localization_manager()
-            message = localization.get_message("movement.error", session.locale)
+            locale = session.player.preferred_locale if session.player else "en"
+            message = localization.get_message("movement.error", locale)
             await session.send_error(message)
             return False
 
@@ -144,49 +145,50 @@ class PlayerMovementManager:
             room_id: 방 ID
         """
         try:
-            room_info = await self.game_engine.get_room_info(room_id, session.locale)
+            locale = session.player.preferred_locale if session.player else "en"
+            room_info = await self.game_engine.get_room_info(room_id, locale)
             if room_info:
                 # 디버깅: 몬스터 정보 로깅
                 monsters = room_info.get('monsters', [])
                 logger.debug(f"방 {room_id}에서 {len(monsters)}마리 몬스터 발견")
                 for i, monster in enumerate(monsters):
-                    logger.debug(f"몬스터 {i+1}: {monster.get_localized_name(session.locale)}, 타입: {monster.monster_type}, 행동: {monster.behavior}")
-                
+                    logger.debug(f"몬스터 {i+1}: {monster.get_localized_name(locale)}, 타입: {monster.monster_type}, 행동: {monster.behavior}")
+
                 # 세션에 엔티티 번호 매핑 저장
                 entity_map = {}
                 entity_index = 1
-                
+
                 # 몬스터 번호 매핑
                 for monster in room_info.get('monsters', []):
                     entity_map[entity_index] = {
                         'type': 'monster',
                         'id': monster.id,
-                        'name': monster.get_localized_name(session.locale),
+                        'name': monster.get_localized_name(locale),
                         'entity': monster
                     }
                     entity_index += 1
-                
+
                 # NPC 번호 매핑
                 for npc in room_info.get('npcs', []):
                     entity_map[entity_index] = {
                         'type': 'npc',
                         'id': npc.id,
-                        'name': npc.get_localized_name(session.locale),
+                        'name': npc.get_localized_name(locale),
                         'entity': npc
                     }
                     entity_index += 1
-                
+
                 # 세션에 저장
                 session.room_entity_map = entity_map
-                
+
                 room_data = {
                     "id": room_info['room'].id,
-                    "description": room_info['room'].get_localized_description(session.locale),
+                    "description": room_info['room'].get_localized_description(locale),
                     "exits": room_info['exits'],
                     "objects": [
                         {
                             "id": obj.id,
-                            "name": obj.get_localized_name(session.locale),
+                            "name": obj.get_localized_name(locale),
                             "type": obj.object_type
                         }
                         for obj in room_info['objects']
@@ -194,7 +196,7 @@ class PlayerMovementManager:
                     "monsters": [
                         {
                             "id": monster.id,
-                            "name": monster.get_localized_name(session.locale),
+                            "name": monster.get_localized_name(locale),
                             "level": monster.level,
                             "current_hp": monster.current_hp,
                             "max_hp": monster.max_hp,
@@ -210,8 +212,8 @@ class PlayerMovementManager:
                     "npcs": [
                         {
                             "id": npc.id,
-                            "name": npc.get_localized_name(session.locale),
-                            "description": npc.get_localized_description(session.locale),
+                            "name": npc.get_localized_name(locale),
+                            "description": npc.get_localized_description(locale),
                             "npc_type": npc.npc_type,
                             "is_merchant": npc.is_merchant()
                         }
@@ -353,7 +355,7 @@ class PlayerMovementManager:
                         # 전투 인스턴스 종료
                         self.game_engine.combat_manager.end_combat(combat_id)
                         logger.info(f"플레이어 {disconnected_player} 연결 해제로 전투 {combat_id} 종료")
-                
+
                 # 전투 상태 초기화
                 session.in_combat = False
                 session.combat_id = None
@@ -441,17 +443,18 @@ class PlayerMovementManager:
                 return
 
             # 방의 선공형 몬스터들 조회
-            room_info = await self.game_engine.get_room_info(room_id, session.locale)
+            locale = session.player.preferred_locale if session.player else "en"
+            room_info = await self.game_engine.get_room_info(room_id, locale)
             if not room_info or not room_info.get('monsters'):
                 return
 
             aggressive_monsters = []
             for monster in room_info['monsters']:
-                logger.debug(f"몬스터 체크: {monster.get_localized_name(session.locale)}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
+                logger.debug(f"몬스터 체크: {monster.get_localized_name(locale)}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
                 # 선공형이고 살아있는 몬스터만
                 if monster.is_aggressive() and monster.is_alive:
                     aggressive_monsters.append(monster)
-                    logger.info(f"선공형 몬스터 발견: {monster.get_localized_name(session.locale)}")
+                    logger.info(f"선공형 몬스터 발견: {monster.get_localized_name(locale)}")
 
             if not aggressive_monsters:
                 logger.debug(f"방 {room_id}에 선공형 몬스터 없음")
@@ -461,10 +464,10 @@ class PlayerMovementManager:
             aggressive_monsters.sort(key=lambda m: m.level, reverse=True)
             attacking_monster = aggressive_monsters[0]
 
-            logger.info(f"선공형 몬스터 {attacking_monster.get_localized_name(session.locale)}이 플레이어 {session.player.username}을 공격!")
+            logger.info(f"선공형 몬스터 {attacking_monster.get_localized_name(locale)}이 플레이어 {session.player.username}을 공격!")
 
             # 선공 메시지 브로드캐스트
-            monster_name = attacking_monster.get_localized_name(session.locale)
+            monster_name = attacking_monster.get_localized_name(locale)
             aggro_message = f"🔥 {monster_name}이(가) {session.player.username}을(를) 발견하고 공격합니다!"
 
             # 방에 있는 모든 플레이어에게 선공 메시지 전송
@@ -480,27 +483,27 @@ class PlayerMovementManager:
             combat = await self.game_engine.combat_handler.check_and_start_combat(
                 room_id, session.player, session.player.id, aggressive_monsters
             )
-            
+
             if combat:
                 # 세션 전투 상태 업데이트
                 session.in_combat = True
                 session.combat_id = combat.id
                 session.original_room_id = room_id
                 session.current_room_id = f"combat_{combat.id}"
-                
+
                 logger.info(f"세션 전투 상태 업데이트: combat_id={combat.id}, in_combat={session.in_combat}")
-                
+
                 # 전투 시작 간단 알림 (전투 상태는 몬스터 턴 후 표시)
                 from ..localization import get_localization_manager
                 localization = get_localization_manager()
                 locale = session.player.preferred_locale if session.player else "ko"
-                
+
                 combat_start_msg = localization.get_message("combat.start", locale, monster=monster_name)
                 await session.send_message({
                     'type': 'combat_start',
                     'message': f"⚔️ {combat_start_msg}"
                 })
-                
+
                 # 몬스터 턴들을 자동으로 처리 (플레이어 턴까지)
                 await self._process_monster_turns_until_player(combat, session)
 
@@ -508,38 +511,38 @@ class PlayerMovementManager:
 
         except Exception as e:
             logger.error(f"선공형 몬스터 체크 중 오류: {e}")
-    
+
     async def _process_monster_turns_until_player(self, combat: Any, session: SessionType) -> None:
         """
         몬스터 턴들을 자동으로 처리하여 플레이어 턴까지 진행
-        
+
         Args:
             combat: 전투 인스턴스
             session: 플레이어 세션
         """
         from ...game.combat import CombatantType
-        
+
         try:
             max_iterations = 20  # 무한 루프 방지
             iterations = 0
-            
+
             while combat.is_active and not combat.is_combat_over() and iterations < max_iterations:
                 iterations += 1
                 current = combat.get_current_combatant()
-                
+
                 if not current:
                     logger.warning("현재 턴 전투원을 찾을 수 없음")
                     break
-                
+
                 # 플레이어 턴이면 중단
                 if current.combatant_type == CombatantType.PLAYER:
                     logger.info(f"플레이어 {session.player.username}의 턴 - 몬스터 턴 처리 완료")
-                    
+
                     # 플레이어에게 턴 알림 전송 (포맷팅된 텍스트)
                     from ..localization import get_localization_manager
                     localization = get_localization_manager()
                     locale = session.player.preferred_locale if session.player else "en"
-                    
+
                     turn_msg = f"""
 {self._format_combat_status(combat, locale)}
 
@@ -555,37 +558,37 @@ class PlayerMovementManager:
                         'message': turn_msg.strip()
                     })
                     break
-                
+
                 # 몬스터 턴 처리
                 logger.info(f"몬스터 {current.name}의 턴 자동 처리 중...")
                 await self.game_engine.combat_handler.process_monster_turn(combat.id)
-                
+
                 # 전투 종료 확인
                 if combat.is_combat_over():
                     logger.info("전투 종료됨")
                     await self._handle_combat_end(combat, session)
                     break
-            
+
             if iterations >= max_iterations:
                 logger.error(f"몬스터 턴 처리 무한 루프 감지 (combat_id: {combat.id})")
-                
+
         except Exception as e:
             logger.error(f"몬스터 턴 자동 처리 중 오류: {e}", exc_info=True)
-    
+
     async def _handle_combat_end(self, combat: Any, session: SessionType) -> None:
         """
         전투 종료 처리
-        
+
         Args:
             combat: 전투 인스턴스
             session: 플레이어 세션
         """
         from ...game.combat import CombatantType
-        
+
         try:
             winners = combat.get_winners()
             player_won = any(w.combatant_type == CombatantType.PLAYER for w in winners)
-            
+
             # 보상 계산 (승리 시)
             rewards: dict[str, Any] = {'experience': 0, 'gold': 0, 'items': []}
             if player_won:
@@ -593,12 +596,12 @@ class PlayerMovementManager:
                 for monster in defeated_monsters:
                     rewards['experience'] = rewards['experience'] + 50  # 기본 경험치
                     rewards['gold'] = rewards['gold'] + 10  # 기본 골드
-            
+
             # 전투 종료 메시지
             from ..localization import get_localization_manager
             localization = get_localization_manager()
             locale = session.player.preferred_locale if session.player else "en"
-            
+
             if player_won:
                 message = f"""
 {localization.get_message("combat.victory", locale)}
@@ -611,51 +614,51 @@ class PlayerMovementManager:
 """
             else:
                 message = f"{localization.get_message('combat.defeat', locale)}\n\n{localization.get_message('combat.return_location', locale)}"
-            
+
             await session.send_message({
                 'type': 'combat_end',
                 'message': message.strip(),
                 'victory': player_won,
                 'rewards': rewards
             })
-            
+
             # 원래 방으로 복귀
             if session.original_room_id:
                 session.current_room_id = session.original_room_id
-            
+
             # 전투 상태 초기화
             session.in_combat = False
             session.original_room_id = None
             session.combat_id = None
-            
+
             # 전투 종료
             self.game_engine.combat_manager.end_combat(combat.id)
-            
+
             logger.info(f"전투 종료 처리 완료: combat_id={combat.id}, 승리={player_won}")
-            
+
         except Exception as e:
             logger.error(f"전투 종료 처리 중 오류: {e}", exc_info=True)
-    
+
     def _format_combat_status(self, combat: Any, locale: str = "en") -> str:
         """
         전투 상태를 포맷팅된 텍스트로 변환
-        
+
         Args:
             combat: 전투 인스턴스
             locale: 언어 설정
-        
+
         Returns:
             str: 포맷팅된 전투 상태 텍스트
         """
         from ...game.combat import CombatantType
         from ..localization import get_localization_manager
-        
+
         localization = get_localization_manager()
-        
+
         lines = ["━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
         lines.append(localization.get_message("combat.round", locale, round=combat.turn_number))
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        
+
         # 플레이어 정보
         players = [c for c in combat.combatants if c.combatant_type == CombatantType.PLAYER and c.is_alive()]
         if players:
@@ -663,7 +666,7 @@ class PlayerMovementManager:
             hp_bar = self._get_hp_bar(player.current_hp, player.max_hp)
             lines.append(f"\n{localization.get_message('combat.player_hp', locale, name=player.name)}")
             lines.append(f"   HP: {hp_bar} {player.current_hp}/{player.max_hp}")
-        
+
         # 몬스터 정보
         monsters = [c for c in combat.combatants if c.combatant_type == CombatantType.MONSTER and c.is_alive()]
         if monsters:
@@ -671,32 +674,32 @@ class PlayerMovementManager:
             for monster in monsters:
                 hp_bar = self._get_hp_bar(monster.current_hp, monster.max_hp)
                 lines.append(localization.get_message("combat.monster_entry", locale, name=monster.name))
-                lines.append(localization.get_message("combat.hp_display", locale, 
-                                                    hp_bar=hp_bar, 
-                                                    current=monster.current_hp, 
+                lines.append(localization.get_message("combat.hp_display", locale,
+                                                    hp_bar=hp_bar,
+                                                    current=monster.current_hp,
                                                     max=monster.max_hp))
-        
+
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         return "\n".join(lines)
-    
+
     def _get_hp_bar(self, current: int, maximum: int, length: int = 10) -> str:
         """
         HP 바 생성
-        
+
         Args:
             current: 현재 HP
             maximum: 최대 HP
             length: 바 길이
-        
+
         Returns:
             str: HP 바 문자열
         """
         if maximum <= 0:
             return "[" + "░" * length + "]"
-        
+
         filled = int((current / maximum) * length)
         empty = length - filled
-        
+
         return "[" + "█" * filled + "░" * empty + "]"
 
     async def _update_player_coordinates(self, session: SessionType, room_id: str) -> None:
@@ -711,57 +714,57 @@ class PlayerMovementManager:
         try:
             # room_id에서 좌표 추출
             x, y = self._extract_coordinates_from_room_id(room_id)
-            
+
             if x is not None and y is not None:
                 # 플레이어 객체 업데이트
                 session.player.last_room_x = x
                 session.player.last_room_y = y
-                
+
                 # 데이터베이스 업데이트
                 from ...game.repositories import PlayerRepository
                 from ...database import get_database_manager
-                
+
                 db_manager = await get_database_manager()
                 player_repo = PlayerRepository(db_manager)
-                
+
                 update_data = {
                     'last_room_id': room_id,
                     'last_room_x': x,
                     'last_room_y': y
                 }
                 await player_repo.update(session.player.id, update_data)
-                
+
                 logger.debug(f"플레이어 {session.player.username} 좌표 업데이트: ({x}, {y})")
             else:
                 # 좌표를 추출할 수 없는 경우 room_id만 업데이트
                 from ...game.repositories import PlayerRepository
                 from ...database import get_database_manager
-                
+
                 db_manager = await get_database_manager()
                 player_repo = PlayerRepository(db_manager)
-                
+
                 update_data = {'last_room_id': room_id}
                 await player_repo.update(session.player.id, update_data)
-                
+
                 logger.debug(f"플레이어 {session.player.username} room_id만 업데이트: {room_id}")
-                
+
         except Exception as e:
             logger.error(f"플레이어 좌표 업데이트 실패: {e}")
 
     def _extract_coordinates_from_room_id(self, room_id: str) -> tuple[int | None, int | None]:
         """
         room_id에서 좌표를 추출합니다.
-        
+
         Args:
             room_id: 방 ID (예: forest_5_7, town_square)
-            
+
         Returns:
             tuple: (x, y) 좌표, 추출 실패 시 (None, None)
         """
         try:
             # room_id 형식: prefix_x_y (예: forest_5_7)
             parts = room_id.split('_')
-            
+
             if len(parts) >= 3:
                 # 마지막 두 부분이 숫자인지 확인
                 try:
@@ -770,10 +773,10 @@ class PlayerMovementManager:
                     return (x, y)
                 except ValueError:
                     pass
-            
+
             # 좌표를 추출할 수 없는 경우
             return (None, None)
-            
+
         except Exception as e:
             logger.error(f"좌표 추출 실패 ({room_id}): {e}")
             return (None, None)
@@ -808,23 +811,25 @@ class PlayerMovementManager:
 
             # 목적지 좌표 계산
             from ...utils.coordinate_utils import get_direction_from_string, calculate_new_coordinates
-            
+
             direction_enum = get_direction_from_string(direction)
             if not direction_enum:
                 from ..localization import get_localization_manager
                 localization = get_localization_manager()
-                message = localization.get_message("go.invalid_direction", session.locale, direction=direction)
+                locale = session.player.preferred_locale if session.player else "en"
+                message = localization.get_message("go.invalid_direction", locale, direction=direction)
                 await session.send_error(message)
                 return False
 
             new_x, new_y = calculate_new_coordinates(current_room.x, current_room.y, direction_enum)
-            
+
             # 목적지 방 확인
             target_room = await self.game_engine.world_manager.get_room_at_coordinates(new_x, new_y)
             if not target_room:
                 from ..localization import get_localization_manager
                 localization = get_localization_manager()
-                message = localization.get_message("movement.no_exit", session.locale, direction=direction)
+                locale = session.player.preferred_locale if session.player else "en"
+                message = localization.get_message("movement.no_exit", locale, direction=direction)
                 await session.send_error(message)
                 return False
 
@@ -835,7 +840,8 @@ class PlayerMovementManager:
             logger.error(f"방향 기반 이동 실패 ({session.player.username}, {direction}): {e}")
             from ..localization import get_localization_manager
             localization = get_localization_manager()
-            message = localization.get_message("movement.error", session.locale)
+            locale = session.player.preferred_locale if session.player else "en"
+            message = localization.get_message("movement.error", locale)
             await session.send_error(message)
             return False
 
@@ -869,7 +875,8 @@ class PlayerMovementManager:
             logger.error(f"좌표 기반 이동 실패 ({session.player.username}, {x}, {y}): {e}")
             from ..localization import get_localization_manager
             localization = get_localization_manager()
-            message = localization.get_message("movement.error", session.locale)
+            locale = session.player.preferred_locale if session.player else "en"
+            message = localization.get_message("movement.error", locale)
             await session.send_error(message)
             return False
 

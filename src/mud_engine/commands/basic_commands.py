@@ -429,14 +429,17 @@ class MoveCommand(BaseCommand):
             success = await game_engine.movement_manager.move_player_by_direction(session, self.direction)
 
             if success:
+                # 이동 성공 - 이동 메시지를 방 정보 전송 후에 전송
                 from ..core.localization import get_localization_manager
                 localization = get_localization_manager()
                 locale = session.player.preferred_locale if session.player else "en"
-                return self.create_success_result(localization.get_message("movement.success", locale, direction=self.direction))
+                move_message = localization.get_message("movement.success", locale, direction=self.direction)
+                await session.send_success(move_message)
+                return self.create_success_result("")
             else:
-                # 에러 메시지는 move_player_by_direction에서 이미 전송됨
+                # 이동 실패 - 에러 메시지는 move_player_by_direction에서 이미 전송됨
+                # 성공 메시지는 전송하지 않음
                 return self.create_error_result("")
-
 
         except Exception as e:
             logger.error(f"이동 명령어 실행 중 오류: {e}")
