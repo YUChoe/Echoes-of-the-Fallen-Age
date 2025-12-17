@@ -12,14 +12,14 @@ logger = logging.getLogger(__name__)
 
 class LocalizationManager:
     """다국어 메시지 관리자"""
-    
+
     def __init__(self):
         """초기화"""
         self.messages: Dict[str, Dict[str, str]] = {}
         self.default_locale = "en"
         self.supported_locales = ["en", "ko"]
         self._load_default_messages()
-    
+
     def _load_default_messages(self) -> None:
         """기본 메시지 로드"""
         # 기본 시스템 메시지들
@@ -45,7 +45,7 @@ class LocalizationManager:
                 "en": "🌐 Language preference: {language}",
                 "ko": "🌐 언어 설정: {language}"
             },
-            
+
             # 게임 입장
             "game.entered": {
                 "en": "Game entered! Type 'help' for commands.",
@@ -59,7 +59,7 @@ class LocalizationManager:
                 "en": "👋 {username} left the game.",
                 "ko": "👋 {username}님이 게임을 떠났습니다."
             },
-            
+
             # 이동 관련
             "movement.no_exit": {
                 "en": "❌ You cannot go {direction}.",
@@ -77,7 +77,7 @@ class LocalizationManager:
                 "en": "❌ An error occurred during movement.",
                 "ko": "❌ 이동 중 오류가 발생했습니다."
             },
-            
+
             # 전투 관련
             "combat.start": {
                 "en": "⚔️ Combat started with {monster}!",
@@ -259,7 +259,7 @@ class LocalizationManager:
                 "en": "Tip: You can just enter numbers to select actions!",
                 "ko": "팁: 숫자만 입력해도 행동을 선택할 수 있습니다!"
             },
-            
+
             # 아이템 관련
             "item.not_found": {
                 "en": "❌ Item '{item}' not found.",
@@ -281,7 +281,7 @@ class LocalizationManager:
                 "en": "💨 {item} disappeared before your eyes.",
                 "ko": "💨 {item}이(가) 눈앞에서 사라졌습니다."
             },
-            
+
             # 명령어 관련
             "command.unknown": {
                 "en": "❌ Unknown command: {command}",
@@ -295,7 +295,7 @@ class LocalizationManager:
                 "en": "❌ This command is for administrators only.",
                 "ko": "❌ 이 명령어는 관리자만 사용할 수 있습니다."
             },
-            
+
             # 시스템 메시지
             "system.server_shutdown": {
                 "en": "🔧 Server is shutting down...",
@@ -321,7 +321,7 @@ class LocalizationManager:
                 "en": "❌ An error occurred during authentication.",
                 "ko": "❌ 인증 처리 중 오류가 발생했습니다."
             },
-            
+
             # 에러 메시지
             "error.generic": {
                 "en": "❌ An error occurred.",
@@ -335,7 +335,7 @@ class LocalizationManager:
                 "en": "❌ Network error occurred.",
                 "ko": "❌ 네트워크 오류가 발생했습니다."
             },
-            
+
             # 언어 설정
             "language.changed": {
                 "en": "✅ Language changed to English.",
@@ -345,7 +345,7 @@ class LocalizationManager:
                 "en": "❌ Invalid language. Supported: {languages}",
                 "ko": "❌ 지원되지 않는 언어입니다. 지원 언어: {languages}"
             },
-            
+
             # 도움말
             "help.header": {
                 "en": "📖 Available Commands:",
@@ -355,7 +355,7 @@ class LocalizationManager:
                 "en": "Type 'help <command>' for detailed information.",
                 "ko": "'help <명령어>'로 자세한 정보를 확인하세요."
             },
-            
+
             # 기본 명령어 메시지
             "look.refresh": {
                 "en": "✅ You look around again.",
@@ -381,7 +381,7 @@ class LocalizationManager:
                 "en": "🚶 {username} arrived.",
                 "ko": "🚶 {username}님이 도착했습니다."
             },
-            
+
             # 채팅 메시지
             "say.success": {
                 "en": "💬 You say: \"{message}\"",
@@ -395,7 +395,7 @@ class LocalizationManager:
                 "en": "Please enter a message to say.\nUsage: say <message>",
                 "ko": "말할 내용을 입력해주세요.\n사용법: say <메시지>"
             },
-            
+
             # 이동 관련 추가 메시지
             "movement.combat_blocked": {
                 "en": "❌ You cannot move during combat. Flee or win the battle first.",
@@ -405,17 +405,17 @@ class LocalizationManager:
                 "en": "❌ Cannot determine current location.",
                 "ko": "❌ 현재 위치를 확인할 수 없습니다."
             },
-            
+
             # Go 명령어 메시지
             "go.usage_error": {
-                "en": "Please specify a direction to move.\nUsage: go <direction>\nAvailable directions: north, south, east, west, up, down, northeast, northwest, southeast, southwest",
-                "ko": "이동할 방향을 지정해주세요.\n사용법: go <방향>\n사용 가능한 방향: north, south, east, west, up, down, northeast, northwest, southeast, southwest"
+                "en": "Please specify a direction to move.\nUsage: go <direction>\nAvailable directions: north, south, east, west",
+                "ko": "이동할 방향을 지정해주세요.\n사용법: go <방향>\n사용 가능한 방향: north, south, east, west"
             },
             "go.invalid_direction": {
-                "en": "'{direction}' is not a valid direction.\nAvailable directions: north, south, east, west, up, down, northeast, northwest, southeast, southwest",
-                "ko": "'{direction}'은(는) 올바른 방향이 아닙니다.\n사용 가능한 방향: north, south, east, west, up, down, northeast, northwest, southeast, southwest"
+                "en": "'{direction}' is not a valid direction.\nAvailable directions: north, south, east, west",
+                "ko": "'{direction}'은(는) 올바른 방향이 아닙니다.\n사용 가능한 방향: north, south, east, west"
             },
-            
+
             # 출구 관련 메시지
             "exits.no_exits": {
                 "en": "🚪 There are no exits from this room.",
@@ -429,19 +429,19 @@ class LocalizationManager:
                 "en": "❌ Failed to check exits.",
                 "ko": "❌ 출구 정보를 확인하는 중 오류가 발생했습니다."
             },
-            
+
             # 능력치 관련 메시지
             "stats.error": {
                 "en": "❌ Failed to retrieve stats.",
                 "ko": "❌ 능력치 정보를 확인하는 중 오류가 발생했습니다."
             },
-            
+
             # 종료 메시지
             "quit.message": {
                 "en": "Goodbye! Thanks for playing.",
                 "ko": "안전하게 게임을 종료합니다. 안녕히 가세요!"
             },
-            
+
             # 방 정보 표시 관련
             "room.time_day": {
                 "en": "☀️  Day",
@@ -479,7 +479,7 @@ class LocalizationManager:
                 "en": " (merchant)",
                 "ko": " (상인)"
             },
-            
+
             # 몬스터 이동 메시지
             "monster.appears": {
                 "en": "🐾 {monster_name} appears.",
@@ -489,7 +489,7 @@ class LocalizationManager:
                 "en": "🐾 {monster_name} leaves.",
                 "ko": "🐾 {monster_name}이(가) 떠났습니다."
             },
-            
+
             # 시간 변화 알림
             "time.dawn": {
                 "en": "🌅 The eastern sky brightens. Day has come.",
@@ -499,7 +499,7 @@ class LocalizationManager:
                 "en": "🌙 Darkness falls. Night has come.",
                 "ko": "🌙 어둠이 내려앉습니다. 밤이 되었습니다."
             },
-            
+
             # 도움말 명령어 관련
             "help.available_commands": {
                 "en": "🎮 Available Commands:",
@@ -513,7 +513,7 @@ class LocalizationManager:
                 "en": "Type 'help <command>' for detailed information about a specific command.",
                 "ko": "특정 명령어의 자세한 도움말을 보려면 'help <명령어>'를 입력하세요."
             },
-            
+
             # 명령어 설명들
             "cmd.attack.desc": {
                 "en": "Attack a monster",
@@ -643,7 +643,7 @@ class LocalizationManager:
                 "en": "Show list of currently connected players",
                 "ko": "현재 접속 중인 플레이어 목록을 표시합니다"
             },
-            
+
             # 관리자 명령어 설명들
             "cmd.admin.desc": {
                 "en": "Show administrator command list",
@@ -681,7 +681,7 @@ class LocalizationManager:
                 "en": "Manage global scheduler (list/info/enable/disable)",
                 "ko": "글로벌 스케줄러 관리 (list/info/enable/disable)"
             },
-            
+
             # 관리자 이름 변경 명령어
             "admin.changename.usage": {
                 "en": "Usage: adminchangename <player_id> <new_name>",
@@ -707,7 +707,7 @@ class LocalizationManager:
                 "en": "❌ Name change failed: {error}",
                 "ko": "❌ 이름 변경 실패: {error}"
             },
-            
+
             # who 명령어 메시지
             "who.connected_players": {
                 "en": "📋 Connected players ({count}):",
@@ -725,7 +725,7 @@ class LocalizationManager:
                 "en": " (you)",
                 "ko": " (당신)"
             },
-            
+
             # players 명령어 메시지
             "players.in_room": {
                 "en": "📍 Players in current room ({count}):",
@@ -744,33 +744,33 @@ class LocalizationManager:
                 "ko": " (나)"
             }
         }
-        
+
         logger.info(f"기본 메시지 {len(self.messages)}개 로드 완료")
-    
+
     def get_message(self, key: str, locale: str = None, **kwargs) -> str:
         """
         메시지 조회
-        
+
         Args:
             key: 메시지 키 (예: "auth.login_success")
             locale: 언어 코드 (None이면 기본 언어)
             **kwargs: 메시지 포맷팅용 변수들
-        
+
         Returns:
             str: 로케일에 맞는 메시지
         """
         if locale is None:
             locale = self.default_locale
-        
+
         if locale not in self.supported_locales:
             locale = self.default_locale
-        
+
         # 메시지 조회
         message_dict = self.messages.get(key)
         if not message_dict:
             logger.warning(f"메시지 키를 찾을 수 없음: {key}")
             return f"[Missing message: {key}]"
-        
+
         # 로케일별 메시지 조회
         message = message_dict.get(locale)
         if not message:
@@ -779,7 +779,7 @@ class LocalizationManager:
             if not message:
                 logger.warning(f"메시지를 찾을 수 없음: {key} (locale: {locale})")
                 return f"[Missing message: {key}]"
-        
+
         # 변수 치환
         try:
             return message.format(**kwargs)
@@ -789,25 +789,25 @@ class LocalizationManager:
         except Exception as e:
             logger.error(f"메시지 포맷팅 오류: {key}, 오류: {e}")
             return message
-    
+
     def add_message(self, key: str, messages: Dict[str, str]) -> None:
         """
         메시지 추가
-        
+
         Args:
             key: 메시지 키
             messages: 언어별 메시지 딕셔너리 (예: {"en": "Hello", "ko": "안녕하세요"})
         """
         self.messages[key] = messages
         logger.debug(f"메시지 추가: {key}")
-    
+
     def load_from_file(self, file_path: str) -> bool:
         """
         파일에서 메시지 로드
-        
+
         Args:
             file_path: JSON 파일 경로
-        
+
         Returns:
             bool: 성공 여부
         """
@@ -816,52 +816,52 @@ class LocalizationManager:
             if not path.exists():
                 logger.warning(f"메시지 파일이 존재하지 않음: {file_path}")
                 return False
-            
+
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            
+
             # 기존 메시지에 추가
             for key, messages in data.items():
                 if isinstance(messages, dict):
                     self.messages[key] = messages
                 else:
                     logger.warning(f"잘못된 메시지 형식: {key}")
-            
+
             logger.info(f"메시지 파일 로드 완료: {file_path}")
             return True
-            
+
         except Exception as e:
             logger.error(f"메시지 파일 로드 실패: {file_path}, 오류: {e}")
             return False
-    
+
     def save_to_file(self, file_path: str) -> bool:
         """
         메시지를 파일로 저장
-        
+
         Args:
             file_path: JSON 파일 경로
-        
+
         Returns:
             bool: 성공 여부
         """
         try:
             path = Path(file_path)
             path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(self.messages, f, ensure_ascii=False, indent=2)
-            
+
             logger.info(f"메시지 파일 저장 완료: {file_path}")
             return True
-            
+
         except Exception as e:
             logger.error(f"메시지 파일 저장 실패: {file_path}, 오류: {e}")
             return False
-    
+
     def get_supported_locales(self) -> list:
         """지원되는 언어 목록 반환"""
         return self.supported_locales.copy()
-    
+
     def is_supported_locale(self, locale: str) -> bool:
         """지원되는 언어인지 확인"""
         return locale in self.supported_locales
@@ -882,12 +882,12 @@ def get_localization_manager() -> LocalizationManager:
 def get_message(key: str, locale: str = None, **kwargs) -> str:
     """
     편의 함수: 메시지 조회
-    
+
     Args:
         key: 메시지 키
         locale: 언어 코드
         **kwargs: 포맷팅 변수들
-    
+
     Returns:
         str: 로케일에 맞는 메시지
     """

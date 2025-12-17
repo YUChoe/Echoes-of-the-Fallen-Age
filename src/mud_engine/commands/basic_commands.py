@@ -470,16 +470,13 @@ class GoCommand(BaseCommand):
 
         direction = args[0].lower()
         valid_directions = {
-            'north', 'south', 'east', 'west', 'up', 'down',
-            'northeast', 'northwest', 'southeast', 'southwest',
-            'n', 's', 'e', 'w', 'u', 'd', 'ne', 'nw', 'se', 'sw'
+            'north', 'south', 'east', 'west',
+            'n', 's', 'e', 'w'
         }
 
         # 축약형을 전체 이름으로 변환
         direction_map = {
-            'n': 'north', 's': 'south', 'e': 'east', 'w': 'west',
-            'u': 'up', 'd': 'down', 'ne': 'northeast', 'nw': 'northwest',
-            'se': 'southeast', 'sw': 'southwest'
+            'n': 'north', 's': 'south', 'e': 'east', 'w': 'west'
         }
 
         if direction in direction_map:
