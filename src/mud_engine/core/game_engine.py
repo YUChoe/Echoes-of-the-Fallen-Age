@@ -54,7 +54,7 @@ class GameEngine:
         monster_repo = MonsterRepository(db_manager)
         npc_repo = NPCRepository(db_manager)
         self.world_manager = WorldManager(room_repo, object_repo, monster_repo, npc_repo)
-        
+
         # WorldManager에 GameEngine 참조 설정 (순환 참조 방지)
         self.world_manager.set_game_engine(self)
 
@@ -76,6 +76,10 @@ class GameEngine:
             self.admin_manager = AdminManager(self)
             self.time_manager = TimeManager(self)
             self.scheduler_manager = SchedulerManager(self)
+
+            # 튜토리얼 안내 시스템 초기화
+            from ..game.tutorial_announcer import get_tutorial_announcer
+            self.tutorial_announcer = get_tutorial_announcer(self)
 
             logger.info("모든 매니저 초기화 완료")
         except Exception as e:
@@ -114,16 +118,16 @@ class GameEngine:
             # 템플릿 로드
             await self.world_manager.initialize_templates()
             logger.info("몬스터 템플릿 로드 완료")
-            
+
             # 글로벌 스폰 제한 설정
             self.world_manager.set_global_spawn_limit('template_small_rat', 20)
             self.world_manager.set_global_spawn_limit('template_forest_goblin', 10)
             self.world_manager.set_global_spawn_limit('template_town_guard', 4)
             logger.info("글로벌 스폰 제한 설정 완료")
-            
+
             # 초과 몬스터 정리
             await self.world_manager.cleanup_all_excess_monsters()
-            
+
             await self.world_manager.setup_default_spawn_points()
             await self.world_manager.start_spawn_scheduler()
             logger.info("몬스터 스폰 시스템 시작 완료")
@@ -144,6 +148,13 @@ class GameEngine:
         except Exception as e:
             logger.error(f"글로벌 스케줄러 시작 실패: {e}")
 
+        # 튜토리얼 안내 시스템 시작
+        try:
+            await self.tutorial_announcer.start()
+            logger.info("튜토리얼 안내 시스템 시작 완료")
+        except Exception as e:
+            logger.error(f"튜토리얼 안내 시스템 시작 실패: {e}")
+
         logger.info("GameEngine 시작 완료")
 
     async def stop(self) -> None:
@@ -154,6 +165,13 @@ class GameEngine:
         logger.info("GameEngine 중지 중...")
 
         self._running = False
+
+        # 튜토리얼 안내 시스템 중지
+        try:
+            await self.tutorial_announcer.stop()
+            logger.info("튜토리얼 안내 시스템 중지 완료")
+        except Exception as e:
+            logger.error(f"튜토리얼 안내 시스템 중지 실패: {e}")
 
         # 글로벌 스케줄러 중지
         try:
@@ -219,22 +237,22 @@ class GameEngine:
         await self.session_manager.authenticate_session(session.session_id, player)
         short_session_id = session.session_id.split('-')[-1] if '-' in session.session_id else session.session_id
         logger.info(f"SessionManager에 세션 추가: {short_session_id}, 플레이어: {player.username}")
-        
+
         # 세션에 게임 엔진 참조 설정
         session.game_engine = self
         session.locale = player.preferred_locale
 
         # 플레이어를 마지막 위치 또는 기본 방으로 이동
         target_room_id = player.last_room_id if player.last_room_id else "town_square"
-        
+
         # 방이 존재하는지 확인
         room = await self.world_manager.get_room(target_room_id)
         if not room:
             logger.warning(f"저장된 방 {target_room_id}이 존재하지 않음. 기본 방으로 이동")
             target_room_id = "town_square"
-        
+
         await self.movement_manager.move_player_to_room(session, target_room_id)
-        
+
         # 방 정보를 가져와서 좌표로 로그 표시
         try:
             room = await self.world_manager.get_room(target_room_id)
@@ -290,14 +308,14 @@ class GameEngine:
                 try:
                     session.player.last_room_id = current_room_id
                     await self.player_manager.save_player(session.player)
-                    
+
                     # 방 좌표 가져오기
                     try:
                         room = await self.world_manager.get_room(current_room_id)
                         coord = f"({room.x}, {room.y})" if room else "알 수 없음"
                     except Exception:
                         coord = "알 수 없음"
-                    
+
                     logger.info(f"플레이어 {session.player.username} 로그아웃: 위치 {coord} 저장")
                 except Exception as e:
                     logger.error(f"플레이어 위치 저장 실패: {e}")

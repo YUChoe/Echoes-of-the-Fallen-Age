@@ -28,8 +28,8 @@ class MapExporter:
     async def get_all_rooms(self) -> List[Tuple[Any, ...]]:
         """모든 방 정보 가져오기"""
         cursor = await self.db_manager.execute("""
-            SELECT id, description_ko, description_en, exits, x, y
-            FROM rooms 
+            SELECT id, description_ko, description_en, x, y
+            FROM rooms
             WHERE x IS NOT NULL AND y IS NOT NULL
             ORDER BY x, y
         """)
@@ -39,19 +39,20 @@ class MapExporter:
     async def get_monsters_by_room(self) -> Dict[str, int]:
         """방별 몬스터 수 가져오기 (플레이어와 적대적인 종족만)"""
         cursor = await self.db_manager.execute("""
-            SELECT m.current_room_id, COUNT(*) as count
-            FROM monsters m
+            SELECT r.id, COUNT(*) as count
+            FROM rooms r
+            INNER JOIN monsters m ON (r.x = m.x AND r.y = m.y)
             LEFT JOIN faction_relations fr ON (
                 (fr.faction_a_id = 'ash_knights' AND fr.faction_b_id = m.faction_id)
                 OR (fr.faction_b_id = 'ash_knights' AND fr.faction_a_id = m.faction_id)
             )
-            WHERE m.is_alive = 1 
-            AND m.current_room_id IS NOT NULL
+            WHERE m.is_alive = 1
+            AND m.x IS NOT NULL AND m.y IS NOT NULL
             AND (
                 fr.relation_status IN ('HOSTILE', 'UNFRIENDLY')
                 OR m.faction_id IS NULL
             )
-            GROUP BY m.current_room_id
+            GROUP BY r.id
         """)
         result = await cursor.fetchall()
         return {row[0]: row[1] for row in result}
@@ -78,30 +79,31 @@ class MapExporter:
         """)
         npcs_result = await cursor.fetchall()
         npc_counts = {row[0]: row[1] for row in npcs_result}
-        
+
         # 2. monsters 테이블에서 우호적인 종족 가져오기
         cursor = await self.db_manager.execute("""
-            SELECT m.current_room_id, COUNT(*) as count
-            FROM monsters m
+            SELECT r.id, COUNT(*) as count
+            FROM rooms r
+            INNER JOIN monsters m ON (r.x = m.x AND r.y = m.y)
             LEFT JOIN faction_relations fr ON (
                 (fr.faction_a_id = 'ash_knights' AND fr.faction_b_id = m.faction_id)
                 OR (fr.faction_b_id = 'ash_knights' AND fr.faction_a_id = m.faction_id)
             )
-            WHERE m.is_alive = 1 
-            AND m.current_room_id IS NOT NULL
+            WHERE m.is_alive = 1
+            AND m.x IS NOT NULL AND m.y IS NOT NULL
             AND (
                 m.faction_id = 'ash_knights'
                 OR fr.relation_status IN ('FRIENDLY', 'ALLIED', 'NEUTRAL')
             )
-            GROUP BY m.current_room_id
+            GROUP BY r.id
         """)
         monsters_result = await cursor.fetchall()
-        
+
         # 두 결과 합치기
         for row in monsters_result:
             room_id, count = row
             npc_counts[room_id] = npc_counts.get(room_id, 0) + count
-        
+
         return npc_counts
 
     async def get_faction_relations(self) -> Tuple[List[Tuple[Any, ...]], List[Tuple[Any, ...]]]:
@@ -113,7 +115,7 @@ class MapExporter:
             ORDER BY id
         """)
         factions_result = await cursor.fetchall()
-        
+
         # 종족 관계
         cursor = await self.db_manager.execute("""
             SELECT faction_a_id, faction_b_id, relation_value, relation_status
@@ -122,7 +124,7 @@ class MapExporter:
             ORDER BY faction_b_id
         """)
         relations_result = await cursor.fetchall()
-        
+
         return [tuple(row) for row in factions_result], [tuple(row) for row in relations_result]
 
     async def get_all_players(self) -> List[Tuple[Any, ...]]:
@@ -139,12 +141,12 @@ class MapExporter:
     def calculate_coordinate_based_exits(self, x: int, y: int, all_rooms_coords: Dict[Tuple[int, int], str]) -> Dict[str, str]:
         """좌표 기반으로 출구를 계산합니다."""
         exits = {}
-        
+
         # 모든 방향에 대해 인접한 방이 있는지 확인
         for direction in Direction:
             try:
                 adj_x, adj_y = calculate_new_coordinates(x, y, direction)
-                
+
                 # 해당 좌표에 방이 있는지 확인
                 if (adj_x, adj_y) in all_rooms_coords:
                     target_room_id = all_rooms_coords[(adj_x, adj_y)]
@@ -152,66 +154,64 @@ class MapExporter:
             except Exception:
                 # UP, DOWN 등 좌표 변화가 없는 방향은 무시
                 continue
-        
+
         return exits
 
-    def generate_html(self, rooms_data: List[Tuple[Any, ...]], monsters_by_room: Dict[str, int], 
-                     players_by_room: Dict[str, int], npcs_by_room: Dict[str, int], 
-                     factions: List[Tuple[Any, ...]], relations: List[Tuple[Any, ...]], 
+    def generate_html(self, rooms_data: List[Tuple[Any, ...]], monsters_by_room: Dict[str, int],
+                     players_by_room: Dict[str, int], npcs_by_room: Dict[str, int],
+                     factions: List[Tuple[Any, ...]], relations: List[Tuple[Any, ...]],
                      all_players: List[Tuple[Any, ...]]) -> str:
         """HTML 생성"""
         # 방 데이터를 그리드에 매핑
         grid: Dict[Tuple[int, int], Dict[str, Any]] = {}
         all_rooms_coords: Dict[Tuple[int, int], str] = {}  # 좌표 -> 방 ID 매핑
-        
+
         # 1단계: 모든 방의 좌표 정보 수집
         for room in rooms_data:
             room_id = room[0]
             desc_ko = room[1]
             desc_en = room[2]
-            exits_str = room[3]
-            x = room[4]
-            y = room[5]
-            
+            x = room[3]
+            y = room[4]
+
             # x, y 좌표가 있으면 직접 사용
             if x is not None and y is not None:
                 coord = (x, y)
                 all_rooms_coords[coord] = room_id
-        
+
         # 2단계: 각 방의 좌표 기반 출구 계산
         for room in rooms_data:
             room_id = room[0]
             desc_ko = room[1]
             desc_en = room[2]
-            exits_str = room[3]
-            x = room[4]
-            y = room[5]
-            
+            x = room[3]
+            y = room[4]
+
             # x, y 좌표가 있으면 직접 사용
             if x is not None and y is not None:
                 coord = (x, y)
-                
+
                 # 좌표 기반 출구 계산
                 exits = self.calculate_coordinate_based_exits(coord[0], coord[1], all_rooms_coords)
-                
+
                 # description에서 첫 줄을 이름으로 사용
                 name_ko = desc_ko.split('\n')[0] if desc_ko else room_id
-                
+
                 grid[coord] = {
                     'id': room_id,
                     'name_ko': name_ko,
                     'exits': exits
                 }
-        
+
         # 그리드 범위 계산
         if not grid:
             return "<html><body>No rooms found</body></html>"
-        
+
         min_x = min(c[0] for c in grid.keys())
         max_x = max(c[0] for c in grid.keys())
         min_y = min(c[1] for c in grid.keys())
         max_y = max(c[1] for c in grid.keys())
-        
+
         # CSS 스타일 정의
         css_style = """
             body {
@@ -333,7 +333,7 @@ class MapExporter:
                 color: #4a9eff;
             }
         """
-        
+
         html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -346,13 +346,13 @@ class MapExporter:
 </head>
 <body>
     <h1>🗺️ Echoes of the Fallen Age - 통합 월드 맵</h1>
-    
+
     <div class="stats">
         <span>총 방 개수: <strong>{len(rooms_data)}</strong></span>
         <span>그리드 크기: <strong>{max_x - min_x + 1}x{max_y - min_y + 1}</strong></span>
         <span>생성 시간: <strong>{self._get_current_time()}</strong></span>
     </div>
-    
+
     <div class="legend">
         <div class="legend-item">
             <div class="legend-box room"></div>
@@ -371,11 +371,11 @@ class MapExporter:
             <span>NPC</span>
         </div>
     </div>
-    
+
     <div class="map-container">
         <table>
 """
-        
+
         # 테이블 생성
         for y in range(max_y, min_y - 1, -1):  # y 좌표를 역순으로 렌더링
             html += "            <tr>\n"
@@ -384,10 +384,10 @@ class MapExporter:
                     room = grid[(x, y)]
                     room_id = str(room['id'])  # type: ignore
                     exits = room['exits']  # type: ignore
-                    
+
                     # 모든 방을 동일한 스타일로 표시
                     css_class = 'room'
-                    
+
                     # 출구 화살표
                     exit_arrows = ''
                     if 'north' in exits:
@@ -398,16 +398,16 @@ class MapExporter:
                         exit_arrows += '→'
                     if 'west' in exits:
                         exit_arrows += '←'
-                    
+
                     # 엔티티 정보 수집
                     has_monster = room_id in monsters_by_room
                     has_player = room_id in players_by_room
                     has_npc = room_id in npcs_by_room
-                    
+
                     monster_count = monsters_by_room.get(room_id, 0)
                     player_count = players_by_room.get(room_id, 0)
                     npc_count = npcs_by_room.get(room_id, 0)
-                    
+
                     # 인디케이터 HTML 생성
                     indicators_html = ''
                     if has_monster or has_player or has_npc:
@@ -419,7 +419,7 @@ class MapExporter:
                         if has_npc:
                             indicators_html += '<div class="indicator npc-indicator"></div>'
                         indicators_html += '</div>'
-                    
+
                     # 툴팁 텍스트 생성
                     entity_info = []
                     if has_monster:
@@ -428,10 +428,10 @@ class MapExporter:
                         entity_info.append(f"🟢플레이어:{player_count}")
                     if has_npc:
                         entity_info.append(f"🟡NPC:{npc_count}")
-                    
+
                     entity_text = ' '.join(entity_info) if entity_info else ''
                     tooltip_text = f"{exit_arrows}({x},{y}) {entity_text}"
-                    
+
                     html += f"""                <td class="{css_class}">
                         {indicators_html}
                         <div class="tooltip">{tooltip_text}</div>
@@ -439,16 +439,16 @@ class MapExporter:
                 else:
                     html += '                <td class="empty"></td>\n'
             html += "            </tr>\n"
-        
+
         html += """        </table>
     </div>
-    
+
     <div style="text-align: center; margin-top: 30px; color: #888;">
         <p>방 위에 마우스를 올리면 상세 정보를 볼 수 있습니다</p>
         <p>툴팁 형식: [출구화살표] (x,y) [엔티티정보]</p>
         <p>화살표: ↑북 ↓남 →동 ←서</p>
     </div>
-    
+
     <div style="margin: 40px auto; max-width: 800px; padding: 20px; background-color: #2a2a2a; border-radius: 8px;">
         <h2 style="text-align: center; color: #4a9eff; margin-bottom: 20px;">🤝 종족 관계 (잿빛 기사단 기준)</h2>
         <table style="width: 100%; border-collapse: collapse;">
@@ -473,7 +473,7 @@ class MapExporter:
             <p style="margin: 5px 0;">• -50 ~ -100: <span style="color: #ff0000;">HOSTILE (적대)</span></p>
         </div>
     </div>
-    
+
     <div style="margin: 40px auto; max-width: 800px; padding: 20px; background-color: #2a2a2a; border-radius: 8px;">
         <h2 style="text-align: center; color: #4a9eff; margin-bottom: 20px;">👥 플레이어 목록</h2>
         <table style="width: 100%; border-collapse: collapse;">
@@ -493,7 +493,7 @@ class MapExporter:
 </body>
 </html>
 """
-        
+
         # 종족 관계 테이블 생성
         faction_rows = ""
         relation_colors = {
@@ -503,12 +503,12 @@ class MapExporter:
             'UNFRIENDLY': '#ffa500',
             'HOSTILE': '#ff0000'
         }
-        
+
         for faction_a, faction_b, value, status in relations:
             # 종족 이름 찾기
             faction_name = next((f[1] for f in factions if f[0] == faction_b), faction_b)
             color = relation_colors.get(status, '#888')
-            
+
             # 설명 생성
             if status == 'HOSTILE':
                 desc = '적대적 - 공격 대상'
@@ -522,7 +522,7 @@ class MapExporter:
                 desc = '동맹 - 강력한 협력'
             else:
                 desc = '-'
-            
+
             faction_rows += f"""                <tr>
                     <td style="padding: 10px; border: 1px solid #444; color: #e0e0e0;">{faction_name}</td>
                     <td style="padding: 10px; border: 1px solid #444; color: {color}; font-weight: bold;">{status}</td>
@@ -530,14 +530,14 @@ class MapExporter:
                     <td style="padding: 10px; border: 1px solid #444; color: #888;">{desc}</td>
                 </tr>
 """
-        
+
         # 플레이어 목록 테이블 생성
         player_rows = ""
         for username, last_room_id, x, y, is_admin, created_at in all_players:
             # 관리자 여부 표시
             admin_badge = "🛡️ 관리자" if is_admin else "👤 일반"
             admin_color = "#ffd700" if is_admin else "#90ee90"
-            
+
             # 현재 위치 표시 (좌표 우선, 없으면 방 ID)
             if x is not None and y is not None:
                 location = f"({x}, {y})"
@@ -545,7 +545,7 @@ class MapExporter:
                 location = last_room_id
             else:
                 location = "알 수 없음"
-            
+
             # 가입일 포맷팅
             if created_at:
                 try:
@@ -558,7 +558,7 @@ class MapExporter:
                     join_date = str(created_at)
             else:
                 join_date = "알 수 없음"
-            
+
             player_rows += f"""                <tr>
                     <td style="padding: 10px; border: 1px solid #444; color: #e0e0e0; font-weight: bold;">{username}</td>
                     <td style="padding: 10px; border: 1px solid #444; color: #888;">{location}</td>
@@ -566,11 +566,11 @@ class MapExporter:
                     <td style="padding: 10px; border: 1px solid #444; color: #888; text-align: center;">{join_date}</td>
                 </tr>
 """
-        
+
         # 템플릿 변수 치환
         html = html.replace('{faction_rows}', faction_rows)
         html = html.replace('{player_rows}', player_rows)
-        
+
         return html
 
     def _get_current_time(self) -> str:
@@ -590,40 +590,40 @@ class MapExporter:
         """
         try:
             logger.info("통합 월드 맵 HTML 생성 시작")
-            
+
             # 모든 방 정보 가져오기
             rooms_data = await self.get_all_rooms()
             logger.debug(f"방 정보 로딩 완료: {len(rooms_data)}개")
-            
+
             # 엔티티 정보 가져오기
             monsters_by_room = await self.get_monsters_by_room()
             players_by_room = await self.get_players_by_room()
             npcs_by_room = await self.get_npcs_by_room()
             logger.debug(f"엔티티 정보 로딩 완료: 몬스터 {sum(monsters_by_room.values())}마리, "
                        f"플레이어 {sum(players_by_room.values())}명, NPC {sum(npcs_by_room.values())}명")
-            
+
             # 종족 관계 정보 가져오기
             factions, relations = await self.get_faction_relations()
             logger.debug(f"종족 관계 정보 로딩 완료: 종족 {len(factions)}개, 관계 {len(relations)}개")
-            
+
             # 플레이어 목록 가져오기
             all_players = await self.get_all_players()
             logger.debug(f"플레이어 목록 로딩 완료: {len(all_players)}명")
-            
+
             # HTML 생성
-            html_content = self.generate_html(rooms_data, monsters_by_room, players_by_room, 
+            html_content = self.generate_html(rooms_data, monsters_by_room, players_by_room,
                                             npcs_by_room, factions, relations, all_players)
-            
+
             # 파일 저장
             output_file = Path(output_path)
             output_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(html_content)
-            
+
             logger.debug(f"통합 월드 맵 HTML 생성 완료: {output_path}")
             return True
-            
+
         except Exception as e:
             logger.error(f"통합 월드 맵 HTML 생성 실패: {e}", exc_info=True)
             return False

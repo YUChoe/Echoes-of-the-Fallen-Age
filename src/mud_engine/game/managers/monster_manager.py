@@ -26,12 +26,12 @@ class MonsterManager:
         self._room_manager: Optional[Any] = None  # RoomManager 참조
         self._template_loader: TemplateLoader = TemplateLoader()
         logger.info("MonsterManager 초기화 완료")
-    
+
     def set_game_engine(self, game_engine: Any) -> None:
         """GameEngine 참조를 설정합니다 (순환 참조 방지를 위해 초기화 후 설정)"""
         self._game_engine = game_engine
         logger.debug("MonsterManager에 GameEngine 참조 설정됨")
-    
+
     def set_room_manager(self, room_manager: Any) -> None:
         """RoomManager 참조를 설정합니다"""
         self._room_manager = room_manager
@@ -107,14 +107,14 @@ class MonsterManager:
             global_limit = self._global_spawn_limits.get(monster_template_id)
             if global_limit is not None:
                 all_monsters = await self.get_all_monsters()
-                global_count = sum(1 for m in all_monsters 
+                global_count = sum(1 for m in all_monsters
                                  if m.get_property('template_id') == monster_template_id and m.is_alive)
                 if global_count >= global_limit:
                     logger.debug(f"글로벌 스폰 제한 도달: {monster_template_id} ({global_count}/{global_limit})")
                     return
 
-            # 방별 제한 확인
-            current_monsters = await self._monster_repo.get_monsters_in_room(room_id)
+            # 방별 제한 확인 (좌표 기반)
+            current_monsters = await self.get_monsters_in_room(room_id)
             template_monsters = [m for m in current_monsters if m.get_property('template_id') == monster_template_id and m.is_alive]
 
             if len(template_monsters) < max_count:
@@ -128,16 +128,27 @@ class MonsterManager:
     async def _spawn_monster_from_template(self, room_id: str, template_id: str) -> Optional[Monster]:
         """템플릿을 기반으로 몬스터를 스폰합니다."""
         try:
+            # 방 좌표 조회
+            room_x, room_y = None, None
+            if self._room_manager:
+                room = await self._room_manager.get_room(room_id)
+                if room:
+                    room_x, room_y = room.x, room.y
+
             # 파일 기반 템플릿에서 몬스터 생성
             new_monster = self._template_loader.create_monster_from_template(
                 template_id=template_id,
                 monster_id=str(uuid4()),
                 room_id=room_id
             )
-            
+
             if not new_monster:
                 logger.error(f"템플릿에서 몬스터 생성 실패: {template_id}")
                 return None
+
+            # 좌표 설정
+            new_monster.x = room_x
+            new_monster.y = room_y
 
             # 로밍 설정 추가
             spawn_config = self._template_loader.get_spawn_config(template_id)
@@ -158,7 +169,7 @@ class MonsterManager:
         try:
             success = await self._monster_repo.respawn_monster(monster.id)
             if success:
-                logger.info(f"몬스터 리스폰됨: {monster.get_localized_name()} (방: {monster.spawn_room_id})")
+                logger.info(f"몬스터 리스폰됨: {monster.get_localized_name()} (좌표: {monster.x}, {monster.y})")
             return success
         except Exception as e:
             logger.error(f"몬스터 리스폰 실패 ({monster.id}): {e}")
@@ -189,7 +200,7 @@ class MonsterManager:
                 'spawn_chance': spawn_chance
             }
             self._spawn_points[room_id].append(spawn_config)
-            
+
             # 방 정보를 가져와서 좌표로 로그 표시
             try:
                 if room_manager:
@@ -273,7 +284,7 @@ class MonsterManager:
                 return 0
 
             all_monsters = await self.get_all_monsters()
-            template_monsters = [m for m in all_monsters 
+            template_monsters = [m for m in all_monsters
                                if m.get_property('template_id') == template_id and m.is_alive]
 
             excess_count = len(template_monsters) - global_limit
@@ -313,11 +324,23 @@ class MonsterManager:
 
     # === 몬스터 관리 ===
 
-    async def get_monsters_in_room(self, room_id: str) -> List[Monster]:
-        """특정 방에 있는 모든 살아있는 몬스터를 조회합니다."""
+    async def get_monsters_at_coordinates(self, x: int, y: int) -> List[Monster]:
+        """특정 좌표에 있는 모든 살아있는 몬스터를 조회합니다."""
         try:
-            all_monsters = await self._monster_repo.get_monsters_in_room(room_id)
+            all_monsters = await self._monster_repo.get_monsters_at_coordinates(x, y)
             return [monster for monster in all_monsters if monster.is_alive]
+        except Exception as e:
+            logger.error(f"좌표 ({x}, {y}) 몬스터 조회 실패: {e}")
+            return []
+
+    async def get_monsters_in_room(self, room_id: str) -> List[Monster]:
+        """특정 방에 있는 모든 살아있는 몬스터를 조회합니다 (좌표 기반)."""
+        try:
+            if self._room_manager:
+                room = await self._room_manager.get_room(room_id)
+                if room and room.x is not None and room.y is not None:
+                    return await self.get_monsters_at_coordinates(room.x, room.y)
+            return []
         except Exception as e:
             logger.error(f"방 내 몬스터 조회 실패 ({room_id}): {e}")
             return []
@@ -358,8 +381,8 @@ class MonsterManager:
                 stats=monster_data.get('stats', MonsterStats()),
                 gold_reward=monster_data.get('gold_reward', 10),
                 drop_items=monster_data.get('drop_items', []),
-                spawn_room_id=monster_data.get('spawn_room_id'),
-                current_room_id=monster_data.get('current_room_id'),
+                x=monster_data.get('x'),
+                y=monster_data.get('y'),
                 respawn_time=monster_data.get('respawn_time', 300),
                 aggro_range=monster_data.get('aggro_range', 1),
                 roaming_range=monster_data.get('roaming_range', 2),
@@ -409,47 +432,43 @@ class MonsterManager:
                 logger.warning(f"몬스터가 존재하지 않음: {monster_id}")
                 return False
 
-            # 이전 방 ID 저장
-            old_room_id = monster.current_room_id
+            # 이전 좌표 저장
+            old_x, old_y = monster.x, monster.y
 
-            # 몬스터 위치 업데이트
-            monster.current_room_id = room_id
+            # 몬스터 위치를 방의 좌표로 업데이트
+            if room_manager:
+                room = await room_manager.get_room(room_id)
+                if room and room.x is not None and room.y is not None:
+                    monster.x = room.x
+                    monster.y = room.y
+
             success = await self.update_monster(monster)
-            
+
             if success:
-                # 좌표 정보를 포함한 로그 출력
-                try:
-                    # 이전 방과 새 방의 좌표 정보 조회
+                # 좌표 정보로 로그 출력
+                old_coord = f"({old_x}, {old_y})" if old_x is not None and old_y is not None else "알 수 없음"
+                new_coord = f"({monster.x}, {monster.y})" if monster.x is not None and monster.y is not None else "알 수 없음"
+
+                # UUID의 마지막 부분만 사용
+                short_id = monster_id.split('-')[-1] if '-' in monster_id else monster_id
+                logger.info(f"몬스터 {short_id} {old_coord} -> {new_coord} 이동")
+
+                # 이동 메시지 브로드캐스트 (game_engine이 제공된 경우)
+                if game_engine and self._room_manager:
+                    # 이전 좌표와 새 좌표에서 방 ID를 찾아서 메시지 전송
                     old_room = None
                     new_room = None
-                    
-                    if room_manager:
-                        if old_room_id:
-                            old_room = await room_manager.get_room(old_room_id)
-                        new_room = await room_manager.get_room(room_id)
-                    
-                    # 좌표 정보로 로그 출력
-                    old_coord = f"({old_room.x}, {old_room.y})" if old_room else "알 수 없음"
-                    new_coord = f"({new_room.x}, {new_room.y})" if new_room else "알 수 없음"
-                    
-                    # UUID의 마지막 부분만 사용
-                    short_id = monster_id.split('-')[-1] if '-' in monster_id else monster_id
-                    if random_value > 0.0:
-                        logger.info(f"몬스터 {short_id} {old_coord} -> {new_coord} 이동 (확률: {random_value:.2f})")
-                    else:
-                        logger.info(f"몬스터 {short_id} {old_coord} -> {new_coord} 이동")
-                except Exception as coord_error:
-                    # 좌표 조회 실패 시 기존 방식으로 로그
-                    short_id = monster_id.split('-')[-1] if '-' in monster_id else monster_id
-                    logger.info(f"몬스터 {short_id} 방 {room_id} 이동")
-                    logger.debug(f"좌표 조회 실패: {coord_error}")
-                
-                # 이동 메시지 브로드캐스트 (game_engine이 제공된 경우)
-                if game_engine:
-                    await self._send_localized_monster_message(
-                        game_engine, old_room_id, room_id, monster
-                    )
-                    
+
+                    if old_x is not None and old_y is not None:
+                        old_room = await self._room_manager.get_room_at_coordinates(old_x, old_y)
+                    if monster.x is not None and monster.y is not None:
+                        new_room = await self._room_manager.get_room_at_coordinates(monster.x, monster.y)
+
+                    if old_room and new_room:
+                        await self._send_localized_monster_message(
+                            game_engine, old_room.id, new_room.id, monster
+                        )
+
             return success
         except Exception as e:
             logger.error(f"몬스터 방 이동 실패 ({monster_id} -> {room_id}): {e}")
@@ -483,7 +502,7 @@ class MonsterManager:
                 # 템플릿은 로밍하지 않음
                 if monster.get_property('is_template', False):
                     continue
-                    
+
                 if not monster.can_roam():
                     continue
 
@@ -495,21 +514,14 @@ class MonsterManager:
                 roam_chance = roaming_config.get('roam_chance', 0.5)
                 import random
                 random_value = random.random()
-                
+
                 # UUID의 마지막 부분만 사용
                 short_id = monster.id.split('-')[-1] if '-' in monster.id else monster.id
-                
+
                 if random_value > roam_chance:
                     # 현재 위치 좌표 가져오기
-                    current_coord = "알 수 없음"
-                    try:
-                        if self._room_manager and monster.current_room_id:
-                            current_room = await self._room_manager.get_room(monster.current_room_id)
-                            if current_room and hasattr(current_room, 'x') and hasattr(current_room, 'y'):
-                                current_coord = f"({current_room.x}, {current_room.y})"
-                    except Exception:
-                        pass
-                    
+                    current_coord = f"({monster.x}, {monster.y})" if monster.x is not None and monster.y is not None else "알 수 없음"
+
                     logger.info(f"몬스터 {short_id} {current_coord} 이동하지 않음 (확률: {random_value:.2f} > {roam_chance})")
                     continue
 
@@ -521,46 +533,59 @@ class MonsterManager:
     async def _roam_monster(self, monster: Monster, roaming_config: Dict[str, Any], room_manager=None, game_engine=None, random_value: float = 0.0) -> None:
         """몬스터를 로밍 범위 내에서 이동시킵니다."""
         try:
-            if not monster.current_room_id:
+            if monster.x is None or monster.y is None:
                 return
 
             if room_manager:
-                current_room = await room_manager.get_room(monster.current_room_id)
-                if not current_room or current_room.x is None or current_room.y is None:
-                    return
 
                 roaming_area = roaming_config.get('roaming_area')
                 if not roaming_area:
                     roaming_area = {}
-                
+
                 min_x = roaming_area.get('min_x')
                 max_x = roaming_area.get('max_x')
                 min_y = roaming_area.get('min_y')
                 max_y = roaming_area.get('max_y')
 
-                available_exits = []
-                for direction, target_room_id in current_room.exits.items():
-                    target_room = await room_manager.get_room(target_room_id)
-                    if not target_room or target_room.x is None or target_room.y is None:
+                # 좌표 기반으로 가능한 방향 계산
+                from ...utils.coordinate_utils import Direction, calculate_new_coordinates
+
+                available_moves = []
+                current_x, current_y = monster.x, monster.y
+
+                # 모든 방향에 대해 인접 좌표 확인
+                for direction in Direction:
+                    target_x, target_y = calculate_new_coordinates(current_x, current_y, direction)
+
+                    # 로밍 영역 제한 확인
+                    if min_x is not None and target_x < min_x:
+                        continue
+                    if max_x is not None and target_x > max_x:
+                        continue
+                    if min_y is not None and target_y < min_y:
+                        continue
+                    if max_y is not None and target_y > max_y:
                         continue
 
-                    if min_x is not None and target_room.x < min_x:
-                        continue
-                    if max_x is not None and target_room.x > max_x:
-                        continue
-                    if min_y is not None and target_room.y < min_y:
-                        continue
-                    if max_y is not None and target_room.y > max_y:
-                        continue
+                    # 해당 좌표에 방이 존재하는지 확인
+                    target_room = await room_manager.get_room_at_coordinates(target_x, target_y)
+                    if target_room:
+                        available_moves.append((direction, target_x, target_y))
 
-                    available_exits.append((direction, target_room_id))
-
-                if not available_exits:
+                if not available_moves:
                     return
 
                 import random
-                _, target_room_id = random.choice(available_exits)
-                success = await self.move_monster_to_room(monster.id, target_room_id, room_manager, game_engine, random_value)
+                _, target_x, target_y = random.choice(available_moves)
+
+                # 몬스터 좌표 직접 업데이트
+                monster.x = target_x
+                monster.y = target_y
+                success = await self.update_monster(monster)
+
+                if success:
+                    short_id = monster.id.split('-')[-1] if '-' in monster.id else monster.id
+                    logger.info(f"몬스터 {short_id} ({current_x}, {current_y}) -> ({target_x}, {target_y}) 로밍 (확률: {random_value:.2f})")
         except Exception as e:
             logger.error(f"몬스터 로밍 실패 ({monster.id}): {e}")
 
@@ -580,9 +605,9 @@ class MonsterManager:
                 if self._is_monster_in_combat(monster.id, combat_system):
                     continue
 
-                if monster.current_room_id == room_id:
-                    logger.info(f"선공형 몬스터 {monster.get_localized_name('ko')}가 플레이어 {player_id}를 공격합니다")
-                    return monster
+                # 이미 get_monsters_in_room에서 해당 방의 몬스터만 조회하므로 추가 확인 불필요
+                logger.info(f"선공형 몬스터 {monster.get_localized_name('ko')}가 플레이어 {player_id}를 공격합니다")
+                return monster
             return None
         except Exception as e:
             logger.error(f"선공형 몬스터 확인 실패: {e}")
@@ -639,45 +664,45 @@ class MonsterManager:
         try:
             from ...core.localization import get_localization_manager
             localization = get_localization_manager()
-            
+
             # 이전 방의 플레이어들에게 퇴장 알림
             if old_room_id and old_room_id != new_room_id:
                 sessions_in_old_room = []
                 for session in game_engine.session_manager.get_all_sessions():
                     if hasattr(session, 'current_room_id') and session.current_room_id == old_room_id:
                         sessions_in_old_room.append(session)
-                
+
                 for session in sessions_in_old_room:
                     if session.player:
                         locale = getattr(session.player, 'preferred_locale', 'en')
                         monster_name = monster.get_localized_name(locale)
-                        
+
                         message = localization.get_message("monster.leaves", locale, monster_name=monster_name)
-                        
+
                         await session.send_message({
                             "type": "room_message",
                             "message": message,
                             "timestamp": datetime.now().isoformat()
                         })
-            
+
             # 새 방의 플레이어들에게 입장 알림
             sessions_in_new_room = []
             for session in game_engine.session_manager.get_all_sessions():
                 if hasattr(session, 'current_room_id') and session.current_room_id == new_room_id:
                     sessions_in_new_room.append(session)
-            
+
             for session in sessions_in_new_room:
                 if session.player:
                     locale = getattr(session.player, 'preferred_locale', 'en')
                     monster_name = monster.get_localized_name(locale)
-                    
+
                     message = localization.get_message("monster.appears", locale, monster_name=monster_name)
-                    
+
                     await session.send_message({
                         "type": "room_message",
                         "message": message,
                         "timestamp": datetime.now().isoformat()
                     })
-                    
+
         except Exception as e:
             logger.error(f"다국어 몬스터 메시지 전송 실패: {e}")

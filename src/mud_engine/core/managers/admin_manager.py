@@ -90,7 +90,7 @@ class AdminManager:
                 "room": {
                     "id": updated_room.id,
                     "description": updated_room.description,
-                    "exits": updated_room.exits
+                    "coordinates": f"({updated_room.x}, {updated_room.y})" if updated_room.x is not None and updated_room.y is not None else "알 수 없음"
                 }
             })
 

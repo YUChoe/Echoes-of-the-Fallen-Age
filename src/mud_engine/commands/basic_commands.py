@@ -525,7 +525,18 @@ class ExitsCommand(BaseCommand):
             if not current_room:
                 return self.create_error_result("현재 방을 찾을 수 없습니다.")
 
-            exits = current_room.get_available_exits()
+            # 좌표 기반으로 사용 가능한 출구 계산
+            exits = []
+            if current_room.x is not None and current_room.y is not None:
+                from ..utils.coordinate_utils import Direction, calculate_new_coordinates
+
+                # 각 방향에 대해 방이 존재하는지 확인
+                for direction in Direction:
+                    new_x, new_y = calculate_new_coordinates(current_room.x, current_room.y, direction)
+                    adjacent_room = await game_engine.world_manager.get_room_at_coordinates(new_x, new_y)
+                    if adjacent_room:
+                        exits.append(direction.value)
+
             if not exits:
                 return self.create_info_result(localization.get_message("exits.no_exits", locale))
 

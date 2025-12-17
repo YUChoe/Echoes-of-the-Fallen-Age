@@ -41,7 +41,7 @@ class TemplateLoader:
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     template_data = json.load(f)
-                
+
                 template_id = template_data.get('template_id')
                 if not template_id:
                     logger.warning(f"template_id가 없는 파일: {json_file}")
@@ -63,7 +63,7 @@ class TemplateLoader:
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     template_data = json.load(f)
-                
+
                 # 단일 템플릿 또는 템플릿 배열 처리
                 if isinstance(template_data, list):
                     for template in template_data:
@@ -134,8 +134,8 @@ class TemplateLoader:
                 stats=stats,
                 gold_reward=template.get('gold_reward', 0),
                 drop_items=template.get('drop_items', []),
-                spawn_room_id=room_id,
-                current_room_id=room_id,
+                x=None,  # 좌표는 나중에 설정
+                y=None,  # 좌표는 나중에 설정
                 respawn_time=template.get('respawn_time', 300),
                 aggro_range=template.get('aggro_range', 0),
                 roaming_range=template.get('roaming_range', 0),
@@ -152,7 +152,7 @@ class TemplateLoader:
     def create_item_from_template(self, template_id: str, item_id: str, location_type: str = "room", location_id: Optional[str] = None) -> Optional['GameObject']:
         """템플릿에서 아이템 인스턴스를 생성합니다."""
         from ..game.models import GameObject
-        
+
         template = self.get_item_template(template_id)
         if not template:
             logger.error(f"아이템 템플릿을 찾을 수 없음: {template_id}")
@@ -165,17 +165,17 @@ class TemplateLoader:
                 name['en'] = template['name_en']
             if template.get('name_ko'):
                 name['ko'] = template['name_ko']
-            
+
             # 이름이 비어있으면 기본값 설정
             if not name:
                 name = {'ko': template_id, 'en': template_id}
-            
+
             description = {}
             if template.get('description_en'):
                 description['en'] = template['description_en']
             if template.get('description_ko'):
                 description['ko'] = template['description_ko']
-            
+
             # 설명이 비어있으면 기본값 설정
             if not description:
                 description = {'ko': f'{template_id} 아이템입니다.', 'en': f'This is {template_id} item.'}

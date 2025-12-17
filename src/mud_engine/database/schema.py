@@ -35,7 +35,11 @@ DATABASE_SCHEMA: List[str] = [
         stat_temporary_effects TEXT DEFAULT '{}',
 
         -- 경제 시스템
-        gold INTEGER DEFAULT 100
+        gold INTEGER DEFAULT 100,
+
+        -- 퀘스트 시스템
+        completed_quests TEXT DEFAULT '[]', -- JSON 형태로 저장 (완료된 퀘스트 ID 목록)
+        quest_progress TEXT DEFAULT '{}' -- JSON 형태로 저장 (진행 중인 퀘스트 상태)
     );
     """,
 
@@ -120,17 +124,15 @@ DATABASE_SCHEMA: List[str] = [
         experience_reward INTEGER DEFAULT 50,
         gold_reward INTEGER DEFAULT 10,
         drop_items TEXT DEFAULT '[]', -- JSON 형태로 저장 (DropItem 목록)
-        spawn_room_id TEXT, -- 스폰 방 ID
-        current_room_id TEXT, -- 현재 위치한 방 ID
+        x INTEGER, -- X 좌표
+        y INTEGER, -- Y 좌표
         respawn_time INTEGER DEFAULT 300, -- 리스폰 시간 (초)
         last_death_time TIMESTAMP, -- 마지막 사망 시간
         is_alive BOOLEAN DEFAULT TRUE, -- 생존 상태
         aggro_range INTEGER DEFAULT 1, -- 어그로 범위
         roaming_range INTEGER DEFAULT 2, -- 로밍 범위
         properties TEXT DEFAULT '{}', -- JSON 형태로 저장
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (spawn_room_id) REFERENCES rooms(id) ON DELETE SET NULL,
-        FOREIGN KEY (current_room_id) REFERENCES rooms(id) ON DELETE SET NULL
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """,
 
@@ -153,8 +155,7 @@ DATABASE_SCHEMA: List[str] = [
     CREATE INDEX IF NOT EXISTS idx_translations_key ON translations(key);
     CREATE INDEX IF NOT EXISTS idx_npcs_room ON npcs(current_room_id);
     CREATE INDEX IF NOT EXISTS idx_npcs_type ON npcs(npc_type);
-    CREATE INDEX IF NOT EXISTS idx_monsters_spawn_room ON monsters(spawn_room_id);
-    CREATE INDEX IF NOT EXISTS idx_monsters_current_room ON monsters(current_room_id);
+    CREATE INDEX IF NOT EXISTS idx_monsters_coordinates ON monsters(x, y);
     CREATE INDEX IF NOT EXISTS idx_monsters_type ON monsters(monster_type);
     CREATE INDEX IF NOT EXISTS idx_monsters_alive ON monsters(is_alive);
     """
@@ -329,24 +330,21 @@ async def migrate_database(db_manager) -> None:
                 experience_reward INTEGER DEFAULT 50,
                 gold_reward INTEGER DEFAULT 10,
                 drop_items TEXT DEFAULT '[]',
-                spawn_room_id TEXT,
-                current_room_id TEXT,
+                x INTEGER,
+                y INTEGER,
                 respawn_time INTEGER DEFAULT 300,
                 last_death_time TIMESTAMP,
                 is_alive BOOLEAN DEFAULT TRUE,
                 aggro_range INTEGER DEFAULT 1,
                 roaming_range INTEGER DEFAULT 2,
                 properties TEXT DEFAULT '{}',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (spawn_room_id) REFERENCES rooms(id) ON DELETE SET NULL,
-                FOREIGN KEY (current_room_id) REFERENCES rooms(id) ON DELETE SET NULL
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """
             await db_manager.execute(monster_table_sql)
 
             # Monster 인덱스 생성
-            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_monsters_spawn_room ON monsters(spawn_room_id)")
-            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_monsters_current_room ON monsters(current_room_id)")
+            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_monsters_coordinates ON monsters(x, y)")
             await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_monsters_type ON monsters(monster_type)")
             await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_monsters_alive ON monsters(is_alive)")
 

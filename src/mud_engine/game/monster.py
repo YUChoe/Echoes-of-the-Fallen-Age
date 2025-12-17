@@ -36,10 +36,10 @@ class MonsterStats:
     intelligence: int = 10  # 지능 - 마법 공격력
     wisdom: int = 10        # 지혜 - 마법 방어력
     charisma: int = 10      # 매력 - 특수 능력
-    
+
     # 레벨
     level: int = 1
-    
+
     # 현재 HP (최대 HP는 constitution 기반 계산)
     current_hp: int = 0
 
@@ -55,11 +55,11 @@ class MonsterStats:
         con_bonus = self.constitution * 2
         level_bonus = self.level * 5
         return base_hp + con_bonus + level_bonus
-    
+
     def get_max_hp(self) -> int:
         """최대 HP 반환"""
         return self.max_hp
-    
+
     @property
     def attack_power(self) -> int:
         """공격력 계산: 기본 1 + (힘 / 2) + 레벨"""
@@ -67,30 +67,30 @@ class MonsterStats:
         str_bonus = self.strength // 2
         level_bonus = self.level
         return base_atk + str_bonus + level_bonus
-    
+
     @property
     def defense(self) -> int:
         """방어력 계산: 체력 / 3"""
         return self.constitution // 3
-    
+
     @property
     def armor_class(self) -> int:
         """AC (방어도) 계산: 10 + 민첩 보정치"""
         dex_modifier = (self.dexterity - 10) // 2
         return 10 + dex_modifier
-    
+
     @property
     def attack_bonus(self) -> int:
         """공격 보너스 계산: 힘 보정치 + (레벨 / 4)"""
         str_modifier = (self.strength - 10) // 2
         proficiency = self.level // 4
         return str_modifier + proficiency
-    
+
     @property
     def initiative_bonus(self) -> int:
         """선공 보너스 계산: 민첩 보정치"""
         return (self.dexterity - 10) // 2
-    
+
     @property
     def speed(self) -> int:
         """속도 계산: 기본 10 + (민첩 / 2)"""
@@ -170,8 +170,8 @@ class Monster(BaseModel):
     stats: MonsterStats = field(default_factory=MonsterStats)
     gold_reward: int = 10  # 처치 시 주는 골드
     drop_items: List[DropItem] = field(default_factory=list)  # 드롭 아이템 목록
-    spawn_room_id: Optional[str] = None  # 스폰 방 ID
-    current_room_id: Optional[str] = None  # 현재 위치한 방 ID
+    x: Optional[int] = None  # X 좌표
+    y: Optional[int] = None  # Y 좌표
     respawn_time: int = 300  # 리스폰 시간 (초)
     last_death_time: Optional[datetime] = None  # 마지막 사망 시간
     is_alive: bool = True  # 생존 상태
@@ -185,9 +185,6 @@ class Monster(BaseModel):
     def __post_init__(self):
         """초기화 후 검증"""
         self.validate()
-        # 현재 방이 설정되지 않았으면 스폰 방으로 설정
-        if not self.current_room_id and self.spawn_room_id:
-            self.current_room_id = self.spawn_room_id
 
     def validate(self) -> None:
         """몬스터 데이터 유효성 검증"""
@@ -287,9 +284,7 @@ class Monster(BaseModel):
         self.is_alive = True
         self.last_death_time = None
         self.stats.current_hp = self.stats.max_hp
-        # 스폰 방으로 이동
-        if self.spawn_room_id:
-            self.current_room_id = self.spawn_room_id
+        # 좌표는 그대로 유지 (원래 스폰 위치에서 리스폰)
 
     def get_drop_items(self) -> List[Dict[str, Any]]:
         """실제 드롭될 아이템 목록 계산"""
