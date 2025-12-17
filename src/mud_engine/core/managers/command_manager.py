@@ -67,6 +67,10 @@ class CommandManager:
         self.command_processor.register_command(UnequipCommand())
         self.command_processor.register_command(UseCommand())
 
+        # 장비 관련 명령어들 등록 (unequipall만 유지)
+        from ...commands.equipment_commands import UnequipAllCommand
+        self.command_processor.register_command(UnequipAllCommand())
+
         # 방향별 이동 명령어들 등록
         directions = [
             ('north', ['n']),

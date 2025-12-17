@@ -23,10 +23,10 @@ class SayCommand(BaseCommand):
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         from ..core.localization import get_localization_manager
-        
+
         localization = get_localization_manager()
         locale = session.player.preferred_locale if session.player else "en"
-        
+
         if not self.validate_args(args, min_args=1):
             error_msg = localization.get_message("say.usage_error", locale)
             return self.create_error_result(error_msg)
@@ -112,14 +112,14 @@ class WhoCommand(BaseCommand):
         locale = getattr(session.player, 'preferred_locale', None) if session.player else None
         if not locale:
             locale = getattr(session, 'locale', 'en')
-        
+
         if not self.session_manager:
             # 기본 구현
             header = localization.get_message("who.connected_players", locale, count=1)
             you_marker = localization.get_message("who.you_marker", locale)
-            player_entry = localization.get_message("who.player_entry", locale, 
-                                                   username=session.player.username, 
-                                                   marker=you_marker, 
+            player_entry = localization.get_message("who.player_entry", locale,
+                                                   username=session.player.username,
+                                                   marker=you_marker,
                                                    time=0)
             response = f"{header}\n{player_entry}"
 
@@ -135,7 +135,7 @@ class WhoCommand(BaseCommand):
         # SessionManager를 통해 실제 접속자 목록 가져오기
         players = []
         logger.info(f"who 명령어 실행 - 세션 수: {len(self.session_manager.sessions)}")
-        
+
         for sess in self.session_manager.iter_authenticated_sessions():
             logger.info(f"세션 확인: {sess.session_id}, is_authenticated: {sess.is_authenticated}, player: {sess.player}")
             if sess.player:
@@ -145,15 +145,15 @@ class WhoCommand(BaseCommand):
                     "session_time": int(session_time),
                     "is_self": sess.session_id == session.session_id
                 })
-        
+
         logger.info(f"who 명령어 - 찾은 플레이어 수: {len(players)}")
-        
+
         if not players:
             return self.create_info_result(localization.get_message("who.no_players", locale))
 
         header = localization.get_message("who.connected_players", locale, count=len(players))
         response_lines = [header]
-        
+
         for player in players:
             marker = localization.get_message("who.you_marker", locale) if player["is_self"] else ""
             player_entry = localization.get_message("who.player_entry", locale,
@@ -209,12 +209,12 @@ class LookCommand(BaseCommand):
                         from ..core.managers.player_movement_manager import PlayerMovementManager
                         movement_mgr = game_engine.movement_manager
                         combat_status = movement_mgr._format_combat_status(combat)
-                        
+
                         current = combat.get_current_combatant()
                         from ..core.localization import get_localization_manager
                         localization = get_localization_manager()
                         locale = session.player.preferred_locale if session.player else "en"
-                        
+
                         if current and current.id == session.player.id:
                             turn_info = f"""
 
@@ -227,7 +227,7 @@ class LookCommand(BaseCommand):
 {localization.get_message("combat.enter_command", locale)}"""
                         else:
                             turn_info = f"\n\n⏳ {current.name}의 턴입니다..."
-                        
+
                         return self.create_success_result(
                             message=f"{combat_status}{turn_info}",
                             data={"action": "look_combat", "combat_id": combat_id}
@@ -251,7 +251,7 @@ class LookCommand(BaseCommand):
             from ..core.localization import get_localization_manager
             localization = get_localization_manager()
             locale = session.player.preferred_locale if session.player else "en"
-            
+
             return self.create_success_result(
                 message=localization.get_message("look.refresh", locale),
                 data={
@@ -315,7 +315,7 @@ class HelpCommand(BaseCommand):
             from ..core.localization import get_localization_manager
             localization = get_localization_manager()
             locale = session.player.preferred_locale if session.player else "en"
-            
+
             combat_help = f"""
 {localization.get_message("combat.help_title", locale)}
 
@@ -330,7 +330,7 @@ class HelpCommand(BaseCommand):
 
 💡 {localization.get_message("help.tip_numbers", locale, default="팁: 숫자만 입력해도 행동을 선택할 수 있습니다!" if locale == "ko" else "Tip: You can just enter numbers to select actions!")}
 """
-            
+
             return self.create_success_result(
                 message=combat_help.strip(),
                 data={"action": "help_combat"}
@@ -372,12 +372,12 @@ class QuitCommand(BaseCommand):
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         from ..core.localization import get_localization_manager
-        
+
         localization = get_localization_manager()
         locale = getattr(session.player, 'preferred_locale', 'en') if session.player else 'en'
-        
+
         message = localization.get_message("quit.message", locale)
-        
+
         return self.create_success_result(
             message=message,
             data={
@@ -427,7 +427,7 @@ class MoveCommand(BaseCommand):
         try:
             # 좌표 기반 이동 시스템 사용
             success = await game_engine.movement_manager.move_player_by_direction(session, self.direction)
-            
+
             if success:
                 from ..core.localization import get_localization_manager
                 localization = get_localization_manager()
@@ -461,7 +461,7 @@ class GoCommand(BaseCommand):
         from ..core.localization import get_localization_manager
         localization = get_localization_manager()
         locale = session.player.preferred_locale if session.player else "en"
-        
+
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(localization.get_message("go.usage_error", locale))
 
@@ -505,7 +505,7 @@ class ExitsCommand(BaseCommand):
         from ..core.localization import get_localization_manager
         localization = get_localization_manager()
         locale = session.player.preferred_locale if session.player else "en"
-        
+
         if not session.is_authenticated or not session.player:
             return self.create_error_result(localization.get_message("auth.not_authenticated", locale))
 
@@ -571,10 +571,10 @@ class StatsCommand(BaseCommand):
 
             if detailed:
                 # 상세 능력치 표시
-                response = self._format_detailed_stats(player, stats)
+                response = await self._format_detailed_stats(player, stats, session)
             else:
                 # 기본 능력치 표시
-                response = self._format_basic_stats(player, stats)
+                response = await self._format_basic_stats(player, stats, session)
 
             return self.create_success_result(
                 message=response,
@@ -590,93 +590,293 @@ class StatsCommand(BaseCommand):
             logger.error(f"능력치 확인 명령어 실행 중 오류: {e}")
             return self.create_error_result("능력치 정보를 확인하는 중 오류가 발생했습니다.")
 
-    def _format_basic_stats(self, player, stats) -> str:
-        """기본 능력치 표시 형식"""
+    async def _format_basic_stats(self, player, stats, session) -> str:
+        """기본 능력치 표시 형식 (장비 정보 포함)"""
         from ..game.stats import StatType
+        from ..core.localization import get_localization_manager
 
-        # 기본 정보
-        response = f"""
-📊 {player.username}의 능력치
+        # 로케일 설정
+        locale = getattr(session.player, 'preferred_locale', 'ko') if session.player else 'ko'
+        localization = get_localization_manager()
 
-🎯 기본 정보:
-• 레벨: {stats.level}
-• 경험치: {stats.experience:,} / {stats.experience_to_next:,}
+        # 장비 정보 가져오기
+        equipment_display = await self._get_equipment_display(session)
 
-💪 1차 능력치:
-• 힘 (STR): {stats.get_primary_stat(StatType.STR)}
-• 민첩 (DEX): {stats.get_primary_stat(StatType.DEX)}
-• 지능 (INT): {stats.get_primary_stat(StatType.INT)}
-• 지혜 (WIS): {stats.get_primary_stat(StatType.WIS)}
-• 체력 (CON): {stats.get_primary_stat(StatType.CON)}
-• 매력 (CHA): {stats.get_primary_stat(StatType.CHA)}
+        # 다국어 텍스트
+        if locale == 'ko':
+            title = f"📊 {player.username}의 능력치"
+            basic_info = "🎯 기본 정보:"
+            primary_stats = "💪 1차 능력치:"
+            main_stats = "❤️ 주요 스탯:"
+            combat_stats = "⚔️ 전투 능력:"
+            misc_info = "💼 기타:"
+            detail_tip = "💡 상세한 정보를 보려면 'stats 상세'를 입력하세요."
+            level_text = "레벨"
+            max_weight_text = "최대 소지무게"
+        else:
+            title = f"📊 {player.username}'s Stats"
+            basic_info = "🎯 Basic Info:"
+            primary_stats = "💪 Primary Stats:"
+            main_stats = "❤️ Main Stats:"
+            combat_stats = "⚔️ Combat Stats:"
+            misc_info = "💼 Misc:"
+            detail_tip = "💡 Type 'stats detail' for more information."
+            level_text = "Level"
+            max_weight_text = "Max Carry Weight"
 
-❤️ 주요 스탯:
-• 생명력 (HP): {stats.get_secondary_stat(StatType.HP)}
-• 마나 (MP): {stats.get_secondary_stat(StatType.MP)}
-• 스태미나 (STA): {stats.get_secondary_stat(StatType.STA)}
+        # 80칼럼 활용한 2열 배치
+        str_val = stats.get_primary_stat(StatType.STR)
+        dex_val = stats.get_primary_stat(StatType.DEX)
+        int_val = stats.get_primary_stat(StatType.INT)
+        wis_val = stats.get_primary_stat(StatType.WIS)
+        con_val = stats.get_primary_stat(StatType.CON)
+        cha_val = stats.get_primary_stat(StatType.CHA)
 
-⚔️ 전투 능력:
-• 공격력 (ATK): {stats.get_secondary_stat(StatType.ATK)}
-• 방어력 (DEF): {stats.get_secondary_stat(StatType.DEF)}
-• 속도 (SPD): {stats.get_secondary_stat(StatType.SPD)}
+        hp_val = stats.get_secondary_stat(StatType.HP)
+        mp_val = stats.get_secondary_stat(StatType.MP)
+        sta_val = stats.get_secondary_stat(StatType.STA)
+        atk_val = stats.get_secondary_stat(StatType.ATK)
+        def_val = stats.get_secondary_stat(StatType.DEF)
+        spd_val = stats.get_secondary_stat(StatType.SPD)
 
-💼 기타:
-• 최대 소지무게: {stats.get_max_carry_weight()}kg
+        response = f"""{title}
 
-💡 상세한 정보를 보려면 'stats 상세'를 입력하세요.
-        """.strip()
+{basic_info}
+• {level_text}: {stats.level}
+
+{primary_stats}
+• STR: {str_val:2d}    • DEX: {dex_val:2d}    • INT: {int_val:2d}
+• WIS: {wis_val:2d}    • CON: {con_val:2d}    • CHA: {cha_val:2d}
+
+{main_stats}
+• HP: {hp_val:3d}      • MP: {mp_val:3d}      • STA: {sta_val:3d}
+
+{combat_stats}
+• ATK: {atk_val:2d}     • DEF: {def_val:2d}     • SPD: {spd_val:2d}
+
+{misc_info}
+• {max_weight_text}: {stats.get_max_carry_weight()}kg
+
+{equipment_display}
+
+{detail_tip}"""
 
         return response
 
-    def _format_detailed_stats(self, player, stats) -> str:
+    async def _format_detailed_stats(self, player, stats, session) -> str:
         """상세 능력치 표시 형식"""
         from ..game.stats import StatType
+
+        # 로케일 설정
+        locale = getattr(session.player, 'preferred_locale', 'ko') if session.player else 'ko'
 
         # 장비 보너스 정보
         equipment_info = ""
         if stats.equipment_bonuses:
-            equipment_info = "\n🎒 장비 보너스:\n"
+            if locale == 'ko':
+                equipment_info = "\n🎒 장비 보너스:\n"
+            else:
+                equipment_info = "\n🎒 Equipment Bonuses:\n"
             for stat_name, bonus in stats.equipment_bonuses.items():
                 if bonus > 0:
                     equipment_info += f"• {stat_name}: +{bonus}\n"
 
-        # 상세 정보
-        response = f"""
-📊 {player.username}의 상세 능력치
+        # 다국어 텍스트
+        if locale == 'ko':
+            title = f"📊 {player.username}의 상세 능력치"
+            basic_info = "🎯 기본 정보:"
+            primary_stats = "💪 1차 능력치 (기본 스탯):"
+            secondary_stats = "❤️ 2차 능력치 (파생 스탯):"
+            misc_info = "💼 기타 정보:"
+            formulas = "📈 능력치 계산 공식:"
+            level_text = "레벨"
+            base_text = "기본"
+            max_weight_text = "최대 소지무게"
+        else:
+            title = f"📊 {player.username}'s Detailed Stats"
+            basic_info = "🎯 Basic Info:"
+            primary_stats = "💪 Primary Stats (Base):"
+            secondary_stats = "❤️ Secondary Stats (Derived):"
+            misc_info = "💼 Misc Info:"
+            formulas = "📈 Stat Calculation Formulas:"
+            level_text = "Level"
+            base_text = "base"
+            max_weight_text = "Max Carry Weight"
 
-🎯 기본 정보:
-• 레벨: {stats.level}
-• 경험치: {stats.experience:,} / {stats.experience_to_next:,}
-• 다음 레벨까지: {stats.experience_to_next - stats.experience:,} EXP
+        # 능력치 값들
+        str_total = stats.get_primary_stat(StatType.STR)
+        dex_total = stats.get_primary_stat(StatType.DEX)
+        int_total = stats.get_primary_stat(StatType.INT)
+        wis_total = stats.get_primary_stat(StatType.WIS)
+        con_total = stats.get_primary_stat(StatType.CON)
+        cha_total = stats.get_primary_stat(StatType.CHA)
 
-💪 1차 능력치 (기본 스탯):
-• 힘 (STR): {stats.get_primary_stat(StatType.STR)} (기본: {stats.strength})
-• 민첩 (DEX): {stats.get_primary_stat(StatType.DEX)} (기본: {stats.dexterity})
-• 지능 (INT): {stats.get_primary_stat(StatType.INT)} (기본: {stats.intelligence})
-• 지혜 (WIS): {stats.get_primary_stat(StatType.WIS)} (기본: {stats.wisdom})
-• 체력 (CON): {stats.get_primary_stat(StatType.CON)} (기본: {stats.constitution})
-• 매력 (CHA): {stats.get_primary_stat(StatType.CHA)} (기본: {stats.charisma})
+        hp_val = stats.get_secondary_stat(StatType.HP)
+        mp_val = stats.get_secondary_stat(StatType.MP)
+        sta_val = stats.get_secondary_stat(StatType.STA)
+        atk_val = stats.get_secondary_stat(StatType.ATK)
+        def_val = stats.get_secondary_stat(StatType.DEF)
+        spd_val = stats.get_secondary_stat(StatType.SPD)
+        res_val = stats.get_secondary_stat(StatType.RES)
+        lck_val = stats.get_secondary_stat(StatType.LCK)
+        inf_val = stats.get_secondary_stat(StatType.INF)
 
-❤️ 2차 능력치 (파생 스탯):
-• 생명력 (HP): {stats.get_secondary_stat(StatType.HP)}
-• 마나 (MP): {stats.get_secondary_stat(StatType.MP)}
-• 스태미나 (STA): {stats.get_secondary_stat(StatType.STA)}
-• 공격력 (ATK): {stats.get_secondary_stat(StatType.ATK)}
-• 방어력 (DEF): {stats.get_secondary_stat(StatType.DEF)}
-• 속도 (SPD): {stats.get_secondary_stat(StatType.SPD)}
-• 마법저항 (RES): {stats.get_secondary_stat(StatType.RES)}
-• 운 (LCK): {stats.get_secondary_stat(StatType.LCK)}
-• 영향력 (INF): {stats.get_secondary_stat(StatType.INF)}
-
-💼 기타 정보:
-• 최대 소지무게: {stats.get_max_carry_weight()}kg{equipment_info}
-
-📈 능력치 계산 공식:
-• HP = 100 + (체력 × 5) + (레벨 × 10)
+        # 공식 텍스트
+        if locale == 'ko':
+            formula_text = """• HP = 100 + (체력 × 5) + (레벨 × 10)
 • MP = 50 + (지능 × 3) + (지혜 × 2) + (레벨 × 5)
 • ATK = 10 + (힘 × 2) + 레벨
 • DEF = 5 + (체력 × 1.5) + (레벨 × 0.5)
-• SPD = 10 + (민첩 × 1.5)
-        """.strip()
+• SPD = 10 + (민첩 × 1.5)"""
+        else:
+            formula_text = """• HP = 100 + (CON × 5) + (Level × 10)
+• MP = 50 + (INT × 3) + (WIS × 2) + (Level × 5)
+• ATK = 10 + (STR × 2) + Level
+• DEF = 5 + (CON × 1.5) + (Level × 0.5)
+• SPD = 10 + (DEX × 1.5)"""
+
+        response = f"""{title}
+
+{basic_info}
+• {level_text}: {stats.level}
+
+{primary_stats}
+• STR: {str_total:2d} ({base_text}: {stats.strength:2d})    • DEX: {dex_total:2d} ({base_text}: {stats.dexterity:2d})
+• INT: {int_total:2d} ({base_text}: {stats.intelligence:2d})    • WIS: {wis_total:2d} ({base_text}: {stats.wisdom:2d})
+• CON: {con_total:2d} ({base_text}: {stats.constitution:2d})    • CHA: {cha_total:2d} ({base_text}: {stats.charisma:2d})
+
+{secondary_stats}
+• HP: {hp_val:3d}    • MP: {mp_val:3d}    • STA: {sta_val:3d}
+• ATK: {atk_val:2d}     • DEF: {def_val:2d}     • SPD: {spd_val:2d}
+• RES: {res_val:2d}     • LCK: {lck_val:2d}     • INF: {inf_val:2d}
+
+{misc_info}
+• {max_weight_text}: {stats.get_max_carry_weight()}kg{equipment_info}
+
+{formulas}
+{formula_text}"""
 
         return response
+    async def _get_equipment_display(self, session) -> str:
+        """장비 상태 표시 - 모든 슬롯을 2열 레이아웃으로 표시"""
+        try:
+            # GameEngine 접근
+            game_engine = getattr(session, 'game_engine', None)
+            if not game_engine or not session.player:
+                return ""
+
+            # 착용 중인 장비들 조회
+            equipped_items = await game_engine.world_manager.get_equipped_objects(session.player.id)
+
+            # 로케일 설정
+            locale = getattr(session.player, 'preferred_locale', 'ko') if session.player else 'ko'
+
+            # 부위별 장착 상태 매핑
+            equipment_slots = self._get_equipment_slots_display(locale)
+            equipped_by_slot = {}
+
+            for item in equipped_items:
+                if item.equipment_slot:
+                    equipped_by_slot[item.equipment_slot] = item
+
+            # 다국어 텍스트
+            if locale == 'ko':
+                title = "⚔️ 장비 상태:"
+                equipped_suffix = " ← 착용됨"
+            else:
+                title = "⚔️ Equipment Status:"
+                equipped_suffix = " ← Equipped"
+
+            # 슬롯 순서 정의 (2열 배치용)
+            slot_order = [
+                'head', 'right_arm',
+                'shoulder', 'left_arm',
+                'chest', 'right_hand',
+                'left_hand', 'waist',
+                'legs', 'feet',
+                'back', None  # None으로 홀수 개수 처리
+            ]
+
+            response = f"{title}\n"
+
+            # 2열로 배치
+            for i in range(0, len(slot_order), 2):
+                left_slot = slot_order[i]
+                right_slot = slot_order[i + 1] if i + 1 < len(slot_order) else None
+
+                # 왼쪽 슬롯
+                if left_slot and left_slot in equipment_slots:
+                    slot_info = equipment_slots[left_slot]
+                    slot_icon = slot_info['icon']
+                    slot_name = slot_info['name']
+
+                    if left_slot in equipped_by_slot:
+                        item = equipped_by_slot[left_slot]
+                        item_name = item.get_localized_name(locale)
+                        left_text = f"{slot_icon} {slot_name} ← {item_name}"
+                    else:
+                        left_text = f"{slot_icon} {slot_name}"
+                else:
+                    left_text = ""
+
+                # 오른쪽 슬롯
+                if right_slot and right_slot in equipment_slots:
+                    slot_info = equipment_slots[right_slot]
+                    slot_icon = slot_info['icon']
+                    slot_name = slot_info['name']
+
+                    if right_slot in equipped_by_slot:
+                        item = equipped_by_slot[right_slot]
+                        item_name = item.get_localized_name(locale)
+                        right_text = f"{slot_icon} {slot_name} ← {item_name}"
+                    else:
+                        right_text = f"{slot_icon} {slot_name}"
+                else:
+                    right_text = ""
+
+                # 2열 배치 (40칼럼씩)
+                if right_text:
+                    response += f"{left_text:<40} {right_text}\n"
+                else:
+                    response += f"{left_text}\n"
+
+            return response.strip()
+
+        except Exception as e:
+            logger.error(f"장비 정보 표시 중 오류: {e}")
+            locale = getattr(session.player, 'preferred_locale', 'ko') if session.player else 'ko'
+            if locale == 'ko':
+                return "⚔️ 장비: 정보를 불러올 수 없습니다."
+            else:
+                return "⚔️ Equipment: Unable to load information."
+
+    def _get_equipment_slots_display(self, locale: str = 'ko') -> dict:
+        """부위별 장비 슬롯 표시 정보"""
+        if locale == 'ko':
+            return {
+                'head': {'name': '머리', 'icon': '🪖'},
+                'shoulder': {'name': '어깨', 'icon': '🛡️'},
+                'chest': {'name': '가슴', 'icon': '👕'},
+                'right_arm': {'name': '오른팔', 'icon': '🦾'},
+                'left_arm': {'name': '왼팔', 'icon': '🦾'},
+                'right_hand': {'name': '오른손', 'icon': '⚔️'},
+                'left_hand': {'name': '왼손', 'icon': '🛡️'},
+                'waist': {'name': '허리', 'icon': '🔗'},
+                'legs': {'name': '다리', 'icon': '👖'},
+                'feet': {'name': '발', 'icon': '👢'},
+                'back': {'name': '등', 'icon': '🎒'}
+            }
+        else:  # English
+            return {
+                'head': {'name': 'Head', 'icon': '🪖'},
+                'shoulder': {'name': 'Shoulder', 'icon': '🛡️'},
+                'chest': {'name': 'Chest', 'icon': '👕'},
+                'right_arm': {'name': 'Right Arm', 'icon': '🦾'},
+                'left_arm': {'name': 'Left Arm', 'icon': '🦾'},
+                'right_hand': {'name': 'Right Hand', 'icon': '⚔️'},
+                'left_hand': {'name': 'Left Hand', 'icon': '🛡️'},
+                'waist': {'name': 'Waist', 'icon': '🔗'},
+                'legs': {'name': 'Legs', 'icon': '👖'},
+                'feet': {'name': 'Feet', 'icon': '👢'},
+                'back': {'name': 'Back', 'icon': '🎒'}
+            }
