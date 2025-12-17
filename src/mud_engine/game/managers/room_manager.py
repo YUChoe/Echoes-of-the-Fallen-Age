@@ -32,7 +32,6 @@ class RoomManager:
             room = Room(
                 id=room_data.get('id'),
                 description=room_data.get('description', {}),
-                exits=room_data.get('exits', {}),
                 x=room_data.get('x'),
                 y=room_data.get('y'),
                 created_at=datetime.now(),
@@ -54,13 +53,8 @@ class RoomManager:
                 return None
 
             for key, value in updates.items():
-                if hasattr(existing_room, key):
-                    if key == 'exits' and isinstance(value, dict):
-                        existing_exits = existing_room.exits.copy()
-                        existing_exits.update(value)
-                        setattr(existing_room, key, existing_exits)
-                    else:
-                        setattr(existing_room, key, value)
+                if hasattr(existing_room, key) and key != 'exits':  # exits는 더 이상 사용하지 않음
+                    setattr(existing_room, key, value)
 
             existing_room.updated_at = datetime.now()
             updated_room = await self._room_repo.update(room_id, existing_room.to_dict())
@@ -115,86 +109,26 @@ class RoomManager:
             raise
 
     async def add_room_exit(self, room_id: str, direction: str, target_room_id: str) -> bool:
-        """방에 새로운 출구를 추가합니다."""
-        try:
-            room = await self.get_room(room_id)
-            if not room:
-                return False
-
-            target_room = await self.get_room(target_room_id)
-            if not target_room:
-                logger.warning(f"대상 방이 존재하지 않음: {target_room_id}")
-                return False
-
-            room.add_exit(direction, target_room_id)
-            updated_room = await self.update_room(room_id, {
-                'exits': room.exits,
-                'updated_at': datetime.now()
-            })
-
-            success = updated_room is not None
-            if success:
-                logger.info(f"방 {room_id}에 출구 추가: {direction} -> {target_room_id}")
-            return success
-        except Exception as e:
-            logger.error(f"출구 추가 실패 ({room_id}, {direction}, {target_room_id}): {e}")
-            raise
+        """출구 추가 (좌표 기반 시스템에서는 사용하지 않음)."""
+        logger.warning("좌표 기반 시스템에서는 add_room_exit을 사용하지 않습니다.")
+        return False
 
     async def remove_room_exit(self, room_id: str, direction: str) -> bool:
-        """방에서 출구를 제거합니다."""
-        try:
-            room = await self.get_room(room_id)
-            if not room:
-                return False
-
-            removed = room.remove_exit(direction)
-            if not removed:
-                return False
-
-            updated_room = await self.update_room(room_id, {
-                'exits': room.exits,
-                'updated_at': datetime.now()
-            })
-
-            success = updated_room is not None
-            if success:
-                logger.info(f"방 {room_id}에서 출구 제거: {direction}")
-            return success
-        except Exception as e:
-            logger.error(f"출구 제거 실패 ({room_id}, {direction}): {e}")
-            raise
+        """출구 제거 (좌표 기반 시스템에서는 사용하지 않음)."""
+        logger.warning("좌표 기반 시스템에서는 remove_room_exit을 사용하지 않습니다.")
+        return False
 
     async def _remove_exits_to_room(self, target_room_id: str) -> None:
-        """특정 방으로의 모든 출구를 제거합니다."""
-        try:
-            rooms_with_exits = await self._room_repo.get_rooms_with_exits_to(target_room_id)
-            for room in rooms_with_exits:
-                exits_to_remove = []
-                for direction, room_id in room.exits.items():
-                    if room_id == target_room_id:
-                        exits_to_remove.append(direction)
-
-                for direction in exits_to_remove:
-                    room.remove_exit(direction)
-
-                await self.update_room(room.id, {
-                    'exits': room.exits,
-                    'updated_at': datetime.now()
-                })
-                logger.info(f"방 {room.id}에서 삭제된 방 {target_room_id}로의 출구 제거")
-        except Exception as e:
-            logger.error(f"방으로의 출구 제거 실패 ({target_room_id}): {e}")
-            raise
+        """특정 방으로의 출구들을 제거합니다 (좌표 기반에서는 불필요)."""
+        logger.debug(f"좌표 기반 시스템에서는 출구 제거가 불필요합니다: {target_room_id}")
+        pass
     # === 좌표 기반 방 관리 ===
 
     async def get_room_at_coordinates(self, x: int, y: int) -> Optional[Room]:
         """특정 좌표의 방을 조회합니다."""
         try:
-            rooms = await self._room_repo.get_all()
-            for room in rooms:
-                if room.x == x and room.y == y:
-                    return room
-            return None
+            # 직접 데이터베이스에서 좌표로 조회
+            return await self._room_repo.get_room_by_coordinates(x, y)
         except Exception as e:
             logger.error(f"좌표 기반 방 조회 실패 ({x}, {y}): {e}")
             raise
@@ -204,13 +138,13 @@ class RoomManager:
         try:
             rooms = await self._room_repo.get_all()
             area_rooms = []
-            
+
             for room in rooms:
                 if room.x is not None and room.y is not None:
                     distance = ((room.x - center_x) ** 2 + (room.y - center_y) ** 2) ** 0.5
                     if distance <= radius:
                         area_rooms.append(room)
-            
+
             return area_rooms
         except Exception as e:
             logger.error(f"영역 내 방 조회 실패 ({center_x}, {center_y}, radius={radius}): {e}")
@@ -221,12 +155,12 @@ class RoomManager:
         try:
             rooms = await self._room_repo.get_all()
             filtered_rooms = []
-            
+
             for room in rooms:
                 if (room.x is not None and room.y is not None and
                     min_x <= room.x <= max_x and min_y <= room.y <= max_y):
                     filtered_rooms.append(room)
-            
+
             return filtered_rooms
         except Exception as e:
             logger.error(f"좌표 범위 방 조회 실패 ({min_x}-{max_x}, {min_y}-{max_y}): {e}")
@@ -237,10 +171,9 @@ class RoomManager:
             room = await self.get_room(room_id)
             if not room or room.x is None or room.y is None:
                 return {}
-            
+
             exits = {}
-            all_rooms = await self._room_repo.get_all()
-            
+
             # 방향별 좌표 오프셋 (동서남북만)
             direction_offsets = {
                 'north': (0, 1),
@@ -248,93 +181,49 @@ class RoomManager:
                 'east': (1, 0),
                 'west': (-1, 0)
             }
-            
+
             # 좌표를 기반으로 인접한 방들을 찾아 출구 생성
             for direction, (dx, dy) in direction_offsets.items():
                 adj_x = room.x + dx
                 adj_y = room.y + dy
-                
-                # 해당 좌표에 방이 있는지 확인
-                for other_room in all_rooms:
-                    if other_room.x == adj_x and other_room.y == adj_y:
-                        exits[direction] = other_room.id
-                        break
-            
-            # 기존 enter 출구 유지 (특별한 출구)
-            if 'enter' in room.exits:
-                exits['enter'] = room.exits['enter']
-            
+
+                # 해당 좌표에 방이 있는지 직접 조회
+                adjacent_room = await self.get_room_at_coordinates(adj_x, adj_y)
+                if adjacent_room:
+                    exits[direction] = adjacent_room.id
+
             return exits
         except Exception as e:
             logger.error(f"좌표 기반 출구 계산 실패 ({room_id}): {e}")
             return {}
 
     async def update_room_exits_by_coordinates(self, room_id: str) -> bool:
-        """방의 출구를 좌표 기반으로 업데이트합니다."""
-        try:
-            room = await self.get_room(room_id)
-            if not room:
-                return False
-                
-            # 좌표 기반 출구 계산
-            new_exits = await self.get_coordinate_based_exits(room_id)
-            
-            # 출구가 변경된 경우에만 업데이트
-            if room.exits != new_exits:
-                old_exits = room.exits.copy()
-                room.exits = new_exits
-                
-                updated_room = await self.update_room(room_id, {
-                    'exits': room.exits,
-                    'updated_at': datetime.now()
-                })
-                
-                if updated_room:
-                    logger.info(f"방 {room_id} ({room.x}, {room.y}) 출구 좌표 기반 업데이트:")
-                    logger.info(f"  이전: {old_exits}")
-                    logger.info(f"  변경: {new_exits}")
-                    return True
-            
-            return False
-        except Exception as e:
-            logger.error(f"좌표 기반 출구 업데이트 실패 ({room_id}): {e}")
-            return False
+        """방의 출구를 좌표 기반으로 업데이트합니다 (좌표 기반에서는 불필요)."""
+        logger.debug("좌표 기반 시스템에서는 출구 업데이트가 불필요합니다.")
+        return True
 
     async def update_all_rooms_exits_by_coordinates(self) -> Dict[str, int]:
-        """모든 방의 출구를 좌표 기반으로 업데이트합니다."""
-        try:
-            all_rooms = await self.get_all_rooms()
-            stats = {'total': len(all_rooms), 'updated': 0, 'errors': 0}
-            
-            logger.info(f"총 {stats['total']}개 방의 출구를 좌표 기반으로 업데이트 시작")
-            
-            for room in all_rooms:
-                try:
-                    if await self.update_room_exits_by_coordinates(room.id):
-                        stats['updated'] += 1
-                except Exception as e:
-                    logger.error(f"방 {room.id} 출구 업데이트 실패: {e}")
-                    stats['errors'] += 1
-            
-            logger.info(f"출구 업데이트 완료: 총 {stats['total']}개, "
-                       f"업데이트 {stats['updated']}개, 오류 {stats['errors']}개")
-            
-            return stats
-        except Exception as e:
-            logger.error(f"전체 방 출구 업데이트 실패: {e}")
-            return {'total': 0, 'updated': 0, 'errors': 1}
+        """모든 방의 출구를 좌표 기반으로 업데이트합니다 (좌표 기반에서는 불필요)."""
+        logger.debug("좌표 기반 시스템에서는 출구 업데이트가 불필요합니다.")
+        return {'total': 0, 'updated': 0, 'errors': 0}
 
     async def get_connected_rooms_by_coordinates(self, room_id: str) -> List[Room]:
         """좌표 기반으로 연결된 방들을 조회합니다."""
         try:
-            exits = await self.get_coordinate_based_exits(room_id)
+            room = await self.get_room(room_id)
+            if not room or room.x is None or room.y is None:
+                return []
+
+            from ..utils.coordinate_utils import Direction, calculate_new_coordinates
             connected_rooms = []
-            
-            for target_room_id in exits.values():
-                target_room = await self.get_room(target_room_id)
+
+            # 모든 방향의 인접 좌표 확인
+            for direction in Direction:
+                target_x, target_y = calculate_new_coordinates(room.x, room.y, direction)
+                target_room = await self.get_room_at_coordinates(target_x, target_y)
                 if target_room:
                     connected_rooms.append(target_room)
-            
+
             return connected_rooms
         except Exception as e:
             logger.error(f"좌표 기반 연결된 방 조회 실패 ({room_id}): {e}")

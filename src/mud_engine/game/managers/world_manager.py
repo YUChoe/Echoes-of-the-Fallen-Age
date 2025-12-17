@@ -23,12 +23,12 @@ class WorldManager:
         self._object_manager = ObjectManager(object_repo)
         self._monster_manager = MonsterManager(monster_repo)
         self._npc_repo = npc_repo
-        
+
         # MonsterManager에 RoomManager 참조 설정
         self._monster_manager.set_room_manager(self._room_manager)
-        
+
         logger.info("WorldManager 초기화 완료")
-    
+
     def set_game_engine(self, game_engine: Any) -> None:
         """GameEngine 참조를 설정합니다 (순환 참조 방지를 위해 초기화 후 설정)"""
         self._monster_manager.set_game_engine(game_engine)
@@ -77,11 +77,11 @@ class WorldManager:
     async def get_adjacent_room(self, x: int, y: int, direction: str) -> Optional[Room]:
         """현재 좌표에서 특정 방향으로 인접한 방을 조회합니다."""
         from ...utils.coordinate_utils import get_direction_from_string, calculate_new_coordinates
-        
+
         direction_enum = get_direction_from_string(direction)
         if not direction_enum:
             return None
-        
+
         new_x, new_y = calculate_new_coordinates(x, y, direction_enum)
         return await self.get_room_at_coordinates(new_x, new_y)
 
@@ -242,9 +242,15 @@ class WorldManager:
                 return {}
 
             objects = await self._object_manager.get_room_objects(room_id)
-            monsters = await self._monster_manager.get_monsters_in_room(room_id)
+
+            # 좌표 기반 몬스터 조회
+            if room.x is not None and room.y is not None:
+                monsters = await self._monster_manager.get_monsters_at_coordinates(room.x, room.y)
+            else:
+                monsters = []
+
             npcs = await self._npc_repo.get_npcs_in_room(room_id)
-            
+
             # 좌표 기반 출구 계산
             coordinate_exits = await self._room_manager.get_coordinate_based_exits(room_id)
             connected_rooms = await self._room_manager.get_connected_rooms_by_coordinates(room_id)
@@ -275,10 +281,11 @@ class WorldManager:
             all_rooms = await self._room_manager.get_all_rooms()
             room_ids = {room.id for room in all_rooms}
 
-            for room in all_rooms:
-                for direction, target_room_id in room.exits.items():
-                    if target_room_id not in room_ids:
-                        issues['invalid_exits'].append(f"{room.id}:{direction}->{target_room_id}")
+            # 좌표 기반 시스템에서는 출구 검증이 불필요
+            # for room in all_rooms:
+            #     for direction, target_room_id in room.exits.items():
+            #         if target_room_id not in room_ids:
+            #             issues['invalid_exits'].append(f"{room.id}:{direction}->{target_room_id}")
 
             all_objects = await self._object_manager._object_repo.get_all()
             for obj in all_objects:

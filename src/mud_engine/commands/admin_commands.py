@@ -628,10 +628,24 @@ class RoomInfoCommand(AdminCommand):
 
             # 방에 있는 몬스터 정보 추가
             try:
-                monster_cursor = await session.game_engine.db_manager.execute(
-                    "SELECT * FROM monsters WHERE current_room_id = ? AND is_alive = 1",
+                # 현재 방의 좌표 가져오기
+                room_cursor = await session.game_engine.db_manager.execute(
+                    "SELECT x, y FROM rooms WHERE id = ?",
                     (session.current_room_id,)
                 )
+                room_coords = await room_cursor.fetchone()
+
+                if room_coords:
+                    room_x, room_y = room_coords
+                    monster_cursor = await session.game_engine.db_manager.execute(
+                        "SELECT * FROM monsters WHERE x = ? AND y = ? AND is_alive = 1",
+                        (room_x, room_y)
+                    )
+                else:
+                    # 좌표를 찾을 수 없으면 빈 결과 반환
+                    monster_cursor = await session.game_engine.db_manager.execute(
+                        "SELECT * FROM monsters WHERE 1 = 0"
+                    )
                 monster_rows = await monster_cursor.fetchall()
 
                 if monster_rows:

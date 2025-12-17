@@ -15,7 +15,7 @@
       "args": [
         "@playwright/mcp@latest"
       ],
-      "disabled": false,
+      "disabled": true,
       "autoApprove": [
         "browser_navigate",
         "browser_type",
@@ -59,7 +59,7 @@
         "git+https://github.com/YUChoe/telnet-mcp"
       ],
       "env": {},
-      "disabled": false,
+      "disabled": true,
       "autoApprove": [
         "telnet_connect",
         "telnet_read",

@@ -256,7 +256,7 @@ class InventoryCommand(BaseCommand):
         filter_category = None
         if args:
             filter_category = args[0].lower()
-            valid_categories = {'weapon', 'armor', 'consumable', 'misc', 'equipped'}
+            valid_categories = {'weapon', 'armor', 'consumable', 'misc', 'material', 'equipped'}
             if filter_category not in valid_categories:
                 return self.create_error_result(
                     f"올바르지 않은 카테고리입니다. 사용 가능한 카테고리: {', '.join(valid_categories)}"
@@ -303,7 +303,7 @@ class InventoryCommand(BaseCommand):
                 category = obj.category
                 if category not in categories:
                     categories[category] = {}
-                
+
                 # 아이템 이름으로 그룹화
                 obj_name = obj.get_localized_name(session.locale)
                 if obj_name not in categories[category]:
@@ -312,7 +312,7 @@ class InventoryCommand(BaseCommand):
                         'total_weight': 0.0,
                         'equipped_count': 0
                     }
-                
+
                 categories[category][obj_name]['objects'].append(obj)
                 categories[category][obj_name]['total_weight'] += obj.weight
                 if obj.is_equipped:
@@ -323,7 +323,7 @@ class InventoryCommand(BaseCommand):
                 items = categories[category]
                 if not items:
                     continue
-                
+
                 # 카테고리 표시명 가져오기
                 first_obj = next(iter(items.values()))['objects'][0]
                 category_display = first_obj.get_category_display(session.locale)
@@ -334,19 +334,19 @@ class InventoryCommand(BaseCommand):
                     count = len(item_data['objects'])
                     total_weight = item_data['total_weight']
                     equipped_count = item_data['equipped_count']
-                    
+
                     # 무게 표시 (무게가 0이면 표시하지 않음)
                     if total_weight > 0:
                         weight_display = f"({total_weight:.1f}kg)"
                     else:
                         weight_display = ""
-                    
+
                     # 개수 표시 (1개보다 많으면 표시)
                     count_display = f" x{count}" if count > 1 else ""
-                    
+
                     # 착용 표시
                     equipped_mark = " [착용중]" if equipped_count > 0 else ""
-                    
+
                     response += f"  • {obj_name}{count_display} {weight_display}{equipped_mark}\n"
 
                     # 첫 번째 객체 정보를 대표로 사용
@@ -574,7 +574,7 @@ class EquipCommand(BaseCommand):
             if target_equipment.is_equipped:
                 return self.create_error_result(f"{target_equipment.get_localized_name(session.locale)}은(는) 이미 착용 중입니다.")
 
-            # 같은 슬롯의 다른 장비가 착용되어 있는지 확인
+            # 같은 슬롯의 다른 장비가 착용되어 있는지 확인 (부위별 1개 제한)
             equipped_in_slot = None
             for obj in inventory_objects:
                 if (obj.equipment_slot == target_equipment.equipment_slot and
@@ -582,7 +582,7 @@ class EquipCommand(BaseCommand):
                     equipped_in_slot = obj
                     break
 
-            # 기존 장비 해제
+            # 기존 장비 해제 (부위별 1개만 착용 가능)
             if equipped_in_slot:
                 equipped_in_slot.unequip()
                 await game_engine.world_manager.update_object(equipped_in_slot)

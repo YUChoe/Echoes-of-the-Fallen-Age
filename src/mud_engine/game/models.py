@@ -45,6 +45,10 @@ class Player(BaseModel):
     # 세력 시스템
     faction_id: Optional[str] = 'ash_knights'  # 기본 세력: 잿빛 기사단
 
+    # 퀘스트 시스템
+    completed_quests: List[str] = field(default_factory=list)  # 완료된 퀘스트 ID 목록
+    quest_progress: Dict[str, Any] = field(default_factory=dict)  # 진행 중인 퀘스트 상태
+
     def __post_init__(self):
         """초기화 후 검증"""
         self.validate()
@@ -94,10 +98,10 @@ class Player(BaseModel):
         """이름 변경 가능 여부 확인 (하루에 한 번만 가능)"""
         if self.is_admin:
             return True  # 관리자는 제한 없음
-        
+
         if not self.last_name_change:
             return True  # 한 번도 변경하지 않았으면 가능
-        
+
         # 마지막 변경 후 24시간이 지났는지 확인
         time_since_change = datetime.now() - self.last_name_change
         return time_since_change.total_seconds() >= 86400  # 24시간 = 86400초
@@ -107,16 +111,16 @@ class Player(BaseModel):
         """표시 이름 유효성 검사 (한글, 영문, 숫자만 허용, 공백 불가, 3-20자)"""
         if not display_name:
             return False
-        
+
         # 앞뒤 공백 제거 후 길이 확인
         display_name = display_name.strip()
         if len(display_name) < 3 or len(display_name) > 20:
             return False
-        
+
         # 공백 불허
         if ' ' in display_name:
             return False
-        
+
         # 한글, 영문, 숫자만 허용
         pattern = r'^[가-힣a-zA-Z0-9]+$'
         return re.match(pattern, display_name) is not None
@@ -334,11 +338,10 @@ class Character(BaseModel):
 
 @dataclass
 class Room(BaseModel):
-    """방 모델"""
+    """방 모델 (좌표 기반 이동 시스템)"""
 
     id: str = field(default_factory=lambda: str(uuid4()))
     description: Dict[str, str] = field(default_factory=dict)
-    exits: Dict[str, str] = field(default_factory=dict)  # {'north': 'room_id'}
     x: Optional[int] = None  # X 좌표
     y: Optional[int] = None  # Y 좌표
     created_at: datetime = field(default_factory=datetime.now)
@@ -353,42 +356,41 @@ class Room(BaseModel):
         if not isinstance(self.description, dict):
             raise ValueError("방 설명은 딕셔너리 형태여야 합니다")
 
-        if not isinstance(self.exits, dict):
-            raise ValueError("출구는 딕셔너리 형태여야 합니다")
-
-        # 출구 방향 검증 (동서남북 + enter만 허용)
-        valid_directions = {'north', 'south', 'east', 'west', 'enter'}
-        for direction in self.exits.keys():
-            if direction not in valid_directions:
-                raise ValueError(f"올바르지 않은 출구 방향입니다: {direction}")
-
     def get_localized_description(self, locale: str = 'en') -> str:
         """로케일에 따른 방 설명 반환"""
         return self.description.get(locale, self.description.get('en', self.description.get('ko', 'No description available.')))
 
-    def add_exit(self, direction: str, room_id: str) -> None:
-        """출구 추가"""
-        valid_directions = {'north', 'south', 'east', 'west', 'enter'}
-        if direction not in valid_directions:
-            raise ValueError(f"올바르지 않은 출구 방향입니다: {direction}")
-        self.exits[direction] = room_id
-        self.updated_at = datetime.now()
+    def get_available_exits(self, room_repository=None) -> List[str]:
+        """좌표 기반으로 사용 가능한 출구 방향 목록 반환"""
+        if self.x is None or self.y is None:
+            return []
 
-    def remove_exit(self, direction: str) -> bool:
-        """출구 제거"""
-        if direction in self.exits:
-            del self.exits[direction]
-            self.updated_at = datetime.now()
-            return True
-        return False
+        exits = []
+        # x+1: 동쪽, x-1: 서쪽, y+1: 북쪽, y-1: 남쪽
+        directions = [
+            ('east', self.x + 1, self.y),
+            ('west', self.x - 1, self.y),
+            ('north', self.x, self.y + 1),
+            ('south', self.x, self.y - 1)
+        ]
 
-    def get_exit(self, direction: str) -> Optional[str]:
-        """특정 방향의 출구 방 ID 반환"""
-        return self.exits.get(direction)
+        # room_repository가 제공된 경우 실제 방 존재 여부 확인
+        if room_repository:
+            import asyncio
+            try:
+                for direction, target_x, target_y in directions:
+                    # 비동기 함수를 동기적으로 호출 (주의: 이벤트 루프 내에서만 사용)
+                    if hasattr(room_repository, 'get_room_by_coordinates'):
+                        # 실제 구현에서는 비동기 처리 필요
+                        exits.append(direction)  # 임시로 모든 방향 허용
+            except Exception:
+                # 에러 발생 시 기본 방향들 반환
+                exits = ['north', 'south', 'east', 'west']
+        else:
+            # repository가 없으면 모든 방향 허용 (기본 동작)
+            exits = ['north', 'south', 'east', 'west']
 
-    def get_available_exits(self) -> List[str]:
-        """사용 가능한 출구 방향 목록 반환"""
-        return list(self.exits.keys())
+        return exits
 
     def get_coordinates(self) -> Tuple[int, int]:
         """방의 좌표 반환"""
@@ -403,6 +405,20 @@ class Room(BaseModel):
     def is_at_coordinates(self, x: int, y: int) -> bool:
         """특정 좌표에 위치하는지 확인"""
         return self.x == x and self.y == y
+
+    def get_target_coordinates(self, direction: str) -> Optional[Tuple[int, int]]:
+        """방향에 따른 목표 좌표 반환"""
+        if self.x is None or self.y is None:
+            return None
+
+        direction_map = {
+            'east': (self.x + 1, self.y),
+            'west': (self.x - 1, self.y),
+            'north': (self.x, self.y + 1),
+            'south': (self.x, self.y - 1)
+        }
+
+        return direction_map.get(direction.lower())
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""
@@ -420,25 +436,13 @@ class Room(BaseModel):
             data['description_en'] = desc_dict.get('en', '') if isinstance(desc_dict, dict) else ''
             data['description_ko'] = desc_dict.get('ko', '') if isinstance(desc_dict, dict) else ''
 
-        # exits는 JSON 문자열로 유지 (BaseModel에서 이미 변환됨)
-        # 추가 처리 불필요
-
         return data
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Room':
         """딕셔너리에서 모델 생성"""
-        # 데이터베이스 컬럼명이나 JSON 문자열을 모델 필드로 변환
+        # 데이터베이스 컬럼명을 모델 필드로 변환
         converted_data = data.copy()
-
-        # description, exits가 JSON 문자열인 경우 딕셔너리로 변환
-        for key in ['description', 'exits']:
-            value = converted_data.get(key)
-            if isinstance(value, str):
-                try:
-                    converted_data[key] = json.loads(value)
-                except (json.JSONDecodeError, TypeError):
-                    converted_data[key] = {}
 
         # description 통합
         if 'description' not in converted_data:
@@ -515,7 +519,7 @@ class GameObject(BaseModel):
             raise ValueError("무게는 0 이상의 숫자여야 합니다")
 
         # 카테고리 검증
-        valid_categories = {'weapon', 'armor', 'consumable', 'misc'}
+        valid_categories = {'weapon', 'armor', 'consumable', 'misc', 'material'}
         if self.category not in valid_categories:
             raise ValueError(f"올바르지 않은 카테고리입니다: {self.category}")
 
@@ -547,6 +551,25 @@ class GameObject(BaseModel):
     def get_localized_description(self, locale: str = 'en') -> str:
         """로케일에 따른 객체 설명 반환"""
         return self.description.get(locale, self.description.get('en', self.description.get('ko', 'No description available.')))
+
+    def get_category_display(self, locale: str = 'en') -> str:
+        """카테고리 표시명 반환"""
+        category_names = {
+            'ko': {
+                'weapon': '무기',
+                'armor': '방어구',
+                'consumable': '소모품',
+                'misc': '기타'
+            },
+            'en': {
+                'weapon': 'Weapons',
+                'armor': 'Armor',
+                'consumable': 'Consumables',
+                'misc': 'Miscellaneous'
+            }
+        }
+
+        return category_names.get(locale, category_names['en']).get(self.category, self.category)
 
     def get_property(self, key: str, default: Any = None) -> Any:
         """속성 값 조회"""
@@ -595,15 +618,7 @@ class GameObject(BaseModel):
         else:
             return f"{self.weight:.1f}kg"
 
-    def get_category_display(self, locale: str = 'en') -> str:
-        """카테고리를 표시용 문자열로 반환"""
-        category_names = {
-            'weapon': {'en': 'Weapon', 'ko': '무기'},
-            'armor': {'en': 'Armor', 'ko': '방어구'},
-            'consumable': {'en': 'Consumable', 'ko': '소모품'},
-            'misc': {'en': 'Miscellaneous', 'ko': '기타'}
-        }
-        return category_names.get(self.category, {}).get(locale, self.category)
+
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""

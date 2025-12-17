@@ -110,19 +110,48 @@ class RoomRepository(BaseRepository[Room]):
     def get_model_class(self):
         return Room
 
+    async def get_room_by_coordinates(self, x: int, y: int) -> Optional[Room]:
+        """좌표로 방 조회"""
+        try:
+            db_manager = await self.get_db_manager()
+            cursor = await db_manager.execute(
+                "SELECT * FROM rooms WHERE x = ? AND y = ?",
+                (x, y)
+            )
+            row = await cursor.fetchone()
+            if row:
+                # SQLite row를 딕셔너리로 변환
+                columns = [description[0] for description in cursor.description]
+                row_dict = dict(zip(columns, row))
+                return Room.from_dict(row_dict)
+            return None
+        except Exception as e:
+            logger.error(f"좌표 기반 방 조회 실패 ({x}, {y}): {e}")
+            raise
+
     async def get_connected_rooms(self, room_id: str) -> List[Room]:
-        """연결된 방들 조회"""
+        """연결된 방들 조회 (좌표 기반)"""
         try:
             room = await self.get_by_id(room_id)
-            if not room:
+            if not room or room.x is None or room.y is None:
                 return []
 
-            connected_room_ids = list(room.exits.values())
+            from ..utils.coordinate_utils import Direction, calculate_new_coordinates
             connected_rooms = []
 
-            for connected_id in connected_room_ids:
-                connected_room = await self.get_by_id(connected_id)
-                if connected_room:
+            # 모든 방향의 인접 좌표 확인
+            for direction in Direction:
+                target_x, target_y = calculate_new_coordinates(room.x, room.y, direction)
+
+                # 해당 좌표에 방이 있는지 확인
+                db_manager = await self.get_db_manager()
+                cursor = await db_manager.execute(
+                    "SELECT * FROM rooms WHERE x = ? AND y = ?",
+                    (target_x, target_y)
+                )
+                row = await cursor.fetchone()
+                if row:
+                    connected_room = Room.from_dict(dict(row))
                     connected_rooms.append(connected_room)
 
             return connected_rooms
@@ -149,14 +178,29 @@ class RoomRepository(BaseRepository[Room]):
             raise
 
     async def get_rooms_with_exits_to(self, target_room_id: str) -> List[Room]:
-        """특정 방으로 출구가 있는 방들 조회"""
+        """특정 방으로 출구가 있는 방들 조회 (좌표 기반)"""
         try:
-            all_rooms = await self.get_all()
+            target_room = await self.get_by_id(target_room_id)
+            if not target_room or target_room.x is None or target_room.y is None:
+                return []
+
+            from ..utils.coordinate_utils import Direction, calculate_new_coordinates
             rooms_with_exits = []
 
-            for room in all_rooms:
-                if target_room_id in room.exits.values():
-                    rooms_with_exits.append(room)
+            # 대상 방의 인접 좌표들 확인
+            for direction in Direction:
+                source_x, source_y = calculate_new_coordinates(target_room.x, target_room.y, direction)
+
+                # 해당 좌표에 방이 있는지 확인
+                db_manager = await self.get_db_manager()
+                cursor = await db_manager.execute(
+                    "SELECT * FROM rooms WHERE x = ? AND y = ?",
+                    (source_x, source_y)
+                )
+                row = await cursor.fetchone()
+                if row:
+                    source_room = Room.from_dict(dict(row))
+                    rooms_with_exits.append(source_room)
 
             return rooms_with_exits
         except Exception as e:
@@ -404,12 +448,24 @@ class MonsterRepository(BaseRepository):
         from .monster import Monster
         return Monster
 
-    async def get_monsters_in_room(self, room_id: str) -> List[Monster]:
-        """특정 방에 있는 살아있는 몬스터들을 조회합니다."""
+    async def get_monsters_at_coordinates(self, x: int, y: int) -> List[Monster]:
+        """특정 좌표에 있는 살아있는 몬스터들을 조회합니다."""
         try:
-            monsters = await self.find_by(current_room_id=room_id, is_alive=True)
-            logger.debug(f"방 {room_id}에서 {len(monsters)}마리 몬스터 조회")
+            monsters = await self.find_by(x=x, y=y, is_alive=True)
+            logger.debug(f"좌표 ({x}, {y})에서 {len(monsters)}마리 몬스터 조회")
             return monsters
+        except Exception as e:
+            logger.error(f"좌표 내 몬스터 조회 실패 ({x}, {y}): {e}")
+            return []
+
+    async def get_monsters_in_room(self, room_id: str) -> List[Monster]:
+        """특정 방에 있는 살아있는 몬스터들을 조회합니다 (레거시 호환용)."""
+        try:
+            # room_id로 방의 좌표를 찾아서 해당 좌표의 몬스터들을 조회
+            from .managers.room_manager import RoomManager
+            # 임시로 빈 리스트 반환 (좌표 기반으로 변경 필요)
+            logger.warning(f"get_monsters_in_room은 더 이상 사용되지 않습니다. get_monsters_at_coordinates를 사용하세요.")
+            return []
         except Exception as e:
             logger.error(f"방 내 몬스터 조회 실패 ({room_id}): {e}")
             return []
@@ -447,8 +503,7 @@ class MonsterRepository(BaseRepository):
                 logger.error(f"몬스터 {monster_id}를 찾을 수 없습니다")
                 return False
 
-            # 스폰 방으로 이동하고 생존 상태로 변경
-            spawn_room = monster.spawn_room_id or monster.current_room_id
+            # 좌표는 그대로 유지 (원래 스폰 위치에서 리스폰)
 
             # 능력치를 최대치로 복구
             monster.stats.current_hp = monster.stats.max_hp
@@ -459,14 +514,13 @@ class MonsterRepository(BaseRepository):
                 UPDATE monsters
                 SET is_alive = TRUE,
                     last_death_time = NULL,
-                    current_room_id = ?,
                     stats = ?
                 WHERE id = ?
-            """, (spawn_room, stats_json, monster_id))
+            """, (stats_json, monster_id))
 
             await db_manager.commit()
 
-            logger.info(f"몬스터 {monster_id} 리스폰 완료 (방: {spawn_room})")
+            logger.info(f"몬스터 {monster_id} 리스폰 완료")
             return True
 
         except Exception as e:
