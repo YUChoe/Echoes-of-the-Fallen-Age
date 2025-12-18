@@ -73,12 +73,12 @@ async def update_monk_to_merchant():
                     }
                 },
                 {
-                    "item_id": "tutorial_linen_pants",
+                    "item_id": "tutorial_linen_trousers",
                     "price": 0,
                     "currency": "gold",
                     "stock": -1,
                     "description": {
-                        "en": "Simple linen pants for comfort",
+                        "en": "Simple linen trousers for comfort",
                         "ko": "편안함을 위한 간단한 리넨 하의"
                     }
                 },

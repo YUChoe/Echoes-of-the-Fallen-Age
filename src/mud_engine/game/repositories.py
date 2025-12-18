@@ -301,9 +301,19 @@ class NPCRepository(BaseRepository[NPC]):
     async def get_npcs_in_room(self, room_id: str) -> List[NPC]:
         """특정 방에 있는 NPC들 조회 (하위 호환성)"""
         try:
-            # 방 ID로부터 좌표 추출하여 조회
-            # 임시로 빈 리스트 반환 (좌표 기반으로 전환)
-            return []
+            # 방 ID로부터 좌표 추출
+            db_manager = await self.get_db_manager()
+            cursor = await db_manager.execute(
+                "SELECT x, y FROM rooms WHERE id = ?", (room_id,)
+            )
+            room_data = await cursor.fetchone()
+
+            if not room_data:
+                return []
+
+            x, y = room_data
+            # 해당 좌표의 NPC들 조회
+            return await self.get_npcs_at_coordinates(x, y)
         except Exception as e:
             logger.error(f"방 내 NPC 조회 실패 ({room_id}): {e}")
             raise

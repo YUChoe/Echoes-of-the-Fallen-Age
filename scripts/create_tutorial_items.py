@@ -69,10 +69,10 @@ async def create_tutorial_items():
 
         # 튜토리얼 리넨 하의
         {
-            "id": "tutorial_linen_pants",
-            "name_en": "Linen Pants",
+            "id": "tutorial_linen_trousers",
+            "name_en": "Linen Trousers",
             "name_ko": "리넨 하의",
-            "description_en": "Basic linen pants for everyday wear.",
+            "description_en": "Basic linen trousers for everyday wear.",
             "description_ko": "일상복으로 입는 기본 리넨 하의입니다.",
             "object_type": "item",
             "location_type": "template",

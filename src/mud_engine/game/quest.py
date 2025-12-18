@@ -164,7 +164,7 @@ class QuestManager:
             rewards=QuestReward(
                 experience=100,
                 gold=50,
-                items=["club", "linen_shirt", "linen_pants"]
+                items=["club", "linen_shirt", "linen_trousers"]
             ),
             auto_complete=False
         )

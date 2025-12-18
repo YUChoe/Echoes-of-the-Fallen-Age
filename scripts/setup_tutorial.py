@@ -128,10 +128,10 @@ async def setup_tutorial_environment():
                 location_id="template_storage"
             ),
             GameObject(
-                id="tutorial_linen_pants",
-                name={"en": "Linen Pants", "ko": "리넨 하의"},
+                id="tutorial_linen_trousers",
+                name={"en": "Linen Trousers", "ko": "리넨 하의"},
                 description={
-                    "en": "Basic linen pants for adventurers.",
+                    "en": "Basic linen trousers for adventurers.",
                     "ko": "모험가를 위한 기본 리넨 하의입니다."
                 },
                 object_type="item",

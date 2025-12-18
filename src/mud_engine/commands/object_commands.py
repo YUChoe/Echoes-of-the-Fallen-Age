@@ -584,12 +584,17 @@ class EquipCommand(BaseCommand):
 
             # 기존 장비 해제 (부위별 1개만 착용 가능)
             if equipped_in_slot:
+                # 기존 장비의 능력치 보너스 제거
+                await self._remove_equipment_bonuses(session.player, equipped_in_slot, game_engine)
                 equipped_in_slot.unequip()
                 await game_engine.world_manager.update_object(equipped_in_slot)
 
             # 새 장비 착용
             target_equipment.equip()
             await game_engine.world_manager.update_object(target_equipment)
+
+            # 새 장비의 능력치 보너스 적용
+            await self._apply_equipment_bonuses(session.player, target_equipment, game_engine)
 
             # 성공 메시지
             equipment_name_display = target_equipment.get_localized_name(session.locale)
@@ -613,6 +618,56 @@ class EquipCommand(BaseCommand):
         except Exception as e:
             logger.error(f"장비 착용 명령어 실행 중 오류: {e}")
             return self.create_error_result("장비를 착용하는 중 오류가 발생했습니다.")
+
+    async def _apply_equipment_bonuses(self, player, equipment, game_engine):
+        """장비의 능력치 보너스를 플레이어에게 적용"""
+        try:
+            if not hasattr(equipment, 'properties') or not equipment.properties:
+                return
+
+            # 아이템 속성에서 능력치 보너스 추출
+            stats_bonus = equipment.properties.get('stats_bonus', {})
+            damage = equipment.properties.get('damage', 0)
+
+            # stats_bonus 적용 (나무 곤봉 등)
+            for stat_name, bonus in stats_bonus.items():
+                if isinstance(bonus, (int, float)) and bonus > 0:
+                    player.stats.add_equipment_bonus(stat_name, int(bonus))
+
+            # damage 속성을 ATK 보너스로 적용 (곤봉 등)
+            if damage > 0:
+                player.stats.add_equipment_bonus('ATK', damage)
+
+            # 플레이어 정보 업데이트
+            await game_engine.session_manager.update_player(player)
+
+        except Exception as e:
+            logger.error(f"장비 보너스 적용 중 오류: {e}")
+
+    async def _remove_equipment_bonuses(self, player, equipment, game_engine):
+        """장비의 능력치 보너스를 플레이어에서 제거"""
+        try:
+            if not hasattr(equipment, 'properties') or not equipment.properties:
+                return
+
+            # 아이템 속성에서 능력치 보너스 추출
+            stats_bonus = equipment.properties.get('stats_bonus', {})
+            damage = equipment.properties.get('damage', 0)
+
+            # stats_bonus 제거 (나무 곤봉 등)
+            for stat_name, bonus in stats_bonus.items():
+                if isinstance(bonus, (int, float)) and bonus > 0:
+                    player.stats.remove_equipment_bonus(stat_name, int(bonus))
+
+            # damage 속성 제거 (곤봉 등)
+            if damage > 0:
+                player.stats.remove_equipment_bonus('ATK', damage)
+
+            # 플레이어 정보 업데이트
+            await game_engine.session_manager.update_player(player)
+
+        except Exception as e:
+            logger.error(f"장비 보너스 제거 중 오류: {e}")
 
 
 class UnequipCommand(BaseCommand):
@@ -658,6 +713,9 @@ class UnequipCommand(BaseCommand):
             if not target_equipment:
                 return self.create_error_result(f"착용 중인 '{' '.join(args)}'을(를) 찾을 수 없습니다.")
 
+            # 장비의 능력치 보너스 제거
+            await self._remove_equipment_bonuses(session.player, target_equipment, game_engine)
+
             # 장비 해제
             target_equipment.unequip()
             await game_engine.world_manager.update_object(target_equipment)
@@ -679,6 +737,31 @@ class UnequipCommand(BaseCommand):
         except Exception as e:
             logger.error(f"장비 해제 명령어 실행 중 오류: {e}")
             return self.create_error_result("장비를 해제하는 중 오류가 발생했습니다.")
+
+    async def _remove_equipment_bonuses(self, player, equipment, game_engine):
+        """장비의 능력치 보너스를 플레이어에서 제거"""
+        try:
+            if not hasattr(equipment, 'properties') or not equipment.properties:
+                return
+
+            # 아이템 속성에서 능력치 보너스 추출
+            stats_bonus = equipment.properties.get('stats_bonus', {})
+            damage = equipment.properties.get('damage', 0)
+
+            # stats_bonus 제거 (나무 곤봉 등)
+            for stat_name, bonus in stats_bonus.items():
+                if isinstance(bonus, (int, float)) and bonus > 0:
+                    player.stats.remove_equipment_bonus(stat_name, int(bonus))
+
+            # damage 속성 제거 (곤봉 등)
+            if damage > 0:
+                player.stats.remove_equipment_bonus('ATK', damage)
+
+            # 플레이어 정보 업데이트
+            await game_engine.session_manager.update_player(player)
+
+        except Exception as e:
+            logger.error(f"장비 보너스 제거 중 오류: {e}")
 
 
 class UseCommand(BaseCommand):

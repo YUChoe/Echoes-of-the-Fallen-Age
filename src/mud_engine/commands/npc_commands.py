@@ -235,7 +235,7 @@ class TalkCommand(BaseCommand):
 Return to me when completed to receive basic equipment:
 • Wooden Club (weapon)
 • Linen Shirt (armor)
-• Linen Pants (armor)"""
+• Linen Trousers (armor)"""
 
     async def _complete_tutorial_quest(self, session, game_engine, locale: str) -> str:
         """튜토리얼 퀘스트 완료"""
@@ -367,7 +367,7 @@ You are now ready to begin your adventure!"""
             equipment_items = [
                 "tutorial_club",
                 "tutorial_linen_shirt",
-                "tutorial_linen_pants"
+                "tutorial_linen_trousers"
             ]
 
             given_items = []

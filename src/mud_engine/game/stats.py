@@ -120,18 +120,20 @@ class PlayerStats:
         return base_sta + con_bonus + dex_bonus
 
     def _calculate_attack(self) -> int:
-        """공격력 계산: 기본 10 + (힘 * 2) + (레벨)"""
+        """공격력 계산: 기본 10 + (힘 * 2) + (레벨) + 장비 보너스"""
         base_atk = 10
         str_bonus = self.get_primary_stat(StatType.STR) * 2
         level_bonus = self.level
-        return base_atk + str_bonus + level_bonus
+        equipment_bonus = self.equipment_bonuses.get('ATK', 0)
+        return base_atk + str_bonus + level_bonus + equipment_bonus
 
     def _calculate_defense(self) -> int:
-        """방어력 계산: 기본 2 + (체력 * 0.3) + (레벨 * 0.2)"""
+        """방어력 계산: 기본 2 + (체력 * 0.3) + (레벨 * 0.2) + 장비 보너스"""
         base_def = 2
         con_bonus = int(self.get_primary_stat(StatType.CON) * 0.3)
         level_bonus = int(self.level * 0.2)
-        return base_def + con_bonus + level_bonus
+        equipment_bonus = self.equipment_bonuses.get('DEF', 0)
+        return base_def + con_bonus + level_bonus + equipment_bonus
 
     def _calculate_speed(self) -> int:
         """속도 계산: 기본 10 + (민첩 * 1.5)"""
@@ -238,7 +240,7 @@ class PlayerStats:
         data_copy = data.copy()
         data_copy.pop('experience', None)
         data_copy.pop('experience_to_next', None)
-        
+
         # JSON 문자열 필드 파싱
         if isinstance(data_copy.get('equipment_bonuses'), str):
             try:

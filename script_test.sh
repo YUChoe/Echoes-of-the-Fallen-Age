@@ -38,7 +38,9 @@ echo "🚀 스크립트 실행: $SCRIPT_FILE"
 echo "============================================"
 
 # 가상환경 활성화 및 스크립트 실행
-source mud_engine_env/Scripts/activate && PYTHONPATH=. python "$SCRIPT_PATH"
+# 첫 번째 인자를 제외한 나머지 인자들을 스크립트에 전달
+shift
+source mud_engine_env/Scripts/activate && PYTHONPATH=. python "$SCRIPT_PATH" "$@"
 
 # 실행 결과 확인
 EXIT_CODE=$?
