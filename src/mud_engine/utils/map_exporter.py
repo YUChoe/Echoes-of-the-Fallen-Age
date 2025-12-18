@@ -70,17 +70,7 @@ class MapExporter:
 
     async def get_npcs_by_room(self) -> Dict[str, int]:
         """방별 NPC 수 가져오기 (플레이어와 우호적인 종족)"""
-        # 1. npcs 테이블에서 가져오기
-        cursor = await self.db_manager.execute("""
-            SELECT current_room_id, COUNT(*) as count
-            FROM npcs
-            WHERE is_active = 1 AND current_room_id IS NOT NULL
-            GROUP BY current_room_id
-        """)
-        npcs_result = await cursor.fetchall()
-        npc_counts = {row[0]: row[1] for row in npcs_result}
-
-        # 2. monsters 테이블에서 우호적인 종족 가져오기
+        # 몬스터 테이블에서 우호적인 종족 가져오기 (좌표 기반)
         cursor = await self.db_manager.execute("""
             SELECT r.id, COUNT(*) as count
             FROM rooms r
@@ -93,17 +83,15 @@ class MapExporter:
             AND m.x IS NOT NULL AND m.y IS NOT NULL
             AND (
                 m.faction_id = 'ash_knights'
+                OR m.faction_id IS NULL
                 OR fr.relation_status IN ('FRIENDLY', 'ALLIED', 'NEUTRAL')
             )
             GROUP BY r.id
         """)
         monsters_result = await cursor.fetchall()
 
-        # 두 결과 합치기
-        for row in monsters_result:
-            room_id, count = row
-            npc_counts[room_id] = npc_counts.get(room_id, 0) + count
-
+        # 결과 반환
+        npc_counts = {row[0]: row[1] for row in monsters_result}
         return npc_counts
 
     async def get_faction_relations(self) -> Tuple[List[Tuple[Any, ...]], List[Tuple[Any, ...]]]:
