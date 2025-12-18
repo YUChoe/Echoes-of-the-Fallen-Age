@@ -1,6 +1,6 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
-"""Scripts 디렉토리의 Python 스크립트 실행 도구"""
+echo """Scripts 디렉토리의 Python 스크립트 실행 도구"""
 
 # 사용법 확인
 if [ $# -eq 0 ]; then

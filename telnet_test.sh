@@ -1,6 +1,6 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
-"""Telnet 테스트 실행 스크립트"""
+echo """Telnet 테스트 실행 스크립트"""
 
 # 사용법 확인
 if [ $# -eq 0 ]; then
