@@ -500,14 +500,14 @@ class GameObject(BaseModel):
         if not self.object_type:
             raise ValueError("객체 타입은 필수입니다")
 
-        valid_object_types = {'item', 'npc', 'furniture', 'container', 'weapon', 'armor', 'consumable'}
+        valid_object_types = {'item', 'npc', 'furniture', 'container', 'weapon', 'armor', 'consumable', 'equipment', 'material'}
         if self.object_type not in valid_object_types:
             raise ValueError(f"올바르지 않은 객체 타입입니다: {self.object_type}")
 
         if not self.location_type:
             raise ValueError("위치 타입은 필수입니다")
 
-        valid_location_types = {'room', 'inventory', 'container'}
+        valid_location_types = {'room', 'inventory', 'container', 'template'}
         if self.location_type not in valid_location_types:
             raise ValueError(f"올바르지 않은 위치 타입입니다: {self.location_type}")
 
@@ -519,7 +519,7 @@ class GameObject(BaseModel):
             raise ValueError("무게는 0 이상의 숫자여야 합니다")
 
         # 카테고리 검증
-        valid_categories = {'weapon', 'armor', 'consumable', 'misc', 'material'}
+        valid_categories = {'weapon', 'armor', 'consumable', 'misc', 'material', 'quest'}
         if self.category not in valid_categories:
             raise ValueError(f"올바르지 않은 카테고리입니다: {self.category}")
 
@@ -711,7 +711,8 @@ class NPC(BaseModel):
     id: str = field(default_factory=lambda: str(uuid4()))
     name: Dict[str, str] = field(default_factory=dict)  # {'en': 'name', 'ko': '이름'}
     description: Dict[str, str] = field(default_factory=dict)
-    current_room_id: str = ""
+    x: int = 0  # X 좌표
+    y: int = 0  # Y 좌표
     npc_type: str = "generic"  # 'merchant', 'guard', 'quest_giver', 'generic'
     dialogue: Dict[str, List[str]] = field(default_factory=dict)  # {'en': ['line1', 'line2'], 'ko': ['대사1', '대사2']}
     shop_inventory: List[str] = field(default_factory=list)  # 상점 아이템 ID 목록
@@ -734,8 +735,8 @@ class NPC(BaseModel):
         if not isinstance(self.description, dict):
             raise ValueError("NPC 설명은 딕셔너리 형태여야 합니다")
 
-        if not self.current_room_id:
-            raise ValueError("NPC의 현재 방 ID는 필수입니다")
+        if not isinstance(self.x, int) or not isinstance(self.y, int):
+            raise ValueError("NPC의 좌표는 정수여야 합니다")
 
         valid_npc_types = {'merchant', 'guard', 'quest_giver', 'generic'}
         if self.npc_type not in valid_npc_types:

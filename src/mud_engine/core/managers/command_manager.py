@@ -117,14 +117,12 @@ class CommandManager:
         self.command_processor.register_command(WhisperCommand())
         self.command_processor.register_command(PlayersCommand())
 
-        # NPC 상호작용 명령어들 등록
+        # 몬스터 상호작용 명령어들 등록
         from ...commands.npc_commands import (
-            TalkCommand, ShopCommand, BuyCommand, SellCommand
+            TalkCommand, TradeCommand
         )
         self.command_processor.register_command(TalkCommand())
-        self.command_processor.register_command(ShopCommand())
-        self.command_processor.register_command(BuyCommand())
-        self.command_processor.register_command(SellCommand())
+        self.command_processor.register_command(TradeCommand())
 
         # 전투 명령어들 등록
         from ...commands.combat_commands import (

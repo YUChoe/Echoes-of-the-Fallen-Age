@@ -99,14 +99,15 @@ DATABASE_SCHEMA: List[str] = [
         name_ko TEXT NOT NULL,
         description_en TEXT,
         description_ko TEXT,
-        current_room_id TEXT NOT NULL,
+        x INTEGER DEFAULT 0, -- X 좌표
+        y INTEGER DEFAULT 0, -- Y 좌표
         npc_type TEXT DEFAULT 'generic', -- 'merchant', 'guard', 'quest_giver', 'generic'
         dialogue TEXT DEFAULT '{}', -- JSON 형태로 저장 {'en': ['line1'], 'ko': ['대사1']}
         shop_inventory TEXT DEFAULT '[]', -- JSON 형태로 저장 (아이템 ID 목록)
         properties TEXT DEFAULT '{}', -- JSON 형태로 저장
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (current_room_id) REFERENCES rooms(id) ON DELETE CASCADE
+        faction_id TEXT -- 종족 ID
     );
     """,
 
@@ -153,7 +154,7 @@ DATABASE_SCHEMA: List[str] = [
     CREATE INDEX IF NOT EXISTS idx_characters_current_room ON characters(current_room_id);
     CREATE INDEX IF NOT EXISTS idx_game_objects_location ON game_objects(location_type, location_id);
     CREATE INDEX IF NOT EXISTS idx_translations_key ON translations(key);
-    CREATE INDEX IF NOT EXISTS idx_npcs_room ON npcs(current_room_id);
+    CREATE INDEX IF NOT EXISTS idx_npcs_coordinates ON npcs(x, y);
     CREATE INDEX IF NOT EXISTS idx_npcs_type ON npcs(npc_type);
     CREATE INDEX IF NOT EXISTS idx_monsters_coordinates ON monsters(x, y);
     CREATE INDEX IF NOT EXISTS idx_monsters_type ON monsters(monster_type);
@@ -292,20 +293,21 @@ async def migrate_database(db_manager) -> None:
                 name_ko TEXT NOT NULL,
                 description_en TEXT,
                 description_ko TEXT,
-                current_room_id TEXT NOT NULL,
+                x INTEGER DEFAULT 0,
+                y INTEGER DEFAULT 0,
                 npc_type TEXT DEFAULT 'generic',
                 dialogue TEXT DEFAULT '{}',
                 shop_inventory TEXT DEFAULT '[]',
                 properties TEXT DEFAULT '{}',
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (current_room_id) REFERENCES rooms(id) ON DELETE CASCADE
+                faction_id TEXT
             );
             """
             await db_manager.execute(npc_table_sql)
 
             # NPC 인덱스 생성
-            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_npcs_room ON npcs(current_room_id)")
+            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_npcs_coordinates ON npcs(x, y)")
             await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_npcs_type ON npcs(npc_type)")
 
             await db_manager.commit()

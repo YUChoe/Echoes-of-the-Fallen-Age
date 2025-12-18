@@ -528,7 +528,7 @@ class ExitsCommand(BaseCommand):
             # 좌표 기반으로 사용 가능한 출구 계산
             exits = []
             if current_room.x is not None and current_room.y is not None:
-                from ..utils.coordinate_utils import Direction, calculate_new_coordinates
+                from ...utils.coordinate_utils import Direction, calculate_new_coordinates
 
                 # 각 방향에 대해 방이 존재하는지 확인
                 for direction in Direction:

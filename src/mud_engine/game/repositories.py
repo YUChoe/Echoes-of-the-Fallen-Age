@@ -136,7 +136,7 @@ class RoomRepository(BaseRepository[Room]):
             if not room or room.x is None or room.y is None:
                 return []
 
-            from ..utils.coordinate_utils import Direction, calculate_new_coordinates
+            from ...utils.coordinate_utils import Direction, calculate_new_coordinates
             connected_rooms = []
 
             # 모든 방향의 인접 좌표 확인
@@ -184,7 +184,7 @@ class RoomRepository(BaseRepository[Room]):
             if not target_room or target_room.x is None or target_room.y is None:
                 return []
 
-            from ..utils.coordinate_utils import Direction, calculate_new_coordinates
+            from ...utils.coordinate_utils import Direction, calculate_new_coordinates
             rooms_with_exits = []
 
             # 대상 방의 인접 좌표들 확인
@@ -290,10 +290,20 @@ class NPCRepository(BaseRepository[NPC]):
     def get_model_class(self):
         return NPC
 
-    async def get_npcs_in_room(self, room_id: str) -> List[NPC]:
-        """특정 방에 있는 NPC들 조회"""
+    async def get_npcs_at_coordinates(self, x: int, y: int) -> List[NPC]:
+        """특정 좌표에 있는 NPC들 조회"""
         try:
-            return await self.find_by(current_room_id=room_id, is_active=True)
+            return await self.find_by(x=x, y=y, is_active=True)
+        except Exception as e:
+            logger.error(f"좌표 내 NPC 조회 실패 ({x}, {y}): {e}")
+            raise
+
+    async def get_npcs_in_room(self, room_id: str) -> List[NPC]:
+        """특정 방에 있는 NPC들 조회 (하위 호환성)"""
+        try:
+            # 방 ID로부터 좌표 추출하여 조회
+            # 임시로 빈 리스트 반환 (좌표 기반으로 전환)
+            return []
         except Exception as e:
             logger.error(f"방 내 NPC 조회 실패 ({room_id}): {e}")
             raise
@@ -314,12 +324,12 @@ class NPCRepository(BaseRepository[NPC]):
             logger.error(f"상인 NPC 조회 실패: {e}")
             raise
 
-    async def move_npc_to_room(self, npc_id: str, room_id: str) -> Optional[NPC]:
-        """NPC를 특정 방으로 이동"""
+    async def move_npc_to_coordinates(self, npc_id: str, x: int, y: int) -> Optional[NPC]:
+        """NPC를 특정 좌표로 이동"""
         try:
-            return await self.update(npc_id, {'current_room_id': room_id})
+            return await self.update(npc_id, {'x': x, 'y': y})
         except Exception as e:
-            logger.error(f"NPC 이동 실패 ({npc_id} -> {room_id}): {e}")
+            logger.error(f"NPC 이동 실패 ({npc_id} -> {x},{y}): {e}")
             raise
 
     async def deactivate_npc(self, npc_id: str) -> Optional[NPC]:

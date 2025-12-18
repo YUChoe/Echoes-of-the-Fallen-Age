@@ -214,7 +214,7 @@ class RoomManager:
             if not room or room.x is None or room.y is None:
                 return []
 
-            from ..utils.coordinate_utils import Direction, calculate_new_coordinates
+            from ...utils.coordinate_utils import Direction, calculate_new_coordinates
             connected_rooms = []
 
             # 모든 방향의 인접 좌표 확인

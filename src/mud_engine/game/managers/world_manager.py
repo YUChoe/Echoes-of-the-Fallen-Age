@@ -206,6 +206,10 @@ class WorldManager:
     async def check_aggressive_monsters(self, player_id: str, room_id: str, combat_system) -> Optional[Monster]:
         return await self._monster_manager.check_aggressive_monsters(player_id, room_id, combat_system)
 
+    async def get_monsters_at_coordinates(self, x: int, y: int) -> List[Monster]:
+        """특정 좌표에 있는 몬스터들을 조회합니다."""
+        return await self._monster_manager.get_monsters_at_coordinates(x, y)
+
     # === 위치 추적 및 요약 ===
 
     async def track_object_location(self, object_id: str) -> Optional[Dict[str, Any]]:
