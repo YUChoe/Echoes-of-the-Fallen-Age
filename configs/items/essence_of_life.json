@@ -2,14 +2,14 @@
   "template_id": "essence_of_life",
   "name_en": "Essence of Life",
   "name_ko": "생명의 정수",
-  "description_en": "A glowing essence extracted from a defeated creature.",
-  "description_ko": "처치한 생명체에서 추출한 빛나는 정수입니다.",
-  "object_type": "consumable",
-  "category": "consumable",
-  "weight": 0.0,
+  "description_en": "A small, dimly glowing object of indeterminate form.",
+  "description_ko": "형체를 알 수 없는 작고 흐릿하게 빛나는 물체",
+  "object_type": "item",
+  "category": "misc",
+  "weight": 0.7,
   "properties": {
-    "essence_type": "life",
-    "power": 1
+    "currency_type": "essence",
+    "value": 1
   },
   "stackable": true,
   "max_stack": 999
