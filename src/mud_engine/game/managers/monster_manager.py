@@ -522,7 +522,10 @@ class MonsterManager:
                     # 현재 위치 좌표 가져오기
                     current_coord = f"({monster.x}, {monster.y})" if monster.x is not None and monster.y is not None else "알 수 없음"
 
-                    logger.info(f"몬스터 {short_id} {current_coord} 이동하지 않음 (확률: {random_value:.2f} > {roam_chance})")
+                    # 몬스터 영어 이름 가져오기 (15자 제한)
+                    monster_name = monster.get_localized_name('en')[:15] if monster.get_localized_name('en') else short_id
+
+                    logger.info(f"{monster_name} {short_id} {current_coord} 이동하지 않음 (확률: {random_value:.2f} > {roam_chance})")
                     continue
 
                 logger.debug(f"몬스터 {short_id} 이동 시도 (확률: {random_value:.2f} <= {roam_chance})")
@@ -585,7 +588,11 @@ class MonsterManager:
 
                 if success:
                     short_id = monster.id.split('-')[-1] if '-' in monster.id else monster.id
-                    logger.info(f"몬스터 {short_id} ({current_x}, {current_y}) -> ({target_x}, {target_y}) 로밍 (확률: {random_value:.2f})")
+
+                    # 몬스터 영어 이름 가져오기 (15자 제한)
+                    monster_name = monster.get_localized_name('en')[:15] if monster.get_localized_name('en') else short_id
+
+                    logger.info(f"{monster_name} {short_id} ({current_x}, {current_y}) -> ({target_x}, {target_y}) 로밍 (확률: {random_value:.2f})")
         except Exception as e:
             logger.error(f"몬스터 로밍 실패 ({monster.id}): {e}")
 
