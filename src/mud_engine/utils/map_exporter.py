@@ -37,21 +37,13 @@ class MapExporter:
         return [tuple(row) for row in result]
 
     async def get_monsters_by_room(self) -> Dict[str, int]:
-        """방별 몬스터 수 가져오기 (플레이어와 적대적인 종족만)"""
+        """방별 몬스터 수 가져오기 (모든 살아있는 몬스터)"""
         cursor = await self.db_manager.execute("""
             SELECT r.id, COUNT(*) as count
             FROM rooms r
             INNER JOIN monsters m ON (r.x = m.x AND r.y = m.y)
-            LEFT JOIN faction_relations fr ON (
-                (fr.faction_a_id = 'ash_knights' AND fr.faction_b_id = m.faction_id)
-                OR (fr.faction_b_id = 'ash_knights' AND fr.faction_a_id = m.faction_id)
-            )
             WHERE m.is_alive = 1
             AND m.x IS NOT NULL AND m.y IS NOT NULL
-            AND (
-                fr.relation_status IN ('HOSTILE', 'UNFRIENDLY')
-                OR m.faction_id IS NULL
-            )
             GROUP BY r.id
         """)
         result = await cursor.fetchall()
