@@ -126,6 +126,104 @@ class MapExporter:
         result = await cursor.fetchall()
         return [tuple(row) for row in result]
 
+    async def get_room_details(self) -> Dict[str, Dict[str, Any]]:
+        """모든 방의 상세 정보를 가져오기 (클릭 시 표시용)"""
+        room_details = {}
+
+        # 방 기본 정보
+        cursor = await self.db_manager.execute("""
+            SELECT id, description_ko, description_en, x, y
+            FROM rooms
+            WHERE x IS NOT NULL AND y IS NOT NULL
+        """)
+        rooms = await cursor.fetchall()
+
+        for room in rooms:
+            room_id, desc_ko, desc_en, x, y = room
+            room_details[room_id] = {
+                'description_ko': desc_ko,
+                'description_en': desc_en,
+                'x': x,
+                'y': y,
+                'monsters': [],
+                'players': [],
+                'items': []
+            }
+
+        # 몬스터 정보
+        cursor = await self.db_manager.execute("""
+            SELECT r.id, m.name_ko, m.name_en,
+                   COALESCE(
+                       json_extract(m.stats, '$.level'),
+                       json_extract(m.properties, '$.level'),
+                       1
+                   ) as level,
+                   COALESCE(
+                       json_extract(m.stats, '$.current_hp'),
+                       json_extract(m.stats, '$.max_hp'),
+                       20
+                   ) as current_hp,
+                   COALESCE(
+                       json_extract(m.stats, '$.max_hp'),
+                       20
+                   ) as max_hp
+            FROM rooms r
+            INNER JOIN monsters m ON (r.x = m.x AND r.y = m.y)
+            WHERE m.is_alive = 1 AND r.x IS NOT NULL AND r.y IS NOT NULL
+            ORDER BY r.id, m.name_ko
+        """)
+        monsters = await cursor.fetchall()
+
+        for monster in monsters:
+            room_id, name_ko, name_en, level, current_hp, max_hp = monster
+            if room_id in room_details:
+                room_details[room_id]['monsters'].append({
+                    'name_ko': name_ko,
+                    'name_en': name_en,
+                    'level': level,
+                    'hp': f"{current_hp}/{max_hp}"
+                })
+
+        # 플레이어 정보
+        cursor = await self.db_manager.execute("""
+            SELECT p.last_room_id, p.username, p.is_admin
+            FROM players p
+            WHERE p.last_room_id IS NOT NULL
+            ORDER BY p.username
+        """)
+        players = await cursor.fetchall()
+
+        for player in players:
+            room_id, username, is_admin = player
+            if room_id in room_details:
+                room_details[room_id]['players'].append({
+                    'username': username,
+                    'is_admin': is_admin
+                })
+
+        # 아이템 정보 (게임 오브젝트에서)
+        cursor = await self.db_manager.execute("""
+            SELECT r.id, go.name_ko, go.name_en, go.object_type
+            FROM rooms r
+            INNER JOIN game_objects go ON (r.id = go.location_id)
+            WHERE go.location_type = 'room'
+            AND go.object_type IN ('item', 'weapon', 'armor', 'consumable')
+            AND r.x IS NOT NULL AND r.y IS NOT NULL
+            ORDER BY r.id, go.name_ko
+        """)
+        items = await cursor.fetchall()
+
+        for item in items:
+            room_id, name_ko, name_en, object_type = item
+            if room_id in room_details:
+                room_details[room_id]['items'].append({
+                    'name_ko': name_ko,
+                    'name_en': name_en,
+                    'type': object_type
+                })
+
+        return room_details
+
     def calculate_coordinate_based_exits(self, x: int, y: int, all_rooms_coords: Dict[Tuple[int, int], str]) -> Dict[str, str]:
         """좌표 기반으로 출구를 계산합니다."""
         exits = {}
@@ -148,7 +246,7 @@ class MapExporter:
     def generate_html(self, rooms_data: List[Tuple[Any, ...]], monsters_by_room: Dict[str, int],
                      players_by_room: Dict[str, int], npcs_by_room: Dict[str, int],
                      factions: List[Tuple[Any, ...]], relations: List[Tuple[Any, ...]],
-                     all_players: List[Tuple[Any, ...]]) -> str:
+                     all_players: List[Tuple[Any, ...]], room_details: Dict[str, Dict[str, Any]]) -> str:
         """HTML 생성"""
         # 방 데이터를 그리드에 매핑
         grid: Dict[Tuple[int, int], Dict[str, Any]] = {}
@@ -320,6 +418,63 @@ class MapExporter:
                 margin: 0 15px;
                 color: #4a9eff;
             }
+            .main-content {
+                display: flex;
+                gap: 20px;
+                align-items: flex-start;
+            }
+            .room-details {
+                position: fixed;
+                right: 20px;
+                top: 120px;
+                width: 300px;
+                background-color: #2a2a2a;
+                border: 1px solid #444;
+                border-radius: 8px;
+                padding: 15px;
+                display: none;
+                max-height: 70vh;
+                overflow-y: auto;
+                z-index: 1000;
+            }
+            .room-details h3 {
+                margin-top: 0;
+                color: #4a9eff;
+                font-size: 13px;
+            }
+            .room-details .description {
+                font-size: 13px;
+                line-height: 1.4;
+                margin-bottom: 15px;
+                color: #e0e0e0;
+            }
+            .room-details .section {
+                margin-bottom: 10px;
+            }
+            .room-details .section-title {
+                font-size: 13px;
+                font-weight: bold;
+                color: #4a9eff;
+                margin-bottom: 5px;
+            }
+            .room-details .item-list {
+                font-size: 13px;
+                color: #ccc;
+                margin-left: 10px;
+            }
+            .room-details .close-btn {
+                position: absolute;
+                top: 5px;
+                right: 10px;
+                background: none;
+                border: none;
+                color: #999;
+                font-size: 16px;
+                cursor: pointer;
+            }
+            .room-details .close-btn:hover {
+                color: #fff;
+            }
         """
 
         html = f"""<!DOCTYPE html>
@@ -360,8 +515,9 @@ class MapExporter:
         </div>
     </div>
 
-    <div class="map-container">
-        <table>
+    <div class="main-content">
+        <div class="map-container">
+            <table>
 """
 
         # 테이블 생성
@@ -420,7 +576,7 @@ class MapExporter:
                     entity_text = ' '.join(entity_info) if entity_info else ''
                     tooltip_text = f"{exit_arrows}({x},{y}) {entity_text}"
 
-                    html += f"""                <td class="{css_class}">
+                    html += f"""                <td class="{css_class}" onclick="showRoomDetails('{room_id}')">
                         {indicators_html}
                         <div class="tooltip">{tooltip_text}</div>
                     </td>\n"""
@@ -429,6 +585,17 @@ class MapExporter:
             html += "            </tr>\n"
 
         html += """        </table>
+        </div>
+
+        <!-- 방 상세 정보 패널 -->
+        <div id="roomDetails" class="room-details">
+            <button class="close-btn" onclick="hideRoomDetails()">×</button>
+            <h3 id="roomTitle">방 정보</h3>
+            <div id="roomDescription" class="description"></div>
+            <div id="roomMonsters" class="section"></div>
+            <div id="roomPlayers" class="section"></div>
+            <div id="roomItems" class="section"></div>
+        </div>
     </div>
 
     <div style="margin: 40px auto; max-width: 800px; padding: 20px; background-color: #2a2a2a; border-radius: 8px;">
@@ -473,6 +640,74 @@ class MapExporter:
             </tbody>
         </table>
     </div>
+
+    <script>
+        // 방 상세 정보 데이터
+        const roomDetailsData = {room_details_json};
+
+        function showRoomDetails(roomId) {{
+            const details = roomDetailsData[roomId];
+            if (!details) return;
+
+            const panel = document.getElementById('roomDetails');
+            const title = document.getElementById('roomTitle');
+            const description = document.getElementById('roomDescription');
+            const monsters = document.getElementById('roomMonsters');
+            const players = document.getElementById('roomPlayers');
+            const items = document.getElementById('roomItems');
+
+            // 제목 설정
+            title.textContent = `방 정보 (${details.x}, ${details.y})`;
+
+            // 설명 설정 (한국어/영어)
+            description.innerHTML = `
+                <div><strong>한국어:</strong> ${details.description_ko || '설명 없음'}</div>
+                <div style="margin-top: 8px;"><strong>English:</strong> ${details.description_en || 'No description'}</div>
+            `;
+
+            // 몬스터 목록
+            if (details.monsters && details.monsters.length > 0) {{
+                monsters.innerHTML = `
+                    <div class="section-title">몬스터 (${details.monsters.length})</div>
+                    <div class="item-list">
+                        ${details.monsters.map(m => `• ${m.name_ko} (${m.name_en}) Lv.${m.level} HP:${m.hp}`).join('<br>')}
+                    </div>
+                `;
+            }} else {{
+                monsters.innerHTML = '';
+            }}
+
+            // 플레이어 목록
+            if (details.players && details.players.length > 0) {{
+                players.innerHTML = `
+                    <div class="section-title">플레이어 (${details.players.length})</div>
+                    <div class="item-list">
+                        ${details.players.map(p => `• ${p.username}${p.is_admin ? ' (관리자)' : ''}`).join('<br>')}
+                    </div>
+                `;
+            }} else {{
+                players.innerHTML = '';
+            }}
+
+            // 아이템 목록
+            if (details.items && details.items.length > 0) {{
+                items.innerHTML = `
+                    <div class="section-title">아이템 (${details.items.length})</div>
+                    <div class="item-list">
+                        ${details.items.map(i => `• ${i.name_ko} (${i.name_en}) [${i.type}]`).join('<br>')}
+                    </div>
+                `;
+            }} else {{
+                items.innerHTML = '';
+            }}
+
+            panel.style.display = 'block';
+        }}
+
+        function hideRoomDetails() {{
+            document.getElementById('roomDetails').style.display = 'none';
+        }}
+    </script>
 </body>
 </html>
 """
@@ -568,6 +803,11 @@ class MapExporter:
         html = html.replace('{faction_rows}', faction_rows)
         html = html.replace('{player_rows}', player_rows)
 
+        # 방 상세 정보 JSON 데이터 추가
+        import json
+        room_details_json = json.dumps(room_details, ensure_ascii=False, indent=2)
+        html = html.replace('{room_details_json}', room_details_json)
+
         return html
 
     def _get_current_time(self) -> str:
@@ -607,9 +847,13 @@ class MapExporter:
             all_players = await self.get_all_players()
             logger.debug(f"플레이어 목록 로딩 완료: {len(all_players)}명")
 
+            # 방 상세 정보 가져오기
+            room_details = await self.get_room_details()
+            logger.debug(f"방 상세 정보 로딩 완료: {len(room_details)}개")
+
             # HTML 생성
             html_content = self.generate_html(rooms_data, monsters_by_room, players_by_room,
-                                            npcs_by_room, factions, relations, all_players)
+                                            npcs_by_room, factions, relations, all_players, room_details)
 
             # 파일 저장
             output_file = Path(output_path)
