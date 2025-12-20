@@ -9,6 +9,7 @@ from datetime import datetime
 from .base import BaseCommand, CommandResult, CommandResultType
 from ..core.types import SessionType
 from ..core.event_bus import EventBus, Event, EventType
+from ..core.localization import get_message
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class CommandProcessor:
         """
         # 방향 명령어 전용 예약 별칭
         RESERVED_DIRECTION_ALIASES = {'n', 's', 'e', 'w'}
-        
+
         # 방향 명령어가 아닌데 예약된 별칭을 사용하는지 확인
         if command.name not in ['north', 'south', 'east', 'west']:
             for alias in command.aliases:
@@ -48,7 +49,7 @@ class CommandProcessor:
                     )
                     # 예약된 별칭 제거
                     command.aliases = [a for a in command.aliases if a not in RESERVED_DIRECTION_ALIASES]
-        
+
         # 메인 명령어 이름으로 등록
         self.commands[command.name] = command
 
@@ -116,15 +117,15 @@ class CommandProcessor:
     def _convert_combat_number_to_command(self, command_line: str) -> str:
         """
         전투 중 숫자 입력을 명령어로 변환
-        
+
         Args:
             command_line: 입력된 명령어 라인
-        
+
         Returns:
             str: 변환된 명령어 라인
         """
         command_line = command_line.strip()
-        
+
         # 숫자만 입력된 경우 변환
         if command_line in ['1', '2', '3']:
             combat_actions = {
@@ -135,27 +136,27 @@ class CommandProcessor:
             converted = combat_actions.get(command_line, command_line)
             logger.debug(f"전투 숫자 입력 변환: '{command_line}' -> '{converted}'")
             return converted
-        
+
         return command_line
 
     async def _execute_combat_command(self, session: SessionType, command_name: str, args: List[str]) -> CommandResult:
         """
         전투 전용 명령어 동적 실행
-        
+
         Args:
             session: 세션 객체
             command_name: 명령어 이름
             args: 인수 목록
-        
+
         Returns:
             CommandResult: 실행 결과
         """
         from ..commands.combat_commands import DefendCommand, FleeCommand
-        
+
         # 명령어 별칭 매핑
         defend_aliases = ['defend', 'def', 'guard', 'block']
         flee_aliases = ['flee', 'run', 'escape', 'retreat']
-        
+
         # combat_handler 가져오기
         game_engine = getattr(session, 'game_engine', None)
         if not game_engine:
@@ -163,9 +164,9 @@ class CommandProcessor:
                 result_type=CommandResultType.ERROR,
                 message="게임 엔진에 접근할 수 없습니다."
             )
-        
+
         combat_handler = game_engine.combat_handler
-        
+
         # 명령어 실행
         if command_name in defend_aliases:
             command = DefendCommand(combat_handler)
@@ -254,7 +255,7 @@ class CommandProcessor:
         # 전투 전용 명령어 처리 (defend, flee)
         in_combat = getattr(session, 'in_combat', False)
         combat_only_commands = ['defend', 'flee', 'def', 'guard', 'block', 'run', 'escape', 'retreat']
-        
+
         if command_name in combat_only_commands:
             if not in_combat:
                 return CommandResult(
@@ -268,9 +269,15 @@ class CommandProcessor:
         command = self.get_command(command_name)
 
         if not command:
+            # 사용자의 선호 언어 가져오기
+            locale = getattr(session, 'preferred_locale', 'en') if hasattr(session, 'preferred_locale') else 'en'
+            if hasattr(session, 'player') and session.player and hasattr(session.player, 'preferred_locale'):
+                locale = session.player.preferred_locale
+
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"알 수 없는 명령어: '{command_name}'. 'help'를 입력해서 사용 가능한 명령어를 확인하세요."
+                message=get_message("command.unknown", locale, command=command_name) +
+                       " " + get_message("command.help_suggestion", locale)
             )
 
         try:
@@ -332,7 +339,7 @@ class CommandProcessor:
         """
         from ..core.localization import get_localization_manager
         localization = get_localization_manager()
-        
+
         if command_name:
             command = self.get_command(command_name)
             if command:
@@ -362,7 +369,7 @@ class CommandProcessor:
                 help_text += f"• {command.name}"
                 if command.aliases:
                     help_text += f" ({', '.join(command.aliases)})"
-                
+
                 # 다국어 설명 사용
                 desc_key = f"cmd.{command.name}.desc"
                 description = localization.get_message(desc_key, locale)
@@ -379,7 +386,7 @@ class CommandProcessor:
                 help_text += f"• {command.name}"
                 if command.aliases:
                     help_text += f" ({', '.join(command.aliases)})"
-                
+
                 # 다국어 설명 사용
                 desc_key = f"cmd.{command.name}.desc"
                 description = localization.get_message(desc_key, locale)

@@ -287,6 +287,10 @@ class LocalizationManager:
                 "en": "❌ Unknown command: {command}",
                 "ko": "❌ 알 수 없는 명령어: {command}"
             },
+            "command.help_suggestion": {
+                "en": "Type 'help' to see available commands.",
+                "ko": "'help'를 입력해서 사용 가능한 명령어를 확인하세요."
+            },
             "command.invalid_args": {
                 "en": "❌ Invalid arguments. Usage: {usage}",
                 "ko": "❌ 잘못된 인자입니다. 사용법: {usage}"
