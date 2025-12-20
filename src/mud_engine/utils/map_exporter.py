@@ -116,9 +116,9 @@ class MapExporter:
         return [tuple(row) for row in factions_result], [tuple(row) for row in relations_result]
 
     async def get_all_players(self) -> List[Tuple[Any, ...]]:
-        """모든 플레이어 정보 가져오기 (좌표 포함)"""
+        """모든 플레이어 정보 가져오기 (좌표 및 마지막 로그인 포함)"""
         cursor = await self.db_manager.execute("""
-            SELECT p.username, p.last_room_id, r.x, r.y, p.is_admin, p.created_at
+            SELECT p.username, p.last_room_id, r.x, r.y, p.is_admin, p.created_at, p.last_login
             FROM players p
             LEFT JOIN rooms r ON p.last_room_id = r.id
             ORDER BY p.username
@@ -431,14 +431,8 @@ class MapExporter:
         html += """        </table>
     </div>
 
-    <div style="text-align: center; margin-top: 30px; color: #888;">
-        <p>방 위에 마우스를 올리면 상세 정보를 볼 수 있습니다</p>
-        <p>툴팁 형식: [출구화살표] (x,y) [엔티티정보]</p>
-        <p>화살표: ↑북 ↓남 →동 ←서</p>
-    </div>
-
     <div style="margin: 40px auto; max-width: 800px; padding: 20px; background-color: #2a2a2a; border-radius: 8px;">
-        <h2 style="text-align: center; color: #4a9eff; margin-bottom: 20px;">🤝 종족 관계 (잿빛 기사단 기준)</h2>
+        <h2 style="text-align: center; color: #4a9eff; margin-bottom: 20px; font-size: 16px;">🤝 종족 관계 (잿빛 기사단 기준)</h2>
         <table style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr style="background-color: #1a1a1a;">
@@ -463,7 +457,7 @@ class MapExporter:
     </div>
 
     <div style="margin: 40px auto; max-width: 800px; padding: 20px; background-color: #2a2a2a; border-radius: 8px;">
-        <h2 style="text-align: center; color: #4a9eff; margin-bottom: 20px;">👥 플레이어 목록</h2>
+        <h2 style="text-align: center; color: #4a9eff; margin-bottom: 20px; font-size: 16px;">👥 플레이어 목록</h2>
         <table style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr style="background-color: #1a1a1a;">
@@ -471,6 +465,7 @@ class MapExporter:
                     <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">현재 위치</th>
                     <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">권한</th>
                     <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">가입일</th>
+                    <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">마지막 로그인</th>
                 </tr>
             </thead>
             <tbody>
@@ -521,7 +516,7 @@ class MapExporter:
 
         # 플레이어 목록 테이블 생성
         player_rows = ""
-        for username, last_room_id, x, y, is_admin, created_at in all_players:
+        for username, last_room_id, x, y, is_admin, created_at, last_login in all_players:
             # 관리자 여부 표시
             admin_badge = "🛡️ 관리자" if is_admin else "👤 일반"
             admin_color = "#ffd700" if is_admin else "#90ee90"
@@ -547,11 +542,25 @@ class MapExporter:
             else:
                 join_date = "알 수 없음"
 
+            # 마지막 로그인 포맷팅
+            if last_login:
+                try:
+                    from datetime import datetime
+                    if isinstance(last_login, str):
+                        last_login_date = datetime.fromisoformat(last_login.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M')
+                    else:
+                        last_login_date = last_login.strftime('%Y-%m-%d %H:%M')
+                except:
+                    last_login_date = str(last_login)
+            else:
+                last_login_date = "없음"
+
             player_rows += f"""                <tr>
                     <td style="padding: 10px; border: 1px solid #444; color: #e0e0e0; font-weight: bold;">{username}</td>
                     <td style="padding: 10px; border: 1px solid #444; color: #888;">{location}</td>
                     <td style="padding: 10px; border: 1px solid #444; color: {admin_color}; text-align: center;">{admin_badge}</td>
                     <td style="padding: 10px; border: 1px solid #444; color: #888; text-align: center;">{join_date}</td>
+                    <td style="padding: 10px; border: 1px solid #444; color: #888; text-align: center;">{last_login_date}</td>
                 </tr>
 """
 
