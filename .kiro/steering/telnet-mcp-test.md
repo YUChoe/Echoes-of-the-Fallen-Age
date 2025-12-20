@@ -32,7 +32,7 @@ Telnet MCP는 프로그래밍 방식으로 Telnet 서버와 상호작용할 수 
   ```javascript
   console.log(`>>> 전송: ${command}`);
   await mcp_telnet_mcp_telnet_send({ sessionId, command });
-  
+
   const result = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs });
   console.log(`<<< 수신: ${result.data.substring(0, 100)}...`);
   ```
@@ -102,8 +102,8 @@ const loginResult = await mcp_telnet_mcp_telnet_read({
 서버 접속 시 다음 메뉴가 표시됩니다:
 ```
 ╔═══════════════════════════════════════════════════════════════╗
-║        Echoes of the Fallen Age                               ║
-║        몰락의 대륙, 카르나스에 오신 것을 환영합니다           ║
+║        The Karnas Chronicles                                  ║
+║        분할된 지배권, 카르나스에 오신 것을 환영합니다           ║
 ╚═══════════════════════════════════════════════════════════════╝
 
 1. 로그인 (login)
@@ -249,7 +249,7 @@ try {
         port: 4000,
         timeout: 5000
     });
-    
+
     if (!result.success) {
         console.error("연결 실패:", result.message);
         return;
@@ -427,15 +427,15 @@ await disconnect(sessionId);
 ```javascript
 async function quick_login(username, password) {
     console.log(`>>> 로그인 시작: ${username}`);
-    
+
     const connectResult = await mcp_telnet_mcp_telnet_connect({
         host: "127.0.0.1",
         port: 4000,
         timeout: 5000
     });
-    
+
     const sessionId = connectResult.sessionId;
-    
+
     // 최적화된 대기 시간 사용
     await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
     await mcp_telnet_mcp_telnet_send({ sessionId, command: "1" });
@@ -444,7 +444,7 @@ async function quick_login(username, password) {
     await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
     await mcp_telnet_mcp_telnet_send({ sessionId, command: password });
     const loginResult = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 800 });
-    
+
     console.log(`<<< 로그인 완료: ${username}`);
     return { sessionId, loginResult };
 }
@@ -535,24 +535,24 @@ async function connect_and_login(username, password) {
         port: 4000,
         timeout: 5000
     });
-    
+
     const sessionId = connectResult.sessionId;
-    
+
     // 초기 메시지 읽기
     await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
-    
+
     // 로그인 선택
     await mcp_telnet_mcp_telnet_send({ sessionId, command: "1" });
     await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
-    
+
     // 사용자명 입력
     await mcp_telnet_mcp_telnet_send({ sessionId, command: username });
     await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
-    
+
     // 비밀번호 입력
     await mcp_telnet_mcp_telnet_send({ sessionId, command: password });
     await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1500 });
-    
+
     return { sessionId };
 }
 ```

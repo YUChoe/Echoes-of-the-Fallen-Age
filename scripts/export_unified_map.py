@@ -417,13 +417,13 @@ def generate_html(rooms_data, monsters_by_room, players_by_room, npcs_by_room, f
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Echoes of the Fallen Age - 통합 월드 맵</title>
+    <title>The Karnas Chronicles: Divided Dominion - 통합 월드 맵</title>
     <style>
 {css_style}
     </style>
 </head>
 <body>
-    <h1>🗺️ Echoes of the Fallen Age - 통합 월드 맵</h1>
+    <h1>🗺️ The Karnas Chronicles: Divided Dominion - 통합 월드 맵</h1>
 
     <div class="stats">
         <span>총 방 개수: <strong>{{total_rooms}}</strong></span>

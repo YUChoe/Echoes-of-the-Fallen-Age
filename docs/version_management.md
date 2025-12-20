@@ -94,10 +94,10 @@ build_date = version_manager.get_build_date()
 ```
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║        Echoes of the Fallen Age                               ║
+║        The Karnas Chronicles                                  ║
 ║                                                               ║
-║        Welcome to Karnas, the Fallen Continent               ║
-║        몰락의 대륙, 카르나스에 오신 것을 환영합니다           ║
+║        Divided Dominion                                       ║
+║        분할된 지배권, 카르나스에 오신 것을 환영합니다           ║
 ║                                                               ║
 ║        Version: master@8d9e7e1-dirty                          ║
 ║                                                               ║

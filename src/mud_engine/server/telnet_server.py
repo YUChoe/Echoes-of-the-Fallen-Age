@@ -114,7 +114,7 @@ class TelnetServer:
         try:
             # Telnet 프로토콜 초기화
             await session.initialize_telnet()
-            
+
             # 환영 메시지 전송
             await self.send_welcome_message(session)
 
@@ -147,15 +147,15 @@ class TelnetServer:
         # 버전 정보 가져오기
         version_manager = get_version_manager()
         version_string = version_manager.get_version_string()
-        
+
         welcome_text = f"""
 {ANSIColors.BOLD}{ANSIColors.BRIGHT_CYAN}
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║        {ANSIColors.BRIGHT_YELLOW}Echoes of the Fallen Age{ANSIColors.BRIGHT_CYAN}                        ║
+║        {ANSIColors.BRIGHT_YELLOW}The Karnas Chronicles{ANSIColors.BRIGHT_CYAN}                            ║
 ║                                                               ║
-║        {ANSIColors.WHITE}Welcome to Karnas, the Fallen Continent{ANSIColors.BRIGHT_CYAN}           ║
-║        {ANSIColors.WHITE}몰락의 대륙, 카르나스에 오신 것을 환영합니다{ANSIColors.BRIGHT_CYAN}        ║
+║        {ANSIColors.WHITE}Divided Dominion{ANSIColors.BRIGHT_CYAN}                                    ║
+║        {ANSIColors.WHITE}분할된 지배권, 카르나스에 오신 것을 환영합니다{ANSIColors.BRIGHT_CYAN}        ║
 ║                                                               ║
 ║        {ANSIColors.DIM}Version: {version_string}{ANSIColors.BRIGHT_CYAN}                           ║
 ║                                                               ║
@@ -170,7 +170,7 @@ Your adventure begins in a world transformed into ruins and monster lairs.
 
 """
         await session.send_text(welcome_text)
-        
+
         # 공지사항 읽기 및 표시
         await self._send_announcements(session)
 
@@ -183,11 +183,11 @@ Your adventure begins in a world transformed into ruins and monster lairs.
         try:
             import os
             announcements_path = os.path.join("data", "announcements.txt")
-            
+
             if os.path.exists(announcements_path):
                 with open(announcements_path, 'r', encoding='utf-8') as f:
                     announcements = f.read().strip()
-                
+
                 if announcements:
                     # 공지사항을 박스로 감싸서 표시
                     announcement_text = f"""
@@ -207,7 +207,7 @@ Your adventure begins in a world transformed into ruins and monster lairs.
                     logger.debug("공지사항 파일이 비어있습니다")
             else:
                 logger.debug(f"공지사항 파일을 찾을 수 없습니다: {announcements_path}")
-                
+
         except Exception as e:
             logger.error(f"공지사항 읽기 실패: {e}")
             # 공지사항 읽기 실패해도 게임 진행에는 영향 없음
@@ -319,7 +319,7 @@ Your adventure begins in a world transformed into ruins and monster lairs.
             # 세션 인증
             session.authenticate(player)
             self.player_sessions[player.id] = session.session_id
-            
+
             # 세션의 locale을 플레이어의 preferred_locale로 설정
             session.locale = player.preferred_locale
 
@@ -331,21 +331,21 @@ Your adventure begins in a world transformed into ruins and monster lairs.
             from ..core.localization import get_localization_manager
             localization = get_localization_manager()
             welcome_msg = localization.get_message("auth.login_success", session.locale, username=player.get_display_name())
-            
+
             await session.send_success(welcome_msg)
-            
+
             # 게임 입장 메시지
             game_entered_msg = localization.get_message("game.entered", session.locale)
             await session.send_info(game_entered_msg)
-            
+
             # 선호 언어 설정 표시
             language_name = "English" if session.locale == "en" else "한국어"
             language_info = localization.get_message("auth.language_preference", session.locale, language=language_name)
             await session.send_message({
-                "type": "system_message", 
+                "type": "system_message",
                 "message": language_info
             })
-            
+
             logger.info(f"✅ Telnet 로그인 성공: 사용자명='{username}', 플레이어ID={player.id}")
             return True
 
@@ -371,12 +371,12 @@ Your adventure begins in a world transformed into ruins and monster lairs.
         if not username:
             await session.send_error("Username not entered. / 사용자명을 입력하지 않았습니다.")
             return False
-        
+
         # 사용자명 검증: 공백 불허
         if ' ' in username:
             await session.send_error("Username cannot contain spaces. / 사용자명에 공백을 사용할 수 없습니다.")
             return False
-        
+
         # 사용자명 길이 검증
         if len(username) < 3 or len(username) > 20:
             await session.send_error("Username must be 3-20 characters. / 사용자명은 3-20자여야 합니다.")
@@ -433,7 +433,7 @@ Your adventure begins in a world transformed into ruins and monster lairs.
         # 다국어 게임 입장 메시지
         from ..core.localization import get_localization_manager
         localization = get_localization_manager()
-        
+
         await session.send_text("")
         game_entered_msg = localization.get_message("game.entered", session.locale)
         await session.send_info(game_entered_msg)
@@ -483,10 +483,10 @@ Your adventure begins in a world transformed into ruins and monster lairs.
         # 종료 명령어
         if command.lower() in ['quit', 'exit', 'logout']:
             from ..core.localization import get_localization_manager
-            
+
             localization = get_localization_manager()
             locale = getattr(session.player, 'preferred_locale', 'en') if session.player else 'en'
-            
+
             message = localization.get_message("quit.message", locale)
             await session.send_success(message)
             await session.close("플레이어 요청으로 종료")
