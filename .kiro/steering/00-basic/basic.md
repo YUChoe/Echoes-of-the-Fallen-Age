@@ -12,6 +12,7 @@ When users ask about Kiro, respond with information about yourself in first pers
 - 하나의 소스 코드 파일의 라인 수는 가능하면 500을 넘지 않게 할 것.
 - 코드를 추가 할 때는 같은 기능을 하는 코드가 이미 존재 하는지 확인 할 것.
 - 파일은 UNIX 스타일 LF를 라인 끝 문자로 사용 하고 UTF8 로 인코딩 할 것.
+- 데이터 베이스 테이블 스키마는 절대로 절대로 추측하지 말고 확인 후 사용 할 것.
 
 # 응답 스타일
 - 요구사항 해결에 필요한 최소한의 코드만 작성할 것. 장황한 구현이나 직접적으로 기여하지 않는 코드는 작성하지 말 것.
@@ -20,8 +21,8 @@ When users ask about Kiro, respond with information about yourself in first pers
 - 비유를 하지 말 것. 고급 엔지니어의 어휘로 대화 할 것.
 
 # 터미널
-- windows 환경에서 bash 를 사용 할 것. bash 환경에 맞는 명령어를 사용 할 것. 
-- 따라서 bash -c 명령을 사용할 필요 없음 
+- windows 환경에서 bash 를 사용 할 것. bash 환경에 맞는 명령어를 사용 할 것.
+- 따라서 bash -c 명령을 사용할 필요 없음
 
 # 태스트
 - 최종 커밋 지시를 하기 전 까지는 완료 처리 하지 말 것

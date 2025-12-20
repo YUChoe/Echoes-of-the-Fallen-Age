@@ -50,6 +50,10 @@ def create_monster_from_template(template_id: str, x: int, y: int) -> Optional[M
             'y': y
         }
 
+        # 종족 설정
+        if 'faction_id' in template:
+            monster_data['faction_id'] = template['faction_id']
+
         # 몬스터 타입 및 행동 패턴
         if 'monster_type' in template:
             monster_data['monster_type'] = MonsterType(template['monster_type'].lower())

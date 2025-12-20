@@ -1,37 +1,11 @@
 # Database Schema Documentation
 
-**Last Updated**: 2025-11-29  
-**Database Version**: 1.3.0 (Faction System)
+**Last Updated**: 2025-12-20
 
 ## Overview
 
-이 문서는 Python MUD Engine의 데이터베이스 스키마를 설명합니다.
+이 문서는 Python MUD Engine의 실제 데이터베이스 스키마를 설명합니다.
 스키마 변경 시 이 문서를 반드시 업데이트해야 합니다.
-
-## Change Log
-
-### 2025-11-28: UUID Migration (v1.1.0)
-- **변경사항**: 모든 `room.id`를 human-readable ID에서 UUID로 변경
-- **영향받는 테이블**: `rooms`, `monsters`
-- **마이그레이션 스크립트**: `scripts/migrate_to_uuid_safe.py`
-- **이유**: 고유성 보장, 자동 생성, 확장성 향상
-
-### 2025-11-29: Faction System Added (v1.3.0)
-- **변경사항**: 종족(Faction) 시스템 추가
-- **새 테이블**: factions, faction_relations
-- **monsters, npcs, players 테이블**: faction_id 컬럼 추가
-- **기본 종족**: 잿빛 기사단, 고블린, 동물
-- **종족 관계**: 적대, 중립, 비우호 관계 설정
-
-### 2025-11-29: Schema Documentation Update (v1.2.0)
-- **변경사항**: 실제 DB 스키마와 문서 동기화
-- **players 테이블**: stat 관련 컬럼, 좌표 필드 추가
-- **game_objects 테이블**: location_type, category, equipment_slot, is_equipped 필드 추가
-- **npcs 테이블**: shop_inventory, is_active 필드 추가
-- **translations 테이블**: 복합 PRIMARY KEY 구조로 변경
-
-### 2025-11-27: Initial Schema (v1.0.0)
-- 초기 데이터베이스 스키마 생성
 
 ---
 
@@ -44,14 +18,14 @@
 ```sql
 CREATE TABLE players (
     id TEXT PRIMARY KEY,                      -- UUID
-    username TEXT UNIQUE NOT NULL,            -- 사용자명 (고유)
+    username TEXT NOT NULL,                   -- 사용자명 (고유)
     password_hash TEXT NOT NULL,              -- 비밀번호 해시
     email TEXT,                               -- 이메일 (선택)
     preferred_locale TEXT DEFAULT 'en',       -- 선호 언어
     is_admin BOOLEAN DEFAULT FALSE,           -- 관리자 여부
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP,
-    
+
     -- 능력치 (Stats)
     stat_strength INTEGER DEFAULT 10,         -- 힘
     stat_dexterity INTEGER DEFAULT 10,        -- 민첩
@@ -64,28 +38,34 @@ CREATE TABLE players (
     stat_experience_to_next INTEGER DEFAULT 100,  -- 다음 레벨까지 필요 경험치
     stat_equipment_bonuses TEXT DEFAULT '{}', -- 장비 보너스 (JSON)
     stat_temporary_effects TEXT DEFAULT '{}', -- 임시 효과 (JSON)
-    
+
     -- 게임 상태
     gold INTEGER DEFAULT 100,                 -- 골드
-    last_room_id TEXT DEFAULT 'town_square',  -- 마지막 위치
+    last_room_id TEXT DEFAULT "town_square",  -- 마지막 위치
     last_room_x INTEGER DEFAULT 0,            -- 마지막 X 좌표
     last_room_y INTEGER DEFAULT 0,            -- 마지막 Y 좌표
-    
+
     -- 사용자 정보
     display_name TEXT,                        -- 표시 이름
     last_name_change TIMESTAMP,               -- 마지막 이름 변경 시간
-    
+
     -- 종족
     faction_id TEXT DEFAULT 'ash_knights',    -- 종족 ID (factions.id)
+
+    -- 퀘스트 시스템
+    completed_quests TEXT DEFAULT '[]',       -- 완료된 퀘스트 목록 (JSON)
+    quest_progress TEXT DEFAULT '{}',         -- 진행 중인 퀘스트 (JSON)
+
     FOREIGN KEY (faction_id) REFERENCES factions(id)
 );
 ```
 
 **인덱스**:
-- `username` (UNIQUE)
+- `CREATE INDEX idx_players_username ON players(username);`
 
 **관계**:
 - `characters` 테이블과 1:N 관계
+- `factions` 테이블과 N:1 관계
 
 ---
 
@@ -107,7 +87,8 @@ CREATE TABLE characters (
 ```
 
 **인덱스**:
-- `player_id`
+- `CREATE INDEX idx_characters_player_id ON characters(player_id);`
+- `CREATE INDEX idx_characters_current_room ON characters(current_room_id);`
 
 **참고**: 현재 시스템에서는 players 테이블에 캐릭터 정보가 통합되어 있습니다.
 
@@ -119,12 +100,9 @@ CREATE TABLE characters (
 
 ```sql
 CREATE TABLE rooms (
-    id TEXT PRIMARY KEY,              -- UUID (v1.1.0부터)
-    name_en TEXT NOT NULL,            -- 영어 이름
-    name_ko TEXT NOT NULL,            -- 한국어 이름
+    id TEXT PRIMARY KEY,              -- UUID
     description_en TEXT,              -- 영어 설명
     description_ko TEXT,              -- 한국어 설명
-    exits TEXT DEFAULT '{}',          -- 출구 정보 (JSON: {direction: room_id})
     x INTEGER,                        -- X 좌표
     y INTEGER,                        -- Y 좌표
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -133,22 +111,11 @@ CREATE TABLE rooms (
 ```
 
 **인덱스**:
-- `x, y` (복합 인덱스)
+- `CREATE INDEX idx_rooms_coordinates ON rooms(x, y);`
 
-**JSON 필드 예시**:
-```json
-{
-  "exits": {
-    "north": "a1b2c3d4-...",
-    "south": "e5f6g7h8-...",
-    "east": "i9j0k1l2-..."
-  }
-}
-```
-
-**변경 이력**:
-- v1.1.0: `id` 타입을 TEXT(human-readable)에서 UUID로 변경
-- v1.1.0: `exits` JSON의 room_id 값들도 UUID로 변경
+**참고**:
+- 방 이름과 출구 정보는 별도 시스템에서 관리됨
+- 좌표 기반 위치 시스템 사용
 
 ---
 
@@ -163,29 +130,30 @@ CREATE TABLE monsters (
     name_ko TEXT NOT NULL,            -- 한국어 이름
     description_en TEXT,              -- 영어 설명
     description_ko TEXT,              -- 한국어 설명
-    monster_type TEXT NOT NULL,       -- 몬스터 타입 (AGGRESSIVE, PASSIVE, NEUTRAL)
-    behavior TEXT NOT NULL,           -- 행동 패턴 (STATIONARY, ROAMING, PATROLLING)
-    stats TEXT NOT NULL,              -- 능력치 (JSON: D&D 기반)
-    experience_reward INTEGER DEFAULT 0,  -- 경험치 보상
-    gold_reward INTEGER DEFAULT 0,    -- 골드 보상
+    monster_type TEXT DEFAULT 'passive',     -- 몬스터 타입 (aggressive, passive, neutral)
+    behavior TEXT DEFAULT 'stationary',      -- 행동 패턴 (stationary, roaming, territorial)
+    stats TEXT DEFAULT '{}',          -- 능력치 (JSON: D&D 기반)
+    experience_reward INTEGER DEFAULT 50,    -- 경험치 보상
+    gold_reward INTEGER DEFAULT 10,   -- 골드 보상
     drop_items TEXT DEFAULT '[]',     -- 드롭 아이템 (JSON)
-    spawn_room_id TEXT,               -- 스폰 방 ID (rooms.id, UUID)
-    current_room_id TEXT,             -- 현재 방 ID (rooms.id, UUID)
     respawn_time INTEGER DEFAULT 300, -- 리스폰 시간 (초)
     last_death_time TIMESTAMP,        -- 마지막 사망 시간
-    is_alive BOOLEAN DEFAULT 1,       -- 생존 여부
-    aggro_range INTEGER DEFAULT 0,    -- 어그로 범위
-    roaming_range INTEGER DEFAULT 0,  -- 로밍 범위
+    is_alive BOOLEAN DEFAULT TRUE,    -- 생존 여부
+    aggro_range INTEGER DEFAULT 1,    -- 어그로 범위
+    roaming_range INTEGER DEFAULT 2,  -- 로밍 범위
     properties TEXT DEFAULT '{}',     -- 추가 속성 (JSON)
-    faction_id TEXT,                  -- 종족 ID (factions.id)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    faction_id TEXT DEFAULT NULL,     -- 종족 ID (factions.id)
+    x INTEGER,                        -- X 좌표
+    y INTEGER,                        -- Y 좌표
     FOREIGN KEY (faction_id) REFERENCES factions(id)
 );
 ```
 
 **인덱스**:
-- `current_room_id`
-- `is_alive`
+- `CREATE INDEX idx_monsters_coordinates ON monsters(x, y);`
+- `CREATE INDEX idx_monsters_type ON monsters(monster_type);`
+- `CREATE INDEX idx_monsters_alive ON monsters(is_alive);`
 
 **JSON 필드 예시**:
 ```json
@@ -201,7 +169,7 @@ CREATE TABLE monsters (
     "current_hp": 25
   },
   "drop_items": [
-    {"item_id": "gold_coin", "chance": 0.5, "quantity": [1, 5]}
+    {"item_id": "gold_coin", "drop_chance": 0.5, "min_quantity": 1, "max_quantity": 5}
   ],
   "properties": {
     "template_id": "template_small_rat",
@@ -212,9 +180,6 @@ CREATE TABLE monsters (
   }
 }
 ```
-
-**변경 이력**:
-- v1.1.0: `spawn_room_id`, `current_room_id`가 참조하는 room ID가 UUID로 변경
 
 ---
 
@@ -242,12 +207,7 @@ CREATE TABLE game_objects (
 ```
 
 **인덱스**:
-- `location_id`
-- `location_type`
-
-**변경 이력**:
-- v1.1.0: `location_id`가 참조하는 room ID가 UUID로 변경
-- v1.2.0: location_type, category, equipment_slot, is_equipped 필드 추가
+- `CREATE INDEX idx_game_objects_location ON game_objects(location_type, location_id);`
 
 ---
 
@@ -262,24 +222,22 @@ CREATE TABLE npcs (
     name_ko TEXT NOT NULL,            -- 한국어 이름
     description_en TEXT,              -- 영어 설명
     description_ko TEXT,              -- 한국어 설명
-    current_room_id TEXT NOT NULL,    -- 현재 위치한 방 ID (rooms.id, UUID)
+    x INTEGER DEFAULT 0,              -- X 좌표
+    y INTEGER DEFAULT 0,              -- Y 좌표
     npc_type TEXT DEFAULT 'generic',  -- NPC 타입 (MERCHANT, QUEST_GIVER, etc.)
     dialogue TEXT DEFAULT '{}',       -- 대화 (JSON)
     shop_inventory TEXT DEFAULT '[]', -- 상점 인벤토리 (JSON, MERCHANT 타입용)
     properties TEXT DEFAULT '{}',     -- 추가 속성 (JSON)
     is_active BOOLEAN DEFAULT TRUE,   -- 활성 상태
-    faction_id TEXT,                  -- 종족 ID (factions.id)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    faction_id TEXT,                  -- 종족 ID (factions.id)
     FOREIGN KEY (faction_id) REFERENCES factions(id)
 );
 ```
 
 **인덱스**:
-- `current_room_id`
-
-**변경 이력**:
-- v1.1.0: `current_room_id`가 참조하는 room ID가 UUID로 변경
-- v1.2.0: shop_inventory, is_active 필드 추가
+- `CREATE INDEX idx_npcs_coordinates ON npcs(x, y);`
+- `CREATE INDEX idx_npcs_type ON npcs(npc_type);`
 
 ---
 
@@ -289,15 +247,16 @@ CREATE TABLE npcs (
 
 ```sql
 CREATE TABLE translations (
-    key TEXT NOT NULL,                -- 번역 키
-    locale TEXT NOT NULL,             -- 언어 코드 (en, ko, etc.)
-    value TEXT NOT NULL,              -- 번역 값
-    PRIMARY KEY (key, locale)         -- 복합 PRIMARY KEY
+    key TEXT NOT NULL PRIMARY KEY,   -- 번역 키
+    locale TEXT NOT NULL PRIMARY KEY, -- 언어 코드 (en, ko, etc.)
+    value TEXT NOT NULL               -- 번역 값
 );
 ```
 
 **인덱스**:
-- `key, locale` (복합 PRIMARY KEY)
+- `CREATE INDEX idx_translations_key ON translations(key);`
+
+**참고**: 복합 PRIMARY KEY (key, locale) 구조
 
 ---
 
@@ -331,12 +290,11 @@ CREATE TABLE factions (
 
 ```sql
 CREATE TABLE faction_relations (
-    faction_a_id TEXT NOT NULL,       -- 종족 A ID
-    faction_b_id TEXT NOT NULL,       -- 종족 B ID
-    relation_value INTEGER DEFAULT 0, -- 관계 값 (-100 ~ 100)
-    relation_status TEXT DEFAULT 'NEUTRAL',  -- 관계 상태
+    faction_a_id TEXT NOT NULL PRIMARY KEY, -- 종족 A ID
+    faction_b_id TEXT NOT NULL PRIMARY KEY, -- 종족 B ID
+    relation_value INTEGER DEFAULT 0,       -- 관계 값 (-100 ~ 100)
+    relation_status TEXT DEFAULT 'NEUTRAL', -- 관계 상태
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (faction_a_id, faction_b_id),
     FOREIGN KEY (faction_a_id) REFERENCES factions(id),
     FOREIGN KEY (faction_b_id) REFERENCES factions(id)
 );
@@ -379,13 +337,16 @@ CREATE TABLE faction_relations (
 }
 ```
 
-#### Room Exits
+#### Quest Progress
 ```json
 {
-  "north": "uuid-of-north-room",
-  "south": "uuid-of-south-room",
-  "east": "uuid-of-east-room",
-  "west": "uuid-of-west-room"
+  "quest_id_1": {
+    "status": "in_progress",
+    "objectives": {
+      "kill_goblins": {"current": 3, "required": 5},
+      "collect_items": {"current": 1, "required": 3}
+    }
+  }
 }
 ```
 
@@ -395,14 +356,25 @@ CREATE TABLE faction_relations (
 
 ```
 players (1) ─────< (N) characters
-rooms (1) ─────< (N) monsters (spawn_room_id, current_room_id)
-rooms (1) ─────< (N) game_objects (location_id)
-rooms (1) ─────< (N) npcs (current_room_id)
 factions (1) ─────< (N) monsters (faction_id)
 factions (1) ─────< (N) npcs (faction_id)
 factions (1) ─────< (N) players (faction_id)
 factions (N) ─────< (N) factions (faction_relations)
 ```
+
+---
+
+## Current Data Statistics
+
+- **players**: 6개
+- **characters**: 0개 (사용되지 않음)
+- **rooms**: 173개
+- **monsters**: 51개
+- **game_objects**: 24개
+- **npcs**: 0개
+- **factions**: 3개
+- **faction_relations**: 6개
+- **translations**: 10개
 
 ---
 
@@ -463,9 +435,10 @@ cp data/mud_engine.db.backup_YYYYMMDD_HHMMSS data/mud_engine.db
 - 외래 키 제약 조건은 기본적으로 비활성화되어 있음 (마이그레이션 시 수동 관리)
 - JSON 필드는 Python에서 `json.loads()`/`json.dumps()`로 처리
 - 모든 timestamp는 UTC 기준
+- 좌표 시스템: 모든 엔티티(monsters, npcs, players)는 x, y 좌표 사용
+- 방 시스템: rooms 테이블은 좌표 정보만 저장, 이름과 출구는 별도 관리
 
 ---
 
-**문서 버전**: 1.3.0  
-**작성자**: Kiro AI  
-**최종 수정**: 2025-11-29
+**작성자**: Kiro AI
+**최종 수정**: 2025-12-20

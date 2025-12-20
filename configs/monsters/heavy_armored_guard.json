@@ -1,0 +1,44 @@
+{
+  "template_id": "template_heavy_armored_guard",
+  "name": {
+    "en": "Heavy Armoured Guard",
+    "ko": "중장 경비병"
+  },
+  "description": {
+    "en": "A heavily armoured guard in full plate armour. Slow but extremely durable, stationed at critical defence points.",
+    "ko": "전신 판금 갑옷을 입은 중장 경비병입니다. 느리지만 매우 튼튼하며, 중요한 방어 지점에 배치됩니다."
+  },
+  "monster_type": "NEUTRAL",
+  "behavior": "STATIONARY",
+  "faction_id": "ash_knights",
+  "stats": {
+    "strength": 16,
+    "dexterity": 10,
+    "constitution": 18,
+    "intelligence": 10,
+    "wisdom": 13,
+    "charisma": 11,
+    "level": 8
+  },
+  "experience_reward": 0,
+  "gold_reward": 0,
+  "drop_items": [],
+  "respawn_time": 0,
+  "aggro_range": 0,
+  "roaming_range": 1,
+  "spawn_config": {
+    "count": 1,
+    "global_max_count": 1,
+    "specific_locations": [
+      {
+        "room_id": "gate_guard_post",
+        "description": "Heavy armoured guard at gate"
+      }
+    ],
+    "distribution": "fixed",
+    "roaming": {
+      "enabled": false,
+      "roam_chance": 0.1
+    }
+  }
+}
