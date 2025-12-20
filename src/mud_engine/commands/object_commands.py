@@ -252,6 +252,12 @@ class InventoryCommand(BaseCommand):
         if not game_engine:
             return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
+        # 사용자 언어 설정 가져오기
+        from ..core.localization import get_message
+        locale = getattr(session, 'preferred_locale', 'en') if hasattr(session, 'preferred_locale') else 'en'
+        if hasattr(session, 'player') and session.player and hasattr(session.player, 'preferred_locale'):
+            locale = session.player.preferred_locale
+
         # 카테고리 필터링
         filter_category = None
         if args:
@@ -259,7 +265,7 @@ class InventoryCommand(BaseCommand):
             valid_categories = {'weapon', 'armor', 'consumable', 'misc', 'material', 'equipped'}
             if filter_category not in valid_categories:
                 return self.create_error_result(
-                    f"올바르지 않은 카테고리입니다. 사용 가능한 카테고리: {', '.join(valid_categories)}"
+                    get_message("inventory.invalid_category", locale, categories=', '.join(valid_categories))
                 )
 
         try:
@@ -267,7 +273,7 @@ class InventoryCommand(BaseCommand):
             inventory_objects = await game_engine.world_manager.get_inventory_objects(session.player.id)
 
             if not inventory_objects:
-                return self.create_info_result("🎒 인벤토리가 비어있습니다.")
+                return self.create_info_result(get_message("inventory.empty", locale))
 
             # 카테고리별 필터링
             if filter_category:
@@ -279,92 +285,68 @@ class InventoryCommand(BaseCommand):
                 filtered_objects = inventory_objects
 
             if not filtered_objects:
-                category_name = filter_category if filter_category else "전체"
-                return self.create_info_result(f"🎒 {category_name} 카테고리에 아이템이 없습니다.")
+                category_name = filter_category if filter_category else get_message("inventory.category_all", locale)
+                return self.create_info_result(
+                    get_message("inventory.category_empty", locale, category=category_name)
+                )
 
             # 소지 용량 정보
             capacity_info = session.player.get_carry_capacity_info(inventory_objects)
 
             # 인벤토리 목록 생성
-            response = f"🎒 {session.player.username}의 인벤토리"
+            response = get_message("inventory.title", locale, username=session.player.username)
             if filter_category:
                 response += f" ({filter_category})"
             response += ":\n\n"
 
             # 용량 정보 표시
-            response += f"📊 소지 용량: {capacity_info['current_weight']:.1f}kg / {capacity_info['max_weight']:.1f}kg ({capacity_info['percentage']:.1f}%)\n"
+            response += get_message("inventory.capacity", locale,
+                                  current=f"{capacity_info['current_weight']:.1f}",
+                                  max=f"{capacity_info['max_weight']:.1f}",
+                                  percentage=f"{capacity_info['percentage']:.1f}") + "\n"
             if capacity_info['is_overloaded']:
-                response += "⚠️ 과부하 상태입니다!\n"
+                response += get_message("inventory.overloaded", locale) + "\n"
             response += "\n"
 
             # 카테고리별로 정렬 및 같은 아이템 집계
-            categories: Dict[str, Dict[str, Dict]] = {}
+            items: Dict[str, Dict] = {}
             for obj in filtered_objects:
-                category = obj.category
-                if category not in categories:
-                    categories[category] = {}
-
-                # 아이템 이름으로 그룹화
-                obj_name = obj.get_localized_name(session.locale)
-                if obj_name not in categories[category]:
-                    categories[category][obj_name] = {
+                # 아이템 이름으로 그룹화 (카테고리 구분 없이)
+                obj_name = obj.get_localized_name(locale)
+                if obj_name not in items:
+                    items[obj_name] = {
                         'objects': [],
                         'total_weight': 0.0,
                         'equipped_count': 0
                     }
 
-                categories[category][obj_name]['objects'].append(obj)
-                categories[category][obj_name]['total_weight'] += obj.weight
+                items[obj_name]['objects'].append(obj)
+                items[obj_name]['total_weight'] += obj.weight
                 if obj.is_equipped:
-                    categories[category][obj_name]['equipped_count'] += 1
+                    items[obj_name]['equipped_count'] += 1
 
-            object_list = []
-            for category in sorted(categories.keys()):
-                items = categories[category]
-                if not items:
-                    continue
+            # 하나의 목록으로 표시
+            for obj_name in sorted(items.keys()):
+                item_data = items[obj_name]
+                count = len(item_data['objects'])
+                total_weight = item_data['total_weight']
+                equipped_count = item_data['equipped_count']
 
-                # 카테고리 표시명 가져오기
-                first_obj = next(iter(items.values()))['objects'][0]
-                category_display = first_obj.get_category_display(session.locale)
-                response += f"📂 {category_display}:\n"
+                # 무게 표시 (무게가 0이면 표시하지 않음)
+                if total_weight > 0:
+                    weight_display = f"({total_weight:.1f}kg)"
+                else:
+                    weight_display = ""
 
-                for obj_name in sorted(items.keys()):
-                    item_data = items[obj_name]
-                    count = len(item_data['objects'])
-                    total_weight = item_data['total_weight']
-                    equipped_count = item_data['equipped_count']
+                # 개수 표시 (1개보다 많으면 표시)
+                count_display = f" x{count}" if count > 1 else ""
 
-                    # 무게 표시 (무게가 0이면 표시하지 않음)
-                    if total_weight > 0:
-                        weight_display = f"({total_weight:.1f}kg)"
-                    else:
-                        weight_display = ""
+                # 착용 표시
+                equipped_mark = get_message("inventory.equipped_marker", locale) if equipped_count > 0 else ""
 
-                    # 개수 표시 (1개보다 많으면 표시)
-                    count_display = f" x{count}" if count > 1 else ""
+                response += f"• {obj_name}{count_display} {weight_display}{equipped_mark}\n"
 
-                    # 착용 표시
-                    equipped_mark = " [착용중]" if equipped_count > 0 else ""
-
-                    response += f"  • {obj_name}{count_display} {weight_display}{equipped_mark}\n"
-
-                    # 첫 번째 객체 정보를 대표로 사용
-                    first_obj = item_data['objects'][0]
-                    object_list.append({
-                        "id": first_obj.id,
-                        "name": obj_name,
-                        "category": first_obj.category,
-                        "count": count,
-                        "total_weight": total_weight,
-                        "is_equipped": equipped_count > 0,
-                        "equipment_slot": first_obj.equipment_slot,
-                        "description": first_obj.get_localized_description(session.locale)
-                    })
-
-                response += "\n"
-
-            response += f"총 {len(filtered_objects)}개의 아이템을 소지하고 있습니다."
+            response += "\n" + get_message("inventory.total_items", locale, count=len(filtered_objects))
 
             return self.create_success_result(
                 message=response.strip(),
@@ -375,7 +357,7 @@ class InventoryCommand(BaseCommand):
                     "item_count": len(filtered_objects),
                     "total_items": len(inventory_objects),
                     "capacity_info": capacity_info,
-                    "items": object_list
+                    "items": list(items.keys())
                 }
             )
 

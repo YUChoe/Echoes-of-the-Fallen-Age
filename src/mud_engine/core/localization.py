@@ -746,6 +746,44 @@ class LocalizationManager:
             "players.me_marker": {
                 "en": " (me)",
                 "ko": " (나)"
+            },
+
+            # 인벤토리 명령어 메시지
+            "inventory.title": {
+                "en": "🎒 {username}'s inventory",
+                "ko": "🎒 {username}의 인벤토리"
+            },
+            "inventory.capacity": {
+                "en": "📊 Carrying capacity: {current}kg / {max}kg ({percentage}%)",
+                "ko": "📊 소지 용량: {current}kg / {max}kg ({percentage}%)"
+            },
+            "inventory.overloaded": {
+                "en": "⚠️ You are overloaded!",
+                "ko": "⚠️ 과부하 상태입니다!"
+            },
+            "inventory.empty": {
+                "en": "🎒 Your inventory is empty.",
+                "ko": "🎒 인벤토리가 비어있습니다."
+            },
+            "inventory.category_empty": {
+                "en": "🎒 No items in {category} category.",
+                "ko": "🎒 {category} 카테고리에 아이템이 없습니다."
+            },
+            "inventory.total_items": {
+                "en": "You are carrying {count} items.",
+                "ko": "총 {count}개의 아이템을 소지하고 있습니다."
+            },
+            "inventory.equipped_marker": {
+                "en": " [equipped]",
+                "ko": " [착용중]"
+            },
+            "inventory.invalid_category": {
+                "en": "Invalid category. Available categories: {categories}",
+                "ko": "올바르지 않은 카테고리입니다. 사용 가능한 카테고리: {categories}"
+            },
+            "inventory.category_all": {
+                "en": "all",
+                "ko": "전체"
             }
         }
 
