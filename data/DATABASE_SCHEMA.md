@@ -201,7 +201,38 @@ CREATE TABLE game_objects (
 
 ---
 
-### 5. factions
+### 7. room_connections
+
+방 간의 특별한 연결(enter 명령어용)을 저장합니다.
+
+```sql
+CREATE TABLE room_connections (
+    id TEXT PRIMARY KEY,              -- UUID
+    from_x INTEGER NOT NULL,          -- 출발 방 X 좌표
+    from_y INTEGER NOT NULL,          -- 출발 방 Y 좌표
+    to_x INTEGER NOT NULL,            -- 도착 방 X 좌표
+    to_y INTEGER NOT NULL,            -- 도착 방 Y 좌표
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**인덱스**:
+
+- `CREATE INDEX idx_room_connections_from ON room_connections(from_x, from_y);`
+
+**용도**:
+
+- enter 명령어를 통한 특별한 방 간 이동
+- 일반적인 방향 이동(north, south 등)과는 별개의 시스템
+- 양방향 연결을 위해서는 두 개의 레코드가 필요
+
+**예시 데이터**:
+
+- (-12, 1) ↔ (8, -2): 쓰레기장과 동굴 간의 비밀 통로
+
+---
+
+### 8. factions
 
 ### 8. factions
 
@@ -228,7 +259,7 @@ CREATE TABLE factions (
 
 ---
 
-### 6. faction_relations
+### 9. faction_relations
 
 종족 간 관계(우호도)를 저장합니다.
 
@@ -317,6 +348,7 @@ factions (N) ─────< (N) factions (faction_relations)
 - **rooms**: 173개
 - **monsters**: 51개
 - **game_objects**: 24개
+- **room_connections**: 2개
 - **factions**: 3개
 - **faction_relations**: 6개
 
