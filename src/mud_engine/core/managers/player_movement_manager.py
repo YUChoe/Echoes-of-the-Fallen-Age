@@ -833,6 +833,13 @@ class PlayerMovementManager:
                 await session.send_error(message)
                 return False
 
+            # 이동 성공 메시지를 먼저 전송
+            from ..localization import get_localization_manager
+            localization = get_localization_manager()
+            locale = session.player.preferred_locale if session.player else "en"
+            move_message = localization.get_message("movement.success", locale, direction=direction)
+            await session.send_success(move_message)
+
             # 기존 이동 메서드 사용
             return await self.move_player_to_room(session, target_room.id, skip_followers)
 
