@@ -354,15 +354,10 @@ class AttackCommand(BaseCommand):
                         )
 
             # 승리 메시지 생성
-
-            message = f"""
-{ANSIColors.RED}{localization.get_message("combat.victory_message", locale)}{ANSIColors.RESET}
-
-{localization.get_message("combat.rewards_header", locale)}
-{localization.get_message("combat.gold_reward", locale, gold=rewards['gold'])}"""
+            message = f"{ANSIColors.RED}{localization.get_message('combat.victory_message', locale)}{ANSIColors.RESET}"
 
             if dropped_items_msg:
-                message += f"\n\n{localization.get_message('combat.items_obtained', locale)}\n" + "\n".join(dropped_items_msg)
+                message += f"\n\n" + "\n".join(dropped_items_msg)
 
             message += f"\n\n{localization.get_message('combat.returning_location', locale)}"
         else:
