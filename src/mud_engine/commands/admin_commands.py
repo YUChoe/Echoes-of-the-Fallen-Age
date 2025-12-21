@@ -626,14 +626,19 @@ class RoomInfoCommand(AdminCommand):
                     display_value = value if value is not None else "(null)"
                     info_lines.append(f"{key}: {display_value}")
 
-            # 방에 있는 몬스터 정보 추가
+            # 현재 방의 좌표 가져오기 (몬스터 정보와 enter 연결 정보에서 공통 사용)
+            room_coords = None
             try:
-                # 현재 방의 좌표 가져오기
                 room_cursor = await session.game_engine.db_manager.execute(
                     "SELECT x, y FROM rooms WHERE id = ?",
                     (session.current_room_id,)
                 )
                 room_coords = await room_cursor.fetchone()
+            except Exception as coords_error:
+                logger.error(f"방 좌표 조회 중 오류: {coords_error}")
+
+            # 방에 있는 몬스터 정보 추가
+            try:
 
                 if room_coords:
                     room_x, room_y = room_coords
@@ -690,6 +695,43 @@ class RoomInfoCommand(AdminCommand):
             except Exception as monster_error:
                 logger.error(f"몬스터 정보 조회 중 오류: {monster_error}")
                 info_lines.extend(["", f"❌ 몬스터 정보 조회 오류: {str(monster_error)}"])
+
+            # enter 연결 정보 추가
+            try:
+                if room_coords:
+                    room_x, room_y = room_coords
+                    # 현재 방에서 나가는 enter 연결 조회
+                    enter_cursor = await session.game_engine.db_manager.execute(
+                        "SELECT to_x, to_y FROM room_connections WHERE from_x = ? AND from_y = ?",
+                        (room_x, room_y)
+                    )
+                    enter_connections = await enter_cursor.fetchall()
+
+                    # 현재 방으로 들어오는 enter 연결 조회
+                    enter_in_cursor = await session.game_engine.db_manager.execute(
+                        "SELECT from_x, from_y FROM room_connections WHERE to_x = ? AND to_y = ?",
+                        (room_x, room_y)
+                    )
+                    enter_in_connections = await enter_in_cursor.fetchall()
+
+                    if enter_connections or enter_in_connections:
+                        info_lines.extend(["", "🚪 Enter 연결 정보", ""])
+
+                        if enter_connections:
+                            info_lines.append("나가는 연결:")
+                            for to_x, to_y in enter_connections:
+                                info_lines.append(f"  → ({to_x}, {to_y})")
+
+                        if enter_in_connections:
+                            info_lines.append("들어오는 연결:")
+                            for from_x, from_y in enter_in_connections:
+                                info_lines.append(f"  ← ({from_x}, {from_y})")
+                    else:
+                        info_lines.extend(["", "🚪 Enter 연결: 없음"])
+
+            except Exception as enter_error:
+                logger.error(f"Enter 연결 정보 조회 중 오류: {enter_error}")
+                info_lines.extend(["", f"❌ Enter 연결 정보 조회 오류: {str(enter_error)}"])
 
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,

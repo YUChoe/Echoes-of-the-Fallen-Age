@@ -276,10 +276,29 @@ class MapExporter:
                     'type': 'item'  # object_type 제거됨, 기본값 사용
                 })
 
+        # enter 연결 정보 추가
+        cursor = await self.db_manager.execute("""
+            SELECT r.id, rc.to_x, rc.to_y
+            FROM rooms r
+            INNER JOIN room_connections rc ON (r.x = rc.from_x AND r.y = rc.from_y)
+            WHERE r.x IS NOT NULL AND r.y IS NOT NULL
+        """)
+        enter_connections = await cursor.fetchall()
+
+        for connection in enter_connections:
+            room_id, to_x, to_y = connection
+            if room_id in room_details:
+                if 'enter_connections' not in room_details[room_id]:
+                    room_details[room_id]['enter_connections'] = []
+                room_details[room_id]['enter_connections'].append({
+                    'to_x': to_x,
+                    'to_y': to_y
+                })
+
         return room_details
 
-    def calculate_coordinate_based_exits(self, x: int, y: int, all_rooms_coords: Dict[Tuple[int, int], str]) -> Dict[str, str]:
-        """좌표 기반으로 출구를 계산합니다."""
+    def calculate_coordinate_based_exits(self, x: int, y: int, all_rooms_coords: Dict[Tuple[int, int], str], enter_connections: Dict[Tuple[int, int], Tuple[int, int]] = None) -> Dict[str, str]:
+        """좌표 기반으로 출구를 계산합니다 (enter 연결 포함)."""
         exits = {}
 
         # 모든 방향에 대해 인접한 방이 있는지 확인
@@ -295,12 +314,20 @@ class MapExporter:
                 # UP, DOWN 등 좌표 변화가 없는 방향은 무시
                 continue
 
+        # enter 연결 확인 (미리 가져온 데이터 사용)
+        if enter_connections and (x, y) in enter_connections:
+            to_x, to_y = enter_connections[(x, y)]
+            if (to_x, to_y) in all_rooms_coords:
+                target_room_id = all_rooms_coords[(to_x, to_y)]
+                exits['enter'] = target_room_id
+
         return exits
 
     def generate_html(self, rooms_data: List[Tuple[Any, ...]], monsters_by_room: Dict[str, int],
                      players_by_room: Dict[str, int], npcs_by_room: Dict[str, int],
                      factions: List[Tuple[Any, ...]], relations: List[Tuple[Any, ...]],
-                     all_players: List[Tuple[Any, ...]], room_details: Dict[str, Dict[str, Any]]) -> str:
+                     all_players: List[Tuple[Any, ...]], room_details: Dict[str, Dict[str, Any]],
+                     enter_connections: Dict[Tuple[int, int], Tuple[int, int]] = None) -> str:
         """HTML 생성"""
         # 방 데이터를 그리드에 매핑
         grid: Dict[Tuple[int, int], Dict[str, Any]] = {}
@@ -596,6 +623,8 @@ class MapExporter:
                         exit_arrows += '→'
                     if 'west' in exits:
                         exit_arrows += '←'
+                    if 'enter' in exits:
+                        exit_arrows += '🚪'
 
                     # 엔티티 정보 수집
                     has_monster = room_id in monsters_by_room
@@ -767,6 +796,17 @@ class MapExporter:
                 items.innerHTML = '';
             }}
 
+            // Enter 연결 정보
+            if (details.enter_connections && details.enter_connections.length > 0) {{
+                const enterSection = `
+                    <div class="section-title">🚪 Enter 연결</div>
+                    <div class="item-list">
+                        ${details.enter_connections.map(c => `• → (${c.to_x}, ${c.to_y})`).join('<br>')}
+                    </div>
+                `;
+                items.innerHTML += enterSection;
+            }}
+
             panel.style.display = 'block';
         }}
 
@@ -879,7 +919,7 @@ class MapExporter:
     def generate_html_with_factions(self, rooms_data: List[Tuple[Any, ...]], entities_by_room: Dict[str, Dict[str, Dict[str, int]]],
                                    players_by_room: Dict[str, int], factions: List[Tuple[Any, ...]], relations: List[Tuple[Any, ...]],
                                    all_players: List[Tuple[Any, ...]], room_details: Dict[str, Dict[str, Any]],
-                                   faction_colors: Dict[str, str]) -> str:
+                                   faction_colors: Dict[str, str], enter_connections: Dict[Tuple[int, int], Tuple[int, int]] = None) -> str:
         """종족별 색상을 적용한 HTML 생성"""
         # 방 데이터를 그리드에 매핑
         grid: Dict[Tuple[int, int], Dict[str, Any]] = {}
@@ -1180,6 +1220,8 @@ class MapExporter:
                         exit_arrows += '→'
                     if 'west' in exits:
                         exit_arrows += '←'
+                    if 'enter' in exits:
+                        exit_arrows += '🚪'
 
                     # 엔티티 정보 수집 (종족별)
                     has_player = room_id in players_by_room
@@ -1345,6 +1387,16 @@ class MapExporter:
                     '<div class="item-list">' + itemList + '</div>';
             } else {
                 items.innerHTML = '';
+            }
+
+            // Enter 연결 정보
+            if (details.enter_connections && details.enter_connections.length > 0) {
+                const enterSection =
+                    '<div class="section-title">🚪 Enter 연결</div>' +
+                    '<div class="item-list">' +
+                    details.enter_connections.map(c => '• → (' + c.to_x + ', ' + c.to_y + ')').join('<br>') +
+                    '</div>';
+                items.innerHTML += enterSection;
             }
 
             panel.style.display = 'block';
