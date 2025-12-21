@@ -406,6 +406,10 @@ class WorldManager:
 
     # === NPC 관리 (몬스터 시스템 활용) ===
 
+    async def get_npc_by_id(self, npc_id: str) -> Optional[NPC]:
+        """ID로 NPC를 조회합니다."""
+        return await self._npc_repo.get_by_id(npc_id)
+
     async def get_npcs_in_room(self, room_id: str) -> List[NPC]:
         """특정 방에 있는 NPC들을 조회합니다."""
         return await self._npc_repo.get_npcs_in_room(room_id)

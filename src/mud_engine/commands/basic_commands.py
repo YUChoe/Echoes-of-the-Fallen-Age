@@ -288,10 +288,122 @@ class LookCommand(BaseCommand):
                 }
             )
 
+        # 숫자 인자 처리 (엔티티 번호)
+        if target.isdigit():
+            entity_number = int(target)
+            return await self._look_at_entity_by_number(session, entity_number)
+
         # 기타 대상들
         return self.create_info_result(
             f"'{target}'을(를) 찾을 수 없습니다."
         )
+
+    async def _look_at_entity_by_number(self, session: SessionType, entity_number: int) -> CommandResult:
+        """엔티티 번호로 대상 살펴보기"""
+        if not session.is_authenticated or not session.player:
+            return self.create_error_result("인증되지 않은 사용자입니다.")
+
+        # 세션에서 entity_map 가져오기
+        entity_map = getattr(session, 'room_entity_map', {})
+        if not entity_map:
+            return self.create_error_result("방 정보를 찾을 수 없습니다.")
+
+        # 해당 번호의 엔티티 찾기
+        if entity_number not in entity_map:
+            return self.create_error_result(f"'{entity_number}'번 대상을 찾을 수 없습니다.")
+
+        entity_info = entity_map[entity_number]
+        entity_type = entity_info.get('type')
+        entity_id = entity_info.get('id')
+        entity_name = entity_info.get('name', '알 수 없음')
+
+        try:
+            game_engine = getattr(session, 'game_engine', None)
+            if not game_engine:
+                return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+
+            locale = session.player.preferred_locale if session.player else "en"
+
+            if entity_type == 'npc':
+                # NPC 정보 조회
+                npc = await game_engine.world_manager.get_npc_by_id(entity_id)
+
+                if not npc:
+                    return self.create_error_result(f"NPC 정보를 찾을 수 없습니다.")
+
+                # NPC 설명 가져오기
+                description = npc.get_localized_description(locale)
+                if not description:
+                    description = "특별한 설명이 없습니다."
+
+                # NPC 타입에 따른 추가 정보
+                npc_type_info = ""
+                if npc.is_merchant():
+                    npc_type_info = "\n💰 이 NPC는 상인입니다. 'shop' 명령어로 거래할 수 있습니다."
+
+                response = f"""
+👤 {entity_name}
+{description}{npc_type_info}
+                """.strip()
+
+                return self.create_success_result(
+                    message=response,
+                    data={
+                        "action": "look_at",
+                        "target": entity_name,
+                        "target_type": "npc",
+                        "entity_id": entity_id
+                    }
+                )
+
+            elif entity_type == 'monster':
+                # 몬스터 정보 조회
+                monster = await game_engine.world_manager.get_monster(entity_id)
+
+                if not monster:
+                    return self.create_error_result(f"몬스터 정보를 찾을 수 없습니다.")
+
+                # 몬스터 설명 가져오기
+                description = monster.get_localized_description(locale)
+                if not description:
+                    description = "특별한 설명이 없습니다."
+
+                # 몬스터 상태 정보
+                hp_info = f"HP: {monster.current_hp}/{monster.max_hp}"
+                level_info = f"레벨: {monster.level}"
+
+                # 몬스터 태도 정보
+                attitude_info = ""
+                if monster.is_aggressive():
+                    attitude_info = "\n⚔️ 이 몬스터는 공격적입니다."
+                elif monster.is_passive():
+                    attitude_info = "\n🕊️ 이 몬스터는 평화롭습니다."
+                elif monster.is_neutral():
+                    attitude_info = "\n😐 이 몬스터는 중립적입니다."
+
+                response = f"""
+🐾 {entity_name}
+{description}
+
+{hp_info} | {level_info}{attitude_info}
+                """.strip()
+
+                return self.create_success_result(
+                    message=response,
+                    data={
+                        "action": "look_at",
+                        "target": entity_name,
+                        "target_type": "monster",
+                        "entity_id": entity_id
+                    }
+                )
+
+            else:
+                return self.create_error_result(f"'{entity_number}'번은 살펴볼 수 없는 대상입니다.")
+
+        except Exception as e:
+            logger.error(f"엔티티 조회 중 오류: {e}")
+            return self.create_error_result("대상을 조회하는 중 오류가 발생했습니다.")
 
 
 class HelpCommand(BaseCommand):
