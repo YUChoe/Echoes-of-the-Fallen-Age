@@ -193,6 +193,7 @@ class PlayerMovementManager:
                         }
                         for obj in room_info['objects']
                     ],
+                    "grouped_objects": room_info.get('grouped_objects', []),  # 그룹화된 오브젝트 추가
                     "monsters": [
                         {
                             "id": monster.id,

@@ -247,6 +247,9 @@ class WorldManager:
 
             objects = await self._object_manager.get_room_objects(room_id)
 
+            # stackable 오브젝트 그룹화
+            grouped_objects = self._group_stackable_objects(objects)
+
             # 좌표 기반 몬스터 조회
             if room.x is not None and room.y is not None:
                 monsters = await self._monster_manager.get_monsters_at_coordinates(room.x, room.y)
@@ -261,7 +264,8 @@ class WorldManager:
 
             return {
                 'room': room,
-                'objects': objects,
+                'objects': objects,  # 원본 오브젝트 목록 (take 명령어용)
+                'grouped_objects': grouped_objects,  # 그룹화된 오브젝트 목록 (표시용)
                 'monsters': monsters,
                 'npcs': npcs,
                 'exits': coordinate_exits,
@@ -270,6 +274,67 @@ class WorldManager:
         except Exception as e:
             logger.error(f"위치 요약 정보 조회 실패 ({room_id}): {e}")
             raise
+
+    def _group_stackable_objects(self, objects: List[GameObject]) -> List[Dict[str, Any]]:
+        """stackable 오브젝트들을 그룹화합니다."""
+        try:
+            # 오브젝트를 이름별로 그룹화
+            object_groups: Dict[str, Dict[str, Any]] = {}
+
+            for obj in objects:
+                # 영어 이름을 기준으로 그룹화
+                name_en = obj.name.get('en', 'Unknown')
+                group_key = name_en
+
+                if group_key not in object_groups:
+                    object_groups[group_key] = {
+                        'name_en': name_en,
+                        'name_ko': obj.name.get('ko', name_en),
+                        'objects': [],
+                        'stackable': obj.properties.get('stackable', False) if obj.properties else False,
+                        'max_stack': obj.properties.get('max_stack', 1) if obj.properties else 1
+                    }
+
+                object_groups[group_key]['objects'].append(obj)
+
+            # 그룹화된 결과 생성
+            grouped_objects = []
+            for group_key, group in object_groups.items():
+                objects_list = group['objects']
+                count = len(objects_list)
+
+                grouped_objects.append({
+                    'name_en': group['name_en'],
+                    'name_ko': group['name_ko'],
+                    'count': count,
+                    'stackable': group['stackable'],
+                    'max_stack': group['max_stack'],
+                    'objects': objects_list,  # 실제 오브젝트 목록
+                    'display_name_en': f"{group['name_en']}" + (f" x{count}" if count > 1 and group['stackable'] else ""),
+                    'display_name_ko': f"{group['name_ko']}" + (f" x{count}" if count > 1 and group['stackable'] else "")
+                })
+
+            # 이름순으로 정렬
+            grouped_objects.sort(key=lambda x: str(x['name_en']))
+
+            return grouped_objects
+
+        except Exception as e:
+            logger.error(f"stackable 오브젝트 그룹화 실패: {e}")
+            # 오류 발생 시 원본 오브젝트 목록을 개별 항목으로 반환
+            return [
+                {
+                    'name_en': obj.name.get('en', 'Unknown'),
+                    'name_ko': obj.name.get('ko', obj.name.get('en', 'Unknown')),
+                    'count': 1,
+                    'stackable': False,
+                    'max_stack': 1,
+                    'objects': [obj],
+                    'display_name_en': obj.name.get('en', 'Unknown'),
+                    'display_name_ko': obj.name.get('ko', obj.name.get('en', 'Unknown'))
+                }
+                for obj in objects
+            ]
 
     # === 세계 무결성 검증 ===
 

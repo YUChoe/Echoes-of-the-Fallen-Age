@@ -47,79 +47,90 @@ class GetCommand(BaseCommand):
             # 현재 방의 객체들 조회
             room_objects = await game_engine.world_manager.get_room_objects(current_room_id)
 
-            # 객체 이름으로 검색
-            target_object = None
-            for obj in room_objects:
-                try:
-                    logger.debug(f"객체 검색 중: {obj.id}, type: {type(obj)}, name: {obj.name}")
-                    obj_name_en = obj.get_localized_name('en').lower()
-                    obj_name_ko = obj.get_localized_name('ko').lower()
-                    if object_name in obj_name_en or object_name in obj_name_ko:
-                        target_object = obj
-                        break
-                except Exception as name_error:
-                    logger.error(f"객체 이름 처리 중 오류 ({obj.id}): {name_error}", exc_info=True)
-                    continue
+            # stackable 오브젝트 그룹화
+            grouped_objects = game_engine.world_manager._group_stackable_objects(room_objects)
 
-            if not target_object:
+            # 객체 이름으로 검색 (그룹화된 오브젝트에서)
+            target_group = None
+            for group in grouped_objects:
+                group_name_en = group['name_en'].lower()
+                group_name_ko = group['name_ko'].lower()
+                if object_name in group_name_en or object_name in group_name_ko:
+                    target_group = group
+                    break
+
+            if not target_group:
                 return self.create_error_result(f"'{' '.join(args)}'을(를) 찾을 수 없습니다.")
 
-            # 무게 제한 확인
+            # stackable 오브젝트인 경우 모든 인스턴스를 가져감
+            target_objects = target_group['objects']
+
+            # 무게 제한 확인 (모든 오브젝트의 총 무게)
+            total_weight = sum(obj.weight for obj in target_objects)
             current_inventory = await game_engine.world_manager.get_inventory_objects(session.player.id)
-            if not session.player.can_carry_more(current_inventory, target_object.weight):
+
+            if not session.player.can_carry_more(current_inventory, total_weight):
                 capacity_info = session.player.get_carry_capacity_info(current_inventory)
                 return self.create_error_result(
-                    f"무게 제한으로 인해 {target_object.get_localized_name(session.locale)}을(를) 들 수 없습니다.\n"
+                    f"무게 제한으로 인해 {target_group['display_name_ko']}을(를) 들 수 없습니다.\n"
                     f"현재 소지 용량: {capacity_info['current_weight']:.1f}kg / {capacity_info['max_weight']:.1f}kg\n"
-                    f"아이템 무게: {target_object.get_weight_display()}"
+                    f"아이템 총 무게: {total_weight:.1f}kg"
                 )
 
-            # 객체를 플레이어 인벤토리로 이동
-            try:
-                success = await game_engine.world_manager.move_object_to_inventory(
-                    target_object.id, session.player.id
-                )
-                logger.debug(f"객체 이동 결과: {success}")
-            except Exception as move_error:
-                logger.error(f"객체 이동 중 오류: {move_error}", exc_info=True)
-                return self.create_error_result("객체를 이동하는 중 오류가 발생했습니다.")
+            # 모든 오브젝트를 플레이어 인벤토리로 이동
+            moved_objects = []
+            for obj in target_objects:
+                try:
+                    success = await game_engine.world_manager.move_object_to_inventory(
+                        obj.id, session.player.id
+                    )
+                    if success:
+                        moved_objects.append(obj)
+                    logger.debug(f"객체 이동 결과 ({obj.id}): {success}")
+                except Exception as move_error:
+                    logger.error(f"객체 이동 중 오류 ({obj.id}): {move_error}", exc_info=True)
 
-            if not success:
+            if not moved_objects:
                 return self.create_error_result("객체를 획득할 수 없습니다.")
 
-            # 객체 획득 이벤트 발행
+            # 객체 획득 이벤트 발행 (각 오브젝트별로)
             try:
                 from ..core.event_bus import Event, EventType
-                logger.debug(f"이벤트 발행 준비: EventType.OBJECT_PICKED_UP = {EventType.OBJECT_PICKED_UP}")
-                await game_engine.event_bus.publish(Event(
-                    event_type=EventType.OBJECT_PICKED_UP,
-                    source=session.session_id,
-                    room_id=current_room_id,
-                    data={
-                        "player_id": session.player.id,
-                        "player_name": session.player.username,
-                        "object_id": target_object.id,
-                        "object_name": target_object.get_localized_name(session.locale),
-                        "room_id": current_room_id
-                    }
-                ))
-                logger.debug("이벤트 발행 완료")
+                for obj in moved_objects:
+                    await game_engine.event_bus.publish(Event(
+                        event_type=EventType.OBJECT_PICKED_UP,
+                        source=session.session_id,
+                        room_id=current_room_id,
+                        data={
+                            "player_id": session.player.id,
+                            "player_name": session.player.username,
+                            "object_id": obj.id,
+                            "object_name": obj.get_localized_name(session.locale),
+                            "room_id": current_room_id
+                        }
+                    ))
+                logger.debug(f"이벤트 발행 완료 ({len(moved_objects)}개 오브젝트)")
             except Exception as event_error:
                 logger.error(f"이벤트 발행 중 오류: {event_error}", exc_info=True)
                 # 이벤트 발행 실패해도 명령어는 성공으로 처리
 
             # 성공 메시지
-            obj_name = target_object.get_localized_name(session.locale)
-            player_message = f"📦 {obj_name}을(를) 획득했습니다."
-
-            # 다른 플레이어들에게 알림
-            broadcast_message = f"📦 {session.player.username}님이 {obj_name}을(를) 가져갔습니다."
+            if len(moved_objects) == 1:
+                obj_name = moved_objects[0].get_localized_name(session.locale)
+                player_message = f"📦 {obj_name}을(를) 획득했습니다."
+                broadcast_message = f"📦 {session.player.username}님이 {obj_name}을(를) 가져갔습니다."
+            else:
+                # stackable 오브젝트 여러 개
+                obj_name = target_group['display_name_ko'] if session.locale == 'ko' else target_group['display_name_en']
+                player_message = f"📦 {obj_name}을(를) 획득했습니다."
+                broadcast_message = f"📦 {session.player.username}님이 {obj_name}을(를) 가져갔습니다."
 
             return self.create_success_result(
                 message=player_message,
                 data={
                     "action": "get",
-                    "object_id": target_object.id,
+                    "object_count": len(moved_objects),
+                    "object_ids": [obj.id for obj in moved_objects],
                     "object_name": obj_name,
                     "player": session.player.username
                 },
