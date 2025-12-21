@@ -24,6 +24,7 @@ class MonsterBehavior(Enum):
     STATIONARY = "stationary"  # 고정형 (제자리에서 대기)
     ROAMING = "roaming"        # 로밍형 (주변을 돌아다님)
     TERRITORIAL = "territorial" # 영역형 (특정 영역 내에서만 이동)
+    AGGRESSIVE = "aggressive"   # 공격형 (플레이어를 적극적으로 추적)
 
 
 @dataclass
@@ -405,11 +406,15 @@ class Monster(BaseModel):
         # Enum 변환
         if 'monster_type' in converted_data:
             if isinstance(converted_data['monster_type'], str):
-                converted_data['monster_type'] = MonsterType(converted_data['monster_type'])
+                # 대소문자 구분 없이 monster_type 변환
+                monster_type_str = converted_data['monster_type'].lower()
+                converted_data['monster_type'] = MonsterType(monster_type_str)
 
         if 'behavior' in converted_data:
             if isinstance(converted_data['behavior'], str):
-                converted_data['behavior'] = MonsterBehavior(converted_data['behavior'])
+                # 대소문자 구분 없이 behavior 변환
+                behavior_str = converted_data['behavior'].lower()
+                converted_data['behavior'] = MonsterBehavior(behavior_str)
 
         # MonsterStats 변환
         if 'stats' in converted_data:
