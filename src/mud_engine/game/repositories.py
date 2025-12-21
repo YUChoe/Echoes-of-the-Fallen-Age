@@ -234,11 +234,12 @@ class GameObjectRepository(BaseRepository[GameObject]):
             raise
 
     async def get_objects_by_type(self, object_type: str) -> List[GameObject]:
-        """타입별 객체 조회"""
+        """타입별 객체 조회 (object_type 필드 제거됨 - 모든 객체 반환)"""
         try:
-            return await self.find_by(object_type=object_type)
+            # object_type 필드가 제거되었으므로 모든 객체를 반환
+            return await self.get_all()
         except Exception as e:
-            logger.error(f"타입별 객체 조회 실패 ({object_type}): {e}")
+            logger.error(f"객체 조회 실패: {e}")
             raise
 
     async def move_object_to_room(self, object_id: str, room_id: str) -> Optional[GameObject]:

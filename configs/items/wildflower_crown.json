@@ -4,12 +4,9 @@
   "name_ko": "야생화 화관",
   "description_en": "A beautiful crown made of wildflowers.",
   "description_ko": "야생화로 만든 아름다운 화관입니다.",
-  "object_type": "item",
-  "category": "misc",
   "weight": 0.1,
   "properties": {
     "beauty": 5
   },
-  "stackable": false,
   "max_stack": 1
 }

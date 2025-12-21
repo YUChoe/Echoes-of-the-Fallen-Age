@@ -189,7 +189,7 @@ class PlayerMovementManager:
                         {
                             "id": obj.id,
                             "name": obj.get_localized_name(locale),
-                            "type": obj.object_type
+                            "type": "item"  # object_type 제거됨, 기본값 사용
                         }
                         for obj in room_info['objects']
                     ],

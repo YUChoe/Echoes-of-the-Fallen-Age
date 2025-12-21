@@ -472,12 +472,11 @@ class GameObject(BaseModel):
     id: str = field(default_factory=lambda: str(uuid4()))
     name: Dict[str, str] = field(default_factory=dict)  # {'en': 'name', 'ko': '이름'}
     description: Dict[str, str] = field(default_factory=dict)
-    object_type: str = ""  # 'item', 'npc', 'furniture' 등
     location_type: str = ""  # 'room', 'inventory'
     location_id: Optional[str] = None  # room_id 또는 character_id
     properties: Dict[str, Any] = field(default_factory=dict)
     weight: float = 1.0  # 무게 (kg 단위)
-    category: str = "misc"  # 카테고리: weapon, armor, consumable, misc
+    max_stack: int = 1  # 최대 스택 개수 (1이면 스택 불가)
     equipment_slot: Optional[str] = None  # 장비 슬롯: weapon, armor, accessory
     is_equipped: bool = False  # 착용 여부
     created_at: datetime = field(default_factory=datetime.now)
@@ -497,13 +496,6 @@ class GameObject(BaseModel):
         if not isinstance(self.description, dict):
             raise ValueError("객체 설명은 딕셔너리 형태여야 합니다")
 
-        if not self.object_type:
-            raise ValueError("객체 타입은 필수입니다")
-
-        valid_object_types = {'item', 'npc', 'furniture', 'container', 'weapon', 'armor', 'consumable', 'equipment', 'material'}
-        if self.object_type not in valid_object_types:
-            raise ValueError(f"올바르지 않은 객체 타입입니다: {self.object_type}")
-
         if not self.location_type:
             raise ValueError("위치 타입은 필수입니다")
 
@@ -518,10 +510,9 @@ class GameObject(BaseModel):
         if not isinstance(self.weight, (int, float)) or self.weight < 0:
             raise ValueError("무게는 0 이상의 숫자여야 합니다")
 
-        # 카테고리 검증
-        valid_categories = {'weapon', 'armor', 'consumable', 'misc', 'material', 'quest'}
-        if self.category not in valid_categories:
-            raise ValueError(f"올바르지 않은 카테고리입니다: {self.category}")
+        # max_stack 검증
+        if not isinstance(self.max_stack, int) or self.max_stack < 1:
+            raise ValueError("최대 스택 개수는 1 이상의 정수여야 합니다")
 
         # 장비 슬롯 검증
         if self.equipment_slot is not None:
@@ -552,24 +543,9 @@ class GameObject(BaseModel):
         """로케일에 따른 객체 설명 반환"""
         return self.description.get(locale, self.description.get('en', self.description.get('ko', 'No description available.')))
 
-    def get_category_display(self, locale: str = 'en') -> str:
-        """카테고리 표시명 반환"""
-        category_names = {
-            'ko': {
-                'weapon': '무기',
-                'armor': '방어구',
-                'consumable': '소모품',
-                'misc': '기타'
-            },
-            'en': {
-                'weapon': 'Weapons',
-                'armor': 'Armor',
-                'consumable': 'Consumables',
-                'misc': 'Miscellaneous'
-            }
-        }
-
-        return category_names.get(locale, category_names['en']).get(self.category, self.category)
+    def is_stackable(self) -> bool:
+        """스택 가능한 아이템인지 확인"""
+        return self.max_stack > 1
 
     def get_property(self, key: str, default: Any = None) -> Any:
         """속성 값 조회"""
@@ -680,6 +656,9 @@ class GameObject(BaseModel):
                         converted_data[key] = {}
                 else:
                     converted_data[key] = value or {}
+            elif key in ['object_type', 'category']:
+                # 제거된 필드들은 무시
+                continue
             else:
                 converted_data[key] = value
 

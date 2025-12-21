@@ -4,13 +4,10 @@
   "name_ko": "생명의 정수",
   "description_en": "A small, dimly glowing object of indeterminate form.",
   "description_ko": "형체를 알 수 없는 작고 흐릿하게 빛나는 물체",
-  "object_type": "item",
-  "category": "misc",
   "weight": 0.7,
   "properties": {
     "currency_type": "essence",
     "value": 1
   },
-  "stackable": true,
   "max_stack": 999
 }

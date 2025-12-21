@@ -4,12 +4,9 @@
   "name_ko": "빵",
   "description_en": "A loaf of fresh bread.",
   "description_ko": "갓 구운 빵 한 덩어리입니다.",
-  "object_type": "consumable",
-  "category": "consumable",
   "weight": 0.3,
   "properties": {
     "hunger_restore": 20
   },
-  "stackable": true,
   "max_stack": 10
 }

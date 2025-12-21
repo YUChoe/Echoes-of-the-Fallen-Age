@@ -78,7 +78,8 @@
         "select_data",
         "meta_command",
         "get_schema",
-        "delete_data"
+        "delete_data",
+        "update_data"
       ]
     }
   }

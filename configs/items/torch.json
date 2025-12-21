@@ -4,12 +4,9 @@
   "name_ko": "횃불",
   "description_en": "A wooden torch that provides light.",
   "description_ko": "빛을 제공하는 나무 횃불입니다.",
-  "object_type": "item",
-  "category": "misc",
   "weight": 0.5,
   "properties": {
     "light_duration": 3600
   },
-  "stackable": true,
-  "max_stack": 50
+  "max_stack": 1
 }

@@ -4,12 +4,9 @@
   "name_ko": "체력 물약",
   "description_en": "A red potion that restores health.",
   "description_ko": "체력을 회복시켜주는 빨간 물약입니다.",
-  "object_type": "consumable",
-  "category": "consumable",
   "weight": 0.2,
   "properties": {
     "hp_restore": 50
   },
-  "stackable": true,
   "max_stack": 20
 }

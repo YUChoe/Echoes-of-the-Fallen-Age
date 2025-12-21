@@ -4,12 +4,9 @@
   "name_ko": "야생 베리",
   "description_en": "Sweet berries found in the wild.",
   "description_ko": "야생에서 발견한 달콤한 베리입니다.",
-  "object_type": "consumable",
-  "category": "consumable",
   "weight": 0.1,
   "properties": {
     "hunger_restore": 5
   },
-  "stackable": true,
   "max_stack": 50
 }

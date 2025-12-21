@@ -185,12 +185,11 @@ class TemplateLoader:
                 id=item_id,
                 name=name,
                 description=description,
-                object_type=template.get('object_type', 'item'),
                 location_type=location_type,
                 location_id=location_id,
                 properties=template.get('properties', {}),
                 weight=template.get('weight', 1.0),
-                category=template.get('category', 'misc'),
+                max_stack=template.get('max_stack', 1),
                 equipment_slot=template.get('equipment_slot'),
                 is_equipped=False
             )
@@ -198,11 +197,6 @@ class TemplateLoader:
             # 템플릿 ID를 속성에 추가
             item.properties['template_id'] = template_id
             item.properties['is_template'] = False
-
-            # 스택 가능 정보 추가
-            if template.get('stackable', False):
-                item.properties['stackable'] = True
-                item.properties['max_stack'] = template.get('max_stack', 1)
 
             logger.debug(f"템플릿에서 아이템 생성: {item_id} (템플릿: {template_id})")
             return item

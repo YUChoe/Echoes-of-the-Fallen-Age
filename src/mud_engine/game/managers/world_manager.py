@@ -291,8 +291,8 @@ class WorldManager:
                         'name_en': name_en,
                         'name_ko': obj.name.get('ko', name_en),
                         'objects': [],
-                        'stackable': obj.properties.get('stackable', False) if obj.properties else False,
-                        'max_stack': obj.properties.get('max_stack', 1) if obj.properties else 1
+                        'stackable': obj.max_stack > 1,
+                        'max_stack': obj.max_stack
                     }
 
                 object_groups[group_key]['objects'].append(obj)

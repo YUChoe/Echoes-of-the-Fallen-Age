@@ -258,23 +258,22 @@ class MapExporter:
 
         # 아이템 정보 (게임 오브젝트에서)
         cursor = await self.db_manager.execute("""
-            SELECT r.id, go.name_ko, go.name_en, go.object_type
+            SELECT r.id, go.name_ko, go.name_en
             FROM rooms r
             INNER JOIN game_objects go ON (r.id = go.location_id)
             WHERE go.location_type = 'room'
-            AND go.object_type IN ('item', 'weapon', 'armor', 'consumable')
             AND r.x IS NOT NULL AND r.y IS NOT NULL
             ORDER BY r.id, go.name_ko
         """)
         items = await cursor.fetchall()
 
         for item in items:
-            room_id, name_ko, name_en, object_type = item
+            room_id, name_ko, name_en = item
             if room_id in room_details:
                 room_details[room_id]['items'].append({
                     'name_ko': name_ko,
                     'name_en': name_en,
-                    'type': object_type
+                    'type': 'item'  # object_type 제거됨, 기본값 사용
                 })
 
         return room_details

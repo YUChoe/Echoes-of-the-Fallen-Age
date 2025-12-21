@@ -142,7 +142,7 @@ class AdminManager:
                     "object": {
                         "id": new_object.id,
                         "name": new_object.name,
-                        "type": new_object.object_type
+                        "type": new_object.properties.get('object_type', 'item')
                     }
                 })
 
@@ -347,7 +347,7 @@ class AdminManager:
 
             object_types: Dict[str, int] = {}
             for obj in objects:
-                obj_type = getattr(obj, 'object_type', 'unknown')
+                obj_type = 'item'  # object_type 제거됨, 기본값 사용
                 object_types[obj_type] = object_types.get(obj_type, 0) + 1
 
             return {

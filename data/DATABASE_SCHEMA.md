@@ -179,12 +179,11 @@ CREATE TABLE game_objects (
     name_ko TEXT NOT NULL,            -- 한국어 이름
     description_en TEXT,              -- 영어 설명
     description_ko TEXT,              -- 한국어 설명
-    object_type TEXT NOT NULL,        -- 오브젝트 타입 (ITEM, WEAPON, ARMOR, etc.)
     location_type TEXT NOT NULL,      -- 위치 타입 (ROOM, INVENTORY, EQUIPPED)
     location_id TEXT,                 -- 위치 ID (room_id or player_id)
     properties TEXT DEFAULT '{}',     -- 속성 (JSON)
     weight REAL DEFAULT 1.0,          -- 무게
-    category TEXT DEFAULT 'misc',     -- 카테고리
+    max_stack INTEGER DEFAULT 1,      -- 최대 스택 개수 (1이면 스택 불가)
     equipment_slot TEXT,              -- 장비 슬롯 (HEAD, BODY, WEAPON, etc.)
     is_equipped BOOLEAN DEFAULT FALSE, -- 장착 여부
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -194,6 +193,11 @@ CREATE TABLE game_objects (
 **인덱스**:
 
 - `CREATE INDEX idx_game_objects_location ON game_objects(location_type, location_id);`
+
+**스택 시스템**:
+
+- `max_stack = 1`: 스택 불가능한 아이템 (무기, 방어구 등)
+- `max_stack > 1`: 스택 가능한 아이템 (골드, 포션 등)
 
 ---
 

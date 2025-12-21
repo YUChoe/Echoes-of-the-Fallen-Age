@@ -4,12 +4,9 @@
   "name_ko": "배낭",
   "description_en": "A sturdy backpack for carrying items.",
   "description_ko": "물건을 운반하기 위한 튼튼한 배낭입니다.",
-  "object_type": "item",
-  "category": "misc",
   "weight": 1.0,
   "properties": {
     "storage_slots": 20
   },
-  "stackable": false,
   "max_stack": 1
 }

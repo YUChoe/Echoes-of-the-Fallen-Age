@@ -33,10 +33,13 @@ class ObjectManager:
                 id=object_data.get('id'),
                 name=object_data.get('name', {}),
                 description=object_data.get('description', {}),
-                object_type=object_data.get('object_type', 'item'),
                 location_type=object_data.get('location_type', 'room'),
                 location_id=object_data.get('location_id'),
                 properties=object_data.get('properties', {}),
+                weight=object_data.get('weight', 1.0),
+                max_stack=object_data.get('max_stack', 1),
+                equipment_slot=object_data.get('equipment_slot'),
+                is_equipped=object_data.get('is_equipped', False),
                 created_at=datetime.now()
             )
             created_object = await self._object_repo.create(game_object.to_dict())
@@ -175,7 +178,7 @@ class ObjectManager:
         """특정 캐릭터의 인벤토리에서 카테고리별 객체들을 조회합니다."""
         try:
             inventory_objects = await self.get_inventory_objects(character_id)
-            return [obj for obj in inventory_objects if obj.category == category]
+            return [obj for obj in inventory_objects if obj.properties.get('category') == category]
         except Exception as e:
             logger.error(f"카테고리별 객체 조회 실패 ({character_id}, {category}): {e}")
             raise

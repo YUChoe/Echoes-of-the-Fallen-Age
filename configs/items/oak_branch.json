@@ -4,12 +4,9 @@
   "name_ko": "참나무 가지",
   "description_en": "A sturdy branch from an oak tree.",
   "description_ko": "참나무에서 떨어진 튼튼한 가지입니다.",
-  "object_type": "item",
-  "category": "misc",
   "weight": 1.0,
   "properties": {
     "durability": 100
   },
-  "stackable": true,
   "max_stack": 20
 }

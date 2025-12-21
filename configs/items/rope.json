@@ -4,12 +4,9 @@
   "name_ko": "밧줄",
   "description_en": "A sturdy rope for climbing.",
   "description_ko": "등반용 튼튼한 밧줄입니다.",
-  "object_type": "item",
-  "category": "misc",
   "weight": 1.5,
   "properties": {
     "length": 10
   },
-  "stackable": false,
   "max_stack": 1
 }

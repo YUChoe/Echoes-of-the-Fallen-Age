@@ -46,7 +46,7 @@ class UIManager:
                     "type": "object",
                     "text": obj.get_localized_name(session.locale),
                     "command": f"examine {obj.get_localized_name(session.locale)}",
-                    "icon": self._get_object_icon(obj.object_type),
+                    "icon": self._get_object_icon("item"),  # object_type 제거됨, 기본값 사용
                     "actions": [
                         {"text": "조사하기", "command": f"examine {obj.get_localized_name(session.locale)}"},
                         {"text": "가져가기", "command": f"get {obj.get_localized_name(session.locale)}"}
@@ -62,7 +62,7 @@ class UIManager:
                 ]
                 if npc.is_merchant():
                     actions.append({"text": "상점 보기", "command": f"shop {npc_name}"})
-                
+
                 npc_buttons.append({
                     "type": "npc",
                     "text": npc_name,
