@@ -5,6 +5,8 @@ MUD Engine 메인 실행 파일
 import asyncio
 import logging
 import os
+import signal
+import sys
 
 from dotenv import load_dotenv
 
@@ -40,7 +42,7 @@ def setup_logging():
                 short_name = module_name.split('.')[-1]
             else:
                 short_name = module_name
-            
+
             # 파일명과 라인 번호
             filename = record.filename
             lineno = record.lineno
@@ -196,6 +198,21 @@ async def main():
     logger.info("MUD Engine 시작 중...")
     print("🎮 Python MUD Engine v0.1.0")
 
+    # 종료 이벤트 생성
+    shutdown_event = asyncio.Event()
+
+    # Signal 핸들러 설정
+    def signal_handler(signum, frame):
+        logger.info(f"Signal {signum} 수신됨. 서버 종료 절차 시작...")
+        print(f"\n🛑 Signal {signum} 수신됨. 서버 종료 중...")
+        shutdown_event.set()
+
+    # Windows와 Unix 모두 지원
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, signal_handler)
+    if hasattr(signal, 'SIGINT'):
+        signal.signal(signal.SIGINT, signal_handler)
+
     telnet_server = None
     game_engine = None
     try:
@@ -225,7 +242,7 @@ async def main():
         telnet_host = os.getenv("TELNET_HOST", "0.0.0.0")
         telnet_port = int(os.getenv("TELNET_PORT", "4000"))
         telnet_server = TelnetServer(telnet_host, telnet_port, player_manager, db_manager)
-        
+
         # 게임 엔진을 Telnet 서버에 연결
         telnet_server.game_engine = game_engine
         game_engine.telnet_server = telnet_server
@@ -235,9 +252,16 @@ async def main():
         print(f"📡 Telnet 서버가 telnet://{telnet_host}:{telnet_port} 에서 실행 중입니다.")
         print("Ctrl+C를 눌러 서버를 종료할 수 있습니다.")
 
-        # 서버가 계속 실행되도록 유지
-        await asyncio.Event().wait()
+        # 서버가 계속 실행되도록 유지 (shutdown_event 대기)
+        try:
+            await shutdown_event.wait()
+        except KeyboardInterrupt:
+            logger.info("Ctrl+C 감지됨. 서버 종료 절차 시작...")
+            print("\n🛑 서버 종료 중...")
 
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt 감지됨. 서버 종료 절차 시작...")
+        print("\n🛑 서버 종료 중...")
     except Exception as e:
         logger.error(f"초기화 또는 실행 중 오류 발생: {e}", exc_info=True)
         print(f"❌ 치명적인 오류 발생: {e}")

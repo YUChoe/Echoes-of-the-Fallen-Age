@@ -193,6 +193,13 @@ class DatabaseManager:
         async with self._lock:
             if self._connection:
                 try:
+                    # WAL 체크포인트 실행 (WAL 파일을 메인 DB로 병합)
+                    logger.info("WAL 체크포인트 실행 중...")
+                    await self._connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                    await self._connection.commit()
+                    logger.info("WAL 체크포인트 완료")
+
+                    # 연결 종료
                     await self._connection.close()
                     logger.info("데이터베이스 연결 종료 완료")
                 except Exception as e:
