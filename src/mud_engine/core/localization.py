@@ -236,8 +236,8 @@ class LocalizationManager:
                 "ko": "  - {name} x{quantity} (땅에 떨어짐)"
             },
             "combat.item_inventory": {
-                "en": "  - {name} x{quantity} goes into your pocket.",
-                "ko": "  - {name} x{quantity}개가 주머니속으로 들어갑니다."
+                "en": "- {name} x{quantity} goes into your pocket.",
+                "ko": "- {name} x{quantity}개가 주머니속으로 들어갑니다."
             },
             "combat.returning_location": {
                 "en": "Returning to original location...",

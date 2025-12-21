@@ -641,10 +641,6 @@ class PlayerMovementManager:
                 message = f"""
 {localization.get_message("combat.victory", locale)}
 
-{localization.get_message("combat.rewards", locale)}
-{localization.get_message("combat.exp_gained", locale, exp=rewards['experience'])}
-{localization.get_message("combat.gold_gained", locale, gold=rewards['gold'])}
-
 {localization.get_message("combat.return_location", locale)}
 """
             else:
