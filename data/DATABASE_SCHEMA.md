@@ -61,40 +61,16 @@ CREATE TABLE players (
 ```
 
 **인덱스**:
+
 - `CREATE INDEX idx_players_username ON players(username);`
 
 **관계**:
-- `characters` 테이블과 1:N 관계
+
 - `factions` 테이블과 N:1 관계
 
 ---
 
-### 2. characters
-
-플레이어 캐릭터 정보를 저장합니다. (현재 사용되지 않음 - players 테이블에 통합됨)
-
-```sql
-CREATE TABLE characters (
-    id TEXT PRIMARY KEY,              -- UUID
-    player_id TEXT NOT NULL,          -- players.id (외래 키)
-    name TEXT NOT NULL,               -- 캐릭터 이름
-    current_room_id TEXT,             -- 현재 방 ID
-    inventory TEXT DEFAULT '[]',      -- 인벤토리 (JSON)
-    stats TEXT DEFAULT '{}',          -- 능력치 (JSON)
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (player_id) REFERENCES players(id)
-);
-```
-
-**인덱스**:
-- `CREATE INDEX idx_characters_player_id ON characters(player_id);`
-- `CREATE INDEX idx_characters_current_room ON characters(current_room_id);`
-
-**참고**: 현재 시스템에서는 players 테이블에 캐릭터 정보가 통합되어 있습니다.
-
----
-
-### 3. rooms
+### 2. rooms
 
 게임 월드의 방(위치) 정보를 저장합니다.
 
@@ -111,15 +87,17 @@ CREATE TABLE rooms (
 ```
 
 **인덱스**:
+
 - `CREATE INDEX idx_rooms_coordinates ON rooms(x, y);`
 
 **참고**:
+
 - 방 이름과 출구 정보는 별도 시스템에서 관리됨
 - 좌표 기반 위치 시스템 사용
 
 ---
 
-### 4. monsters
+### 3. monsters
 
 몬스터 정보를 저장합니다.
 
@@ -151,11 +129,13 @@ CREATE TABLE monsters (
 ```
 
 **인덱스**:
+
 - `CREATE INDEX idx_monsters_coordinates ON monsters(x, y);`
 - `CREATE INDEX idx_monsters_type ON monsters(monster_type);`
 - `CREATE INDEX idx_monsters_alive ON monsters(is_alive);`
 
 **JSON 필드 예시**:
+
 ```json
 {
   "stats": {
@@ -169,13 +149,18 @@ CREATE TABLE monsters (
     "current_hp": 25
   },
   "drop_items": [
-    {"item_id": "gold_coin", "drop_chance": 0.5, "min_quantity": 1, "max_quantity": 5}
+    {
+      "item_id": "gold_coin",
+      "drop_chance": 0.5,
+      "min_quantity": 1,
+      "max_quantity": 5
+    }
   ],
   "properties": {
     "template_id": "template_small_rat",
     "roaming_config": {
       "roam_chance": 0.5,
-      "roaming_area": {"min_x": -4, "max_x": 4, "min_y": -4, "max_y": 4}
+      "roaming_area": { "min_x": -4, "max_x": 4, "min_y": -4, "max_y": 4 }
     }
   }
 }
@@ -183,7 +168,7 @@ CREATE TABLE monsters (
 
 ---
 
-### 5. game_objects
+### 4. game_objects
 
 게임 내 오브젝트(아이템, 가구 등) 정보를 저장합니다.
 
@@ -207,58 +192,12 @@ CREATE TABLE game_objects (
 ```
 
 **인덱스**:
+
 - `CREATE INDEX idx_game_objects_location ON game_objects(location_type, location_id);`
 
 ---
 
-### 6. npcs
-
-NPC(Non-Player Character) 정보를 저장합니다.
-
-```sql
-CREATE TABLE npcs (
-    id TEXT PRIMARY KEY,              -- UUID
-    name_en TEXT NOT NULL,            -- 영어 이름
-    name_ko TEXT NOT NULL,            -- 한국어 이름
-    description_en TEXT,              -- 영어 설명
-    description_ko TEXT,              -- 한국어 설명
-    x INTEGER DEFAULT 0,              -- X 좌표
-    y INTEGER DEFAULT 0,              -- Y 좌표
-    npc_type TEXT DEFAULT 'generic',  -- NPC 타입 (MERCHANT, QUEST_GIVER, etc.)
-    dialogue TEXT DEFAULT '{}',       -- 대화 (JSON)
-    shop_inventory TEXT DEFAULT '[]', -- 상점 인벤토리 (JSON, MERCHANT 타입용)
-    properties TEXT DEFAULT '{}',     -- 추가 속성 (JSON)
-    is_active BOOLEAN DEFAULT TRUE,   -- 활성 상태
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    faction_id TEXT,                  -- 종족 ID (factions.id)
-    FOREIGN KEY (faction_id) REFERENCES factions(id)
-);
-```
-
-**인덱스**:
-- `CREATE INDEX idx_npcs_coordinates ON npcs(x, y);`
-- `CREATE INDEX idx_npcs_type ON npcs(npc_type);`
-
----
-
-### 7. translations
-
-다국어 번역 정보를 저장합니다.
-
-```sql
-CREATE TABLE translations (
-    key TEXT NOT NULL PRIMARY KEY,   -- 번역 키
-    locale TEXT NOT NULL PRIMARY KEY, -- 언어 코드 (en, ko, etc.)
-    value TEXT NOT NULL               -- 번역 값
-);
-```
-
-**인덱스**:
-- `CREATE INDEX idx_translations_key ON translations(key);`
-
-**참고**: 복합 PRIMARY KEY (key, locale) 구조
-
----
+### 5. factions
 
 ### 8. factions
 
@@ -278,13 +217,14 @@ CREATE TABLE factions (
 ```
 
 **기본 종족**:
+
 - `ash_knights`: 잿빛 기사단 (플레이어 기본 종족)
 - `goblins`: 고블린
 - `animals`: 동물
 
 ---
 
-### 9. faction_relations
+### 6. faction_relations
 
 종족 간 관계(우호도)를 저장합니다.
 
@@ -301,6 +241,7 @@ CREATE TABLE faction_relations (
 ```
 
 **관계 값 범위**:
+
 - `-100 ~ -50`: HOSTILE (적대)
 - `-49 ~ -1`: UNFRIENDLY (비우호)
 - `0`: NEUTRAL (중립)
@@ -308,6 +249,7 @@ CREATE TABLE faction_relations (
 - `50 ~ 100`: ALLIED (동맹)
 
 **기본 관계**:
+
 - 잿빛 기사단 ↔ 고블린: HOSTILE (-80)
 - 잿빛 기사단 ↔ 동물: NEUTRAL (0)
 - 고블린 ↔ 동물: UNFRIENDLY (-20)
@@ -317,6 +259,7 @@ CREATE TABLE faction_relations (
 ## Data Types
 
 ### UUID Format
+
 - **형식**: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
 - **예시**: `49a55ff4-a1d9-4449-a72c-c664686e1102`
 - **생성**: Python `uuid.uuid4()`
@@ -324,27 +267,29 @@ CREATE TABLE faction_relations (
 ### JSON Fields
 
 #### Monster Stats (D&D 5e 기반)
+
 ```json
 {
-  "strength": 10,      // 힘 (1-30)
-  "dexterity": 14,     // 민첩 (1-30)
-  "constitution": 12,  // 체력 (1-30)
-  "intelligence": 8,   // 지능 (1-30)
-  "wisdom": 10,        // 지혜 (1-30)
-  "charisma": 6,       // 매력 (1-30)
-  "level": 1,          // 레벨
-  "current_hp": 25     // 현재 HP
+  "strength": 10, // 힘 (1-30)
+  "dexterity": 14, // 민첩 (1-30)
+  "constitution": 12, // 체력 (1-30)
+  "intelligence": 8, // 지능 (1-30)
+  "wisdom": 10, // 지혜 (1-30)
+  "charisma": 6, // 매력 (1-30)
+  "level": 1, // 레벨
+  "current_hp": 25 // 현재 HP
 }
 ```
 
 #### Quest Progress
+
 ```json
 {
   "quest_id_1": {
     "status": "in_progress",
     "objectives": {
-      "kill_goblins": {"current": 3, "required": 5},
-      "collect_items": {"current": 1, "required": 3}
+      "kill_goblins": { "current": 3, "required": 5 },
+      "collect_items": { "current": 1, "required": 3 }
     }
   }
 }
@@ -355,9 +300,7 @@ CREATE TABLE faction_relations (
 ## Foreign Key Relationships
 
 ```
-players (1) ─────< (N) characters
 factions (1) ─────< (N) monsters (faction_id)
-factions (1) ─────< (N) npcs (faction_id)
 factions (1) ─────< (N) players (faction_id)
 factions (N) ─────< (N) factions (faction_relations)
 ```
@@ -367,14 +310,11 @@ factions (N) ─────< (N) factions (faction_relations)
 ## Current Data Statistics
 
 - **players**: 6개
-- **characters**: 0개 (사용되지 않음)
 - **rooms**: 173개
 - **monsters**: 51개
 - **game_objects**: 24개
-- **npcs**: 0개
 - **factions**: 3개
 - **faction_relations**: 6개
-- **translations**: 10개
 
 ---
 
@@ -393,10 +333,12 @@ factions (N) ─────< (N) factions (faction_relations)
 ## Backup Strategy
 
 ### 자동 백업
+
 - 마이그레이션 스크립트 실행 시 자동 백업 생성
 - 형식: `mud_engine.db.backup_YYYYMMDD_HHMMSS`
 
 ### 수동 백업
+
 ```bash
 # 백업 생성
 cp data/mud_engine.db data/mud_engine.db.backup_$(date +%Y%m%d_%H%M%S)
@@ -412,11 +354,13 @@ cp data/mud_engine.db.backup_YYYYMMDD_HHMMSS data/mud_engine.db
 ### 스키마 변경 시 체크리스트
 
 1. **변경 전**
+
    - [ ] 현재 DB 백업 생성
    - [ ] 영향받는 테이블 및 관계 파악
    - [ ] 마이그레이션 스크립트 작성
 
 2. **변경 중**
+
    - [ ] 외래 키 제약 조건 고려
    - [ ] 트랜잭션 사용
    - [ ] 롤백 계획 수립
