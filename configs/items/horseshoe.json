@@ -1,0 +1,13 @@
+{
+  "template_id": "horseshoe",
+  "name_en": "Horseshoe",
+  "name_ko": "말굽",
+  "description_en": "A curved iron horseshoe. It's said to bring good luck.",
+  "description_ko": "구부러진 철제 말굽입니다. 행운을 가져다준다고 전해집니다.",
+  "weight": 0.3,
+  "properties": {
+    "material": "iron",
+    "luck_bonus": 1
+  },
+  "max_stack": 5
+}

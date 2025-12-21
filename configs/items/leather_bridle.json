@@ -1,0 +1,15 @@
+{
+  "template_id": "leather_bridle",
+  "name_en": "Leather Bridle",
+  "name_ko": "가죽 굴레",
+  "description_en": "A well-crafted leather bridle used to control horses. The leather is supple and strong.",
+  "description_ko": "말을 조종하는 데 사용되는 잘 만들어진 가죽 굴레입니다. 가죽이 유연하고 튼튼합니다.",
+  "weight": 1.2,
+  "properties": {
+    "material": "leather",
+    "durability": 100,
+    "horse_control": 5
+  },
+  "equipment_slot": "accessory",
+  "max_stack": 1
+}

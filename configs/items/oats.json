@@ -1,0 +1,14 @@
+{
+  "template_id": "oats",
+  "name_en": "Oats",
+  "name_ko": "귀리",
+  "description_en": "A bag of nutritious oats. Horses love this high-energy feed.",
+  "description_ko": "영양가 높은 귀리 한 포대입니다. 말들이 좋아하는 고에너지 사료입니다.",
+  "weight": 2.0,
+  "properties": {
+    "feed_value": 15,
+    "energy_boost": 5,
+    "material": "grain"
+  },
+  "max_stack": 10
+}

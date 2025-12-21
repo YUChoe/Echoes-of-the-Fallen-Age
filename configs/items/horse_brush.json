@@ -1,0 +1,14 @@
+{
+  "template_id": "horse_brush",
+  "name_en": "Horse Brush",
+  "name_ko": "말 솔",
+  "description_en": "A sturdy brush with natural bristles for grooming horses. Keeps their coat shiny and healthy.",
+  "description_ko": "말을 손질하기 위한 천연 털로 만든 튼튼한 솔입니다. 말의 털을 윤기 있고 건강하게 유지해줍니다.",
+  "weight": 0.4,
+  "properties": {
+    "material": "wood_bristle",
+    "grooming_bonus": 3,
+    "durability": 80
+  },
+  "max_stack": 1
+}

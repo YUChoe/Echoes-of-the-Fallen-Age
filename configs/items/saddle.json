@@ -1,0 +1,16 @@
+{
+  "template_id": "saddle",
+  "name_en": "Saddle",
+  "name_ko": "안장",
+  "description_en": "A comfortable leather saddle for riding horses. Well-padded and sturdy.",
+  "description_ko": "말을 타기 위한 편안한 가죽 안장입니다. 잘 채워져 있고 튼튼합니다.",
+  "weight": 3.5,
+  "properties": {
+    "material": "leather",
+    "comfort": 8,
+    "durability": 150,
+    "riding_bonus": 10
+  },
+  "equipment_slot": "accessory",
+  "max_stack": 1
+}

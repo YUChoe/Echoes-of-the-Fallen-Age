@@ -1,0 +1,13 @@
+{
+  "template_id": "hay_bale",
+  "name_en": "Hay Bale",
+  "name_ko": "건초 더미",
+  "description_en": "A bundle of dried hay tied with rope. Perfect feed for horses.",
+  "description_ko": "밧줄로 묶인 마른 건초 다발입니다. 말들에게 완벽한 사료입니다.",
+  "weight": 5.0,
+  "properties": {
+    "feed_value": 10,
+    "material": "organic"
+  },
+  "max_stack": 3
+}
