@@ -104,13 +104,11 @@ class UIManager:
         direction_texts = {
             'en': {
                 'north': 'North', 'south': 'South', 'east': 'East', 'west': 'West',
-                'up': 'Up', 'down': 'Down', 'northeast': 'Northeast', 'northwest': 'Northwest',
-                'southeast': 'Southeast', 'southwest': 'Southwest', 'enter': 'Enter'
+                'enter': 'Enter'
             },
             'ko': {
                 'north': '북쪽', 'south': '남쪽', 'east': '동쪽', 'west': '서쪽',
-                'up': '위쪽', 'down': '아래쪽', 'northeast': '북동쪽', 'northwest': '북서쪽',
-                'southeast': '남동쪽', 'southwest': '남서쪽', 'enter': '들어가기'
+                'enter': '들어가기'
             }
         }
         return direction_texts.get(locale, direction_texts['en']).get(direction, direction.title())
@@ -119,8 +117,7 @@ class UIManager:
         """방향 아이콘 반환"""
         icons = {
             'north': '⬆️', 'south': '⬇️', 'east': '➡️', 'west': '⬅️',
-            'up': '🔼', 'down': '🔽', 'northeast': '↗️', 'northwest': '↖️',
-            'southeast': '↘️', 'southwest': '↙️', 'enter': '🚪'
+            'enter': '🚪'
         }
         return icons.get(direction, '🚪')
 
