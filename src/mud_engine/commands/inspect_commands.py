@@ -37,11 +37,11 @@ class InspectCommand(BaseCommand):
             # 번호로 입력된 경우 처리
             target_entity = None
             entity_type = None
-            
+
             if target_input.isdigit():
                 entity_num = int(target_input)
                 entity_map = getattr(session, 'room_entity_map', {})
-                
+
                 if entity_num in entity_map:
                     entity_info = entity_map[entity_num]
                     target_entity = entity_info['entity']
@@ -54,7 +54,7 @@ class InspectCommand(BaseCommand):
                 # 이름으로 검색 - 몬스터 먼저
                 target_name = target_input.lower()
                 monsters = await game_engine.world_manager.get_monsters_in_room(session.current_room_id)
-                
+
                 for monster in monsters:
                     if (target_name in monster.get_localized_name(session.locale).lower() or
                         target_name in monster.get_localized_name('en').lower() or
@@ -62,7 +62,7 @@ class InspectCommand(BaseCommand):
                         target_entity = monster
                         entity_type = 'monster'
                         break
-                
+
                 # 몬스터를 못 찾았으면 NPC 검색
                 if not target_entity:
                     npcs = await game_engine.model_manager.npcs.get_npcs_in_room(session.current_room_id)
@@ -76,7 +76,7 @@ class InspectCommand(BaseCommand):
 
             if not target_entity:
                 return self.create_error_result(f"'{target_input}'을(를) 찾을 수 없습니다.")
-            
+
             # 엔티티 정보 포맷팅
             if entity_type == 'monster':
                 message = self._format_monster_info(target_entity, session.locale)
@@ -88,24 +88,18 @@ class InspectCommand(BaseCommand):
         except Exception as e:
             logger.error(f"조사 명령어 실행 실패: {e}", exc_info=True)
             return self.create_error_result("조사 중 오류가 발생했습니다.")
-    
+
     def _format_monster_info(self, monster, locale: str) -> str:
         """몬스터 정보 포맷팅"""
         name = monster.get_localized_name(locale)
         desc = monster.get_localized_description(locale)
-        
-        # HP 바 생성
-        hp_percent = monster.current_hp / monster.max_hp if monster.max_hp > 0 else 0
-        bar_length = 10
-        filled = int(hp_percent * bar_length)
-        hp_bar = f"[{'█' * filled}{'░' * (bar_length - filled)}]"
-        
+
         lines = [
             f"🔍 {name}",
             "=" * 40,
             f"{desc}",
             "",
-            f"💚 HP: {hp_bar} {monster.current_hp}/{monster.max_hp}",
+            f"💚 HP: {monster.current_hp}/{monster.max_hp}",
             f"⭐ 레벨: {monster.level}",
             "",
             "📊 능력치:",
@@ -116,39 +110,39 @@ class InspectCommand(BaseCommand):
             f"  • 지혜 (WIS): {monster.stats.wisdom}",
             f"  • 매력 (CHA): {monster.stats.charisma}",
         ]
-        
+
         # 종족 정보
         if monster.faction_id:
             lines.append("")
             lines.append(f"🏴 종족: {monster.faction_id}")
-        
+
         # 행동 패턴
         if hasattr(monster, 'monster_type'):
             lines.append("")
             monster_type_str = monster.monster_type.value if hasattr(monster.monster_type, 'value') else str(monster.monster_type)
             lines.append(f"⚔️ 성향: {monster_type_str}")
-        
+
         return "\n".join(lines)
-    
+
     def _format_npc_info(self, npc, locale: str) -> str:
         """NPC 정보 포맷팅"""
         name = npc.get_localized_name(locale)
         desc = npc.get_localized_description(locale)
-        
+
         lines = [
             f"🔍 {name}",
             "=" * 40,
             f"{desc}",
             "",
         ]
-        
+
         # NPC 타입
         if npc.npc_type:
             lines.append(f"👤 역할: {npc.npc_type}")
-        
+
         # 상인 여부
         if npc.is_merchant():
             lines.append("💰 상인입니다")
             lines.append("  'shop' 명령어로 상품을 확인할 수 있습니다")
-        
+
         return "\n".join(lines)

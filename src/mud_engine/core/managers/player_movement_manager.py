@@ -664,21 +664,19 @@ class PlayerMovementManager:
         players = [c for c in combat.combatants if c.combatant_type == CombatantType.PLAYER and c.is_alive()]
         if players:
             player = players[0]
-            hp_bar = self._get_hp_bar(player.current_hp, player.max_hp)
-            lines.append(f"\n{localization.get_message('combat.player_hp', locale, name=player.name)}")
-            lines.append(f"   HP: {hp_bar} {player.current_hp}/{player.max_hp}")
+            lines.append(f"\n👤 {player.name} HP: {player.current_hp}/{player.max_hp}")
 
         # 몬스터 정보
         monsters = [c for c in combat.combatants if c.combatant_type == CombatantType.MONSTER and c.is_alive()]
         if monsters:
-            lines.append(f"\n{localization.get_message('combat.monsters', locale)}")
             for monster in monsters:
-                hp_bar = self._get_hp_bar(monster.current_hp, monster.max_hp)
-                lines.append(localization.get_message("combat.monster_entry", locale, name=monster.name))
-                lines.append(localization.get_message("combat.hp_display", locale,
-                                                    hp_bar=hp_bar,
-                                                    current=monster.current_hp,
-                                                    max=monster.max_hp))
+                # 몬스터 이름을 언어별로 동적 조회
+                monster_name = monster.name  # 기본값
+                if monster.data and 'monster' in monster.data:
+                    monster_obj = monster.data['monster']
+                    monster_name = monster_obj.get_localized_name(locale)
+
+                lines.append(f"👹 {monster_name}: HP: {monster.current_hp}/{monster.max_hp}")
 
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         return "\n".join(lines)
