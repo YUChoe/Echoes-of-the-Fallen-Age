@@ -58,7 +58,7 @@
         "-y",
         "git+https://github.com/YUChoe/telnet-mcp"
       ],
-      "disabled": true,
+      "disabled": false,
       "autoApprove": [
         "telnet_connect",
         "telnet_read",
