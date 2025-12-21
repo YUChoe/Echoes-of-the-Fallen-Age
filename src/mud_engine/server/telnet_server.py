@@ -334,10 +334,6 @@ Your adventure begins in a world transformed into ruins and monster lairs.
 
             await session.send_success(welcome_msg)
 
-            # 게임 입장 메시지
-            game_entered_msg = localization.get_message("game.entered", session.locale)
-            await session.send_info(game_entered_msg)
-
             # 선호 언어 설정 표시
             language_name = "English" if session.locale == "en" else "한국어"
             language_info = localization.get_message("auth.language_preference", session.locale, language=language_name)
