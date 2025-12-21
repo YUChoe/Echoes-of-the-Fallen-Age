@@ -105,12 +105,12 @@ class UIManager:
             'en': {
                 'north': 'North', 'south': 'South', 'east': 'East', 'west': 'West',
                 'up': 'Up', 'down': 'Down', 'northeast': 'Northeast', 'northwest': 'Northwest',
-                'southeast': 'Southeast', 'southwest': 'Southwest'
+                'southeast': 'Southeast', 'southwest': 'Southwest', 'enter': 'Enter'
             },
             'ko': {
                 'north': '북쪽', 'south': '남쪽', 'east': '동쪽', 'west': '서쪽',
                 'up': '위쪽', 'down': '아래쪽', 'northeast': '북동쪽', 'northwest': '북서쪽',
-                'southeast': '남동쪽', 'southwest': '남서쪽'
+                'southeast': '남동쪽', 'southwest': '남서쪽', 'enter': '들어가기'
             }
         }
         return direction_texts.get(locale, direction_texts['en']).get(direction, direction.title())
@@ -120,7 +120,7 @@ class UIManager:
         icons = {
             'north': '⬆️', 'south': '⬇️', 'east': '➡️', 'west': '⬅️',
             'up': '🔼', 'down': '🔽', 'northeast': '↗️', 'northwest': '↖️',
-            'southeast': '↘️', 'southwest': '↙️'
+            'southeast': '↘️', 'southwest': '↙️', 'enter': '🚪'
         }
         return icons.get(direction, '🚪')
 
