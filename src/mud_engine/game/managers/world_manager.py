@@ -243,9 +243,13 @@ class WorldManager:
         try:
             room = await self._room_manager.get_room(room_id)
             if not room:
+                logger.warning(f"방을 찾을 수 없음: {room_id}")
                 return {}
 
             objects = await self._object_manager.get_room_objects(room_id)
+            logger.info(f"방 {room_id}의 객체 개수: {len(objects)}")
+            for obj in objects:
+                logger.info(f"  - 객체: {obj.get_localized_name('ko')} (ID: {obj.id})")
 
             # stackable 오브젝트 그룹화
             grouped_objects = self._group_stackable_objects(objects)
@@ -413,3 +417,130 @@ class WorldManager:
     async def get_npcs_in_room(self, room_id: str) -> List[NPC]:
         """특정 방에 있는 NPC들을 조회합니다."""
         return await self._npc_repo.get_npcs_in_room(room_id)
+    # === 컨테이너 관리 ===
+
+    async def get_container_items(self, container_id: str) -> List[GameObject]:
+        """컨테이너 내부의 아이템들을 조회합니다."""
+        try:
+            return await self._object_manager._object_repo.get_objects_in_container(container_id)
+        except Exception as e:
+            logger.error(f"컨테이너 아이템 조회 오류: {e}")
+            return []
+
+    async def move_item_to_container(self, item_id: str, container_id: str) -> bool:
+        """아이템을 컨테이너로 이동합니다."""
+        try:
+            item = await self._object_manager._object_repo.get_by_id(item_id)
+            if not item:
+                return False
+
+            # 아이템의 위치를 컨테이너로 변경
+            updated_item = await self._object_manager._object_repo.update(item_id, {
+                'location_type': 'CONTAINER',
+                'location_id': container_id
+            })
+
+            if updated_item:
+                logger.info(f"아이템 {item_id}를 컨테이너 {container_id}로 이동")
+                return True
+            return False
+
+        except Exception as e:
+            logger.error(f"아이템 컨테이너 이동 오류: {e}")
+            return False
+
+    async def move_item_from_container(self, item_id: str, target_location_type: str, target_location_id: str) -> bool:
+        """아이템을 컨테이너에서 다른 위치로 이동합니다."""
+        try:
+            item = await self._object_manager._object_repo.get_by_id(item_id)
+            if not item:
+                return False
+
+            # 아이템의 위치를 새 위치로 변경
+            updated_item = await self._object_manager._object_repo.update(item_id, {
+                'location_type': target_location_type.upper(),
+                'location_id': target_location_id
+            })
+
+            if updated_item:
+                logger.info(f"아이템 {item_id}를 컨테이너에서 {target_location_type}:{target_location_id}로 이동")
+                return True
+            return False
+
+        except Exception as e:
+            logger.error(f"아이템 컨테이너 이동 오류: {e}")
+            return False
+
+    async def take_item_from_container(self, player_id: str, item_number: int, container_number: int, entity_map: Dict) -> Dict[str, Any]:
+        """컨테이너에서 아이템을 플레이어 인벤토리로 이동합니다."""
+        try:
+            # 컨테이너 확인
+            if container_number not in entity_map or entity_map[container_number]['type'] != 'object':
+                return {'success': False, 'message': f"번호 [{container_number}]에 해당하는 컨테이너를 찾을 수 없습니다."}
+
+            container = entity_map[container_number]['entity']
+
+            # 컨테이너 내부 아이템 조회
+            container_items = await self.get_container_items(container.id)
+            if not container_items:
+                return {'success': False, 'message': f"{container.get_localized_name('ko')}가 비어있습니다."}
+
+            # 아이템 번호 확인
+            if item_number < 1 or item_number > len(container_items):
+                return {'success': False, 'message': f"컨테이너에 번호 [{item_number}]에 해당하는 아이템이 없습니다."}
+
+            target_item = container_items[item_number - 1]
+
+            # 플레이어 인벤토리로 이동
+            success = await self.move_item_from_container(target_item.id, 'INVENTORY', player_id)
+
+            if success:
+                return {
+                    'success': True,
+                    'message': f"{target_item.get_localized_name('ko')}을(를) {container.get_localized_name('ko')}에서 가져왔습니다.",
+                    'item_name': target_item.get_localized_name('ko'),
+                    'container_name': container.get_localized_name('ko')
+                }
+            else:
+                return {'success': False, 'message': "아이템을 가져올 수 없습니다."}
+
+        except Exception as e:
+            logger.error(f"컨테이너에서 아이템 가져오기 오류: {e}")
+            return {'success': False, 'message': "아이템을 가져오는 중 오류가 발생했습니다."}
+
+    async def put_item_in_container(self, player_id: str, item_number: int, container_number: int, entity_map: Dict) -> Dict[str, Any]:
+        """플레이어 인벤토리의 아이템을 컨테이너에 넣습니다."""
+        try:
+            # 컨테이너 확인
+            if container_number not in entity_map or entity_map[container_number]['type'] != 'object':
+                return {'success': False, 'message': f"번호 [{container_number}]에 해당하는 컨테이너를 찾을 수 없습니다."}
+
+            container = entity_map[container_number]['entity']
+
+            # 플레이어 인벤토리 아이템 조회
+            inventory_items = await self.get_inventory_objects(player_id)
+            if not inventory_items:
+                return {'success': False, 'message': "인벤토리가 비어있습니다."}
+
+            # 아이템 번호 확인
+            if item_number < 1 or item_number > len(inventory_items):
+                return {'success': False, 'message': f"인벤토리에 번호 [{item_number}]에 해당하는 아이템이 없습니다."}
+
+            target_item = inventory_items[item_number - 1]
+
+            # 컨테이너로 이동
+            success = await self.move_item_to_container(target_item.id, container.id)
+
+            if success:
+                return {
+                    'success': True,
+                    'message': f"{target_item.get_localized_name('ko')}을(를) {container.get_localized_name('ko')}에 넣었습니다.",
+                    'item_name': target_item.get_localized_name('ko'),
+                    'container_name': container.get_localized_name('ko')
+                }
+            else:
+                return {'success': False, 'message': "아이템을 넣을 수 없습니다."}
+
+        except Exception as e:
+            logger.error(f"컨테이너에 아이템 넣기 오류: {e}")
+            return {'success': False, 'message': "아이템을 넣는 중 오류가 발생했습니다."}

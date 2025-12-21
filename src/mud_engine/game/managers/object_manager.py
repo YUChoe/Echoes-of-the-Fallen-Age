@@ -83,7 +83,12 @@ class ObjectManager:
     async def get_room_objects(self, room_id: str) -> List[GameObject]:
         """특정 방에 있는 모든 객체를 조회합니다."""
         try:
-            return await self._object_repo.get_objects_in_room(room_id)
+            logger.info(f"방 {room_id}의 객체 조회 시작")
+            objects = await self._object_repo.get_objects_in_room(room_id)
+            logger.info(f"방 {room_id}에서 {len(objects)}개 객체 조회됨")
+            for obj in objects:
+                logger.info(f"  - {obj.get_localized_name('ko')} (ID: {obj.id}, 위치: {obj.location_type}:{obj.location_id})")
+            return objects
         except Exception as e:
             logger.error(f"방 내 객체 조회 실패 ({room_id}): {e}")
             raise

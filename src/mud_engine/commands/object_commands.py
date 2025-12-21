@@ -25,12 +25,61 @@ class GetCommand(BaseCommand):
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         if not self.validate_args(args, min_args=1):
             return self.create_error_result(
-                "획득할 객체를 지정해주세요.\n사용법: get <객체명>"
+                "획득할 객체를 지정해주세요.\n사용법: get <객체명> 또는 take <번호> from <상자번호>"
             )
 
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
+        # "take X from Y" 구문 처리
+        if len(args) >= 3 and args[-2].lower() == "from":
+            return await self._take_from_container(session, args)
+
+        # 일반적인 get/take 처리
+        return await self._take_from_room(session, args)
+
+    async def _take_from_container(self, session: SessionType, args: List[str]) -> CommandResult:
+        """컨테이너에서 아이템을 가져오는 처리"""
+        try:
+            # take <item_number> from <container_number> 구문 파싱
+            item_arg = args[0]
+            container_arg = args[-1]
+
+            # 숫자 인자 검증
+            try:
+                item_number = int(item_arg)
+                container_number = int(container_arg)
+            except ValueError:
+                return self.create_error_result("올바른 번호를 입력해주세요. 예: take 1 from 11")
+
+            # 게임 엔진 접근
+            game_engine = getattr(session, 'game_engine', None)
+            if not game_engine:
+                return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+
+            # 컨테이너에서 아이템 가져오기
+            result = await game_engine.world_manager.take_item_from_container(
+                session.player.id, item_number, container_number, session.room_entity_map
+            )
+
+            if result['success']:
+                return self.create_success_result(
+                    message=result['message'],
+                    data={
+                        "action": "take_from_container",
+                        "item_name": result.get('item_name'),
+                        "container_name": result.get('container_name')
+                    }
+                )
+            else:
+                return self.create_error_result(result['message'])
+
+        except Exception as e:
+            logger.error(f"컨테이너에서 아이템 가져오기 실패: {e}")
+            return self.create_error_result("아이템을 가져오는 중 오류가 발생했습니다.")
+
+    async def _take_from_room(self, session: SessionType, args: List[str]) -> CommandResult:
+        """방에서 아이템을 가져오는 처리"""
         # 현재 방 ID 가져오기
         current_room_id = getattr(session, 'current_room_id', None)
         if not current_room_id:
@@ -99,6 +148,61 @@ class GetCommand(BaseCommand):
                 )
 
             # 모든 오브젝트를 플레이어 인벤토리로 이동
+            moved_objects = []
+            for obj in target_objects:
+                success = await game_engine.world_manager.move_object_to_inventory(
+                    obj.id, session.player.id
+                )
+                if success:
+                    moved_objects.append(obj)
+
+            if not moved_objects:
+                return self.create_error_result("객체를 획득할 수 없습니다.")
+
+            # 객체 획득 이벤트 발행
+            from ..core.event_bus import Event, EventType
+            await game_engine.event_bus.publish(Event(
+                event_type=EventType.OBJECT_PICKED_UP,
+                source=session.session_id,
+                room_id=current_room_id,
+                data={
+                    "player_id": session.player.id,
+                    "player_name": session.player.username,
+                    "object_ids": [obj.id for obj in moved_objects],
+                    "object_name": target_group['display_name_ko'],
+                    "room_id": current_room_id,
+                    "count": len(moved_objects)
+                }
+            ))
+
+            # 성공 메시지
+            count = len(moved_objects)
+            obj_name = target_group['display_name_ko']
+            if count > 1:
+                player_message = f"📦 {obj_name} x{count}개를 획득했습니다."
+                broadcast_message = f"📦 {session.player.username}님이 {obj_name} x{count}개를 획득했습니다."
+            else:
+                player_message = f"📦 {obj_name}을(를) 획득했습니다."
+                broadcast_message = f"📦 {session.player.username}님이 {obj_name}을(를) 획득했습니다."
+
+            return self.create_success_result(
+                message=player_message,
+                data={
+                    "action": "get",
+                    "object_ids": [obj.id for obj in moved_objects],
+                    "object_name": obj_name,
+                    "count": count,
+                    "player": session.player.username,
+                    "room_id": current_room_id
+                },
+                broadcast=True,
+                broadcast_message=broadcast_message,
+                room_only=True
+            )
+
+        except Exception as e:
+            logger.error(f"객체 획득 명령어 실행 중 오류: {e}")
+            return self.create_error_result("객체를 획득하는 중 오류가 발생했습니다.")
             moved_objects = []
             for obj in target_objects:
                 try:
@@ -857,3 +961,215 @@ class UseCommand(BaseCommand):
         except Exception as e:
             logger.error(f"아이템 사용 명령어 실행 중 오류: {e}")
             return self.create_error_result("아이템을 사용하는 중 오류가 발생했습니다.")
+    async def _take_from_container(self, session: SessionType, args: List[str]) -> CommandResult:
+        """컨테이너에서 아이템 가져오기 (take X from Y)"""
+        container_target = args[-1]  # 마지막 인자가 컨테이너
+        item_target = " ".join(args[:-2])  # "from" 앞까지가 아이템명
+
+        game_engine = getattr(session, 'game_engine', None)
+        if not game_engine:
+            return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+
+        try:
+            # 컨테이너 찾기
+            container_id, container_name = await self._find_container(session, game_engine, container_target)
+            if not container_id:
+                return self.create_error_result(f"'{container_target}' 상자를 찾을 수 없습니다.")
+
+            # 컨테이너 내부 아이템들 조회
+            container_items = await game_engine.world_manager.get_container_items(container_id)
+            if not container_items:
+                return self.create_error_result(f"{container_name}이(가) 비어있습니다.")
+
+            # 아이템 찾기 (번호 또는 이름으로)
+            target_item = None
+            locale = session.player.preferred_locale if session.player else "en"
+
+            if item_target.isdigit():
+                # 번호로 찾기
+                item_index = int(item_target) - 1  # 1-based index를 0-based로 변환
+                if 0 <= item_index < len(container_items):
+                    target_item = container_items[item_index]
+            else:
+                # 이름으로 찾기
+                for item in container_items:
+                    if item_target.lower() in item.get_localized_name(locale).lower():
+                        target_item = item
+                        break
+
+            if not target_item:
+                return self.create_error_result(f"'{item_target}'을(를) {container_name}에서 찾을 수 없습니다.")
+
+            # 무게 제한 확인
+            current_inventory = await game_engine.world_manager.get_inventory_objects(session.player.id)
+            if not session.player.can_carry_more(current_inventory, target_item.weight):
+                capacity_info = session.player.get_carry_capacity_info(current_inventory)
+                return self.create_error_result(
+                    f"무게 제한으로 인해 {target_item.get_localized_name(locale)}을(를) 들 수 없습니다.\n"
+                    f"현재 소지 용량: {capacity_info['current_weight']:.1f}kg / {capacity_info['max_weight']:.1f}kg\n"
+                    f"아이템 무게: {target_item.weight:.1f}kg"
+                )
+
+            # 아이템을 플레이어 인벤토리로 이동
+            success = await game_engine.world_manager.move_item_from_container(
+                target_item.id, "INVENTORY", session.player.id
+            )
+
+            if not success:
+                return self.create_error_result("아이템을 가져오는 중 오류가 발생했습니다.")
+
+            item_name = target_item.get_localized_name(locale)
+            message = f"📦 {container_name}에서 {item_name}을(를) 가져왔습니다."
+
+            return self.create_success_result(
+                message=message,
+                data={
+                    "action": "take_from_container",
+                    "item_name": item_name,
+                    "container_name": container_name,
+                    "item_id": target_item.id
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"컨테이너에서 아이템 가져오기 오류: {e}")
+            return self.create_error_result("아이템을 가져오는 중 오류가 발생했습니다.")
+
+    async def _take_from_room(self, session: SessionType, args: List[str]) -> CommandResult:
+        """방에서 아이템 가져오기 (기존 로직)"""
+        # 현재 방 ID 가져오기
+        current_room_id = getattr(session, 'current_room_id', None)
+        if not current_room_id:
+            return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+
+        # GameEngine을 통해 객체 획득 처리
+        game_engine = getattr(session, 'game_engine', None)
+        if not game_engine:
+            return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+
+        object_name = " ".join(args).lower()
+
+        try:
+            # 번호로 입력된 경우 처리
+            target_group = None
+            if object_name.isdigit():
+                item_num = int(object_name)
+                entity_map = getattr(session, 'room_entity_map', {})
+
+                if item_num in entity_map and entity_map[item_num]['type'] == 'object':
+                    target_object = entity_map[item_num]['entity']
+                    # 단일 객체를 그룹 형태로 변환
+                    target_group = {
+                        'objects': [target_object],
+                        'name_en': target_object.get_localized_name('en'),
+                        'name_ko': target_object.get_localized_name('ko'),
+                        'display_name_en': target_object.get_localized_name('en'),
+                        'display_name_ko': target_object.get_localized_name('ko'),
+                        'id': target_object.id
+                    }
+                else:
+                    return self.create_error_result(
+                        f"번호 [{item_num}]에 해당하는 아이템을 찾을 수 없습니다."
+                    )
+            else:
+                # 현재 방의 객체들 조회
+                room_objects = await game_engine.world_manager.get_room_objects(current_room_id)
+
+                # stackable 오브젝트 그룹화
+                grouped_objects = game_engine.world_manager._group_stackable_objects(room_objects)
+
+                # 객체 이름으로 검색 (그룹화된 오브젝트에서)
+                for group in grouped_objects:
+                    group_name_en = group['name_en'].lower()
+                    group_name_ko = group['name_ko'].lower()
+                    if object_name in group_name_en or object_name in group_name_ko:
+                        target_group = group
+                        break
+
+            if not target_group:
+                return self.create_error_result(f"'{' '.join(args)}'을(를) 찾을 수 없습니다.")
+
+            # stackable 오브젝트인 경우 모든 인스턴스를 가져감
+            target_objects = target_group['objects']
+
+            # 무게 제한 확인 (모든 오브젝트의 총 무게)
+            total_weight = sum(obj.weight for obj in target_objects)
+            current_inventory = await game_engine.world_manager.get_inventory_objects(session.player.id)
+
+            if not session.player.can_carry_more(current_inventory, total_weight):
+                capacity_info = session.player.get_carry_capacity_info(current_inventory)
+                return self.create_error_result(
+                    f"무게 제한으로 인해 {target_group['display_name_ko']}을(를) 들 수 없습니다.\n"
+                    f"현재 소지 용량: {capacity_info['current_weight']:.1f}kg / {capacity_info['max_weight']:.1f}kg\n"
+                    f"아이템 총 무게: {total_weight:.1f}kg"
+                )
+
+            # 모든 오브젝트를 인벤토리로 이동
+            moved_objects = []
+            for obj in target_objects:
+                success = await game_engine.world_manager.move_object_to_inventory(obj.id, session.player.id)
+                if success:
+                    moved_objects.append(obj)
+
+            if not moved_objects:
+                return self.create_error_result("객체를 획득할 수 없습니다.")
+
+            # 성공 메시지 생성
+            if len(moved_objects) == 1:
+                # 단일 오브젝트
+                obj_name = moved_objects[0].get_localized_name(session.locale)
+                player_message = f"📦 {obj_name}을(를) 획득했습니다."
+                broadcast_message = f"📦 {session.player.username}님이 {obj_name}을(를) 가져갔습니다."
+            else:
+                # stackable 오브젝트 여러 개
+                obj_name = target_group['display_name_ko'] if session.locale == 'ko' else target_group['display_name_en']
+                player_message = f"📦 {obj_name}을(를) 획득했습니다."
+                broadcast_message = f"📦 {session.player.username}님이 {obj_name}을(를) 가져갔습니다."
+
+            return self.create_success_result(
+                message=player_message,
+                data={
+                    "action": "get",
+                    "object_count": len(moved_objects),
+                    "object_ids": [obj.id for obj in moved_objects],
+                    "object_name": obj_name,
+                    "player": session.player.username
+                },
+                broadcast=True,
+                broadcast_message=broadcast_message,
+                room_only=True
+            )
+
+        except Exception as e:
+            import traceback
+            logger.error(f"객체 획득 명령어 실행 중 오류: {e}")
+            logger.error(f"스택 트레이스: {traceback.format_exc()}")
+            return self.create_error_result("객체를 획득하는 중 오류가 발생했습니다.")
+
+    async def _find_container(self, session: SessionType, game_engine, target: str) -> tuple[str | None, str | None]:
+        """상자 찾기 (번호 또는 이름으로)"""
+        if target.isdigit():
+            # 번호로 찾기
+            entity_number = int(target)
+            entity_map = getattr(session, 'room_entity_map', {})
+            if entity_number in entity_map:
+                entity_info = entity_map[entity_number]
+                if entity_info.get('type') == 'object':
+                    # 컨테이너인지 확인
+                    obj = entity_info.get('entity')
+                    if obj and self._is_container(obj):
+                        return entity_info.get('id'), entity_info.get('name')
+
+        return None, None
+
+    def _is_container(self, obj) -> bool:
+        """오브젝트가 컨테이너인지 확인"""
+        try:
+            properties = obj.properties if hasattr(obj, 'properties') else {}
+            if isinstance(properties, str):
+                import json
+                properties = json.loads(properties)
+
+            return properties.get('is_container', False)
+        except:
+            return False

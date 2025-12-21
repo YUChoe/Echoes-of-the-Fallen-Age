@@ -67,6 +67,11 @@ class CommandManager:
         self.command_processor.register_command(UnequipCommand())
         self.command_processor.register_command(UseCommand())
 
+        # 컨테이너 명령어들 등록
+        from ...commands.container_commands import OpenCommand, PutCommand
+        self.command_processor.register_command(OpenCommand())
+        self.command_processor.register_command(PutCommand())
+
         # Enter 명령어 등록
         from ...commands.enter_command import EnterCommand
         self.command_processor.register_command(EnterCommand())

@@ -220,7 +220,10 @@ class GameObjectRepository(BaseRepository[GameObject]):
     async def get_objects_in_room(self, room_id: str) -> List[GameObject]:
         """특정 방에 있는 객체들 조회"""
         try:
-            return await self.find_by(location_type='room', location_id=room_id)
+            # 대소문자 모두 검색
+            room_objects = await self.find_by(location_type='ROOM', location_id=room_id)
+            room_objects_lower = await self.find_by(location_type='room', location_id=room_id)
+            return room_objects + room_objects_lower
         except Exception as e:
             logger.error(f"방 내 객체 조회 실패 ({room_id}): {e}")
             raise
@@ -228,7 +231,10 @@ class GameObjectRepository(BaseRepository[GameObject]):
     async def get_objects_in_inventory(self, character_id: str) -> List[GameObject]:
         """특정 캐릭터의 인벤토리 객체들 조회"""
         try:
-            return await self.find_by(location_type='inventory', location_id=character_id)
+            # 대소문자 모두 검색
+            inventory_objects = await self.find_by(location_type='INVENTORY', location_id=character_id)
+            inventory_objects_lower = await self.find_by(location_type='inventory', location_id=character_id)
+            return inventory_objects + inventory_objects_lower
         except Exception as e:
             logger.error(f"인벤토리 객체 조회 실패 ({character_id}): {e}")
             raise
@@ -246,7 +252,7 @@ class GameObjectRepository(BaseRepository[GameObject]):
         """객체를 방으로 이동"""
         try:
             return await self.update(object_id, {
-                'location_type': 'room',
+                'location_type': 'ROOM',
                 'location_id': room_id
             })
         except Exception as e:
@@ -279,6 +285,28 @@ class GameObjectRepository(BaseRepository[GameObject]):
             return matching_objects
         except Exception as e:
             logger.error(f"객체 이름 검색 실패 ({name_pattern}): {e}")
+            raise
+
+    async def get_objects_in_container(self, container_id: str) -> List[GameObject]:
+        """컨테이너 내부의 객체들 조회"""
+        try:
+            # 대소문자 모두 검색
+            container_objects = await self.find_by(location_type='CONTAINER', location_id=container_id)
+            container_objects_lower = await self.find_by(location_type='container', location_id=container_id)
+            return container_objects + container_objects_lower
+        except Exception as e:
+            logger.error(f"컨테이너 내 객체 조회 실패 ({container_id}): {e}")
+            raise
+
+    async def move_object_to_container(self, object_id: str, container_id: str) -> Optional[GameObject]:
+        """객체를 컨테이너로 이동"""
+        try:
+            return await self.update(object_id, {
+                'location_type': 'container',
+                'location_id': container_id
+            })
+        except Exception as e:
+            logger.error(f"객체 컨테이너 이동 실패 ({object_id} -> {container_id}): {e}")
             raise
 
 
@@ -549,3 +577,14 @@ class MonsterRepository(BaseRepository):
             db_manager = await self.get_db_manager()
             await db_manager.rollback()
             return False
+
+    async def move_object_to_container(self, object_id: str, container_id: str) -> Optional[GameObject]:
+        """객체를 컨테이너로 이동"""
+        try:
+            return await self.update(object_id, {
+                'location_type': 'CONTAINER',
+                'location_id': container_id
+            })
+        except Exception as e:
+            logger.error(f"객체 컨테이너 이동 실패 ({object_id} -> {container_id}): {e}")
+            raise

@@ -499,7 +499,7 @@ class GameObject(BaseModel):
         if not self.location_type:
             raise ValueError("위치 타입은 필수입니다")
 
-        valid_location_types = {'room', 'inventory', 'container', 'template'}
+        valid_location_types = {'room', 'inventory', 'container', 'template', 'ROOM', 'INVENTORY', 'CONTAINER', 'TEMPLATE'}
         if self.location_type not in valid_location_types:
             raise ValueError(f"올바르지 않은 위치 타입입니다: {self.location_type}")
 
@@ -528,6 +528,8 @@ class GameObject(BaseModel):
                 'legs',        # 다리: 바지, 스커트 등 방어구
                 'feet',        # 발: 신발류 방어구
                 'back',        # 등: 방어구
+                'ring',        # 반지
+                'RING',        # 반지 (대문자)
                 'weapon',      # 기존 호환성을 위한 일반 무기
                 'armor',       # 기존 호환성을 위한 일반 방어구
                 'accessory'    # 기존 호환성을 위한 액세서리
