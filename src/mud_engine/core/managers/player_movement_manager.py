@@ -158,28 +158,62 @@ class PlayerMovementManager:
                 entity_map = {}
                 entity_index = 1
 
-                # 몬스터 번호 매핑
+                # 몬스터 번호 매핑 (1-9번)
                 for monster in room_info.get('monsters', []):
-                    entity_map[entity_index] = {
-                        'type': 'monster',
-                        'id': monster.id,
-                        'name': monster.get_localized_name(locale),
-                        'entity': monster
-                    }
-                    entity_index += 1
+                    if entity_index <= 9:  # 최대 9번까지
+                        entity_map[entity_index] = {
+                            'type': 'monster',
+                            'id': monster.id,
+                            'name': monster.get_localized_name(locale),
+                            'entity': monster
+                        }
+                        entity_index += 1
 
-                # NPC 번호 매핑
+                # NPC 번호 매핑 (1-9번 범위 내)
                 for npc in room_info.get('npcs', []):
-                    entity_map[entity_index] = {
-                        'type': 'npc',
-                        'id': npc.id,
-                        'name': npc.get_localized_name(locale),
-                        'entity': npc
-                    }
-                    entity_index += 1
+                    if entity_index <= 9:  # 최대 9번까지
+                        entity_map[entity_index] = {
+                            'type': 'npc',
+                            'id': npc.id,
+                            'name': npc.get_localized_name(locale),
+                            'entity': npc
+                        }
+                        entity_index += 1
+
+                # 아이템 번호 매핑 (11번부터 시작)
+                item_index = 11
+                # grouped_objects가 있으면 그것을 사용, 없으면 일반 objects 사용
+                grouped_objects = room_info.get('grouped_objects', [])
+                if grouped_objects:
+                    for group in grouped_objects:
+                        # 그룹의 첫 번째 객체 ID를 사용
+                        first_obj = group.get('objects', [])[0] if group.get('objects') else None
+                        if first_obj:
+                            entity_map[item_index] = {
+                                'type': 'object',
+                                'id': first_obj.id,
+                                'name': group.get('display_name_ko' if locale == 'ko' else 'display_name_en', ''),
+                                'entity': first_obj,
+                                'group': group  # 그룹 정보도 저장
+                            }
+                            item_index += 1
+                else:
+                    for obj in room_info.get('objects', []):
+                        entity_map[item_index] = {
+                            'type': 'object',
+                            'id': obj.id,
+                            'name': obj.get_localized_name(locale),
+                            'entity': obj
+                        }
+                        item_index += 1
 
                 # 세션에 저장
                 session.room_entity_map = entity_map
+
+                # 디버깅: entity_map 로깅
+                logger.info(f"entity_map created: {entity_map}")
+                for num, info in entity_map.items():
+                    logger.info(f"entity_map {num}: {info['type']} - {info['name']} (ID: {info['id']})")
 
                 room_data = {
                     "id": room_info['room'].id,

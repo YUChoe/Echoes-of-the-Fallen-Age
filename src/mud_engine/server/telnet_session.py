@@ -122,6 +122,18 @@ class TelnetSession:
             bool: 전송 성공 여부
         """
         try:
+            # 디버깅: 전송되는 메시지 타입 확인
+            msg_type = message.get("type", "")
+            print(f"DEBUG: send_message called with type: {msg_type}")
+            logger.error(f"FORCE DEBUG: send_message called with type: {msg_type}")
+
+            if msg_type == "room_info":
+                print(f"DEBUG: room_info message detected!")
+                logger.error(f"FORCE DEBUG: room_info message detected!")
+                entity_map = message.get("entity_map", {})
+                print(f"DEBUG: entity_map in room_info: {entity_map is not None}")
+                logger.error(f"FORCE DEBUG: entity_map in room_info: {entity_map is not None}")
+
             # 메시지 타입에 따라 적절한 포맷으로 변환
             text = self._format_message(message)
 
@@ -244,6 +256,22 @@ class TelnetSession:
                 player_name = player.get("username", "알 수 없음")
                 lines.append(f"  • {ANSIColors.player_name(player_name)}")
 
+        # 디버깅: entity_map 로깅
+        logger.debug(f"_format_room_info - entity_map: {entity_map}")
+        if entity_map:
+            logger.debug(f"entity_map keys: {list(entity_map.keys())}")
+            for num, info in entity_map.items():
+                logger.debug(f"  {num}: {info.get('type')} - {info.get('name')}")
+
+        # 엔티티 번호 매핑 사용 (파라미터로 전달받음)
+        if entity_map is None:
+            entity_map = {}
+
+        # 번호로 엔티티 ID 역매핑 생성 (아이템 처리 전에 먼저 생성)
+        id_to_number = {}
+        for num, entity_info in entity_map.items():
+            id_to_number[entity_info['id']] = num
+
         # 객체
         objects = room_data.get("objects", [])
         if objects:
@@ -255,18 +283,45 @@ class TelnetSession:
 
             # 그룹화된 오브젝트 사용 (있는 경우)
             grouped_objects = room_data.get("grouped_objects", [])
+            logger.debug(f"grouped_objects: {grouped_objects}")
+            logger.debug(f"regular objects: {objects}")
+
             if grouped_objects:
                 for group in grouped_objects:
                     if self.locale == 'ko':
                         display_name = group.get("display_name_ko", group.get("name_ko", "알 수 없음"))
                     else:
                         display_name = group.get("display_name_en", group.get("name_en", "Unknown"))
-                    lines.append(f"• {ANSIColors.item_name(display_name)}")
+
+                    # 아이템 번호 찾기 - 그룹의 첫 번째 객체 ID로 매칭
+                    item_number = None
+                    first_obj_id = None
+                    if group.get('objects') and len(group['objects']) > 0:
+                        # GameObject 인스턴스에서 ID 추출
+                        first_obj = group['objects'][0]
+                        first_obj_id = getattr(first_obj, 'id', None)
+
+                    # id_to_number 딕셔너리 사용 (NPC와 동일한 방식)
+                    if first_obj_id and first_obj_id in id_to_number:
+                        item_number = id_to_number[first_obj_id]
+
+                    if item_number:
+                        lines.append(f"• [{item_number}] {ANSIColors.item_name(display_name)}")
+                    else:
+                        lines.append(f"• {ANSIColors.item_name(display_name)}")
             else:
-                # 기존 방식 (fallback)
+                # 기존 방식 (fallback) - 개별 객체들을 번호와 함께 표시
                 for obj in objects:
                     obj_name = obj.get("name", "알 수 없음")
-                    lines.append(f"• {ANSIColors.item_name(obj_name)}")
+                    obj_id = obj.get("id", "")
+
+                    # id_to_number 딕셔너리 사용 (NPC와 동일한 방식)
+                    item_number = id_to_number.get(obj_id)
+
+                    if item_number:
+                        lines.append(f"• [{item_number}] {ANSIColors.item_name(obj_name)}")
+                    else:
+                        lines.append(f"• {ANSIColors.item_name(obj_name)}")
 
         # NPC 및 몬스터 분류
         npcs = room_data.get("npcs", [])
@@ -295,15 +350,6 @@ class TelnetSession:
         elif monsters:
             # 플레이어 정보가 없으면 모두 적대적으로 처리
             hostile_monsters = monsters
-
-        # 엔티티 번호 매핑 사용 (파라미터로 전달받음)
-        if entity_map is None:
-            entity_map = {}
-
-        # 번호로 엔티티 ID 역매핑 생성
-        id_to_number = {}
-        for num, entity_info in entity_map.items():
-            id_to_number[entity_info['id']] = num
 
         # NPC와 우호적인 몬스터를 함께 표시
         all_npcs = list(npcs) + friendly_monsters

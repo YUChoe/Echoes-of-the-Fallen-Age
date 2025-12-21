@@ -44,20 +44,41 @@ class GetCommand(BaseCommand):
         object_name = " ".join(args).lower()
 
         try:
-            # 현재 방의 객체들 조회
-            room_objects = await game_engine.world_manager.get_room_objects(current_room_id)
-
-            # stackable 오브젝트 그룹화
-            grouped_objects = game_engine.world_manager._group_stackable_objects(room_objects)
-
-            # 객체 이름으로 검색 (그룹화된 오브젝트에서)
+            # 번호로 입력된 경우 처리
             target_group = None
-            for group in grouped_objects:
-                group_name_en = group['name_en'].lower()
-                group_name_ko = group['name_ko'].lower()
-                if object_name in group_name_en or object_name in group_name_ko:
-                    target_group = group
-                    break
+            if object_name.isdigit():
+                item_num = int(object_name)
+                entity_map = getattr(session, 'room_entity_map', {})
+
+                if item_num in entity_map and entity_map[item_num]['type'] == 'object':
+                    target_object = entity_map[item_num]['entity']
+                    # 단일 객체를 그룹 형태로 변환
+                    target_group = {
+                        'objects': [target_object],
+                        'name_en': target_object.get_localized_name('en'),
+                        'name_ko': target_object.get_localized_name('ko'),
+                        'display_name_en': target_object.get_localized_name('en'),
+                        'display_name_ko': target_object.get_localized_name('ko'),
+                        'id': target_object.id
+                    }
+                else:
+                    return self.create_error_result(
+                        f"번호 [{item_num}]에 해당하는 아이템을 찾을 수 없습니다."
+                    )
+            else:
+                # 현재 방의 객체들 조회
+                room_objects = await game_engine.world_manager.get_room_objects(current_room_id)
+
+                # stackable 오브젝트 그룹화
+                grouped_objects = game_engine.world_manager._group_stackable_objects(room_objects)
+
+                # 객체 이름으로 검색 (그룹화된 오브젝트에서)
+                for group in grouped_objects:
+                    group_name_en = group['name_en'].lower()
+                    group_name_ko = group['name_ko'].lower()
+                    if object_name in group_name_en or object_name in group_name_ko:
+                        target_group = group
+                        break
 
             if not target_group:
                 return self.create_error_result(f"'{' '.join(args)}'을(를) 찾을 수 없습니다.")
