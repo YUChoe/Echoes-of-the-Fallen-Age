@@ -44,20 +44,6 @@ DATABASE_SCHEMA: List[str] = [
     """,
 
     """
-    -- 캐릭터 테이블
-    CREATE TABLE IF NOT EXISTS characters (
-        id TEXT PRIMARY KEY,
-        player_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        current_room_id TEXT,
-        inventory TEXT DEFAULT '[]', -- JSON 형태로 저장
-        stats TEXT DEFAULT '{}', -- JSON 형태로 저장
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
-    );
-    """,
-
-    """
     -- 방 테이블
     CREATE TABLE IF NOT EXISTS rooms (
         id TEXT PRIMARY KEY,
@@ -92,26 +78,6 @@ DATABASE_SCHEMA: List[str] = [
     """,
 
     """
-    -- NPC 테이블
-    CREATE TABLE IF NOT EXISTS npcs (
-        id TEXT PRIMARY KEY,
-        name_en TEXT NOT NULL,
-        name_ko TEXT NOT NULL,
-        description_en TEXT,
-        description_ko TEXT,
-        x INTEGER DEFAULT 0, -- X 좌표
-        y INTEGER DEFAULT 0, -- Y 좌표
-        npc_type TEXT DEFAULT 'generic', -- 'merchant', 'guard', 'quest_giver', 'generic'
-        dialogue TEXT DEFAULT '{}', -- JSON 형태로 저장 {'en': ['line1'], 'ko': ['대사1']}
-        shop_inventory TEXT DEFAULT '[]', -- JSON 형태로 저장 (아이템 ID 목록)
-        properties TEXT DEFAULT '{}', -- JSON 형태로 저장
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        faction_id TEXT -- 종족 ID
-    );
-    """,
-
-    """
     -- 몬스터 테이블
     CREATE TABLE IF NOT EXISTS monsters (
         id TEXT PRIMARY KEY,
@@ -138,24 +104,9 @@ DATABASE_SCHEMA: List[str] = [
     """,
 
     """
-    -- 다국어 텍스트 테이블
-    CREATE TABLE IF NOT EXISTS translations (
-        key TEXT NOT NULL,
-        locale TEXT NOT NULL,
-        value TEXT NOT NULL,
-        PRIMARY KEY (key, locale)
-    );
-    """,
-
-    """
     -- 인덱스 생성
     CREATE INDEX IF NOT EXISTS idx_players_username ON players(username);
-    CREATE INDEX IF NOT EXISTS idx_characters_player_id ON characters(player_id);
-    CREATE INDEX IF NOT EXISTS idx_characters_current_room ON characters(current_room_id);
     CREATE INDEX IF NOT EXISTS idx_game_objects_location ON game_objects(location_type, location_id);
-    CREATE INDEX IF NOT EXISTS idx_translations_key ON translations(key);
-    CREATE INDEX IF NOT EXISTS idx_npcs_coordinates ON npcs(x, y);
-    CREATE INDEX IF NOT EXISTS idx_npcs_type ON npcs(npc_type);
     CREATE INDEX IF NOT EXISTS idx_monsters_coordinates ON monsters(x, y);
     CREATE INDEX IF NOT EXISTS idx_monsters_type ON monsters(monster_type);
     CREATE INDEX IF NOT EXISTS idx_monsters_alive ON monsters(is_alive);
@@ -165,21 +116,7 @@ DATABASE_SCHEMA: List[str] = [
 # 초기 데이터
 INITIAL_DATA: List[str] = [
     # 기본 방 생성은 제거됨 - UUID 기반 시스템 사용
-
-    """
-    -- 기본 번역 텍스트
-    INSERT OR IGNORE INTO translations (key, locale, value) VALUES
-    ('welcome_message', 'en', 'Welcome to the MUD Engine!'),
-    ('welcome_message', 'ko', 'MUD 엔진에 오신 것을 환영합니다!'),
-    ('login_prompt', 'en', 'Please enter your username:'),
-    ('login_prompt', 'ko', '사용자명을 입력하세요:'),
-    ('password_prompt', 'en', 'Please enter your password:'),
-    ('password_prompt', 'ko', '비밀번호를 입력하세요:'),
-    ('invalid_credentials', 'en', 'Invalid username or password.'),
-    ('invalid_credentials', 'ko', '잘못된 사용자명 또는 비밀번호입니다.'),
-    ('command_not_found', 'en', 'Command not found. Type "help" for available commands.'),
-    ('command_not_found', 'ko', '명령어를 찾을 수 없습니다. "help"를 입력하여 사용 가능한 명령어를 확인하세요.');
-    """
+    # 기본 번역 텍스트도 제거됨 - 별도 시스템 사용
 ]
 
 
@@ -279,39 +216,6 @@ async def migrate_database(db_manager) -> None:
                 )
                 await db_manager.commit()
                 logger.info(f"{column_name} 컬럼 추가 완료")
-
-        # NPC 테이블 생성 확인 및 생성
-        cursor = await db_manager.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='npcs'")
-        npc_table_exists = await cursor.fetchone()
-
-        if not npc_table_exists:
-            logger.info("NPC 테이블 생성 중...")
-            npc_table_sql = """
-            CREATE TABLE IF NOT EXISTS npcs (
-                id TEXT PRIMARY KEY,
-                name_en TEXT NOT NULL,
-                name_ko TEXT NOT NULL,
-                description_en TEXT,
-                description_ko TEXT,
-                x INTEGER DEFAULT 0,
-                y INTEGER DEFAULT 0,
-                npc_type TEXT DEFAULT 'generic',
-                dialogue TEXT DEFAULT '{}',
-                shop_inventory TEXT DEFAULT '[]',
-                properties TEXT DEFAULT '{}',
-                is_active BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                faction_id TEXT
-            );
-            """
-            await db_manager.execute(npc_table_sql)
-
-            # NPC 인덱스 생성
-            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_npcs_coordinates ON npcs(x, y)")
-            await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_npcs_type ON npcs(npc_type)")
-
-            await db_manager.commit()
-            logger.info("NPC 테이블 생성 완료")
 
         # Monster 테이블 생성 확인 및 생성
         cursor = await db_manager.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='monsters'")
@@ -429,7 +333,7 @@ async def verify_schema(db_connection) -> bool:
     Returns:
         bool: 스키마 검증 성공 여부
     """
-    expected_tables = ['players', 'characters', 'rooms', 'game_objects', 'translations']
+    expected_tables = ['players', 'rooms', 'game_objects', 'monsters']
 
     try:
         cursor = await db_connection.execute(
