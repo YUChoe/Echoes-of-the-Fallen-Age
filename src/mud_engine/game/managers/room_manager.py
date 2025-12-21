@@ -166,7 +166,7 @@ class RoomManager:
             logger.error(f"좌표 범위 방 조회 실패 ({min_x}-{max_x}, {min_y}-{max_y}): {e}")
             raise
     async def get_coordinate_based_exits(self, room_id: str) -> Dict[str, str]:
-        """좌표 기반으로 방의 출구를 계산합니다 (동서남북 + enter만)."""
+        """좌표 기반으로 방의 출구를 계산합니다 (동서남북 + enter)."""
         try:
             room = await self.get_room(room_id)
             if not room or room.x is None or room.y is None:
@@ -191,6 +191,20 @@ class RoomManager:
                 adjacent_room = await self.get_room_at_coordinates(adj_x, adj_y)
                 if adjacent_room:
                     exits[direction] = adjacent_room.id
+
+            # enter 연결 확인
+            db_manager = await self._room_repo.get_db_manager()
+            cursor = await db_manager.execute(
+                "SELECT to_x, to_y FROM room_connections WHERE from_x = ? AND from_y = ?",
+                (room.x, room.y)
+            )
+            connection = await cursor.fetchone()
+
+            if connection:
+                # enter 연결이 있으면 enter 출구 추가
+                target_room = await self.get_room_at_coordinates(connection[0], connection[1])
+                if target_room:
+                    exits['enter'] = target_room.id
 
             return exits
         except Exception as e:

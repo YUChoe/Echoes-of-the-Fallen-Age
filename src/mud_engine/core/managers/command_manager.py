@@ -67,6 +67,10 @@ class CommandManager:
         self.command_processor.register_command(UnequipCommand())
         self.command_processor.register_command(UseCommand())
 
+        # Enter 명령어 등록
+        from ...commands.enter_command import EnterCommand
+        self.command_processor.register_command(EnterCommand())
+
         # 장비 관련 명령어들 등록 (unequipall만 유지)
         from ...commands.equipment_commands import UnequipAllCommand
         self.command_processor.register_command(UnequipAllCommand())
