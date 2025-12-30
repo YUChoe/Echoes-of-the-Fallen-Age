@@ -728,6 +728,43 @@ class MapExporter:
         // 방 상세 정보 데이터
         const roomDetailsData = {room_details_json};
 
+        // 60초마다 페이지 자동 새로고침
+        let refreshTimer;
+        let refreshCountdown = 60;
+
+        function startRefreshTimer() {
+            refreshTimer = setInterval(function() {
+                refreshCountdown--;
+                updateRefreshDisplay();
+
+                if (refreshCountdown <= 0) {
+                    location.reload();
+                }
+            }, 1000);
+        }
+
+        function updateRefreshDisplay() {
+            const refreshElement = document.getElementById('refreshCountdown');
+            if (refreshElement) {
+                refreshElement.textContent = refreshCountdown;
+            }
+        }
+
+        function resetRefreshTimer() {
+            clearInterval(refreshTimer);
+            refreshCountdown = 60;
+            updateRefreshDisplay();
+            startRefreshTimer();
+        }
+
+        // 페이지 로드 시 타이머 시작
+        window.addEventListener('load', function() {
+            startRefreshTimer();
+            updateRefreshDisplay();
+        });
+
+        // 클릭 이벤트에서 타이머 리셋 제거 - 자동 새로고침이 방해받지 않도록 함
+
         function showRoomDetails(roomId) {{
             const details = roomDetailsData[roomId];
             if (!details) return;
@@ -1164,6 +1201,7 @@ class MapExporter:
         <span>총 방 개수: <strong>{len(rooms_data)}</strong></span>
         <span>그리드 크기: <strong>{max_x - min_x + 1}x{max_y - min_y + 1}</strong></span>
         <span>생성 시간: <strong>{self._get_current_time()}</strong></span>
+        <span>자동 새로고침: <strong id="refreshCountdown">60</strong>초 후</span>
     </div>
 
     <div class="legend">
@@ -1333,6 +1371,43 @@ class MapExporter:
     <script>
         // 방 상세 정보 데이터
         const roomDetailsData = {room_details_json};
+
+        // 60초마다 페이지 자동 새로고침
+        let refreshTimer;
+        let refreshCountdown = 60;
+
+        function startRefreshTimer() {
+            refreshTimer = setInterval(function() {
+                refreshCountdown--;
+                updateRefreshDisplay();
+
+                if (refreshCountdown <= 0) {
+                    location.reload();
+                }
+            }, 1000);
+        }
+
+        function updateRefreshDisplay() {
+            const refreshElement = document.getElementById('refreshCountdown');
+            if (refreshElement) {
+                refreshElement.textContent = refreshCountdown;
+            }
+        }
+
+        function resetRefreshTimer() {
+            clearInterval(refreshTimer);
+            refreshCountdown = 60;
+            updateRefreshDisplay();
+            startRefreshTimer();
+        }
+
+        // 페이지 로드 시 타이머 시작
+        window.addEventListener('load', function() {
+            startRefreshTimer();
+            updateRefreshDisplay();
+        });
+
+        // 클릭 이벤트에서 타이머 리셋 제거 - 자동 새로고침이 방해받지 않도록 함
 
         function showRoomDetails(roomId) {
             const details = roomDetailsData[roomId];
@@ -1512,6 +1587,47 @@ class MapExporter:
         """현재 시간을 문자열로 반환"""
         from datetime import datetime
         return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    def _get_auto_refresh_script(self) -> str:
+        """60초 자동 새로고침 JavaScript 코드 반환"""
+        return """
+        // 60초마다 페이지 자동 새로고침
+        let refreshTimer;
+        let refreshCountdown = 60;
+
+        function startRefreshTimer() {
+            refreshTimer = setInterval(function() {
+                refreshCountdown--;
+                updateRefreshDisplay();
+
+                if (refreshCountdown <= 0) {
+                    location.reload();
+                }
+            }, 1000);
+        }
+
+        function updateRefreshDisplay() {
+            const refreshElement = document.getElementById('refreshCountdown');
+            if (refreshElement) {
+                refreshElement.textContent = refreshCountdown;
+            }
+        }
+
+        function resetRefreshTimer() {
+            clearInterval(refreshTimer);
+            refreshCountdown = 60;
+            updateRefreshDisplay();
+            startRefreshTimer();
+        }
+
+        // 페이지 로드 시 타이머 시작
+        window.addEventListener('load', function() {
+            startRefreshTimer();
+            updateRefreshDisplay();
+        });
+
+        // 클릭 이벤트에서 타이머 리셋 제거 - 자동 새로고침이 방해받지 않도록 함
+        """
 
     async def export_to_file(self, output_path: str) -> bool:
         """
