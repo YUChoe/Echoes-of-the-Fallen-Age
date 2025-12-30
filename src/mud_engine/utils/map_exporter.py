@@ -48,42 +48,13 @@ class MapExporter:
 
         return monsters_by_room
 
-    async def get_npcs_by_room(self) -> Dict[str, int]:
-        """방별 NPC 수 가져오기 (npcs 테이블에서 x,y 좌표 사용)"""
-        cursor = await self.db_manager.execute("""
-            SELECT r.id, COUNT(*) as count
-            FROM rooms r
-            INNER JOIN npcs n ON (r.x = n.x AND r.y = n.y)
-            WHERE n.is_active = 1
-            AND n.x IS NOT NULL AND n.y IS NOT NULL
-            GROUP BY r.id
-        """)
-        result = await cursor.fetchall()
-        return {row[0]: row[1] for row in result}
+
 
     async def get_entities_by_room_and_faction(self) -> Dict[str, Dict[str, Dict[str, int]]]:
         """방별 엔티티를 종족별로 분류해서 가져오기"""
         entities_by_room: Dict[str, Dict[str, Dict[str, int]]] = {}
 
-        # 1. npcs 테이블에서 가져오기 (x, y 좌표 사용)
-        cursor = await self.db_manager.execute("""
-            SELECT r.id, n.faction_id, COUNT(*) as count
-            FROM rooms r
-            INNER JOIN npcs n ON (r.x = n.x AND r.y = n.y)
-            WHERE n.is_active = 1
-            AND n.x IS NOT NULL AND n.y IS NOT NULL
-            GROUP BY r.id, n.faction_id
-        """)
-        npcs_result = await cursor.fetchall()
-
-        for room_id, faction_id, count in npcs_result:
-            if room_id not in entities_by_room:
-                entities_by_room[room_id] = {}
-            if faction_id not in entities_by_room[room_id]:
-                entities_by_room[room_id][faction_id] = {'npcs': 0, 'monsters': 0}
-            entities_by_room[room_id][faction_id]['npcs'] += count
-
-        # 2. monsters 테이블에서 가져오기
+        # monsters 테이블에서 가져오기
         cursor = await self.db_manager.execute("""
             SELECT r.id, m.faction_id, COUNT(*) as count
             FROM rooms r
@@ -98,7 +69,7 @@ class MapExporter:
             if room_id not in entities_by_room:
                 entities_by_room[room_id] = {}
             if faction_id not in entities_by_room[room_id]:
-                entities_by_room[room_id][faction_id] = {'npcs': 0, 'monsters': 0}
+                entities_by_room[room_id][faction_id] = {'monsters': 0}
             entities_by_room[room_id][faction_id]['monsters'] += count
 
         return entities_by_room
@@ -324,7 +295,7 @@ class MapExporter:
         return exits
 
     def generate_html(self, rooms_data: List[Tuple[Any, ...]], monsters_by_room: Dict[str, int],
-                     players_by_room: Dict[str, int], npcs_by_room: Dict[str, int],
+                     players_by_room: Dict[str, int],
                      factions: List[Tuple[Any, ...]], relations: List[Tuple[Any, ...]],
                      all_players: List[Tuple[Any, ...]], room_details: Dict[str, Dict[str, Any]],
                      enter_connections: Dict[Tuple[int, int], Tuple[int, int]] = None) -> str:
@@ -629,22 +600,18 @@ class MapExporter:
                     # 엔티티 정보 수집
                     has_monster = room_id in monsters_by_room
                     has_player = room_id in players_by_room
-                    has_npc = room_id in npcs_by_room
 
                     monster_count = monsters_by_room.get(room_id, 0)
                     player_count = players_by_room.get(room_id, 0)
-                    npc_count = npcs_by_room.get(room_id, 0)
 
                     # 인디케이터 HTML 생성
                     indicators_html = ''
-                    if has_monster or has_player or has_npc:
+                    if has_monster or has_player:
                         indicators_html = '<div class="indicators">'
                         if has_monster:
                             indicators_html += '<div class="indicator monster-indicator"></div>'
                         if has_player:
                             indicators_html += '<div class="indicator player-indicator"></div>'
-                        if has_npc:
-                            indicators_html += '<div class="indicator npc-indicator"></div>'
                         indicators_html += '</div>'
 
                     # 툴팁 텍스트 생성
@@ -653,8 +620,6 @@ class MapExporter:
                         entity_info.append(f"🔴몬스터:{monster_count}")
                     if has_player:
                         entity_info.append(f"🟢플레이어:{player_count}")
-                    if has_npc:
-                        entity_info.append(f"🟡NPC:{npc_count}")
 
                     entity_text = ' '.join(entity_info) if entity_info else ''
                     tooltip_text = f"{exit_arrows}({x},{y}) {entity_text}"
@@ -807,18 +772,6 @@ class MapExporter:
                 `;
             }} else {{
                 players.innerHTML = '';
-            }}
-
-            // NPC 목록
-            if (details.npcs && details.npcs.length > 0) {{
-                // NPC 섹션을 플레이어 섹션 다음에 추가
-                const npcSection = `
-                    <div class="section-title">NPC (${details.npcs.length})</div>
-                    <div class="item-list">
-                        ${details.npcs.map(n => `• ${n.name_ko} (${n.name_en}) Lv.${n.level} [${n.faction}]`).join('<br>')}
-                    </div>
-                `;
-                players.innerHTML += npcSection;
             }}
 
             // 아이템 목록
@@ -1281,7 +1234,7 @@ class MapExporter:
 
                         # 종족별 엔티티 인디케이터 (종족당 1개씩만)
                         for faction_id, counts in room_entities.items():
-                            total_count = counts['npcs'] + counts['monsters']
+                            total_count = counts['monsters']
                             if total_count > 0:
                                 color = faction_colors.get(faction_id, faction_colors[None])
                                 # 종족당 인디케이터 1개만 생성
@@ -1290,11 +1243,7 @@ class MapExporter:
                                 # 종족 이름 찾기
                                 faction_name = next((f[1] for f in factions if f[0] == faction_id), faction_id or '기타')
 
-                                if counts['npcs'] > 0 and counts['monsters'] > 0:
-                                    entity_info.append(f"🔵{faction_name}:{counts['npcs']}NPC+{counts['monsters']}몬스터")
-                                elif counts['npcs'] > 0:
-                                    entity_info.append(f"🔵{faction_name}:{counts['npcs']}NPC")
-                                elif counts['monsters'] > 0:
+                                if counts['monsters'] > 0:
                                     entity_info.append(f"🔴{faction_name}:{counts['monsters']}몬스터")
 
                         indicators_html += '</div>'
@@ -1652,10 +1601,9 @@ class MapExporter:
 
             # 하위 호환성을 위한 기존 형식 데이터 생성
             monsters_by_room = await self.get_monsters_by_room()
-            npcs_by_room = await self.get_npcs_by_room()
 
             # 통계 계산
-            total_entities = sum(sum(counts['npcs'] + counts['monsters'] for counts in room_entities.values())
+            total_entities = sum(sum(counts['monsters'] for counts in room_entities.values())
                                for room_entities in entities_by_room.values())
             total_players = sum(players_by_room.values())
             logger.debug(f"엔티티 정보 로딩 완료: 엔티티 {total_entities}개, 플레이어 {total_players}명")

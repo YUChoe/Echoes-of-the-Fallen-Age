@@ -65,7 +65,7 @@ const sessionId = connectResult.sessionId;
 // 2. 초기 메시지 읽기 (환영 메시지 및 메뉴)
 const initialMsg = await mcp_telnet_mcp_telnet_read({
   sessionId: sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 // 결과: 환영 메시지 및 "1. 로그인 2. 회원가입 3. 종료" 메뉴
 
@@ -77,7 +77,7 @@ await mcp_telnet_mcp_telnet_send({
 
 await mcp_telnet_mcp_telnet_read({
   sessionId: sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 // 결과: "사용자명: " 프롬프트
 
@@ -89,7 +89,7 @@ await mcp_telnet_mcp_telnet_send({
 
 await mcp_telnet_mcp_telnet_read({
   sessionId: sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 // 결과: "비밀번호: " 프롬프트
 
@@ -101,7 +101,7 @@ await mcp_telnet_mcp_telnet_send({
 
 const loginResult = await mcp_telnet_mcp_telnet_read({
   sessionId: sessionId,
-  waitMs: 1500,
+  waitMs: 500,
 });
 // 결과: 로그인 성공 메시지 및 시작 방 정보
 ```
@@ -160,36 +160,36 @@ A bustling town square with a fountain in the center...
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "look" });
 const lookResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 
 // 이동 명령어 (방향)
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "east" });
 const moveResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 
 // 이동 명령어 (go 사용)
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "go south" });
-const goResult = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+const goResult = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 
 // 능력치 확인
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "stats" });
 const statsResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 
 // 인벤토리 확인
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "inventory" });
-const invResult = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+const invResult = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 
 // 도움말
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "help" });
 const helpResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 ```
 
@@ -200,7 +200,7 @@ const helpResult = await mcp_telnet_mcp_telnet_read({
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "goto 5 7" });
 const gotoResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1500,
+  waitMs: 500,
 });
 
 // 방 생성 (admin 전용)
@@ -210,7 +210,7 @@ await mcp_telnet_mcp_telnet_send({
 });
 const createResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 
 // 출구 생성 (admin 전용)
@@ -220,7 +220,7 @@ await mcp_telnet_mcp_telnet_send({
 });
 const exitResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 ```
 
@@ -231,33 +231,33 @@ const exitResult = await mcp_telnet_mcp_telnet_read({
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "attack goblin" });
 const attackResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1500,
+  waitMs: 500,
 });
 
 // 전투 중 행동
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "attack" });
 const combatResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "defend" });
 const defendResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "flee" });
 const fleeResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 
 // 전투 상태 확인
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "combat" });
 const statusResult = await mcp_telnet_mcp_telnet_read({
   sessionId,
-  waitMs: 1000,
+  waitMs: 500,
 });
 ```
 
@@ -330,7 +330,7 @@ try {
 // waitMs를 충분히 길게 설정
 const result = await mcp_telnet_mcp_telnet_read({
   sessionId: sessionId,
-  waitMs: 2000, // 복잡한 명령어는 더 긴 대기 시간
+  waitMs: 500, // 복잡한 명령어는 더 긴 대기 시간
 });
 ```
 
@@ -424,7 +424,7 @@ await send_and_read(sessionId, "west", 1000);
 
 // 8. 연결 종료
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "quit" });
-await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 await mcp_telnet_mcp_telnet_disconnect({ sessionId });
 ```
 
@@ -592,13 +592,13 @@ await quick_disconnect(sessionId);
 ```javascript
 // 총 소요 시간: ~8초
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "look" });
-await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "goto 5 7" });
-await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1500 });
+await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 
 await mcp_telnet_mcp_telnet_send({ sessionId, command: "look" });
-await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 ```
 
 #### 최적화 방식 (빠름)
@@ -626,19 +626,19 @@ async function connect_and_login(username, password) {
   const sessionId = connectResult.sessionId;
 
   // 초기 메시지 읽기
-  await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+  await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 
   // 로그인 선택
   await mcp_telnet_mcp_telnet_send({ sessionId, command: "1" });
-  await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+  await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 
   // 사용자명 입력
   await mcp_telnet_mcp_telnet_send({ sessionId, command: username });
-  await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+  await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 
   // 비밀번호 입력
   await mcp_telnet_mcp_telnet_send({ sessionId, command: password });
-  await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1500 });
+  await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 
   return { sessionId };
 }
@@ -647,7 +647,7 @@ async function connect_and_login(username, password) {
 ### 명령어 전송 및 읽기 헬퍼
 
 ```javascript
-async function send_and_read(sessionId, command, waitMs = 1000) {
+async function send_and_read(sessionId, command, waitMs = 500) {
   await mcp_telnet_mcp_telnet_send({ sessionId, command });
   const result = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs });
   return result.data;
@@ -659,7 +659,7 @@ async function send_and_read(sessionId, command, waitMs = 1000) {
 ```javascript
 async function disconnect(sessionId) {
   await mcp_telnet_mcp_telnet_send({ sessionId, command: "quit" });
-  await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+  await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
   await mcp_telnet_mcp_telnet_disconnect({ sessionId });
 }
 ```
@@ -717,7 +717,7 @@ tail -f logs/mud_engine-*.log | grep player5426
 
 ```javascript
 // 응답 데이터 출력
-const result = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 1000 });
+const result = await mcp_telnet_mcp_telnet_read({ sessionId, waitMs: 500 });
 console.log("서버 응답:", result.data);
 
 // ANSI 코드 제거하여 확인

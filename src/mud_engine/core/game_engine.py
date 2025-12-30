@@ -50,10 +50,9 @@ class GameEngine:
         # WorldManager 초기화
         room_repo = RoomRepository(db_manager)
         object_repo = GameObjectRepository(db_manager)
-        from ..game.repositories import MonsterRepository, NPCRepository
+        from ..game.repositories import MonsterRepository
         monster_repo = MonsterRepository(db_manager)
-        npc_repo = NPCRepository(db_manager)
-        self.world_manager = WorldManager(room_repo, object_repo, monster_repo, npc_repo)
+        self.world_manager = WorldManager(room_repo, object_repo, monster_repo)
 
         # WorldManager에 GameEngine 참조 설정 (순환 참조 방지)
         self.world_manager.set_game_engine(self)

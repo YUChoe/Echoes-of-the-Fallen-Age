@@ -33,7 +33,8 @@
         "browser_handle_dialog",
         "browser_file_upload",
         "browser_network_requests",
-        "browser_take_screenshot"
+        "browser_take_screenshot",
+        "browser_run_code"
       ]
     },
     "memory": {
@@ -42,7 +43,7 @@
         "-y",
         "@modelcontextprotocol/server-memory@latest"
       ],
-      "disabled": true,
+      "disabled": false,
       "autoApprove": [
         "search_nodes",
         "create_entities",
@@ -79,7 +80,8 @@
         "meta_command",
         "get_schema",
         "delete_data",
-        "update_data"
+        "update_data",
+        "insert_data"
       ]
     }
   }

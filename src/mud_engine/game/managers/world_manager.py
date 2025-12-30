@@ -3,8 +3,8 @@
 import logging
 from typing import Dict, List, Optional, Any
 
-from ..repositories import RoomRepository, GameObjectRepository, MonsterRepository, NPCRepository
-from ..models import Room, GameObject, NPC
+from ..repositories import RoomRepository, GameObjectRepository, MonsterRepository
+from ..models import Room, GameObject
 from ..monster import Monster
 
 from .room_manager import RoomManager
@@ -17,12 +17,11 @@ logger = logging.getLogger(__name__)
 class WorldManager:
     """게임 세계 관리자 - 하위 매니저들을 통합하는 인터페이스"""
 
-    def __init__(self, room_repo: RoomRepository, object_repo: GameObjectRepository, monster_repo: MonsterRepository, npc_repo: NPCRepository) -> None:
+    def __init__(self, room_repo: RoomRepository, object_repo: GameObjectRepository, monster_repo: MonsterRepository) -> None:
         """WorldManager를 초기화합니다."""
         self._room_manager = RoomManager(room_repo)
         self._object_manager = ObjectManager(object_repo)
         self._monster_manager = MonsterManager(monster_repo)
-        self._npc_repo = npc_repo
 
         # MonsterManager에 RoomManager 참조 설정
         self._monster_manager.set_room_manager(self._room_manager)
@@ -260,8 +259,6 @@ class WorldManager:
             else:
                 monsters = []
 
-            npcs = await self._npc_repo.get_npcs_in_room(room_id)
-
             # 좌표 기반 출구 계산
             coordinate_exits = await self._room_manager.get_coordinate_based_exits(room_id)
             connected_rooms = await self._room_manager.get_connected_rooms_by_coordinates(room_id)
@@ -271,7 +268,6 @@ class WorldManager:
                 'objects': objects,  # 원본 오브젝트 목록 (take 명령어용)
                 'grouped_objects': grouped_objects,  # 그룹화된 오브젝트 목록 (표시용)
                 'monsters': monsters,
-                'npcs': npcs,
                 'exits': coordinate_exits,
                 'connected_rooms': connected_rooms
             }
@@ -408,15 +404,7 @@ class WorldManager:
         """통계 조회를 위한 모든 객체 목록 반환"""
         return await self._object_manager._object_repo.get_all()
 
-    # === NPC 관리 (몬스터 시스템 활용) ===
 
-    async def get_npc_by_id(self, npc_id: str) -> Optional[NPC]:
-        """ID로 NPC를 조회합니다."""
-        return await self._npc_repo.get_by_id(npc_id)
-
-    async def get_npcs_in_room(self, room_id: str) -> List[NPC]:
-        """특정 방에 있는 NPC들을 조회합니다."""
-        return await self._npc_repo.get_npcs_in_room(room_id)
     # === 컨테이너 관리 ===
 
     async def get_container_items(self, container_id: str) -> List[GameObject]:

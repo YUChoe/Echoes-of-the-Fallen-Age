@@ -324,7 +324,6 @@ class TelnetSession:
                         lines.append(f"• {ANSIColors.item_name(obj_name)}")
 
         # NPC 및 몬스터 분류
-        npcs = room_data.get("npcs", [])
         monsters = room_data.get("monsters", [])
 
         # 몬스터를 우호도에 따라 분류
@@ -352,7 +351,7 @@ class TelnetSession:
             hostile_monsters = monsters
 
         # NPC와 우호적인 몬스터를 함께 표시
-        all_npcs = list(npcs) + friendly_monsters
+        all_npcs = friendly_monsters
         if all_npcs:
             from ..core.localization import get_localization_manager
             localization = get_localization_manager()
@@ -364,16 +363,8 @@ class TelnetSession:
                 npc_id = npc.get("id", "")
                 entity_num = id_to_number.get(npc_id, "?")
 
-                # 실제 NPC인지 우호적인 몬스터인지 구분
-                if npc in npcs:
-                    npc_type = npc.get("npc_type", "generic")
-                    is_merchant = npc.get("is_merchant", False)
-                    icon = "🧑‍💼" if is_merchant else "👤"
-                    type_text = localization.get_message("room.merchant_type", self.locale) if is_merchant else ""
-                    lines.append(f"  [{entity_num}] {icon} {ANSIColors.npc_name(npc_name)}{type_text}")
-                else:
-                    # 우호적인 몬스터
-                    lines.append(f"  [{entity_num}] 👤 {ANSIColors.npc_name(npc_name)}")
+                # 우호적인 몬스터
+                lines.append(f"  [{entity_num}] 👤 {ANSIColors.npc_name(npc_name)}")
 
         # 중립 몬스터 표시
         if neutral_monsters:
