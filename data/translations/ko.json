@@ -68,5 +68,13 @@
   "character_created": "캐릭터가 성공적으로 생성되었습니다.",
   "character_deleted": "캐릭터가 삭제되었습니다.",
   "room_created": "방이 성공적으로 생성되었습니다.",
-  "object_created": "객체가 성공적으로 생성되었습니다."
+  "object_created": "객체가 성공적으로 생성되었습니다.",
+  "enter.moved_through_passage": "특별한 통로를 통해 이동했습니다.",
+  "enter.movement_complete": "이동 완료",
+  "enter.no_entrance": "여기서는 들어갈 곳이 없습니다.",
+  "enter.login_required": "로그인이 필요합니다.",
+  "enter.game_engine_error": "게임 엔진에 접근할 수 없습니다.",
+  "enter.location_error": "현재 위치를 확인할 수 없습니다.",
+  "enter.coordinates_error": "현재 방의 좌표를 확인할 수 없습니다.",
+  "enter.movement_error": "이동 중 오류가 발생했습니다."
 }

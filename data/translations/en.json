@@ -68,5 +68,13 @@
   "character_created": "Character created successfully.",
   "character_deleted": "Character deleted.",
   "room_created": "Room created successfully.",
-  "object_created": "Object created successfully."
+  "object_created": "Object created successfully.",
+  "enter.moved_through_passage": "You moved through a special passage.",
+  "enter.movement_complete": "Movement complete",
+  "enter.no_entrance": "There is no entrance here.",
+  "enter.login_required": "Login required.",
+  "enter.game_engine_error": "Cannot access game engine.",
+  "enter.location_error": "Cannot determine current location.",
+  "enter.coordinates_error": "Cannot determine room coordinates.",
+  "enter.movement_error": "An error occurred during movement."
 }

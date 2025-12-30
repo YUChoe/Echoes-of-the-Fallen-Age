@@ -748,6 +748,40 @@ class LocalizationManager:
                 "ko": " (나)"
             },
 
+            # Enter 명령어 메시지
+            "enter.moved_through_passage": {
+                "en": "You moved through a special passage.",
+                "ko": "특별한 통로를 통해 이동했습니다."
+            },
+            "enter.movement_complete": {
+                "en": "Movement complete",
+                "ko": "이동 완료"
+            },
+            "enter.no_entrance": {
+                "en": "There is no entrance here.",
+                "ko": "여기서는 들어갈 곳이 없습니다."
+            },
+            "enter.login_required": {
+                "en": "Login required.",
+                "ko": "로그인이 필요합니다."
+            },
+            "enter.game_engine_error": {
+                "en": "Cannot access game engine.",
+                "ko": "게임 엔진에 접근할 수 없습니다."
+            },
+            "enter.location_error": {
+                "en": "Cannot determine current location.",
+                "ko": "현재 위치를 확인할 수 없습니다."
+            },
+            "enter.coordinates_error": {
+                "en": "Cannot determine room coordinates.",
+                "ko": "현재 방의 좌표를 확인할 수 없습니다."
+            },
+            "enter.movement_error": {
+                "en": "An error occurred during movement.",
+                "ko": "이동 중 오류가 발생했습니다."
+            },
+
             # 인벤토리 명령어 메시지
             "inventory.title": {
                 "en": "🎒 {username}'s inventory",

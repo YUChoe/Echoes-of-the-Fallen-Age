@@ -6,6 +6,7 @@ import logging
 from typing import List, Optional, Dict, Any
 from .base import BaseCommand, CommandResult
 from ..core.types import SessionType
+from ..core.localization import get_localization_manager
 
 
 class EnterCommand(BaseCommand):
@@ -20,25 +21,31 @@ class EnterCommand(BaseCommand):
         )
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
+    def _get_text(self, session: SessionType, key: str) -> str:
+        """세션의 언어 설정에 따라 텍스트 가져오기"""
+        localization = get_localization_manager()
+        locale = getattr(session, 'locale', 'en')
+        return localization.get_message(key, locale)
+
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """Enter 명령어 실행"""
         if not session.player:
-            return self.create_error_result("로그인이 필요합니다.")
+            return self.create_error_result(self._get_text(session, "enter.login_required"))
 
         # 게임 엔진 가져오기
         game_engine = getattr(session, 'game_engine', None)
         if not game_engine:
-            return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+            return self.create_error_result(self._get_text(session, "enter.game_engine_error"))
 
         # 현재 방 ID 확인
         current_room_id = getattr(session, 'current_room_id', None)
         if not current_room_id:
-            return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+            return self.create_error_result(self._get_text(session, "enter.location_error"))
 
         # 현재 방 정보 가져오기
         current_room = await game_engine.world_manager.get_room(current_room_id)
         if not current_room or current_room.x is None or current_room.y is None:
-            return self.create_error_result("현재 방의 좌표를 확인할 수 없습니다.")
+            return self.create_error_result(self._get_text(session, "enter.coordinates_error"))
 
         current_x = current_room.x
         current_y = current_room.y
@@ -49,7 +56,7 @@ class EnterCommand(BaseCommand):
         connection = await self._get_room_connection(session, current_x, current_y)
 
         if not connection:
-            return self.create_error_result("여기서는 들어갈 곳이 없습니다.")
+            return self.create_error_result(self._get_text(session, "enter.no_entrance"))
 
         # 목적지로 이동
         target_x = connection['to_x']
@@ -64,16 +71,16 @@ class EnterCommand(BaseCommand):
             # 이동 메시지 전송
             await session.send_message({
                 "type": "movement",
-                "message": f"특별한 통로를 통해 이동했습니다."
+                "message": self._get_text(session, "enter.moved_through_passage")
             })
 
             self.logger.info(f"플레이어 {session.player.username}가 enter로 ({current_x},{current_y}) -> ({target_x},{target_y}) 이동")
 
-            return self.create_success_result("이동 완료")
+            return self.create_success_result(self._get_text(session, "enter.movement_complete"))
 
         except Exception as e:
             self.logger.error(f"Enter 이동 실패: {e}")
-            return self.create_error_result("이동 중 오류가 발생했습니다.")
+            return self.create_error_result(self._get_text(session, "enter.movement_error"))
 
     async def _get_room_connection(self, session: SessionType, from_x: int, from_y: int) -> Optional[Dict[str, Any]]:
         """현재 위치에서 연결된 방 정보 조회"""
