@@ -253,7 +253,7 @@ class AttackCommand(BaseCommand):
     ) -> CommandResult:
         """전투 종료 처리"""
         winners = combat.get_winners()
-        rewards = result.get('rewards', {'experience': 0, 'gold': 0, 'items': [], 'dropped_items': []})
+        # rewards = result.get('rewards', {'experience': 0, 'gold': 0, 'items': [], 'dropped_items': []})
 
         # 승리/패배 메시지
         from ..game.combat import CombatantType
@@ -266,11 +266,6 @@ class AttackCommand(BaseCommand):
         if player_won:
             # 보상 지급
             game_engine = getattr(session, 'game_engine', None)
-
-            # 골드 지급
-            if rewards['gold'] > 0:
-                session.player.earn_gold(rewards['gold'])
-                logger.info(f"플레이어 {session.player.username}이(가) 골드 {rewards['gold']} 획득")
 
             # 죽은 몬스터들을 DB에 저장하고 아이템 드롭 처리
             if game_engine and game_engine.world_manager:
@@ -286,57 +281,59 @@ class AttackCommand(BaseCommand):
                         except Exception as e:
                             logger.error(f"몬스터 사망 처리 실패 ({combatant.id}): {e}")
 
-            # 드롭된 아이템 처리
-            dropped_items_msg = []
-            if rewards.get('dropped_items'):
-                from ..game.item_templates import ItemTemplateManager
-                item_manager = ItemTemplateManager()
+            # # 드롭된 아이템 처리
+            # dropped_items_msg = []
+            # if rewards.get('dropped_items'):
+            #     from ..game.item_templates import ItemTemplateManager
+            #     item_manager = ItemTemplateManager()
 
-                for drop_info in rewards['dropped_items']:
-                    if drop_info.get('location') == 'inventory':
-                        # 플레이어 인벤토리에 직접 추가
-                        template_id = drop_info.get('template_id')
-                        if template_id and game_engine:
-                            item_data = item_manager.create_item(
-                                template_id=template_id,
-                                location_type="inventory",
-                                location_id=session.player.id,
-                                quantity=drop_info.get('quantity', 1)
-                            )
-                            if item_data:
-                                await game_engine.world_manager.create_game_object(item_data)
-                                item_name = drop_info.get(f'name_{locale}', drop_info.get('name_ko', 'Unknown Item'))
-                                dropped_items_msg.append(
-                                    localization.get_message("combat.item_inventory", locale,
-                                                           name=item_name,
-                                                           quantity=drop_info.get('quantity', 1))
-                                )
-                                logger.info(
-                                    f"플레이어 {session.player.username}이(가) "
-                                    f"{drop_info['name_ko']} {drop_info.get('quantity', 1)}개 획득"
-                                )
-                            else:
-                                # 템플릿이 없어서 아이템 생성 실패
-                                item_name = drop_info.get(f'name_{locale}', drop_info.get('name_ko', 'Unknown Item'))
-                                await session.send_message({
-                                    "type": "room_message",
-                                    "message": localization.get_message("item.disappeared", locale, item=item_name)
-                                })
-                                logger.error(f"아이템 드롭 실패 - 템플릿 없음: {template_id}")
-                    elif drop_info.get('location') == 'ground':
-                        # 땅에 떨어진 아이템
-                        item_name = drop_info.get(f'name_{locale}', drop_info.get('name_ko', 'Unknown Item'))
-                        dropped_items_msg.append(
-                            localization.get_message("combat.item_ground", locale,
-                                                    name=item_name,
-                                                    quantity=drop_info.get('quantity', 1))
-                        )
+            #     for drop_info in rewards['dropped_items']:
+            #         if drop_info.get('location') == 'inventory':
+            #             # 플레이어 인벤토리에 직접 추가
+            #             template_id = drop_info.get('template_id')
+            #             if template_id and game_engine:
+            #                 item_data = item_manager.create_item(
+            #                     template_id=template_id,
+            #                     location_type="inventory",
+            #                     location_id=session.player.id,
+            #                     quantity=drop_info.get('quantity', 1)
+            #                 )
+            #                 if item_data:
+            #                     await game_engine.world_manager.create_game_object(item_data)
+            #                     item_name = drop_info.get(f'name_{locale}', drop_info.get('name_ko', 'Unknown Item'))
+            #                     dropped_items_msg.append(
+            #                         localization.get_message("combat.item_inventory", locale,
+            #                                                name=item_name,
+            #                                                quantity=drop_info.get('quantity', 1))
+            #                     )
+            #                     logger.info(
+            #                         f"플레이어 {session.player.username}이(가) "
+            #                         f"{drop_info['name_ko']} {drop_info.get('quantity', 1)}개 획득"
+            #                     )
+            #                 else:
+            #                     # 템플릿이 없어서 아이템 생성 실패
+            #                     item_name = drop_info.get(f'name_{locale}', drop_info.get('name_ko', 'Unknown Item'))
+            #                     await session.send_message({
+            #                         "type": "room_message",
+            #                         "message": localization.get_message("item.disappeared", locale, item=item_name)
+            #                     })
+            #                     logger.error(f"아이템 드롭 실패 - 템플릿 없음: {template_id}")
+            #         elif drop_info.get('location') == 'ground':
+            #             # 땅에 떨어진 아이템
+            #             item_name = drop_info.get(f'name_{locale}', drop_info.get('name_ko', 'Unknown Item'))
+            #             dropped_items_msg.append(
+            #                 localization.get_message("combat.item_ground", locale,
+            #                                         name=item_name,
+            #                                         quantity=drop_info.get('quantity', 1))
+            #             )
+
+            # TODO: 몹 > 아이템(컨테이너)이 되어 땅에 떨어짐
 
             # 승리 메시지 생성
             message = f"{ANSIColors.RED}{localization.get_message('combat.victory_message', locale)}{ANSIColors.RESET}"
 
-            if dropped_items_msg:
-                message += f"\n\n" + "\n".join(dropped_items_msg)
+            # if dropped_items_msg:
+            #     message += f"\n\n" + "\n".join(dropped_items_msg)
 
             message += f"\n\n{localization.get_message('combat.returning_location', locale)}"
         else:
