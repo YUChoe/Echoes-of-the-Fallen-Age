@@ -55,46 +55,24 @@ class AttackCommand(BaseCommand):
             if not game_engine:
                 return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
-            # 번호로 입력된 경우 처리
-            target_monster = None
-            if target_input.isdigit():
-                entity_num = int(target_input)
-                entity_map = getattr(session, 'room_entity_map', {})
-
-                if entity_num in entity_map:
-                    entity_info = entity_map[entity_num]
-                    if entity_info['type'] == 'monster':
-                        target_monster = entity_info['entity']
-                    else:
-                        return self.create_error_result(
-                            f"[{entity_num}]은(는) 몬스터가 아닙니다."
-                        )
-                else:
-                    return self.create_error_result(
-                        f"번호 [{entity_num}]에 해당하는 대상을 찾을 수 없습니다."
-                    )
-            else:
-                # 이름으로 검색
-                target_name = target_input.lower()
-                monsters = await game_engine.world_manager.get_monsters_in_room(current_room_id)
-
-                for monster in monsters:
-                    if not monster.is_alive:
-                        continue
-
-                    monster_name_ko = monster.get_localized_name('ko').lower()
-                    monster_name_en = monster.get_localized_name('en').lower()
-
-                    if target_name in monster_name_ko or target_name in monster_name_en:
-                        target_monster = monster
-                        break
-
-            if not target_monster:
+            # 번호로 입력된 경우 만 처리
+            target_monster = None  # 복수 일 수도?
+            if not target_input.isdigit():
                 return self.create_error_result(
-                    f"'{target_input}'라는 몬스터를 찾을 수 없습니다."
+                    f"대상 [{target_input}]을 찾을 수 없습니다."
+                )
+            entity_num = int(target_input)
+            entity_map = getattr(session, 'room_entity_map', {})
+
+            if entity_num in entity_map:
+                entity_info = entity_map[entity_num]
+                logger.info(f"{target_input}번은 타입이 {entity_info['type']} 입니다.")
+            else:
+                return self.create_error_result(
+                    f"번호 [{entity_num}]에 해당하는 대상을 찾을 수 없습니다."
                 )
 
-            # 전투 인스턴스 생성
+            # 전투 인스턴스 생성 / 만약 몹이 전투중이면 그 인스턴스가 반환 됨
             combat = await self.combat_handler.start_combat(
                 session.player,
                 target_monster,
@@ -112,6 +90,7 @@ class AttackCommand(BaseCommand):
             monster_name = target_monster.get_localized_name(locale)
 
             # 몬스터가 선공이면 자동으로 턴 처리
+            # 몹에게 "알림" 형태로?
             current = combat.get_current_combatant()
             from ..game.combat import CombatantType
             if current and current.combatant_type == CombatantType.MONSTER:

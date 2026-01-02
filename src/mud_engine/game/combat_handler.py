@@ -716,16 +716,26 @@ class CombatHandler:
         Returns:
             CombatInstance: 생성된 전투 인스턴스
         """
-        # 전투 인스턴스 생성
-        combat = self.combat_manager.create_combat(room_id)
+        # 몹을 통해 이미 존재 하는 combat을 찾음
+        _found = False
+        for combat in self.combat_manager.combat_instances.values():
+            for combatant in combat.combatants:
+                if monster.id == combatant.id and combatant.is_alive():
+                    _found = True
+                    break
+            if _found: break
 
-        # 플레이어 추가
-        self.combat_manager.add_player_to_combat(combat.id, player, player.id)
+        if  _found:
+            # 플레이어 만 추가
+            self.combat_manager.add_player_to_combat(combat.id, player, player.id)
+        else:
+            combat = self.combat_manager.create_combat(room_id)
+            # 플레이어 추가
+            self.combat_manager.add_player_to_combat(combat.id, player, player.id)
+            # 몬스터 추가
+            self.combat_manager.add_monster_to_combat(combat.id, monster)
 
-        # 몬스터 추가
-        self.combat_manager.add_monster_to_combat(combat.id, monster)
-
-        logger.info(f"전투 시작: {player.username} vs {monster.get_localized_name('ko')}")
+        logger.info(f"전투 시작[{combat.id}] {player.username} vs {monster.get_localized_name('ko')}")
 
         return combat
 
