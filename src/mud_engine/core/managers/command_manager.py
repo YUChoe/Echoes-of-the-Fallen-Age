@@ -198,8 +198,6 @@ class CommandManager:
         """
         from ...commands.base import CommandResultType
 
-        logger.info("기본 메시지 전송")
-
         # 기본 메시지 전송
         if result.result_type == CommandResultType.SUCCESS:
             await session.send_success(result.message, result.data)
@@ -211,18 +209,6 @@ class CommandManager:
                 "type": result.result_type.value,
                 **result.data
             })
-
-    #     # UI 업데이트가 필요한 명령어인지 확인
-    #     ui_update_commands = ['look', 'go', 'north', 'south', 'east', 'west', 'up', 'down',
-    #                          'northeast', 'northwest', 'southeast', 'southwest', 'get', 'drop']
-
-    #     # 명령어 처리 후 UI 업데이트 (방 정보가 변경될 수 있는 명령어들)
-    #     if (hasattr(result, 'command_name') and result.command_name in ui_update_commands) or \
-    #        result.data.get('ui_update_needed', False):
-    #         if hasattr(session, 'current_room_id') and session.current_room_id:
-    #             room_info = await self.game_engine.get_room_info(session.current_room_id, session.locale)
-    #             if room_info:
-    #                 await self.game_engine.ui_manager.send_ui_update(session, room_info)
 
         # 브로드캐스트 처리
         if result.broadcast and result.broadcast_message:
