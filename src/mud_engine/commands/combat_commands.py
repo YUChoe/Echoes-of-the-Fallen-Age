@@ -11,6 +11,9 @@ from ..game.combat import CombatAction, CombatInstance
 from ..game.combat_handler import CombatHandler
 from ..server.ansi_colors import ANSIColors
 
+from ..utils import coordinate_utils
+from ..utils.coordinate_utils import RoomCoordination
+
 logger = logging.getLogger(__name__)
 
 
@@ -285,6 +288,7 @@ class AttackCommand(BaseCommand):
                         except Exception as e:
                             logger.error(f"몬스터 사망 처리 실패 ({combatant.id}): {e}")
 
+            # TODO: 몹 > 아이템(컨테이너)이 되어 땅에 떨어짐
             # # 드롭된 아이템 처리
             # dropped_items_msg = []
             # if rewards.get('dropped_items'):
@@ -330,8 +334,6 @@ class AttackCommand(BaseCommand):
             #                                         name=item_name,
             #                                         quantity=drop_info.get('quantity', 1))
             #             )
-
-            # TODO: 몹 > 아이템(컨테이너)이 되어 땅에 떨어짐
 
             # 승리 메시지 생성
             message = f"{ANSIColors.RED}{localization.get_message('combat.victory_message', locale)}{ANSIColors.RESET}"
@@ -576,8 +578,11 @@ class FleeCommand(BaseCommand):
         if not result.get('success'):
             return self.create_error_result(result.get('message', '도망 실패'))
 
+        # 전투에서 제거 됨
+
         # 도망 성공 여부 확인
         if result.get('fled'):
+            logger.info("도망 성공")
             # 원래 방 정보 가져오기
             original_room_id = getattr(session, 'original_room_id', None)
             if not original_room_id:
@@ -594,35 +599,25 @@ class FleeCommand(BaseCommand):
                     return self.create_error_result("원래 방을 찾을 수 없습니다.")
 
                 # 출구가 있는지 확인
-                import json
-                exits = original_room.exits
-                if isinstance(exits, str):
-                    exits = json.loads(exits)
+                logger.info(f"현재 방 출구 확인 시작 {original_room.id} {original_room.x}/{original_room.y}")
+                exit_directions = await coordinate_utils.get_exits(game_engine, original_room_id, original_room.x, original_room.y)
+                logger.info(exit_directions)
 
                 from ..core.localization import get_localization_manager
                 localization = get_localization_manager()
                 locale = session.player.preferred_locale if session.player else "en"
 
-                if not exits or len(exits) == 0:
+                if not exit_directions or len(exit_directions) == 0:
                     # 출구가 없으면 원래 방으로 복귀
                     session.current_room_id = original_room_id
                     flee_message = f"{localization.get_message('combat.flee_success', locale)}\n\n{localization.get_message('combat.return_location', locale)}"
                 else:
                     # 랜덤 출구 선택
                     import random
-                    exit_directions = list(exits.keys())
                     random_direction = random.choice(exit_directions)
-                    target_room_id = exits[random_direction]
-
-                    # 대상 방이 존재하는지 확인
-                    target_room = await game_engine.world_manager.get_room(target_room_id)
-                    if target_room:
-                        session.current_room_id = target_room_id
-                        flee_message = f"{localization.get_message('combat.flee_success', locale)}\n\n{random_direction} 방향으로 도망쳐 {target_room.get_localized_name(locale)}에 도착했습니다."
-                    else:
-                        # 대상 방이 없으면 원래 방으로
-                        session.current_room_id = original_room_id
-                        flee_message = f"{localization.get_message('combat.flee_success', locale)}\n\n{localization.get_message('combat.return_location', locale)}"
+                    target_room = await game_engine.world_manager.get_room(random_direction.id)
+                    session.current_room_id = target_room.id
+                    flee_message = f"{localization.get_message('combat.flee_success', locale)}\n\n{random_direction.direction} 방향으로 도망쳐 {target_room.get_localized_description(locale)}에 도착했습니다."
 
                 # 전투 상태 초기화
                 session.in_combat = False

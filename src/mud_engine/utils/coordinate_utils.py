@@ -3,7 +3,7 @@
 
 from enum import Enum
 from typing import Tuple, Optional
-
+from dataclasses import dataclass
 
 class Direction(Enum):
     """방향 열거형"""
@@ -38,6 +38,29 @@ def get_direction_from_string(direction_str: str) -> Optional[Direction]:
     }
 
     return direction_map.get(direction_str)
+
+@dataclass
+class RoomCoordination():
+    x:int
+    y:int
+    id: str  # 맘에 안듬 uuid 가 str은 아니지 않나?
+    direction: Direction
+
+
+async def get_exits(game_engine, current_room_id, x, y) -> list[RoomCoordination] :
+    current_room = await game_engine.world_manager.get_room(current_room_id)
+    if not current_room:
+        return []
+
+    exits = []
+    if current_room.x is not None and current_room.y is not None:
+        # 각 방향에 대해 방이 존재하는지 확인
+        for direction in Direction:
+            new_x, new_y = calculate_new_coordinates(current_room.x, current_room.y, direction)
+            adjacent_room = await game_engine.world_manager.get_room_at_coordinates(new_x, new_y)
+            if adjacent_room:
+                exits.append(RoomCoordination(new_x, new_y, adjacent_room.id, direction))
+    return exits
 
 
 def calculate_new_coordinates(x: int, y: int, direction: Direction) -> Tuple[int, int]:
