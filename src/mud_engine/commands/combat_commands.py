@@ -360,8 +360,7 @@ class AttackCommand(BaseCommand):
             message=message.strip(),
             data={
                 "action": "combat_end",
-                "victory": player_won,
-                "rewards": rewards
+                "victory": player_won
             }
         )
 
