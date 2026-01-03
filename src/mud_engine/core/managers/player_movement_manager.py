@@ -211,7 +211,7 @@ class PlayerMovementManager:
                 session.room_entity_map = entity_map
 
                 # 디버깅: entity_map 로깅
-                logger.info(f"entity_map created: {entity_map}")
+                logger.debug(f"entity_map created: {entity_map}")
                 for num, info in entity_map.items():
                     logger.info(f"entity_map {num}: {info['type']} - {info['name']} (ID: {info['id']})")
 
@@ -263,7 +263,7 @@ class PlayerMovementManager:
                 })
 
                 # UI 업데이트 정보 전송
-                await self.game_engine.ui_manager.send_ui_update(session, room_info)
+                # await self.game_engine.ui_manager.send_ui_update(session, room_info)
 
                 logger.debug(f"방 정보 전송 완료: {session.player.username} -> 방 {room_id}")
 
