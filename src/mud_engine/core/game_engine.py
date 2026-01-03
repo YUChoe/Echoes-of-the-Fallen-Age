@@ -6,7 +6,7 @@ from typing import Dict, Optional, Any, TYPE_CHECKING
 from datetime import datetime
 
 from .event_bus import EventBus, Event, EventType, get_event_bus
-from .managers import CommandManager, EventHandler, PlayerMovementManager, UIManager, AdminManager
+from .managers import CommandManager, EventHandler, PlayerMovementManager, AdminManager
 from .managers.time_manager import TimeManager
 from .managers.scheduler_manager import SchedulerManager
 from .types import SessionType
@@ -71,7 +71,6 @@ class GameEngine:
             self.command_manager = CommandManager(self)
             self.event_handler = EventHandler(self)
             self.movement_manager = PlayerMovementManager(self)
-            self.ui_manager = UIManager(self)
             self.admin_manager = AdminManager(self)
             self.time_manager = TimeManager(self)
             self.scheduler_manager = SchedulerManager(self)
