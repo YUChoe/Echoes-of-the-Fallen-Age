@@ -72,18 +72,22 @@ class AttackCommand(BaseCommand):
                     f"번호 [{entity_num}]에 해당하는 대상을 찾을 수 없습니다."
                 )
 
+            target_monster = entity_info['entity']
+
             # 전투 인스턴스 생성 / 만약 몹이 전투중이면 그 인스턴스가 반환 됨
             combat = await self.combat_handler.start_combat(
                 session.player,
                 target_monster,
                 current_room_id
             )
+            logger.info(combat)
 
             # 세션 상태 업데이트
             session.in_combat = True
             session.original_room_id = current_room_id
             session.combat_id = combat.id
             session.current_room_id = f"combat_{combat.id}"  # 전투 인스턴스로 이동
+            logger.info(session)
 
             # 플레이어의 언어 설정에 따라 몬스터 이름 표시
             locale = session.player.preferred_locale if session.player else "en"

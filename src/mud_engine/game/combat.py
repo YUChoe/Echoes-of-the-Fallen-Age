@@ -178,6 +178,8 @@ class CombatInstance:
         # 턴 순서 재결정
         self._determine_turn_order()
         logger.info(f"전투 {self.id}에 {combatant.name} 추가")
+        for c in self.combatants:
+            logger.info(f"- {c.get_display_name()}")
 
     def remove_combatant(self, combatant_id: str) -> bool:
         """전투 참가자 제거"""
@@ -440,10 +442,9 @@ class CombatManager:
             attack_power=player.stats.get_secondary_stat(StatType.ATK),
             defense=player.stats.get_secondary_stat(StatType.DEF)
         )
-
+        logger.info(f"플레이어 {player_id}를 전투 {combat_id}에 추가")
         combat.add_combatant(combatant)
         self.player_combats[player_id] = combat_id
-        logger.info(f"플레이어 {player_id}를 전투 {combat_id}에 추가")
         return True
 
     def add_monster_to_combat(
@@ -452,10 +453,12 @@ class CombatManager:
         monster: Monster
     ) -> bool:
         """몬스터를 전투에 추가"""
+        logger.info("invoked")
         combat = self.get_combat(combat_id)
         if not combat or not combat.is_active:
             logger.warning(f"전투 {combat_id}를 찾을 수 없거나 비활성 상태")
             return False
+        logger.info(combat)
 
         # Combatant 생성 (D&D 능력치 사용)
         # 몬스터 이름은 원본 Monster 객체를 참조하여 동적으로 처리
@@ -469,7 +472,7 @@ class CombatManager:
             attack_power=monster.stats.attack_power,
             defense=monster.stats.defense
         )
-
+        logger.info(combatant)
         # Monster 객체의 추가 정보를 data에 저장 (전투 계산에 사용)
         combatant.data = {
             'monster': monster,  # Monster 객체 전체 저장 (다국어 이름 조회용)
@@ -479,9 +482,8 @@ class CombatManager:
             'gold_reward': monster.gold_reward,
             'level': monster.stats.level
         }
-
-        combat.add_combatant(combatant)
         logger.info(f"몬스터 {monster.id}를 전투 {combat_id}에 추가 (AC: {monster.stats.armor_class}, 공격보너스: {monster.stats.attack_bonus})")
+        combat.add_combatant(combatant)
         return True
 
     def remove_player_from_combat(self, player_id: str) -> bool:

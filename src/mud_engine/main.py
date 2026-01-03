@@ -205,6 +205,7 @@ async def main():
     def signal_handler(signum, frame):
         logger.info(f"Signal {signum} 수신됨. 서버 종료 절차 시작...")
         print(f"\n🛑 Signal {signum} 수신됨. 서버 종료 중...")
+        raise KeyboardInterrupt()
         shutdown_event.set()
 
     # Windows와 Unix 모두 지원

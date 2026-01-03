@@ -541,6 +541,7 @@ class CombatHandler:
 
         # 승리자 로그
         if winners:
+            logger.info("mark")
             winner_names = [w.name for w in winners]
             logger.info(f"전투 {combat.id} 종료 - 승리자: {', '.join(winner_names)}")
 
@@ -579,10 +580,10 @@ class CombatHandler:
                         monster = await self.world_manager.get_monster(combatant.id)
                         if monster:
                             # 아이템 드롭 처리 (사망 처리 전에 실행)
-                            dropped = await self._drop_monster_loot(monster, combat.room_id)
-                            if dropped:
-                                rewards['dropped_items'].extend(dropped)
-                                logger.info(f"몬스터 {combatant.name}이(가) {len(dropped)}개 아이템 드롭")
+                            # dropped = await self._drop_monster_loot(monster, combat.room_id)
+                            # if dropped:
+                            #     rewards['dropped_items'].extend(dropped)
+                            #     logger.info(f"몬스터 {combatant.name}이(가) {len(dropped)}개 아이템 드롭")
 
                             # 몬스터 사망 처리
                             if monster.is_alive:
@@ -596,68 +597,6 @@ class CombatHandler:
         self.combat_manager.end_combat(combat.id)
 
         return rewards
-
-    async def _drop_monster_loot(self, monster: Monster, room_id: str) -> List[Dict[str, Any]]:
-        """
-        몬스터 사망 시 아이템 드롭
-
-        Args:
-            monster: 사망한 몬스터
-            room_id: 현재 방 ID
-
-        Returns:
-            List[Dict]: 드롭된 아이템 정보 목록
-        """
-        dropped_items = []
-
-        try:
-            from .item_templates import ItemTemplateManager
-            item_manager = ItemTemplateManager()
-
-            # 몬스터 타입에 따른 드롭 아이템 결정
-            monster_name = monster.get_localized_name('en').lower()
-            logger.info(f"아이템 드롭 처리 시작 - 몬스터: {monster_name}, 방: {room_id}")
-
-            # 쥐 처치 시: 1골드 (땅에 드롭) + 1 EOL (플레이어 인벤토리)
-            if 'rat' in monster_name:
-                # 1골드 드롭 (땅에)
-                gold_data = item_manager.create_item(
-                    template_id="gold_coin",
-                    location_type="room",
-                    location_id=room_id,
-                    quantity=1
-                )
-                if gold_data:
-                    gold_obj = await self.world_manager.create_game_object(gold_data)
-                    dropped_items.append({
-                        'item_id': gold_obj.id,
-                        'name_ko': gold_obj.get_localized_name('ko'),
-                        'name_en': gold_obj.get_localized_name('en'),
-                        'quantity': 1,
-                        'location': 'ground'  # 땅에 떨어짐
-                    })
-                    logger.debug(f"골드 1개 드롭 (방: {room_id})")
-                else:
-                    # 골드 템플릿이 없어서 드롭 실패
-                    logger.error("골드 드롭 실패 - gold_coin 템플릿을 찾을 수 없음")
-
-                # 1 EOL (플레이어 인벤토리에 직접 추가)
-                dropped_items.append({
-                    'item_id': 'essence_of_life',
-                    'template_id': 'essence_of_life',
-                    'name_ko': '생명의 정수',
-                    'name_en': 'Essence of Life',
-                    'quantity': 1,
-                    'location': 'inventory'  # 인벤토리 직접 추가
-                })
-                logger.debug(f"생명의 정수 1개 획득 (플레이어 인벤토리)")
-
-            # 다른 몬스터 타입도 여기에 추가 가능
-
-        except Exception as e:
-            logger.error(f"아이템 드롭 처리 실패: {e}", exc_info=True)
-
-        return dropped_items
 
     def get_combat_status(self, combat_id: str) -> Optional[Dict[str, Any]]:
         """전투 상태 조회"""
@@ -677,6 +616,7 @@ class CombatHandler:
         Returns:
             CombatInstance: 전투 인스턴스 (없으면 None)
         """
+        logger.info("mark")
         for combat in self.combat_manager.combat_instances.values():
             if not combat.is_active:
                 continue
@@ -718,6 +658,9 @@ class CombatHandler:
         """
         # 몹을 통해 이미 존재 하는 combat을 찾음
         _found = False
+        logger.info("invoked")
+        logger.info(monster)
+
         for combat in self.combat_manager.combat_instances.values():
             for combatant in combat.combatants:
                 if monster.id == combatant.id and combatant.is_alive():
@@ -727,12 +670,16 @@ class CombatHandler:
 
         if  _found:
             # 플레이어 만 추가
+            logger.info("플레이어 만 추가")
             self.combat_manager.add_player_to_combat(combat.id, player, player.id)
         else:
+            logger.info("mark")
             combat = self.combat_manager.create_combat(room_id)
             # 플레이어 추가
+            logger.info("플레이어 추가")
             self.combat_manager.add_player_to_combat(combat.id, player, player.id)
             # 몬스터 추가
+            logger.info("몬스터 추가")
             self.combat_manager.add_monster_to_combat(combat.id, monster)
 
         logger.info(f"전투 시작[{combat.id}] {player.username} vs {monster.get_localized_name('ko')}")
