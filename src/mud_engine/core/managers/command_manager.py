@@ -8,7 +8,8 @@ from datetime import datetime
 from ..types import SessionType
 
 from ...commands import (
-    SayCommand, WhisperCommand, WhoCommand, LookCommand, QuitCommand,
+    SayCommand, WhisperCommand, WhoCommand,
+    LookCommand, QuitCommand,
     GoCommand, ExitsCommand, MoveCommand, HelpCommand, StatsCommand
 )  # 명령어가 늘어날 수 있으니 이렇게 하자. 근데 * 이런 건 안되나?
 
