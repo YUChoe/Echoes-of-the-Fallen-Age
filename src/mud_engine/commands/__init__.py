@@ -3,11 +3,11 @@
 
 from .processor import CommandProcessor
 from .base import BaseCommand, CommandResult
-from .basic_commands import LookCommand, HelpCommand, MoveCommand, StatsCommand
+from .basic_commands import MoveCommand, StatsCommand
 from .interaction_commands import EmoteCommand, FollowCommand, PlayersCommand
 from .object_commands import InventoryCommand
 
-from .Basic import SayCommand, WhisperCommand, WhoCommand, QuitCommand
+from .Basic import SayCommand, WhisperCommand, WhoCommand, QuitCommand, LookCommand, HelpCommand
 
 __all__ = [
     "CommandProcessor",

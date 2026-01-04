@@ -168,17 +168,7 @@ class PlayerMovementManager:
                             'entity': monster
                         }
                         entity_index += 1
-
-                # NPC 번호 매핑 (1-9번 범위 내)
-                for npc in room_info.get('npcs', []):
-                    if entity_index <= 9:  # 최대 9번까지
-                        entity_map[entity_index] = {
-                            'type': 'npc',
-                            'id': npc.id,
-                            'name': npc.get_localized_name(locale),
-                            'entity': npc
-                        }
-                        entity_index += 1
+                # TODO: 우후도 계산은 어떻게?
 
                 # 아이템 번호 매핑 (11번부터 시작)
                 item_index = 11
@@ -243,16 +233,16 @@ class PlayerMovementManager:
                             "is_neutral": monster.is_neutral()
                         }
                         for monster in room_info.get('monsters', [])
-                    ],
-                    "npcs": [
-                        {
-                            "id": npc.id,
-                            "name": npc.get_localized_name(locale),
-                            "description": npc.get_localized_description(locale),
-                            "npc_type": npc.npc_type,
-                            "is_merchant": npc.is_merchant()
-                        }
-                        for npc in room_info.get('npcs', [])
+                    # ],
+                    # "npcs": [
+                    #     {
+                    #         "id": npc.id,
+                    #         "name": npc.get_localized_name(locale),
+                    #         "description": npc.get_localized_description(locale),
+                    #         "npc_type": npc.npc_type,
+                    #         "is_merchant": npc.is_merchant()
+                    #     }
+                    #     for npc in room_info.get('npcs', [])
                     ]
                 }
 

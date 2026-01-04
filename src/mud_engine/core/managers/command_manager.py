@@ -55,6 +55,7 @@ class CommandManager:
         self.command_processor.register_command(LookCommand())
         self.command_processor.register_command(QuitCommand())
         self.command_processor.register_command(StatsCommand())
+        self.command_processor.register_command(HelpCommand(self.command_processor))
 
         # Enter 명령어 등록
         from ...commands.enter_command import EnterCommand
@@ -89,10 +90,6 @@ class CommandManager:
 
         for direction, aliases in directions:
             self.command_processor.register_command(MoveCommand(direction, aliases))
-
-        # HelpCommand는 command_processor 참조가 필요
-        help_command = HelpCommand(self.command_processor)
-        self.command_processor.register_command(help_command)
 
         # 관리자 명령어들 등록
         from ...commands.admin_commands import (
@@ -151,10 +148,6 @@ class CommandManager:
         # 언어 설정 명령어들 등록
         from ...commands.language_commands import LanguageCommand
         self.command_processor.register_command(LanguageCommand())
-
-        # 조사 명령어 등록
-        from ...commands.inspect_commands import InspectCommand
-        self.command_processor.register_command(InspectCommand())
 
         logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용, NPC 상호작용, 전투, 사용자 이름, 조사 명령어 포함)")
 
