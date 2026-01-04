@@ -6,6 +6,8 @@ from .quit import QuitCommand
 from .look import LookCommand
 from .help import HelpCommand
 from .enter import EnterCommand
+from .status import StatsCommand
+from .move import MoveCommand
 
 __all__ = [
     "SayCommand",
@@ -14,5 +16,7 @@ __all__ = [
     "QuitCommand",
     "LookCommand",
     "HelpCommand",
-    "EnterCommand"
+    "EnterCommand",
+    "StatsCommand",
+    "MoveCommand"
 ]
