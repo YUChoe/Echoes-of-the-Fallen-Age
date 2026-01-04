@@ -3,7 +3,7 @@
 
 from .processor import CommandProcessor
 from .base import BaseCommand, CommandResult
-from .basic_commands import LookCommand, HelpCommand, MoveCommand, GoCommand, ExitsCommand, StatsCommand
+from .basic_commands import LookCommand, HelpCommand, MoveCommand, StatsCommand
 from .interaction_commands import EmoteCommand, FollowCommand, PlayersCommand
 from .object_commands import InventoryCommand
 
@@ -20,8 +20,6 @@ __all__ = [
     "HelpCommand",
     "QuitCommand",
     "MoveCommand",
-    "GoCommand",
-    "ExitsCommand",
     "StatsCommand",
     "EmoteCommand",
     "FollowCommand",

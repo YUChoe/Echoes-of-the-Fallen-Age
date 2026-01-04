@@ -10,7 +10,7 @@ from ..types import SessionType
 from ...commands import (
     SayCommand, WhisperCommand, WhoCommand,
     LookCommand, QuitCommand,
-    GoCommand, ExitsCommand, MoveCommand, HelpCommand, StatsCommand
+    MoveCommand, HelpCommand, StatsCommand
 )  # 명령어가 늘어날 수 있으니 이렇게 하자. 근데 * 이런 건 안되나?
 
 
@@ -56,9 +56,9 @@ class CommandManager:
         self.command_processor.register_command(QuitCommand())
         self.command_processor.register_command(StatsCommand())
 
-        # 이동 관련 명령어들 등록
-        self.command_processor.register_command(GoCommand())
-        self.command_processor.register_command(ExitsCommand())
+        # Enter 명령어 등록
+        from ...commands.enter_command import EnterCommand
+        self.command_processor.register_command(EnterCommand())
 
         # 객체 상호작용 명령어들 등록
         from ...commands.object_commands import GetCommand, DropCommand, InventoryCommand, EquipCommand, UnequipCommand, UseCommand
@@ -74,9 +74,6 @@ class CommandManager:
         self.command_processor.register_command(OpenCommand())
         self.command_processor.register_command(PutCommand())
 
-        # Enter 명령어 등록
-        from ...commands.enter_command import EnterCommand
-        self.command_processor.register_command(EnterCommand())
 
         # 장비 관련 명령어들 등록 (unequipall만 유지)
         from ...commands.equipment_commands import UnequipAllCommand
