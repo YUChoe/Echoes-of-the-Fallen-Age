@@ -5,6 +5,7 @@ from .who import WhoCommand
 from .quit import QuitCommand
 from .look import LookCommand
 from .help import HelpCommand
+from .enter import EnterCommand
 
 __all__ = [
     "SayCommand",
@@ -12,5 +13,6 @@ __all__ = [
     "WhoCommand",
     "QuitCommand",
     "LookCommand",
-    "HelpCommand"
+    "HelpCommand",
+    "EnterCommand"
 ]

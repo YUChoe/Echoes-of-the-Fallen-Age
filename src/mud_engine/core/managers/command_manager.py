@@ -9,8 +9,8 @@ from ..types import SessionType
 
 from ...commands import (
     SayCommand, WhisperCommand, WhoCommand,
-    LookCommand, QuitCommand,
-    MoveCommand, HelpCommand, StatsCommand
+    LookCommand, QuitCommand, HelpCommand, StatsCommand,
+    MoveCommand, EnterCommand
 )  # 명령어가 늘어날 수 있으니 이렇게 하자. 근데 * 이런 건 안되나?
 
 
@@ -48,7 +48,7 @@ class CommandManager:
             logger.error("CommandProcessor가 초기화되지 않았습니다.")
             return
 
-        # 기본 명령어 등록
+        # 기본 명령어
         self.command_processor.register_command(SayCommand())
         self.command_processor.register_command(WhisperCommand())
         self.command_processor.register_command(WhoCommand(self.game_engine.session_manager))
@@ -57,9 +57,12 @@ class CommandManager:
         self.command_processor.register_command(StatsCommand())
         self.command_processor.register_command(HelpCommand(self.command_processor))
 
-        # Enter 명령어 등록
-        from ...commands.enter_command import EnterCommand
+        # 이동 명령어
         self.command_processor.register_command(EnterCommand())
+        self.command_processor.register_command(MoveCommand('north', ['n']))
+        self.command_processor.register_command(MoveCommand('south', ['s']))
+        self.command_processor.register_command(MoveCommand('east', ['e']))
+        self.command_processor.register_command(MoveCommand('west', ['w']))
 
         # 객체 상호작용 명령어들 등록
         from ...commands.object_commands import GetCommand, DropCommand, InventoryCommand, EquipCommand, UnequipCommand, UseCommand
@@ -79,17 +82,6 @@ class CommandManager:
         # 장비 관련 명령어들 등록 (unequipall만 유지)
         from ...commands.equipment_commands import UnequipAllCommand
         self.command_processor.register_command(UnequipAllCommand())
-
-        # 방향별 이동 명령어들 등록
-        directions = [
-            ('north', ['n']),
-            ('south', ['s']),
-            ('east', ['e']),
-            ('west', ['w'])
-        ]
-
-        for direction, aliases in directions:
-            self.command_processor.register_command(MoveCommand(direction, aliases))
 
         # 관리자 명령어들 등록
         from ...commands.admin_commands import (

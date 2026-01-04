@@ -7,7 +7,7 @@ from .basic_commands import MoveCommand, StatsCommand
 from .interaction_commands import EmoteCommand, FollowCommand, PlayersCommand
 from .object_commands import InventoryCommand
 
-from .Basic import SayCommand, WhisperCommand, WhoCommand, QuitCommand, LookCommand, HelpCommand
+from .Basic import SayCommand, WhisperCommand, WhoCommand, QuitCommand, LookCommand, HelpCommand, EnterCommand
 
 __all__ = [
     "CommandProcessor",
