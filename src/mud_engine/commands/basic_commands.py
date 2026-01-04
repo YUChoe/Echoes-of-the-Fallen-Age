@@ -10,89 +10,6 @@ from ..core.types import SessionType
 logger = logging.getLogger(__name__)
 
 
-class SayCommand(BaseCommand):
-    """말하기 명령어"""
-
-    def __init__(self):
-        super().__init__(
-            name="say",
-            aliases=["'"],
-            description="같은 방에 있는 모든 플레이어에게 메시지를 전달합니다",
-            usage="say <메시지> 또는 '<메시지>"
-        )
-
-    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
-        from ..core.localization import get_localization_manager
-
-        localization = get_localization_manager()
-        locale = session.player.preferred_locale if session.player else "en"
-
-        if not self.validate_args(args, min_args=1):
-            error_msg = localization.get_message("say.usage_error", locale)
-            return self.create_error_result(error_msg)
-
-        message = " ".join(args)
-        username = session.player.username
-
-        # 플레이어에게 확인 메시지
-        player_message = localization.get_message("say.success", locale, message=message)
-        broadcast_message = localization.get_message("say.broadcast", locale, username=username, message=message)
-
-        return self.create_success_result(
-            message=player_message,
-            data={
-                "action": "say",
-                "speaker": username,
-                "message": message
-            },
-            broadcast=True,
-            broadcast_message=broadcast_message,
-            room_only=True
-        )
-
-
-class TellCommand(BaseCommand):
-    """귓속말 명령어"""
-
-    def __init__(self):
-        super().__init__(
-            name="tell",
-            aliases=["whisper", "t"],
-            description="특정 플레이어에게 개인 메시지를 전달합니다",
-            usage="tell <플레이어명> <메시지>"
-        )
-
-    async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
-        if not self.validate_args(args, min_args=2):
-            return self.create_error_result(
-                "귓속말할 플레이어와 메시지를 입력해주세요.\n사용법: tell <플레이어명> <메시지>"
-            )
-
-        target_username = args[0]
-        message = " ".join(args[1:])
-        sender_username = session.player.username
-
-        # TODO: 실제로는 SessionManager를 통해 대상 플레이어를 찾아야 함
-        # 현재는 기본 구현만 제공
-
-        if target_username.lower() == sender_username.lower():
-            return self.create_error_result("자기 자신에게는 귓속말할 수 없습니다.")
-
-        # 발신자에게 확인 메시지
-        sender_message = f"📨 {target_username}님에게 귓속말: \"{message}\""
-
-        return self.create_success_result(
-            message=sender_message,
-            data={
-                "action": "tell",
-                "sender": sender_username,
-                "target": target_username,
-                "message": message,
-                "private": True
-            }
-        )
-
-
 class WhoCommand(BaseCommand):
     """접속자 목록 명령어"""
 
@@ -631,6 +548,7 @@ class ExitsCommand(BaseCommand):
             if not current_room:
                 return self.create_error_result("현재 방을 찾을 수 없습니다.")
 
+            logger.info("좌표 기반으로 사용 가능한 출구 계산")
             # 좌표 기반으로 사용 가능한 출구 계산
             exits = []
             if current_room.x is not None and current_room.y is not None:

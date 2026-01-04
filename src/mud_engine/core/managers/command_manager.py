@@ -7,6 +7,12 @@ from datetime import datetime
 
 from ..types import SessionType
 
+from ...commands import (
+    SayCommand, WhisperCommand, WhoCommand, LookCommand, QuitCommand,
+    GoCommand, ExitsCommand, MoveCommand, HelpCommand, StatsCommand
+)  # 명령어가 늘어날 수 있으니 이렇게 하자. 근데 * 이런 건 안되나?
+
+
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
     from ...commands.processor import CommandProcessor
@@ -36,19 +42,14 @@ class CommandManager:
             raise
 
     def _setup_commands(self) -> None:
-        """기본 명령어들 설정"""
+        """명령어 설정"""
         if not self.command_processor:
             logger.error("CommandProcessor가 초기화되지 않았습니다.")
             return
 
-        # 기본 명령어들 import 및 등록
-        from ...commands.basic_commands import (
-            SayCommand, TellCommand, WhoCommand, LookCommand, QuitCommand,
-            GoCommand, ExitsCommand, MoveCommand, HelpCommand, StatsCommand
-        )
-
+        # 기본 명령어 등록
         self.command_processor.register_command(SayCommand())
-        self.command_processor.register_command(TellCommand())
+        self.command_processor.register_command(WhisperCommand())
         self.command_processor.register_command(WhoCommand(self.game_engine.session_manager))
         self.command_processor.register_command(LookCommand())
         self.command_processor.register_command(QuitCommand())
@@ -119,11 +120,11 @@ class CommandManager:
 
         # 플레이어 상호작용 명령어들 등록
         from ...commands.interaction_commands import (
-            GiveCommand, FollowCommand, WhisperCommand, PlayersCommand
+            GiveCommand, FollowCommand, PlayersCommand
         )
         self.command_processor.register_command(GiveCommand())
         self.command_processor.register_command(FollowCommand())
-        self.command_processor.register_command(WhisperCommand())
+        # self.command_processor.register_command(WhisperCommand())
         self.command_processor.register_command(PlayersCommand())
 
         # 몬스터 상호작용 명령어들 등록
