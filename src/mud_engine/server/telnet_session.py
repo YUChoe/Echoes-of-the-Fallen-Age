@@ -525,7 +525,7 @@ class TelnetSession:
         Returns:
             bool: 전송 성공 여부
         """
-        return await self.send_colored_text(f"✅ {message}", "\033[32m")
+        return await self.send_colored_text(f"\n{message}", "\033[32m")
 
     async def send_ui_update(self, ui_data: Dict[str, Any]) -> bool:
         """

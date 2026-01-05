@@ -30,6 +30,7 @@ class LookCommand(BaseCommand):
             # 특정 대상 살펴보기
             target = " ".join(args)
             return await self._look_at(session, target)  # target 은 idx 여야 함
+            # TODO: 아이템도 볼 수 있어야 함
 
     async def _look_around(self, session: SessionType) -> CommandResult:
         """방 전체 둘러보기 - 방 정보를 다시 전송"""
@@ -153,23 +154,40 @@ class LookCommand(BaseCommand):
             hp_info = f"HP: {monster.current_hp}/{monster.max_hp}"
             level_info = f"레벨: {monster.level}"
 
-            # 몬스터 태도 정보  # TODO: 우호도, stat
+            # 몬스터 태도 정보
             attitude_info = ""
             if monster.is_aggressive():
-                attitude_info = "\n⚔️ 이 몬스터는 공격적입니다."
+                attitude_info = "\n⚔️ 공격형입니다."
             elif monster.is_passive():
-                attitude_info = "\n🕊️ 이 몬스터는 평화롭습니다."
+                attitude_info = "\n🕊️ 수동형입니다."
             elif monster.is_neutral():
-                attitude_info = "\n😐 이 몬스터는 중립적입니다."
+                attitude_info = "\n😐 중립적입니다."
 
-            mob_stat = self._format_monster_status(monster, locale)
+            response = "\n".join([
+                entity_name,
+                "=" * 40,
+                description,
+                f"{hp_info} | {level_info}{attitude_info}",
+                "📊 능력치:",
+                f"  • 힘 (STR): {monster.stats.strength}",
+                f"  • 민첩 (DEX): {monster.stats.dexterity}",
+                f"  • 체력 (CON): {monster.stats.constitution}",
+                f"  • 지능 (INT): {monster.stats.intelligence}",
+                f"  • 지혜 (WIS): {monster.stats.wisdom}",
+                f"  • 매력 (CHA): {monster.stats.charisma}",
+                monster.faction_id,
+            ])
 
-            response = f"""
-🐾 {entity_name}
-{description}
-{hp_info} | {level_info}{attitude_info}
-{mob_stat}
-                """.strip()
+        # 종족 정보
+        # if monster.faction_id:
+        #     lines.append("")
+        #     lines.append(f"🏴 종족: {monster.faction_id}")
+
+        # 행동 패턴
+        # if hasattr(monster, 'monster_type'):
+        #     lines.append("")
+        #     monster_type_str = monster.monster_type.value if hasattr(monster.monster_type, 'value') else str(monster.monster_type)
+        #     lines.append(f"⚔️ 성향: {monster_type_str}")
 
             return self.create_success_result(
                 message=response,
@@ -184,38 +202,3 @@ class LookCommand(BaseCommand):
         except Exception as e:
             logger.error(f"엔티티 조회 중 오류: {e}")
             return self.create_error_result("대상을 조회하는 중 오류가 발생했습니다.")
-
-    def _format_monster_status(self, monster, locale: str) -> str:
-        """몬스터 정보 포맷팅"""
-        name = monster.get_localized_name(locale)
-        desc = monster.get_localized_description(locale)
-
-        lines = [
-            f"🔍 {name}",
-            "=" * 40,
-            f"{desc}",
-            "",
-            f"💚 HP: {monster.current_hp}/{monster.max_hp}",
-            f"⭐ 레벨: {monster.level}",
-            "",
-            "📊 능력치:",
-            f"  • 힘 (STR): {monster.stats.strength}",
-            f"  • 민첩 (DEX): {monster.stats.dexterity}",
-            f"  • 체력 (CON): {monster.stats.constitution}",
-            f"  • 지능 (INT): {monster.stats.intelligence}",
-            f"  • 지혜 (WIS): {monster.stats.wisdom}",
-            f"  • 매력 (CHA): {monster.stats.charisma}",
-        ]
-
-        # 종족 정보
-        if monster.faction_id:
-            lines.append("")
-            lines.append(f"🏴 종족: {monster.faction_id}")
-
-        # 행동 패턴
-        if hasattr(monster, 'monster_type'):
-            lines.append("")
-            monster_type_str = monster.monster_type.value if hasattr(monster.monster_type, 'value') else str(monster.monster_type)
-            lines.append(f"⚔️ 성향: {monster_type_str}")
-
-        return "\n".join(lines)
