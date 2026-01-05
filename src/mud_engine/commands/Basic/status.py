@@ -101,10 +101,8 @@ class StatsCommand(BaseCommand):
 
         response = f"""{title}
 
-{basic_info}
-• {level_text}: {stats.level}
+{basic_info} {level_text}: {stats.level}
 
-{primary_stats}
 • STR: {str_val:2d}    • DEX: {dex_val:2d}    • INT: {int_val:2d}
 • WIS: {wis_val:2d}    • CON: {con_val:2d}    • CHA: {cha_val:2d}
 
