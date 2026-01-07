@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class CombatAction(Enum):
     """전투 행동 타입"""
+
     ATTACK = "attack"
     DEFEND = "defend"
     SKILL = "skill"
@@ -26,6 +27,7 @@ class CombatAction(Enum):
 
 class CombatantType(Enum):
     """전투 참가자 타입"""
+
     PLAYER = "player"
     MONSTER = "monster"
 
@@ -33,6 +35,7 @@ class CombatantType(Enum):
 @dataclass
 class Combatant:
     """전투 참가자"""
+
     id: str
     name: str
     combatant_type: CombatantType
@@ -86,8 +89,8 @@ class Combatant:
             if world_manager:
                 try:
                     # 비동기 함수를 동기적으로 호출할 수 없으므로 data에서 조회
-                    if self.data and 'monster' in self.data:
-                        monster = self.data['monster']
+                    if self.data and "monster" in self.data:
+                        monster = self.data["monster"]
                         return monster.get_localized_name(locale)
                 except Exception:
                     pass
@@ -99,22 +102,23 @@ class Combatant:
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환"""
         return {
-            'id': self.id,
-            'name': self.name,
-            'combatant_type': self.combatant_type.value,
-            'agility': self.agility,
-            'max_hp': self.max_hp,
-            'current_hp': self.current_hp,
-            'attack_power': self.attack_power,
-            'defense': self.defense,
-            'is_defending': self.is_defending,
-            'hp_percentage': self.get_hp_percentage()
+            "id": self.id,
+            "name": self.name,
+            "combatant_type": self.combatant_type.value,
+            "agility": self.agility,
+            "max_hp": self.max_hp,
+            "current_hp": self.current_hp,
+            "attack_power": self.attack_power,
+            "defense": self.defense,
+            "is_defending": self.is_defending,
+            "hp_percentage": self.get_hp_percentage(),
         }
 
 
 @dataclass
 class CombatTurn:
     """전투 턴 정보"""
+
     turn_number: int
     combatant_id: str
     action: Optional[CombatAction] = None
@@ -127,20 +131,21 @@ class CombatTurn:
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환"""
         return {
-            'turn_number': self.turn_number,
-            'combatant_id': self.combatant_id,
-            'action': self.action.value if self.action else None,
-            'target_id': self.target_id,
-            'damage_dealt': self.damage_dealt,
-            'damage_received': self.damage_received,
-            'message': self.message,
-            'timestamp': self.timestamp.isoformat()
+            "turn_number": self.turn_number,
+            "combatant_id": self.combatant_id,
+            "action": self.action.value if self.action else None,
+            "target_id": self.target_id,
+            "damage_dealt": self.damage_dealt,
+            "damage_received": self.damage_received,
+            "message": self.message,
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
 @dataclass
 class CombatInstance:
     """전투 인스턴스"""
+
     id: str = field(default_factory=lambda: str(uuid4()))
     room_id: str = ""
     combatants: List[Combatant] = field(default_factory=list)
@@ -161,9 +166,7 @@ class CombatInstance:
         """민첩 기반 턴 순서 결정 (높은 순서대로)"""
         # 민첩이 높은 순서대로 정렬
         sorted_combatants = sorted(
-            self.combatants,
-            key=lambda c: c.agility,
-            reverse=True
+            self.combatants, key=lambda c: c.agility, reverse=True
         )
         self.turn_order = [c.id for c in sorted_combatants]
         logger.info(f"전투 {self.id} 턴 순서 결정: {self.turn_order}")
@@ -217,14 +220,16 @@ class CombatInstance:
     def get_alive_players(self) -> List[Combatant]:
         """생존한 플레이어 목록 반환"""
         return [
-            c for c in self.combatants
+            c
+            for c in self.combatants
             if c.is_alive() and c.combatant_type == CombatantType.PLAYER
         ]
 
     def get_alive_monsters(self) -> List[Combatant]:
         """생존한 몬스터 목록 반환"""
         return [
-            c for c in self.combatants
+            c
+            for c in self.combatants
             if c.is_alive() and c.combatant_type == CombatantType.MONSTER
         ]
 
@@ -314,53 +319,61 @@ class CombatInstance:
         if alive_players:
             player = alive_players[0]
             player_info = {
-                'id': player.id,
-                'name': player.name,
-                'hp': player.current_hp,
-                'max_hp': player.max_hp,
-                'hp_percentage': player.get_hp_percentage(),
-                'initiative': player.agility
+                "id": player.id,
+                "name": player.name,
+                "hp": player.current_hp,
+                "max_hp": player.max_hp,
+                "hp_percentage": player.get_hp_percentage(),
+                "initiative": player.agility,
             }
 
         # 몬스터 정보
         monster_info = []
         for monster in alive_monsters:
-            monster_info.append({
-                'id': monster.id,
-                'name': monster.name,
-                'hp': monster.current_hp,
-                'max_hp': monster.max_hp,
-                'hp_percentage': monster.get_hp_percentage(),
-                'initiative': monster.agility,
-                'is_alive': monster.is_alive()
-            })
+            monster_info.append(
+                {
+                    "id": monster.id,
+                    "name": monster.name,
+                    "hp": monster.current_hp,
+                    "max_hp": monster.max_hp,
+                    "hp_percentage": monster.get_hp_percentage(),
+                    "initiative": monster.agility,
+                    "is_alive": monster.is_alive(),
+                }
+            )
 
         return {
-            'combat_id': self.id,
-            'turn_number': self.turn_number,
-            'current_turn': current.name if current else '알 수 없음',
-            'state': 'active' if self.is_active else 'ended',
-            'player': player_info,
-            'monsters': monster_info,
-            'monster': monster_info[0] if monster_info else None,  # 호환성
-            'last_turn': self.combat_log[-1].message if self.combat_log else '전투 시작',
-            'current_target_index': 0
+            "combat_id": self.id,
+            "turn_number": self.turn_number,
+            "current_turn": current.name if current else "알 수 없음",
+            "state": "active" if self.is_active else "ended",
+            "player": player_info,
+            "monsters": monster_info,
+            "monster": monster_info[0] if monster_info else None,  # 호환성
+            "last_turn": (
+                self.combat_log[-1].message if self.combat_log else "전투 시작"
+            ),
+            "current_target_index": 0,
         }
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환"""
         return {
-            'id': self.id,
-            'room_id': self.room_id,
-            'combatants': [c.to_dict() for c in self.combatants],
-            'turn_order': self.turn_order,
-            'current_turn_index': self.current_turn_index,
-            'turn_number': self.turn_number,
-            'current_combatant': self.get_current_combatant().to_dict() if self.get_current_combatant() else None,
-            'is_active': self.is_active,
-            'is_over': self.is_combat_over(),
-            'started_at': self.started_at.isoformat(),
-            'ended_at': self.ended_at.isoformat() if self.ended_at else None
+            "id": self.id,
+            "room_id": self.room_id,
+            "combatants": [c.to_dict() for c in self.combatants],
+            "turn_order": self.turn_order,
+            "current_turn_index": self.current_turn_index,
+            "turn_number": self.turn_number,
+            "current_combatant": (
+                self.get_current_combatant().to_dict()
+                if self.get_current_combatant()
+                else None
+            ),
+            "is_active": self.is_active,
+            "is_over": self.is_combat_over(),
+            "started_at": self.started_at.isoformat(),
+            "ended_at": self.ended_at.isoformat() if self.ended_at else None,
         }
 
 
@@ -369,7 +382,9 @@ class CombatManager:
 
     def __init__(self):
         """전투 매니저 초기화"""
-        self.combat_instances: Dict[str, CombatInstance] = {}  # combat_id -> CombatInstance
+        self.combat_instances: Dict[str, CombatInstance] = (
+            {}
+        )  # combat_id -> CombatInstance
         self.room_combats: Dict[str, str] = {}  # room_id -> combat_id
         self.player_combats: Dict[str, str] = {}  # player_id -> combat_id
         logger.info("CombatManager 초기화 완료")
@@ -414,10 +429,7 @@ class CombatManager:
         return combat is not None and combat.is_active
 
     def add_player_to_combat(
-        self,
-        combat_id: str,
-        player: Player,
-        player_id: str
+        self, combat_id: str, player: Player, player_id: str
     ) -> bool:
         """플레이어를 전투에 추가"""
         combat = self.get_combat(combat_id)
@@ -432,26 +444,25 @@ class CombatManager:
 
         # Combatant 생성
         from .stats import StatType
+
         combatant = Combatant(
             id=player_id,
             name=player.get_display_name(),
             combatant_type=CombatantType.PLAYER,
             agility=player.stats.get_primary_stat(StatType.DEX),
             max_hp=player.stats.get_secondary_stat(StatType.HP),
-            current_hp=player.stats.get_secondary_stat(StatType.HP),
+            # current_hp=player.stats.get_secondary_stat(StatType.HP),
+            current_hp=player.stats.get_current_hp(),
             attack_power=player.stats.get_secondary_stat(StatType.ATK),
-            defense=player.stats.get_secondary_stat(StatType.DEF)
+            defense=player.stats.get_secondary_stat(StatType.DEF),
         )
         logger.info(f"플레이어 {player_id}를 전투 {combat_id}에 추가")
+        combatant.data = {"player": player}
         combat.add_combatant(combatant)
         self.player_combats[player_id] = combat_id
         return True
 
-    def add_monster_to_combat(
-        self,
-        combat_id: str,
-        monster: Monster
-    ) -> bool:
+    def add_monster_to_combat(self, combat_id: str, monster: Monster) -> bool:
         """몬스터를 전투에 추가"""
         logger.info("invoked")
         combat = self.get_combat(combat_id)
@@ -468,21 +479,23 @@ class CombatManager:
             combatant_type=CombatantType.MONSTER,
             agility=monster.stats.dexterity,  # 민첩 사용
             max_hp=monster.stats.max_hp,
-            current_hp=monster.stats.current_hp,
+            current_hp=monster.stats.current_hp,  # 얘도 전투가 종료 되도 이 전에 hp 를 보존 하고 있어야 함
             attack_power=monster.stats.attack_power,
-            defense=monster.stats.defense
+            defense=monster.stats.defense,
         )
         logger.info(combatant)
         # Monster 객체의 추가 정보를 data에 저장 (전투 계산에 사용)
         combatant.data = {
-            'monster': monster,  # Monster 객체 전체 저장 (다국어 이름 조회용)
-            'armor_class': monster.stats.armor_class,
-            'attack_bonus': monster.stats.attack_bonus,
-            'initiative_bonus': monster.stats.initiative_bonus,
-            'gold_reward': monster.gold_reward,
-            'level': monster.stats.level
+            "monster": monster,  # Monster 객체 전체 저장 (다국어 이름 조회용)
+            "armor_class": monster.stats.armor_class,
+            "attack_bonus": monster.stats.attack_bonus,
+            "initiative_bonus": monster.stats.initiative_bonus,  # 불필요
+            "gold_reward": monster.gold_reward,  # 불필요
+            "level": monster.stats.level,
         }
-        logger.info(f"몬스터 {monster.id}를 전투 {combat_id}에 추가 (AC: {monster.stats.armor_class}, 공격보너스: {monster.stats.attack_bonus})")
+        logger.info(
+            f"몬스터 {monster.id}를 전투 {combat_id}에 추가 (AC: {monster.stats.armor_class}, 공격보너스: {monster.stats.attack_bonus})"
+        )
         combat.add_combatant(combatant)
         return True
 
@@ -522,7 +535,8 @@ class CombatManager:
     def cleanup_finished_combats(self) -> int:
         """종료된 전투 인스턴스 정리"""
         finished_combats = [
-            combat_id for combat_id, combat in self.combat_instances.items()
+            combat_id
+            for combat_id, combat in self.combat_instances.items()
             if not combat.is_active
         ]
 

@@ -25,7 +25,7 @@ class AttackCommand(BaseCommand):
             name="attack",
             aliases=["att", "kill", "fight"],
             description="몬스터를 공격합니다",
-            usage="attack <몬스터명>"
+            usage="attack <몬스터명>",
         )
         self.combat_handler = combat_handler
 
@@ -34,7 +34,7 @@ class AttackCommand(BaseCommand):
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
         # 전투 중인 경우 - 공격 액션 실행
-        if getattr(session, 'in_combat', False):
+        if getattr(session, "in_combat", False):
             return await self._execute_combat_attack(session)
 
         # 전투 시작
@@ -45,16 +45,18 @@ class AttackCommand(BaseCommand):
 
         return await self._start_combat(session, args)
 
-    async def _start_combat(self, session: SessionType, args: List[str]) -> CommandResult:
+    async def _start_combat(
+        self, session: SessionType, args: List[str]
+    ) -> CommandResult:
         """새로운 전투 시작"""
         target_input = " ".join(args)
-        current_room_id = getattr(session, 'current_room_id', None)
+        current_room_id = getattr(session, "current_room_id", None)
 
         if not current_room_id:
             return self.create_error_result("현재 위치를 확인할 수 없습니다.")
 
         try:
-            game_engine = getattr(session, 'game_engine', None)
+            game_engine = getattr(session, "game_engine", None)
             if not game_engine:
                 return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
@@ -65,7 +67,7 @@ class AttackCommand(BaseCommand):
                     f"대상 [{target_input}]을 찾을 수 없습니다."
                 )
             entity_num = int(target_input)
-            entity_map = getattr(session, 'room_entity_map', {})
+            entity_map = getattr(session, "room_entity_map", {})
 
             if entity_num in entity_map:
                 entity_info = entity_map[entity_num]
@@ -75,13 +77,11 @@ class AttackCommand(BaseCommand):
                     f"번호 [{entity_num}]에 해당하는 대상을 찾을 수 없습니다."
                 )
 
-            target_monster = entity_info['entity']
+            target_monster = entity_info["entity"]
 
             # 전투 인스턴스 생성 / 만약 몹이 전투중이면 그 인스턴스가 반환 됨
             combat = await self.combat_handler.start_combat(
-                session.player,
-                target_monster,
-                current_room_id
+                session.player, target_monster, current_room_id
             )
             logger.info(combat)
 
@@ -100,6 +100,7 @@ class AttackCommand(BaseCommand):
             # 몹에게 "알림" 형태로?
             current = combat.get_current_combatant()
             from ..game.combat import CombatantType
+
             if current and current.combatant_type == CombatantType.MONSTER:
                 logger.info(f"몬스터 선공 - 자동 턴 처리 시작")
                 await self._process_monster_turns(combat)
@@ -110,24 +111,27 @@ class AttackCommand(BaseCommand):
 
             # 전투 시작 메시지 (몬스터 턴 처리 후)
             from ..core.localization import get_localization_manager
+
             localization = get_localization_manager()
             locale = session.player.preferred_locale if session.player else "en"
 
-            start_message = f"""
-{ANSIColors.RED}{localization.get_message("combat.start", locale, monster=monster_name)}{ANSIColors.RESET}
-
-{self._get_combat_status_message(combat, locale)}
-
-{self._get_turn_message(combat, session.player.id, locale)}
-"""
+            start_message = "\n".join(
+                [
+                    "",
+                    f'{ANSIColors.RED}{localization.get_message("combat.start", locale, monster=monster_name)}{ANSIColors.RESET}',
+                    "",
+                    f"{self._get_combat_status_message(combat, locale)}",
+                    f"{self._get_turn_message(combat, session.player.id, locale)}",
+                ]
+            )
 
             return self.create_success_result(
                 message=start_message.strip(),
                 data={
                     "action": "combat_start",
                     "combat_id": combat.id,
-                    "combat_status": combat.to_dict()
-                }
+                    "combat_status": combat.to_dict(),
+                },
             )
 
         except Exception as e:
@@ -136,13 +140,15 @@ class AttackCommand(BaseCommand):
 
     async def _execute_combat_attack(self, session: SessionType) -> CommandResult:
         """전투 중 공격 액션 실행"""
-        combat_id = getattr(session, 'combat_id', None)
+        combat_id = getattr(session, "combat_id", None)
         if not combat_id:
             return self.create_error_result("전투 정보를 찾을 수 없습니다.")
 
         combat = self.combat_handler.combat_manager.get_combat(combat_id)
         if not combat or not combat.is_active:
-            return self.create_error_result("전투를 찾을 수 없거나 이미 종료되었습니다.")
+            return self.create_error_result(
+                "전투를 찾을 수 없거나 이미 종료되었습니다."
+            )
 
         # 현재 턴 확인
         current_combatant = combat.get_current_combatant()
@@ -158,17 +164,14 @@ class AttackCommand(BaseCommand):
 
         # 공격 실행
         result = await self.combat_handler.process_player_action(
-            combat_id,
-            session.player.id,
-            CombatAction.ATTACK,
-            target.id
+            combat_id, session.player.id, CombatAction.ATTACK, target.id
         )
 
-        if not result.get('success'):
-            return self.create_error_result(result.get('message', '공격 실패'))
+        if not result.get("success"):
+            return self.create_error_result(result.get("message", "공격 실패"))
 
         # 공격 메시지 먼저 저장
-        attack_message = result.get('message', '')
+        attack_message = result.get("message", "")
 
         # 전투 종료 확인 - combat.is_combat_over()를 직접 확인
         if combat.is_combat_over():
@@ -189,13 +192,14 @@ class AttackCommand(BaseCommand):
 
             # 플레이어 턴이면 중단
             from ..game.combat import CombatantType
+
             if current.combatant_type == CombatantType.PLAYER:
                 break
 
             # 몬스터 턴 처리
             monster_result = await self.combat_handler.process_monster_turn(combat.id)
-            if monster_result.get('success') and monster_result.get('message'):
-                monster_messages.append(monster_result['message'])
+            if monster_result.get("success") and monster_result.get("message"):
+                monster_messages.append(monster_result["message"])
 
             # 전투 종료 확인 - combat.is_combat_over()를 직접 확인
             if combat.is_combat_over():
@@ -203,7 +207,9 @@ class AttackCommand(BaseCommand):
                 end_result = await self._end_combat(session, combat, monster_result)
                 # 모든 메시지를 승리 메시지 앞에 추가
                 all_messages = [attack_message] + monster_messages
-                combined_message = "\n".join(filter(None, all_messages)) + f"\n\n{end_result.message}"
+                combined_message = (
+                    "\n".join(filter(None, all_messages)) + f"\n\n{end_result.message}"
+                )
                 end_result.message = combined_message
                 return end_result
 
@@ -213,7 +219,9 @@ class AttackCommand(BaseCommand):
             end_result = await self._end_combat(session, combat, {})
             # 모든 메시지를 승리 메시지 앞에 추가
             all_messages = [attack_message] + monster_messages
-            combined_message = "\n".join(filter(None, all_messages)) + f"\n\n{end_result.message}"
+            combined_message = (
+                "\n".join(filter(None, all_messages)) + f"\n\n{end_result.message}"
+            )
             end_result.message = combined_message
             return end_result
 
@@ -231,10 +239,7 @@ class AttackCommand(BaseCommand):
 
         return self.create_success_result(
             message=message,
-            data={
-                "action": "combat_action_result",
-                "combat_status": combat.to_dict()
-            }
+            data={"action": "combat_action_result", "combat_status": combat.to_dict()},
         )
 
     async def _process_monster_turns(self, combat: CombatInstance) -> None:
@@ -246,6 +251,7 @@ class AttackCommand(BaseCommand):
 
             # 플레이어 턴이면 중단
             from ..game.combat import CombatantType
+
             if current.combatant_type == CombatantType.PLAYER:
                 break
 
@@ -253,10 +259,7 @@ class AttackCommand(BaseCommand):
             await self.combat_handler.process_monster_turn(combat.id)
 
     async def _end_combat(
-        self,
-        session: SessionType,
-        combat: CombatInstance,
-        result: dict
+        self, session: SessionType, combat: CombatInstance, result: dict
     ) -> CommandResult:
         """전투 종료 처리"""
         winners = combat.get_winners()
@@ -265,6 +268,7 @@ class AttackCommand(BaseCommand):
         # 승리/패배 메시지
         from ..game.combat import CombatantType
         from ..core.localization import get_localization_manager
+
         localization = get_localization_manager()
         locale = session.player.preferred_locale if session.player else "en"
 
@@ -272,19 +276,26 @@ class AttackCommand(BaseCommand):
 
         if player_won:
             # 보상 지급
-            game_engine = getattr(session, 'game_engine', None)
+            game_engine = getattr(session, "game_engine", None)
 
             # 죽은 몬스터들을 DB에 저장하고 아이템 드롭 처리
             if game_engine and game_engine.world_manager:
                 for combatant in combat.combatants:
-                    if combatant.combatant_type != CombatantType.PLAYER and not combatant.is_alive():
+                    if (
+                        combatant.combatant_type != CombatantType.PLAYER
+                        and not combatant.is_alive()
+                    ):
                         # 몬스터가 죽었으면 DB에 저장
                         try:
-                            monster = await game_engine.world_manager.get_monster(combatant.id)
+                            monster = await game_engine.world_manager.get_monster(
+                                combatant.id
+                            )
                             if monster and monster.is_alive:
                                 monster.die()
                                 await game_engine.world_manager.update_monster(monster)
-                                logger.info(f"몬스터 {combatant.name} ({combatant.id}) 사망 처리 완료")
+                                logger.info(
+                                    f"몬스터 {combatant.name} ({combatant.id}) 사망 처리 완료"
+                                )
                         except Exception as e:
                             logger.error(f"몬스터 사망 처리 실패 ({combatant.id}): {e}")
 
@@ -341,12 +352,14 @@ class AttackCommand(BaseCommand):
             # if dropped_items_msg:
             #     message += f"\n\n" + "\n".join(dropped_items_msg)
 
-            message += f"\n\n{localization.get_message('combat.returning_location', locale)}"
+            message += (
+                f"\n\n{localization.get_message('combat.returning_location', locale)}"
+            )
         else:
             message = f"{ANSIColors.RED}{localization.get_message('combat.defeat_message', locale)}{ANSIColors.RESET}\n\n{localization.get_message('combat.returning_location', locale)}"
 
         # 원래 방으로 복귀
-        original_room_id = getattr(session, 'original_room_id', None)
+        original_room_id = getattr(session, "original_room_id", None)
         if original_room_id:
             session.current_room_id = original_room_id
 
@@ -360,19 +373,23 @@ class AttackCommand(BaseCommand):
 
         return self.create_success_result(
             message=message.strip(),
-            data={
-                "action": "combat_end",
-                "victory": player_won
-            }
+            data={"action": "combat_end", "victory": player_won},
         )
 
-    def _get_combat_status_message(self, combat: CombatInstance, locale: str = "ko") -> str:
+    def _get_combat_status_message(
+        self, combat: CombatInstance, locale: str = "ko"
+    ) -> str:
         """전투 상태 메시지 생성"""
         from ..core.localization import get_localization_manager
+
         localization = get_localization_manager()
 
-        lines = [f"{ANSIColors.RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
-        lines.append(localization.get_message("combat.round", locale, round=combat.turn_number))
+        lines = ["━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
+        lines.append(f"{ANSIColors.RED}")
+        lines.append(
+            localization.get_message("combat.round", locale, round=combat.turn_number)
+        )
+        lines.append(f"{ANSIColors.RESET}")
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         # 플레이어 정보
@@ -387,18 +404,23 @@ class AttackCommand(BaseCommand):
             for monster in monsters:
                 # 몬스터 이름을 언어별로 동적 조회
                 monster_name = monster.name  # 기본값
-                if monster.data and 'monster' in monster.data:
-                    monster_obj = monster.data['monster']
+                if monster.data and "monster" in monster.data:
+                    monster_obj = monster.data["monster"]
                     monster_name = monster_obj.get_localized_name(locale)
 
-                lines.append(f"👹 {monster_name}: HP: {monster.current_hp}/{monster.max_hp}")
+                lines.append(
+                    f"👹 {monster_name}: HP: {monster.current_hp}/{monster.max_hp}"
+                )
 
-        lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{ANSIColors.RESET}")
+        lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         return "\n".join(lines)
 
-    def _get_turn_message(self, combat: CombatInstance, player_id: str, locale: str = "en") -> str:
+    def _get_turn_message(
+        self, combat: CombatInstance, player_id: str, locale: str = "en"
+    ) -> str:
         """턴 메시지 생성"""
         from ..core.localization import get_localization_manager
+
         localization = get_localization_manager()
 
         current = combat.get_current_combatant()
@@ -416,7 +438,9 @@ class AttackCommand(BaseCommand):
 {localization.get_message("combat.enter_command", locale)}"""
         else:
             if locale == "ko":
-                return f"{ANSIColors.RED}⏳ {current.name}의 턴입니다...{ANSIColors.RESET}"
+                return (
+                    f"{ANSIColors.RED}⏳ {current.name}의 턴입니다...{ANSIColors.RESET}"
+                )
             else:
                 return f"{ANSIColors.RED}⏳ {current.name}'s turn...{ANSIColors.RESET}"
 
@@ -439,7 +463,7 @@ class DefendCommand(BaseCommand):
             name="defend",
             aliases=["def", "guard", "block"],
             description="방어 자세를 취합니다",
-            usage="defend"
+            usage="defend",
         )
         self.combat_handler = combat_handler
 
@@ -447,16 +471,18 @@ class DefendCommand(BaseCommand):
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
-        if not getattr(session, 'in_combat', False):
+        if not getattr(session, "in_combat", False):
             return self.create_error_result("전투 중이 아닙니다.")
 
-        combat_id = getattr(session, 'combat_id', None)
+        combat_id = getattr(session, "combat_id", None)
         if not combat_id:
             return self.create_error_result("전투 정보를 찾을 수 없습니다.")
 
         combat = self.combat_handler.combat_manager.get_combat(combat_id)
         if not combat or not combat.is_active:
-            return self.create_error_result("전투를 찾을 수 없거나 이미 종료되었습니다.")
+            return self.create_error_result(
+                "전투를 찾을 수 없거나 이미 종료되었습니다."
+            )
 
         # 현재 턴 확인
         current_combatant = combat.get_current_combatant()
@@ -465,17 +491,14 @@ class DefendCommand(BaseCommand):
 
         # 방어 실행
         result = await self.combat_handler.process_player_action(
-            combat_id,
-            session.player.id,
-            CombatAction.DEFEND,
-            None
+            combat_id, session.player.id, CombatAction.DEFEND, None
         )
 
-        if not result.get('success'):
-            return self.create_error_result(result.get('message', '방어 실패'))
+        if not result.get("success"):
+            return self.create_error_result(result.get("message", "방어 실패"))
 
         # 전투 종료 확인
-        if result.get('combat_over'):
+        if result.get("combat_over"):
             return await self._end_combat(session, combat, result)
 
         # 몬스터 턴 자동 처리
@@ -487,16 +510,17 @@ class DefendCommand(BaseCommand):
 
             # 플레이어 턴이면 중단
             from ..game.combat import CombatantType
+
             if current.combatant_type == CombatantType.PLAYER:
                 break
 
             # 몬스터 턴 처리
             monster_result = await self.combat_handler.process_monster_turn(combat.id)
-            if monster_result.get('success') and monster_result.get('message'):
-                monster_messages.append(monster_result['message'])
+            if monster_result.get("success") and monster_result.get("message"):
+                monster_messages.append(monster_result["message"])
 
             # 전투 종료 확인
-            if monster_result.get('combat_over'):
+            if monster_result.get("combat_over"):
                 return await self._end_combat(session, combat, monster_result)
 
         # 전투 종료 재확인
@@ -518,10 +542,7 @@ class DefendCommand(BaseCommand):
 
         return self.create_success_result(
             message=message,
-            data={
-                "action": "combat_action_result",
-                "combat_status": combat.to_dict()
-            }
+            data={"action": "combat_action_result", "combat_status": combat.to_dict()},
         )
 
     async def _process_monster_turns(self, combat):
@@ -543,7 +564,7 @@ class FleeCommand(BaseCommand):
             name="flee",
             aliases=["run", "escape", "retreat"],
             description="전투에서 도망칩니다",
-            usage="flee"
+            usage="flee",
         )
         self.combat_handler = combat_handler
 
@@ -551,16 +572,18 @@ class FleeCommand(BaseCommand):
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
-        if not getattr(session, 'in_combat', False):
+        if not getattr(session, "in_combat", False):
             return self.create_error_result("전투 중이 아닙니다.")
 
-        combat_id = getattr(session, 'combat_id', None)
+        combat_id = getattr(session, "combat_id", None)
         if not combat_id:
             return self.create_error_result("전투 정보를 찾을 수 없습니다.")
 
         combat = self.combat_handler.combat_manager.get_combat(combat_id)
         if not combat or not combat.is_active:
-            return self.create_error_result("전투를 찾을 수 없거나 이미 종료되었습니다.")
+            return self.create_error_result(
+                "전투를 찾을 수 없거나 이미 종료되었습니다."
+            )
 
         # 현재 턴 확인
         current_combatant = combat.get_current_combatant()
@@ -569,41 +592,45 @@ class FleeCommand(BaseCommand):
 
         # 도망 실행
         result = await self.combat_handler.process_player_action(
-            combat_id,
-            session.player.id,
-            CombatAction.FLEE,
-            None
+            combat_id, session.player.id, CombatAction.FLEE, None
         )
 
-        if not result.get('success'):
-            return self.create_error_result(result.get('message', '도망 실패'))
+        if not result.get("success"):
+            return self.create_error_result(result.get("message", "도망 실패"))
 
         # 전투에서 제거 됨
 
         # 도망 성공 여부 확인
-        if result.get('fled'):
+        if result.get("fled"):
             logger.info("도망 성공")
             # 원래 방 정보 가져오기
-            original_room_id = getattr(session, 'original_room_id', None)
+            original_room_id = getattr(session, "original_room_id", None)
             if not original_room_id:
                 return self.create_error_result("원래 위치를 찾을 수 없습니다.")
 
             try:
-                game_engine = getattr(session, 'game_engine', None)
+                game_engine = getattr(session, "game_engine", None)
                 if not game_engine:
                     return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
                 # 원래 방의 출구 정보 가져오기
-                original_room = await game_engine.world_manager.get_room(original_room_id)
+                original_room = await game_engine.world_manager.get_room(
+                    original_room_id
+                )
                 if not original_room:
                     return self.create_error_result("원래 방을 찾을 수 없습니다.")
 
                 # 출구가 있는지 확인
-                logger.info(f"현재 방 출구 확인 시작 {original_room.id} {original_room.x}/{original_room.y}")
-                exit_directions = await coordinate_utils.get_exits(game_engine, original_room_id, original_room.x, original_room.y)
+                logger.info(
+                    f"현재 방 출구 확인 시작 {original_room.id} {original_room.x}/{original_room.y}"
+                )
+                exit_directions = await coordinate_utils.get_exits(
+                    game_engine, original_room_id, original_room.x, original_room.y
+                )
                 logger.info(exit_directions)
 
                 from ..core.localization import get_localization_manager
+
                 localization = get_localization_manager()
                 locale = session.player.preferred_locale if session.player else "en"
 
@@ -614,8 +641,11 @@ class FleeCommand(BaseCommand):
                 else:
                     # 랜덤 출구 선택
                     import random
+
                     random_direction = random.choice(exit_directions)
-                    target_room = await game_engine.world_manager.get_room(random_direction.id)
+                    target_room = await game_engine.world_manager.get_room(
+                        random_direction.id
+                    )
                     session.current_room_id = target_room.id
                     flee_message = f"{localization.get_message('combat.flee_success', locale)}\n\n{random_direction.direction} 방향으로 도망쳐 {target_room.get_localized_description(locale)}에 도착했습니다."
 
@@ -626,11 +656,16 @@ class FleeCommand(BaseCommand):
 
                 # 전투 인스턴스 종료
                 self.combat_handler.combat_manager.end_combat(combat_id)
-                logger.info(f"플레이어 {session.player.username} 도망 성공 - 전투 {combat_id} 종료, 이동: {session.current_room_id}")
+                logger.info(
+                    f"플레이어 {session.player.username} 도망 성공 - 전투 {combat_id} 종료, 이동: {session.current_room_id}"
+                )
 
                 return self.create_success_result(
                     message=flee_message,
-                    data={"action": "flee_success", "new_room_id": session.current_room_id}
+                    data={
+                        "action": "flee_success",
+                        "new_room_id": session.current_room_id,
+                    },
                 )
 
             except Exception as e:
@@ -643,12 +678,13 @@ class FleeCommand(BaseCommand):
                 self.combat_handler.combat_manager.end_combat(combat_id)
 
                 from ..core.localization import get_localization_manager
+
                 localization = get_localization_manager()
                 locale = session.player.preferred_locale if session.player else "en"
 
                 return self.create_success_result(
                     message=f"{localization.get_message('combat.flee_success', locale)}\n\n{localization.get_message('combat.return_location', locale)}",
-                    data={"action": "flee_success"}
+                    data={"action": "flee_success"},
                 )
 
         # 도망 실패 - 몬스터 턴 처리
@@ -660,16 +696,17 @@ class FleeCommand(BaseCommand):
 
             # 플레이어 턴이면 중단
             from ..game.combat import CombatantType
+
             if current.combatant_type == CombatantType.PLAYER:
                 break
 
             # 몬스터 턴 처리
             monster_result = await self.combat_handler.process_monster_turn(combat.id)
-            if monster_result.get('success') and monster_result.get('message'):
-                monster_messages.append(monster_result['message'])
+            if monster_result.get("success") and monster_result.get("message"):
+                monster_messages.append(monster_result["message"])
 
             # 전투 종료 확인
-            if monster_result.get('combat_over'):
+            if monster_result.get("combat_over"):
                 return await self._end_combat(session, combat, monster_result)
 
         # 전투 종료 확인
@@ -691,10 +728,7 @@ class FleeCommand(BaseCommand):
 
         return self.create_success_result(
             message=message,
-            data={
-                "action": "combat_action_result",
-                "combat_status": combat.to_dict()
-            }
+            data={"action": "combat_action_result", "combat_status": combat.to_dict()},
         )
 
     async def _process_monster_turns(self, combat):
@@ -716,7 +750,7 @@ class CombatStatusCommand(BaseCommand):
             name="combat",
             aliases=["battle", "fight_status", "cs"],
             description="현재 전투 상태를 확인합니다",
-            usage="combat"
+            usage="combat",
         )
         self.combat_handler = combat_handler
 
@@ -724,10 +758,10 @@ class CombatStatusCommand(BaseCommand):
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
-        if not getattr(session, 'in_combat', False):
+        if not getattr(session, "in_combat", False):
             return self.create_info_result("현재 전투 중이 아닙니다.")
 
-        combat_id = getattr(session, 'combat_id', None)
+        combat_id = getattr(session, "combat_id", None)
         if not combat_id:
             return self.create_error_result("전투 정보를 찾을 수 없습니다.")
 
@@ -743,8 +777,5 @@ class CombatStatusCommand(BaseCommand):
 
         return self.create_success_result(
             message=message,
-            data={
-                "action": "combat_status",
-                "combat_status": combat.to_dict()
-            }
+            data={"action": "combat_status", "combat_status": combat.to_dict()},
         )
