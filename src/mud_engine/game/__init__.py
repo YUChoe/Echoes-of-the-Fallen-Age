@@ -6,7 +6,6 @@
 
 from .models.session import Session
 from .models.player import Player
-from .models.character import Character
 from .models.room import Room
 from .models.gameobject import GameObject
 
@@ -15,7 +14,6 @@ from .models.gameobject import GameObject
 # repositories.py 파일에서 import (repositories 디렉토리가 아님)
 from .repositories import (
     PlayerRepository,
-    CharacterRepository,
     RoomRepository,
     GameObjectRepository,
     ModelManager,
@@ -25,13 +23,11 @@ from .managers import PlayerManager, WorldManager
 __all__ = [
     # 모델
     "Player",
-    "Character",
     "Room",
     "GameObject",
     "Session",
     # 리포지토리
     "PlayerRepository",
-    "CharacterRepository",
     "RoomRepository",
     "GameObjectRepository",
     "ModelManager",
