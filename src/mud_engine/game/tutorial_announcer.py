@@ -3,7 +3,7 @@
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING, Dict, Optional
 from datetime import datetime, timedelta
 
 if TYPE_CHECKING:
@@ -146,7 +146,7 @@ He will give you essential supplies before you start your adventure!"
 
 
 # 전역 인스턴스
-_tutorial_announcer = None
+_tutorial_announcer: Optional[TutorialAnnouncer] = None
 
 
 def get_tutorial_announcer(game_engine: 'GameEngine') -> TutorialAnnouncer:

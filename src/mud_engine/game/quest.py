@@ -241,7 +241,7 @@ class QuestManager:
 
 
 # 전역 퀘스트 매니저 인스턴스
-_quest_manager = None
+_quest_manager: Optional[QuestManager] = None
 
 
 def get_quest_manager() -> QuestManager:

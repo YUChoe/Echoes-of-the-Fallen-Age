@@ -944,7 +944,7 @@ class LocalizationManager:
 
 
 # 전역 인스턴스
-_localization_manager = None
+_localization_manager: Optional[LocalizationManager] = None
 
 
 def get_localization_manager() -> LocalizationManager:
