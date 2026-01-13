@@ -6,7 +6,7 @@ import logging
 import random
 from typing import Optional, List, Dict, Any
 
-from .combat import CombatManager, CombatInstance, CombatAction, CombatTurn, Combatant
+from .combat import CombatManager, CombatInstance, CombatAction, CombatTurn, Combatant, CombatantType
 from .monster import Monster, MonsterType
 from .models import Player
 from ..server.ansi_colors import ANSIColors
@@ -23,10 +23,12 @@ logger = logging.getLogger(__name__)
 class CombatHandler:
     """전투 핸들러 - 전투 로직 처리"""
 
-    def __init__(self, combat_manager: CombatManager, world_manager: Any = None):
+    def __init__(self, combat_manager: CombatManager, world_manager: Any = None, game_engine: Any = None, session_manager: Any = None):
         """전투 핸들러 초기화"""
         self.combat_manager = combat_manager
         self.world_manager = world_manager
+        self.game_engine = game_engine
+        self.session_manager = session_manager
         self.dnd_engine = DnDCombatEngine()
         logger.info("CombatHandler 초기화 완료 (D&D 5e 룰 적용)")
 
@@ -500,9 +502,15 @@ class CombatHandler:
 
         # 공격 실행
         result = await self._execute_attack(combat, current_combatant, target.id)
-        logger.info(
-            f"몬스터 공격 결과: {result.get('success', False)}, 메시지: {result.get('message', 'N/A')}"
-        )
+        msg = f"{result.get('message', 'N/A')}"
+        logger.info(f"몬스터 공격 결과: {result.get('success', False)}, 메시지: {msg}")
+
+        # 전투 참가자들에게 몬스터 공격 결과 브로드캐스트
+        for combatant in combat.combatants:
+            if combatant.combatant_type == CombatantType.PLAYER:
+                session = self.session_manager.get_player_session(combatant.id)
+                if session:
+                    await session.send_message({ "type": "combat_message", "message": msg })
 
         # 턴 로그 추가
         turn = CombatTurn(

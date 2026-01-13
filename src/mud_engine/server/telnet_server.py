@@ -152,10 +152,9 @@ class TelnetServer:
 {ANSIColors.BOLD}{ANSIColors.BRIGHT_CYAN}
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║        {ANSIColors.BRIGHT_YELLOW}The Karnas Chronicles{ANSIColors.BRIGHT_CYAN}                            ║
-║                                                               ║
-║        {ANSIColors.WHITE}Divided Dominion{ANSIColors.BRIGHT_CYAN}                                    ║
-║        {ANSIColors.WHITE}분할된 지배권, 카르나스에 오신 것을 환영합니다{ANSIColors.BRIGHT_CYAN}        ║
+║        {ANSIColors.BRIGHT_YELLOW}The Chronicles of Karnas{ANSIColors.BRIGHT_CYAN}                            ║
+║        {ANSIColors.WHITE}: Divided Dominion{ANSIColors.BRIGHT_CYAN}                                    ║
+║        {ANSIColors.WHITE}카르나스 연대기: 분할된 지배권 {ANSIColors.BRIGHT_CYAN}        ║
 ║                                                               ║
 ║        {ANSIColors.DIM}Version: {version_string}{ANSIColors.BRIGHT_CYAN}                           ║
 ║                                                               ║

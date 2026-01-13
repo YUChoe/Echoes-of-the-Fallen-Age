@@ -380,13 +380,14 @@ class CombatInstance:
 class CombatManager:
     """전투 매니저 - 전투 인스턴스 관리"""
 
-    def __init__(self):
+    def __init__(self, session_manager: Any = None):
         """전투 매니저 초기화"""
         self.combat_instances: Dict[str, CombatInstance] = (
             {}
         )  # combat_id -> CombatInstance
         self.room_combats: Dict[str, str] = {}  # room_id -> combat_id
         self.player_combats: Dict[str, str] = {}  # player_id -> combat_id
+        self.session_manager = session_manager
         logger.info("CombatManager 초기화 완료")
 
     def create_combat(self, room_id: str) -> CombatInstance:
@@ -395,6 +396,20 @@ class CombatManager:
         self.combat_instances[combat.id] = combat
         self.room_combats[room_id] = combat.id
         logger.info(f"방 {room_id}에 전투 인스턴스 {combat.id} 생성")
+
+        # 전투 참가자들에게 결정 된 턴 순서 브로드캐스트
+        msg = ["순서: "]
+        for combatant_id in combat.turn_order:
+            name = combat.get_combatant(combatant_id).name
+            msg.append(f"[{name}]")
+        logger.info(" ".join(msg))
+
+        combatant: Combatant
+        for combatant in combat.combatants:
+            if combatant.combatant_type == CombatantType.PLAYER:
+                session = self.session_manager.get_player_session(combatant.id)
+                if session:
+                    session.send_message({ "type": "combat_message", "message": " ".join(msg) })
         return combat
 
     def get_combat_instances(self) -> Dict[str, CombatInstance]:
@@ -428,9 +443,7 @@ class CombatManager:
         combat = self.get_combat_by_room(room_id)
         return combat is not None and combat.is_active
 
-    def add_player_to_combat(
-        self, combat_id: str, player: Player, player_id: str
-    ) -> bool:
+    def add_player_to_combat(self, combat_id: str, player: Player, player_id: str) -> bool:
         """플레이어를 전투에 추가"""
         combat = self.get_combat(combat_id)
         if not combat or not combat.is_active:

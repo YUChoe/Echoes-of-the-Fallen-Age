@@ -124,14 +124,14 @@ class TelnetSession:
         try:
             # 디버깅: 전송되는 메시지 타입 확인
             msg_type = message.get("type", "")
-            print(f"DEBUG: send_message called with type: {msg_type}")
+            # print(f"DEBUG: send_message called with type: {msg_type}")
             logger.error(f"FORCE DEBUG: send_message called with type: {msg_type}")
 
             if msg_type == "room_info":
-                print(f"DEBUG: room_info message detected!")
+                # print(f"DEBUG: room_info message detected!")
                 logger.error(f"FORCE DEBUG: room_info message detected!")
                 entity_map = message.get("entity_map", {})
-                print(f"DEBUG: entity_map in room_info: {entity_map is not None}")
+                # print(f"DEBUG: entity_map in room_info: {entity_map is not None}")
                 logger.error(f"FORCE DEBUG: entity_map in room_info: {entity_map is not None}")
 
             # 메시지 타입에 따라 적절한 포맷으로 변환

@@ -114,7 +114,7 @@ const loginResult = await mcp_telnet_mcp_telnet_read({
 
 ```
 ╔═══════════════════════════════════════════════════════════════╗
-║        The Karnas Chronicles                                  ║
+║        The Chronicles of Karnas                                   ║
 ║        분할된 지배권, 카르나스에 오신 것을 환영합니다           ║
 ╚═══════════════════════════════════════════════════════════════╝
 
