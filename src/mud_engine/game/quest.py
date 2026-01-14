@@ -119,9 +119,10 @@ class PlayerQuest:
 
 class QuestManager:
     """퀘스트 관리자"""
+    quests: Dict[str, Quest]
 
     def __init__(self):
-        self.quests: Dict[str, Quest] = {}
+        self.quests = {}
         self._load_tutorial_quests()
 
     def _load_tutorial_quests(self):

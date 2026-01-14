@@ -12,10 +12,13 @@ logger = logging.getLogger(__name__)
 
 class LocalizationManager:
     """다국어 메시지 관리자"""
+    messages: Dict[str, Dict[str, str]]
+    default_locale: str
+    supported_locales: list
 
     def __init__(self):
         """초기화"""
-        self.messages: Dict[str, Dict[str, str]] = {}
+        self.messages = {}
         self.default_locale = "en"
         self.supported_locales = ["en", "ko"]
         self._load_default_messages()

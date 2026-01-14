@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 
 class VersionManager:
     """버전 정보 관리 클래스"""
+    _version_info: Optional[Dict[str, Any]]
 
     def __init__(self):
-        self._version_info: Optional[Dict[str, Any]] = None
+        self._version_info = None
         self._load_version_info()
 
     def _load_version_info(self) -> None:

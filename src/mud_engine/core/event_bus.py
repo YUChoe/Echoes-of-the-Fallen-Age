@@ -79,15 +79,15 @@ class Event:
 class EventBus:
     """이벤트 버스 - 이벤트 발행/구독 시스템"""
 
+    _subscribers: Dict[EventType, List[Callable]] = {}
+    _event_history: List[Event] = []
+    _max_history: int
+    _running: bool = False
+    _event_queue: asyncio.Queue = asyncio.Queue()
+
     def __init__(self):
         """EventBus 초기화"""
-        self._subscribers: Dict[EventType, List[Callable]] = {}
-        self._event_history: List[Event] = []
-        self._max_history: int = 1000  # 최대 이벤트 히스토리 개수
-        self._running: bool = False
-        self._event_queue: asyncio.Queue = asyncio.Queue()
-        self._processor_task: Optional[asyncio.Task] = None
-
+        self._max_history = 1000  # 최대 이벤트 히스토리 개수
         logger.info("EventBus 초기화 완료")
 
     async def start(self) -> None:
