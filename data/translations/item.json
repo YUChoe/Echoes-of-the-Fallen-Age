@@ -1,0 +1,58 @@
+{
+    "item.not_found": {
+        "en": "❌ Item '{item}' not found.",
+        "ko": "❌ '{item}' 아이템을 찾을 수 없습니다."
+    },
+    "item.picked_up": {
+        "en": "📦 You picked up {item}.",
+        "ko": "📦 {item}을(를) 주웠습니다."
+    },
+    "item.dropped": {
+        "en": "📦 You dropped {item}.",
+        "ko": "📦 {item}을(를) 떨어뜨렸습니다."
+    },
+    "item.too_heavy": {
+        "en": "❌ Too heavy to carry.",
+        "ko": "❌ 너무 무거워서 들 수 없습니다."
+    },
+    "item.disappeared": {
+        "en": "💨 {item} disappeared before your eyes.",
+        "ko": "💨 {item}이(가) 눈앞에서 사라졌습니다."
+    },
+    "inventory.category_all": {
+        "en": "all",
+        "ko": "전체"
+    },
+    "inventory.title": {
+        "en": "🎒 {username}'s inventory",
+        "ko": "🎒 {username}의 인벤토리"
+    },
+    "inventory.capacity": {
+        "en": "📊 Carrying capacity: {current}kg / {max}kg ({percentage}%)",
+        "ko": "📊 소지 용량: {current}kg / {max}kg ({percentage}%)"
+    },
+    "inventory.overloaded": {
+        "en": "⚠️ You are overloaded!",
+        "ko": "⚠️ 과부하 상태입니다!"
+    },
+    "inventory.empty": {
+        "en": "🎒 Your inventory is empty.",
+        "ko": "🎒 인벤토리가 비어있습니다."
+    },
+    "inventory.category_empty": {
+        "en": "🎒 No items in {category} category.",
+        "ko": "🎒 {category} 카테고리에 아이템이 없습니다."
+    },
+    "inventory.total_items": {
+        "en": "You are carrying {count} items.",
+        "ko": "총 {count}개의 아이템을 소지하고 있습니다."
+    },
+    "inventory.equipped_marker": {
+        "en": " [equipped]",
+        "ko": " [착용중]"
+    },
+    "inventory.invalid_category": {
+        "en": "Invalid category. Available categories: {categories}",
+        "ko": "올바르지 않은 카테고리입니다. 사용 가능한 카테고리: {categories}"
+    }
+}

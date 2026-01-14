@@ -1,0 +1,118 @@
+{
+    "movement.no_exit": {
+        "en": "❌ You cannot go {direction}.",
+        "ko": "❌ {direction} 방향으로는 갈 수 없습니다."
+    },
+    "movement.room_not_found": {
+        "en": "❌ Room not found.",
+        "ko": "❌ 방을 찾을 수 없습니다."
+    },
+    "movement.moved": {
+        "en": "{username} moved {direction}.",
+        "ko": "{username}님이 {direction}(으)로 이동했습니다."
+    },
+    "movement.error": {
+        "en": "❌ An error occurred during movement.",
+        "ko": "❌ 이동 중 오류가 발생했습니다."
+    },
+    "movement.combat_blocked": {
+        "en": "❌ You cannot move during combat. Flee or win the battle first.",
+        "ko": "❌ 전투 중에는 이동할 수 없습니다. 먼저 전투에서 도망치거나 승리하세요."
+    },
+    "movement.no_location": {
+        "en": "❌ Cannot determine current location.",
+        "ko": "❌ 현재 위치를 확인할 수 없습니다."
+    },
+    "go.usage_error": {
+        "en": "Please specify a direction to move.\nUsage: go <direction>\nAvailable directions: north, south, east, west",
+        "ko": "이동할 방향을 지정해주세요.\n사용법: go <방향>\n사용 가능한 방향: north, south, east, west"
+    },
+    "go.invalid_direction": {
+        "en": "'{direction}' is not a valid direction.\nAvailable directions: north, south, east, west",
+        "ko": "'{direction}'은(는) 올바른 방향이 아닙니다.\n사용 가능한 방향: north, south, east, west"
+    },
+    "exits.no_exits": {
+        "en": "🚪 There are no exits from this room.",
+        "ko": "🚪 이 방에는 출구가 없습니다."
+    },
+    "exits.available": {
+        "en": "🚪 Available exits: {exits}",
+        "ko": "🚪 사용 가능한 출구: {exits}"
+    },
+    "exits.error": {
+        "en": "❌ Failed to check exits.",
+        "ko": "❌ 출구 정보를 확인하는 중 오류가 발생했습니다."
+    },
+    "monster.appears": {
+        "en": "🐾 {monster_name} appears.",
+        "ko": "🐾 {monster_name}이(가) 나타났습니다."
+    },
+    "monster.leaves": {
+        "en": "🐾 {monster_name} leaves.",
+        "ko": "🐾 {monster_name}이(가) 떠났습니다."
+    },
+    "players.in_room": {
+        "en": "📍 Players in current room ({count}):",
+        "ko": "📍 현재 방에 있는 플레이어들 ({count}명):"
+    },
+    "players.no_players_in_room": {
+        "en": "No other players in this room.",
+        "ko": "이 방에는 다른 플레이어가 없습니다."
+    },
+    "players.player_entry": {
+        "en": "👤 {username}{marker}",
+        "ko": "👤 {username}{marker}"
+    },
+    "players.me_marker": {
+        "en": " (me)",
+        "ko": " (나)"
+    },
+    "enter.moved_through_passage": {
+        "en": "You moved through a special passage.",
+        "ko": "특별한 통로를 통해 이동했습니다."
+    },
+    "enter.movement_complete": {
+        "en": "Movement complete",
+        "ko": "이동 완료"
+    },
+    "enter.no_entrance": {
+        "en": "There is no entrance here.",
+        "ko": "여기서는 들어갈 곳이 없습니다."
+    },
+    "enter.login_required": {
+        "en": "Login required.",
+        "ko": "로그인이 필요합니다."
+    },
+    "enter.game_engine_error": {
+        "en": "Cannot access game engine.",
+        "ko": "게임 엔진에 접근할 수 없습니다."
+    },
+    "enter.location_error": {
+        "en": "Cannot determine current location.",
+        "ko": "현재 위치를 확인할 수 없습니다."
+    },
+    "enter.coordinates_error": {
+        "en": "Cannot determine room coordinates.",
+        "ko": "현재 방의 좌표를 확인할 수 없습니다."
+    },
+    "enter.movement_error": {
+        "en": "An error occurred during movement.",
+        "ko": "이동 중 오류가 발생했습니다."
+    },
+    "movement.success": {
+        "en": "✅ 🚶 You moved {direction}.",
+        "ko": "✅ 🚶 {direction} 방향으로 이동했습니다."
+    },
+    "movement.failed": {
+        "en": "❌ Failed to move.",
+        "ko": "❌ 이동에 실패했습니다."
+    },
+    "movement.player_left": {
+        "en": "🚶 {username} left to the {direction}.",
+        "ko": "🚶 {username}님이 {direction} 방향으로 떠났습니다."
+    },
+    "movement.player_arrived": {
+        "en": "🚶 {username} arrived.",
+        "ko": "🚶 {username}님이 도착했습니다."
+    }
+}

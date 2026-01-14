@@ -1,0 +1,54 @@
+{
+
+"look.refresh": {
+                "en": "✅ You look around again.",
+                "ko": "✅ 주변을 다시 둘러봅니다."
+            },
+            "look.error": {
+                "en": "❌ Failed to look around.",
+                "ko": "❌ 방 정보를 조회하는 중 오류가 발생했습니다."
+            },
+            "stats.error": {
+                "en": "❌ Failed to retrieve stats.",
+                "ko": "❌ 능력치 정보를 확인하는 중 오류가 발생했습니다."
+            },
+
+            "room.time_day": {
+                "en": "☀️  Day",
+                "ko": "☀️  낮"
+            },
+            "room.time_night": {
+                "en": "🌙 Night",
+                "ko": "🌙 밤"
+            },
+            "room.exits": {
+                "en": "🚪 Exits: {exits}",
+                "ko": "🚪 출구: {exits}"
+            },
+            "room.players_here": {
+                "en": "👥 Players here:",
+                "ko": "👥 이곳에 있는 플레이어들:"
+            },
+            "room.objects_here": {
+                "en": "📦 Objects here:",
+                "ko": "📦 이곳에 있는 물건들:"
+            },
+            "room.npcs_here": {
+                "en": "🧑‍💼 NPCs here:",
+                "ko": "🧑‍💼 이곳에 있는 NPC들:"
+            },
+            "room.animals_here": {
+                "en": "🐾 Animals here:",
+                "ko": "🐾 이곳에 있는 동물들:"
+            },
+            "room.monsters_here": {
+                "en": "👹 Monsters here:",
+                "ko": "👹 이곳에 있는 몬스터들:"
+            },
+            "room.merchant_type": {
+                "en": " (merchant)",
+                "ko": " (상인)"
+            }
+
+
+}

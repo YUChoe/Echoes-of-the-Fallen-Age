@@ -31,41 +31,28 @@ class LanguageCommand(BaseCommand):
         current_locale = session.player.preferred_locale
 
         # 인자가 없으면 현재 언어 표시
-        if not args:
-            supported_langs = ", ".join(localization.get_supported_locales())
-            
-            if current_locale == "ko":
-                message = f"현재 언어: 한국어 (ko)\n지원 언어: {supported_langs}"
-            else:
-                message = f"Current language: English (en)\nSupported languages: {supported_langs}"
-            
+
+        if current_locale == "ko":
+            message = f"현재 언어: 한국어 (ko)\n"
             return self.create_info_result(message)
+        elif current_locale == "en":
+            message = f"Current language: English (en)\n"
+            return self.create_info_result(message)
+        else:
+            current_locale = "en"
 
-        # 언어 변경
-        new_locale = args[0].lower()
-        
-        if not localization.is_supported_locale(new_locale):
-            supported_langs = ", ".join(localization.get_supported_locales())
-            return self.create_error_result(
-                localization.get_message(
-                    "language.invalid", 
-                    current_locale, 
-                    languages=supported_langs
-                )
-            )
+            # 언어 설정 변경
+            session.player.preferred_locale = current_locale
 
-        # 언어 설정 변경
-        session.player.preferred_locale = new_locale
-        
-        # 세션의 locale도 업데이트
-        session.update_locale()
-        
-        # 성공 메시지 (새로운 언어로)
-        success_message = localization.get_message("language.changed", new_locale)
-        
+            # 세션의 locale도 업데이트
+            session.update_locale()
+
+            # 성공 메시지 (새로운 언어로)
+            success_message = localization.get_message("language.changed", current_locale)
+
         return self.create_success_result(
             message=success_message,
-            data={"new_language": new_locale}
+            data={"new_language": current_locale}
         )
 
 
@@ -96,7 +83,7 @@ class HelpCommand(BaseCommand):
         # 전체 명령어 목록
         header = localization.get_message("help.header", locale)
         footer = localization.get_message("help.footer", locale)
-        
+
         # 기본 명령어들 (다국어 지원)
         if locale == "ko":
             commands = [
@@ -104,7 +91,7 @@ class HelpCommand(BaseCommand):
                 "  look (l)     - 주변을 둘러봅니다",
                 "  go <방향>    - 지정된 방향으로 이동합니다",
                 "  north (n)   - 북쪽으로 이동",
-                "  south (s)   - 남쪽으로 이동", 
+                "  south (s)   - 남쪽으로 이동",
                 "  east (e)    - 동쪽으로 이동",
                 "  west (w)    - 서쪽으로 이동",
                 "",
@@ -134,7 +121,7 @@ class HelpCommand(BaseCommand):
                 "  go <dir>     - Move in specified direction",
                 "  north (n)    - Move north",
                 "  south (s)    - Move south",
-                "  east (e)     - Move east", 
+                "  east (e)     - Move east",
                 "  west (w)     - Move west",
                 "",
                 "⚔️ Combat Commands:",
@@ -158,5 +145,5 @@ class HelpCommand(BaseCommand):
             ]
 
         message = f"{header}\n\n" + "\n".join(commands) + f"\n\n{footer}"
-        
+
         return self.create_info_result(message)
