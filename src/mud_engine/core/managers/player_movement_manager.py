@@ -370,21 +370,20 @@ class PlayerMovementManager:
 
         try:
             disconnected_player = session.player.username
+            player_id = session.player.id
 
-            # 전투 중이었다면 전투 종료 처리
+            # 전투 중이었다면 연결 해제 상태로 표시 (전투 유지)
             if getattr(session, 'in_combat', False):
                 combat_id = getattr(session, 'combat_id', None)
                 if combat_id:
-                    combat = self.game_engine.combat_manager.get_combat(combat_id)
-                    if combat and combat.is_active:
-                        # 전투 인스턴스 종료
-                        self.game_engine.combat_manager.end_combat(combat_id)
-                        logger.info(f"플레이어 {disconnected_player} 연결 해제로 전투 {combat_id} 종료")
+                    # 전투 인스턴스 종료 대신 연결 해제 상태로 표시
+                    self.game_engine.combat_manager.mark_player_disconnected(player_id)
+                    logger.info(f"플레이어 {disconnected_player} 연결 해제 - 전투 {combat_id} 유지 (2분 타임아웃)")
 
-                # 전투 상태 초기화
-                session.in_combat = False
-                session.combat_id = None
-                session.original_room_id = None
+                # 세션 전투 상태는 유지 (재접속 시 복구용)
+                # session.in_combat = False  # 주석 처리 - 유지
+                # session.combat_id = None   # 주석 처리 - 유지
+                # session.original_room_id = None  # 주석 처리 - 유지
 
             # 이 플레이어를 따라가던 다른 플레이어들의 따라가기 해제
             for other_session in self.game_engine.session_manager.get_authenticated_sessions():

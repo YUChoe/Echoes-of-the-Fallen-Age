@@ -326,6 +326,10 @@ Your adventure begins in a world transformed into ruins and monster lairs.
             if self.game_engine:
                 await self.game_engine.add_player_session(session, player)
 
+                # 전투 복귀 시도
+                if await self.game_engine.try_rejoin_combat(session):
+                    logger.info(f"플레이어 {username} 전투 복귀 성공")
+
             # 다국어 환영 메시지
             from ..core.localization import get_localization_manager
             localization = get_localization_manager()

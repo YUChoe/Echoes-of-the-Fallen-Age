@@ -368,8 +368,17 @@ class AttackCommand(BaseCommand):
         session.original_room_id = None
         session.combat_id = None
 
-        # 전투 종료
-        self.combat_handler.combat_manager.end_combat(combat.id)
+        # 현재 플레이어를 전투에서 제거
+        self.combat_handler.combat_manager.remove_player_from_combat(session.player.id)
+
+        # 다른 플레이어가 남아있는지 확인
+        remaining_players = combat.get_alive_players()
+        if len(remaining_players) == 0:
+            # 모든 플레이어가 나갔으면 전투 종료
+            self.combat_handler.combat_manager.end_combat(combat.id)
+            logger.info(f"전투 {combat.id} 종료 - 모든 플레이어 이탈")
+        else:
+            logger.info(f"전투 {combat.id} 유지 - 남은 플레이어 {len(remaining_players)}명")
 
         return self.create_success_result(
             message=message.strip(),

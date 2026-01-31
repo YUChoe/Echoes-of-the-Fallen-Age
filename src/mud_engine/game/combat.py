@@ -156,6 +156,11 @@ class CombatInstance:
     is_active: bool = True
     started_at: datetime = field(default_factory=datetime.now)
     ended_at: Optional[datetime] = None
+    # 연결 해제된 플레이어 추적 (player_id -> 해제 시간)
+    disconnected_players: Dict[str, datetime] = field(default_factory=dict)
+    # 타임아웃 tick 카운트 (8회 = 2분, 15초 간격)
+    timeout_ticks: int = 0
+    max_timeout_ticks: int = 8  # 8 * 15초 = 2분
 
     def __post_init__(self):
         """초기화 후 턴 순서 결정"""
@@ -263,6 +268,48 @@ class CombatInstance:
 
         # 한쪽이 전멸하면 전투 종료
         return len(alive_players) == 0 or len(alive_monsters) == 0
+
+    def mark_player_disconnected(self, player_id: str) -> None:
+        """플레이어를 연결 해제 상태로 표시"""
+        if player_id not in self.disconnected_players:
+            self.disconnected_players[player_id] = datetime.now()
+            logger.info(f"전투 {self.id}: 플레이어 {player_id} 연결 해제 표시")
+
+    def mark_player_reconnected(self, player_id: str) -> bool:
+        """플레이어 재접속 처리"""
+        if player_id in self.disconnected_players:
+            del self.disconnected_players[player_id]
+            logger.info(f"전투 {self.id}: 플레이어 {player_id} 재접속")
+            return True
+        return False
+
+    def is_player_disconnected(self, player_id: str) -> bool:
+        """플레이어가 연결 해제 상태인지 확인"""
+        return player_id in self.disconnected_players
+
+    def has_connected_players(self) -> bool:
+        """연결된 플레이어가 있는지 확인"""
+        alive_players = self.get_alive_players()
+        for player in alive_players:
+            if player.id not in self.disconnected_players:
+                return True
+        return False
+
+    def increment_timeout_tick(self) -> bool:
+        """
+        타임아웃 tick 증가. 타임아웃 시 True 반환.
+        연결된 플레이어가 없을 때만 tick 증가.
+        """
+        if not self.has_connected_players():
+            self.timeout_ticks += 1
+            logger.info(f"전투 {self.id}: 타임아웃 tick {self.timeout_ticks}/{self.max_timeout_ticks}")
+            return self.timeout_ticks >= self.max_timeout_ticks
+        else:
+            # 연결된 플레이어가 있으면 tick 리셋
+            if self.timeout_ticks > 0:
+                self.timeout_ticks = 0
+                logger.info(f"전투 {self.id}: 타임아웃 tick 리셋 (연결된 플레이어 있음)")
+        return False
 
     def end_combat(self) -> None:
         """전투 종료"""
@@ -563,3 +610,96 @@ class CombatManager:
     def get_active_combats_count(self) -> int:
         """활성 전투 수 반환"""
         return sum(1 for combat in self.combat_instances.values() if combat.is_active)
+
+    def mark_player_disconnected(self, player_id: str) -> bool:
+        """
+        플레이어를 연결 해제 상태로 표시 (전투 유지)
+
+        Args:
+            player_id: 플레이어 ID
+
+        Returns:
+            bool: 성공 여부
+        """
+        combat = self.get_combat_by_player(player_id)
+        if not combat or not combat.is_active:
+            return False
+
+        combat.mark_player_disconnected(player_id)
+        logger.info(f"플레이어 {player_id} 연결 해제 - 전투 {combat.id} 유지")
+        return True
+
+    def try_rejoin_combat(self, player_id: str, player: Player) -> Optional[CombatInstance]:
+        """
+        플레이어 재접속 시 기존 전투에 복귀 시도
+
+        Args:
+            player_id: 플레이어 ID
+            player: 플레이어 객체
+
+        Returns:
+            CombatInstance: 복귀한 전투 인스턴스 (없으면 None)
+        """
+        combat_id = self.player_combats.get(player_id)
+        if not combat_id:
+            return None
+
+        combat = self.get_combat(combat_id)
+        if not combat or not combat.is_active:
+            # 전투가 종료되었으면 매핑 제거
+            if player_id in self.player_combats:
+                del self.player_combats[player_id]
+            return None
+
+        # 재접속 처리
+        if combat.mark_player_reconnected(player_id):
+            # Combatant 데이터 업데이트 (Player 객체 갱신)
+            combatant = combat.get_combatant(player_id)
+            if combatant and combatant.data:
+                combatant.data["player"] = player
+            logger.info(f"플레이어 {player_id} 전투 {combat_id}에 복귀")
+            return combat
+
+        return None
+
+    async def process_combat_tick(self) -> Dict[str, Any]:
+        """
+        전투 tick 처리 (스케줄러에서 15초마다 호출)
+
+        Returns:
+            Dict: tick 처리 결과
+        """
+        result: Dict[str, Any] = {
+            "processed_combats": 0,
+            "timed_out_combats": [],
+            "active_combats": 0
+        }
+
+        timed_out_combat_ids: List[str] = []
+
+        for combat_id, combat in list(self.combat_instances.items()):
+            if not combat.is_active:
+                continue
+
+            result["processed_combats"] += 1
+
+            # 타임아웃 체크 (연결된 플레이어가 없는 경우만)
+            if combat.increment_timeout_tick():
+                timed_out_combat_ids.append(combat_id)
+                result["timed_out_combats"].append(combat_id)
+                logger.info(f"전투 {combat_id} 타임아웃 (2분 경과)")
+
+        # 타임아웃된 전투 종료
+        for combat_id in timed_out_combat_ids:
+            self.end_combat(combat_id)
+
+        result["active_combats"] = self.get_active_combats_count()
+        return result
+
+    def get_disconnected_players_in_combat(self, combat_id: str) -> List[str]:
+        """전투에서 연결 해제된 플레이어 목록 반환"""
+        combat = self.get_combat(combat_id)
+        if not combat:
+            return []
+        return list(combat.disconnected_players.keys())
+

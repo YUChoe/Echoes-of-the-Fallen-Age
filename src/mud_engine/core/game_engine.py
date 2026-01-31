@@ -141,6 +141,14 @@ class GameEngine:
 
         # 글로벌 스케줄러 시작
         try:
+            # 전투 tick 이벤트 등록 (15초마다 실행)
+            from .managers.scheduler_manager import ScheduleInterval
+            self.scheduler_manager.register_event(
+                "combat_tick",
+                self._process_combat_tick,
+                [ScheduleInterval.SECOND_00, ScheduleInterval.SECOND_15,
+                 ScheduleInterval.SECOND_30, ScheduleInterval.SECOND_45]
+            )
             await self.scheduler_manager.start()
             logger.info("글로벌 스케줄러 시작 완료")
         except Exception as e:
@@ -473,3 +481,60 @@ class GameEngine:
             if session.player and session.player.id == player_id:
                 return session
         return None
+
+    # === 전투 시스템 관련 메서드들 ===
+
+    async def _process_combat_tick(self) -> None:
+        """
+        전투 tick 처리 (스케줄러에서 15초마다 호출)
+        연결된 플레이어가 없는 전투의 타임아웃을 관리합니다.
+        """
+        try:
+            result = await self.combat_manager.process_combat_tick()
+
+            if result["timed_out_combats"]:
+                for combat_id in result["timed_out_combats"]:
+                    logger.info(f"전투 {combat_id} 타임아웃으로 종료됨")
+
+            # 활성 전투가 있으면 로그
+            if result["active_combats"] > 0:
+                logger.debug(f"전투 tick 처리 완료: 활성 전투 {result['active_combats']}개")
+
+        except Exception as e:
+            logger.error(f"전투 tick 처리 오류: {e}", exc_info=True)
+
+    async def try_rejoin_combat(self, session: SessionType) -> bool:
+        """
+        플레이어 재접속 시 기존 전투에 복귀 시도
+
+        Args:
+            session: 재접속한 플레이어의 세션
+
+        Returns:
+            bool: 전투 복귀 성공 여부
+        """
+        if not session.player:
+            return False
+
+        player_id = session.player.id
+        combat = self.combat_manager.try_rejoin_combat(player_id, session.player)
+
+        if combat:
+            # 세션 전투 상태 복구
+            session.in_combat = True
+            session.combat_id = combat.id
+            session.current_room_id = f"combat_{combat.id}"
+            session.original_room_id = combat.room_id
+
+            # 전투 복귀 메시지 전송
+            await session.send_message({
+                "type": "combat_rejoin",
+                "message": "⚔️ 진행 중인 전투에 복귀했습니다!",
+                "combat_id": combat.id,
+                "combat_status": combat.to_dict()
+            })
+
+            logger.info(f"플레이어 {session.player.username} 전투 {combat.id}에 복귀")
+            return True
+
+        return False
