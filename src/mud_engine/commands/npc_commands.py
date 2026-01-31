@@ -778,12 +778,9 @@ class ShopCommand(BaseCommand):
         """결제 처리"""
         try:
             if currency == "gold":
-                # 골드 결제
-                if session.player.gold < amount:
-                    return False
-                session.player.gold -= amount
-                await game_engine.model_manager.players.update(session.player.id, {'gold': session.player.gold})
-                return True
+                # 골드 결제 - 현재 보상 시스템 재개발 중으로 비활성화
+                logger.warning("골드 결제 시스템은 현재 비활성화되어 있습니다.")
+                return False
 
             elif currency == "essence_of_life":
                 # 생명의 정수 결제

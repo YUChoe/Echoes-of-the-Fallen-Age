@@ -747,7 +747,6 @@ class PlayerMovementManager:
                 player_repo = PlayerRepository(db_manager)
 
                 update_data = {
-                    'last_room_id': room_id,
                     'last_room_x': x,
                     'last_room_y': y
                 }
@@ -755,17 +754,7 @@ class PlayerMovementManager:
 
                 logger.debug(f"플레이어 {session.player.username} 좌표 업데이트: ({x}, {y})")
             else:
-                # 좌표를 추출할 수 없는 경우 room_id만 업데이트
-                from ...game.repositories import PlayerRepository
-                from ...database import get_database_manager
-
-                db_manager = await get_database_manager()
-                player_repo = PlayerRepository(db_manager)
-
-                update_data = {'last_room_id': room_id}
-                await player_repo.update(session.player.id, update_data)
-
-                logger.debug(f"플레이어 {session.player.username} room_id만 업데이트: {room_id}")
+                logger.debug(f"플레이어 {session.player.username} 좌표 추출 실패: {room_id}")
 
         except Exception as e:
             logger.error(f"플레이어 좌표 업데이트 실패: {e}")

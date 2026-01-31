@@ -107,12 +107,12 @@ class MapExporter:
         return factions_by_room
 
     async def get_players_by_room(self) -> Dict[str, int]:
-        """방별 플레이어 수 가져오기"""
+        """방별 플레이어 수 가져오기 (좌표 기반)"""
         cursor = await self.db_manager.execute("""
-            SELECT last_room_id, COUNT(*) as count
-            FROM players
-            WHERE last_room_id IS NOT NULL
-            GROUP BY last_room_id
+            SELECT r.id, COUNT(*) as count
+            FROM players p
+            INNER JOIN rooms r ON (p.last_room_x = r.x AND p.last_room_y = r.y)
+            GROUP BY r.id
         """)
         result = await cursor.fetchall()
         return {row[0]: row[1] for row in result}
@@ -140,11 +140,10 @@ class MapExporter:
         return [tuple(row) for row in factions_result], [tuple(row) for row in relations_result]
 
     async def get_all_players(self) -> List[Tuple[Any, ...]]:
-        """모든 플레이어 정보 가져오기 (좌표 및 마지막 로그인 포함)"""
+        """모든 플레이어 정보 가져오기 (좌표 기반)"""
         cursor = await self.db_manager.execute("""
-            SELECT p.username, p.last_room_id, r.x, r.y, p.is_admin, p.created_at, p.last_login
+            SELECT p.username, p.last_room_x, p.last_room_y, p.is_admin, p.created_at, p.last_login
             FROM players p
-            LEFT JOIN rooms r ON p.last_room_id = r.id
             ORDER BY p.username
         """)
         result = await cursor.fetchall()
@@ -210,11 +209,11 @@ class MapExporter:
                     'faction': faction_id or 'unknown'
                 })
 
-        # 플레이어 정보
+        # 플레이어 정보 (좌표 기반)
         cursor = await self.db_manager.execute("""
-            SELECT p.last_room_id, p.username, p.is_admin
+            SELECT r.id, p.username, p.is_admin
             FROM players p
-            WHERE p.last_room_id IS NOT NULL
+            INNER JOIN rooms r ON (p.last_room_x = r.x AND p.last_room_y = r.y)
             ORDER BY p.username
         """)
         players = await cursor.fetchall()
@@ -847,18 +846,13 @@ class MapExporter:
 
         # 플레이어 목록 테이블 생성
         player_rows = ""
-        for username, last_room_id, x, y, is_admin, created_at, last_login in all_players:
+        for username, x, y, is_admin, created_at, last_login in all_players:
             # 관리자 여부 표시
             admin_badge = "🛡️ 관리자" if is_admin else "👤 일반"
             admin_color = "#ffd700" if is_admin else "#90ee90"
 
-            # 현재 위치 표시 (좌표 우선, 없으면 방 ID)
-            if x is not None and y is not None:
-                location = f"({x}, {y})"
-            elif last_room_id:
-                location = last_room_id
-            else:
-                location = "알 수 없음"
+            # 현재 위치 표시 (좌표 기반)
+            location = f"({x}, {y})"
 
             # 가입일 포맷팅
             if created_at:
@@ -1473,18 +1467,13 @@ class MapExporter:
 
         # 플레이어 목록 테이블 생성
         player_rows = ""
-        for username, last_room_id, x, y, is_admin, created_at, last_login in all_players:
+        for username, x, y, is_admin, created_at, last_login in all_players:
             # 관리자 여부 표시
             admin_badge = "🛡️ 관리자" if is_admin else "👤 일반"
             admin_color = "#ffd700" if is_admin else "#90ee90"
 
-            # 현재 위치 표시 (좌표 우선, 없으면 방 ID)
-            if x is not None and y is not None:
-                location = f"({x}, {y})"
-            elif last_room_id:
-                location = last_room_id
-            else:
-                location = "알 수 없음"
+            # 현재 위치 표시 (좌표 기반)
+            location = f"({x}, {y})"
 
             # 가입일 포맷팅
             if created_at:

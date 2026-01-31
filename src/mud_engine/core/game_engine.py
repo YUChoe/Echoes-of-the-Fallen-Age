@@ -240,26 +240,20 @@ class GameEngine:
         session.game_engine = self
         session.locale = player.preferred_locale
 
-        # 플레이어를 마지막 위치 또는 기본 방으로 이동
-        target_room_id = player.last_room_id if player.last_room_id else "town_square"
+        # 플레이어를 마지막 위치(좌표 기반) 또는 기본 방으로 이동
+        target_room = await self.world_manager.get_room_at_coordinates(
+            player.last_room_x, player.last_room_y
+        )
+        if not target_room:
+            logger.warning(f"저장된 좌표 ({player.last_room_x}, {player.last_room_y})에 방이 없음. 기본 방으로 이동")
+            target_room = await self.world_manager.get_room_at_coordinates(0, 0)
 
-        # 방이 존재하는지 확인
-        room = await self.world_manager.get_room(target_room_id)
-        if not room:
-            logger.warning(f"저장된 방 {target_room_id}이 존재하지 않음. 기본 방으로 이동")
-            target_room_id = "town_square"
+        target_room_id = target_room.id if target_room else "town_square"
 
         await self.movement_manager.move_player_to_room(session, target_room_id)
 
         # 방 정보를 가져와서 좌표로 로그 표시
-        try:
-            room = await self.world_manager.get_room(target_room_id)
-            if room and hasattr(room, 'x') and hasattr(room, 'y'):
-                logger.info(f"플레이어 {player.username} 로그인: 위치 ({room.x}, {room.y})로 복원")
-            else:
-                logger.info(f"플레이어 {player.username} 로그인: 위치 {target_room_id}로 복원")
-        except Exception:
-            logger.info(f"플레이어 {player.username} 로그인: 위치 {target_room_id}로 복원")
+        logger.info(f"플레이어 {player.username} 로그인: 위치 ({player.last_room_x}, {player.last_room_y})로 복원")
 
         # 플레이어 연결 이벤트 발행
         await self.event_bus.publish(Event(
@@ -300,21 +294,19 @@ class GameEngine:
         await self.movement_manager.handle_player_disconnect_cleanup(session)
 
         if session.player:
-            # 현재 위치 저장
+            # 현재 위치 저장 (좌표 기반)
             current_room_id = getattr(session, 'current_room_id', None)
             if current_room_id:
                 try:
-                    session.player.last_room_id = current_room_id
-                    await self.player_manager.save_player(session.player)
-
                     # 방 좌표 가져오기
-                    try:
-                        room = await self.world_manager.get_room(current_room_id)
-                        coord = f"({room.x}, {room.y})" if room else "알 수 없음"
-                    except Exception:
-                        coord = "알 수 없음"
-
-                    logger.info(f"플레이어 {session.player.username} 로그아웃: 위치 {coord} 저장")
+                    room = await self.world_manager.get_room(current_room_id)
+                    if room:
+                        session.player.last_room_x = room.x
+                        session.player.last_room_y = room.y
+                        await self.player_manager.save_player(session.player)
+                        logger.info(f"플레이어 {session.player.username} 로그아웃: 위치 ({room.x}, {room.y}) 저장")
+                    else:
+                        logger.warning(f"플레이어 {session.player.username} 로그아웃: 방 정보를 찾을 수 없음")
                 except Exception as e:
                     logger.error(f"플레이어 위치 저장 실패: {e}")
             # 플레이어 로그아웃 이벤트 발행

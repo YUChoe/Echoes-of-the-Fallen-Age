@@ -29,13 +29,8 @@ DATABASE_SCHEMA: List[str] = [
         stat_constitution INTEGER DEFAULT 10,
         stat_charisma INTEGER DEFAULT 10,
         stat_level INTEGER DEFAULT 1,
-        stat_experience INTEGER DEFAULT 0,
-        stat_experience_to_next INTEGER DEFAULT 100,
         stat_equipment_bonuses TEXT DEFAULT '{}',
         stat_temporary_effects TEXT DEFAULT '{}',
-
-        -- 경제 시스템
-        gold INTEGER DEFAULT 100,
 
         -- 퀘스트 시스템
         completed_quests TEXT DEFAULT '[]', -- JSON 형태로 저장 (완료된 퀘스트 ID 목록)
@@ -180,11 +175,8 @@ async def migrate_database(db_manager) -> None:
             ('stat_constitution', 'INTEGER DEFAULT 10'),
             ('stat_charisma', 'INTEGER DEFAULT 10'),
             ('stat_level', 'INTEGER DEFAULT 1'),
-            ('stat_experience', 'INTEGER DEFAULT 0'),
-            ('stat_experience_to_next', 'INTEGER DEFAULT 100'),
             ('stat_equipment_bonuses', "TEXT DEFAULT '{}'"),
             ('stat_temporary_effects', "TEXT DEFAULT '{}'"),
-            ('gold', 'INTEGER DEFAULT 100')  # 경제 시스템
         ]
 
         for column_name, column_def in stat_columns:

@@ -23,21 +23,17 @@ class Player(BaseModel):
     is_admin: bool = False
     created_at: datetime = field(default_factory=datetime.now)
     last_login: Optional[datetime] = None
-    last_room_id: str = "town_square"  # 마지막 위치
 
     # 사용자 이름 시스템
     display_name: Optional[str] = None  # 게임 내 표시 이름
     last_name_change: Optional[datetime] = None  # 마지막 이름 변경 시간
 
-    # 마지막 위치 (좌표)
+    # 마지막 위치 (좌표 기반)
     last_room_x: int = 0  # 마지막 위치 X 좌표
     last_room_y: int = 0  # 마지막 위치 Y 좌표
 
     # 능력치 시스템
     stats: PlayerStats = field(default_factory=PlayerStats)
-
-    # 경제 시스템
-    gold: int = 100  # 기본 골드 100
 
     # 세력 시스템
     faction_id: Optional[str] = "ash_knights"  # 기본 세력: 잿빛 기사단
@@ -188,25 +184,6 @@ class Player(BaseModel):
             "is_overloaded": current_weight > max_weight,
         }
 
-    def has_gold(self, amount: int) -> bool:
-        """충분한 골드를 가지고 있는지 확인"""
-        return self.gold >= amount
-
-    def spend_gold(self, amount: int) -> bool:
-        """골드 소모 (충분하지 않으면 False 반환)"""
-        if self.has_gold(amount):
-            self.gold -= amount
-            return True
-        return False
-
-    def earn_gold(self, amount: int) -> None:
-        """골드 획득"""
-        self.gold += amount
-
-    def get_gold_display(self) -> str:
-        """골드를 표시용 문자열로 반환"""
-        return f"{self.gold:,} gold"
-
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Player":
         """딕셔너리에서 모델 생성"""
@@ -231,7 +208,7 @@ class Player(BaseModel):
             data["stats"] = PlayerStats()  # 기본값
 
         # 날짜 필드 처리
-        for date_field in ["created_at", "last_login"]:
+        for date_field in ["created_at", "last_login", "last_name_change"]:
             if date_field in data and isinstance(data[date_field], str):
                 try:
                     data[date_field] = datetime.fromisoformat(
@@ -242,5 +219,10 @@ class Player(BaseModel):
                         data[date_field] = datetime.now()
                     else:
                         data[date_field] = None
+
+        # 더 이상 사용하지 않는 필드 제거 (하위 호환성)
+        deprecated_fields = ["gold", "last_room_id", "stat_experience", "stat_experience_to_next"]
+        for field in deprecated_fields:
+            data.pop(field, None)
 
         return cls(**data)
