@@ -502,8 +502,7 @@ class CombatManager:
             "monster": monster,  # Monster 객체 전체 저장 (다국어 이름 조회용)
             "armor_class": monster.stats.armor_class,
             "attack_bonus": monster.stats.attack_bonus,
-            "initiative_bonus": monster.stats.initiative_bonus,  # 불필요
-            "gold_reward": monster.gold_reward,  # 불필요
+            "initiative_bonus": monster.stats.initiative_bonus,
             "level": monster.stats.level,
         }
         logger.info(

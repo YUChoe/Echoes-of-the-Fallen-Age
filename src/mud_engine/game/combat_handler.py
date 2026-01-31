@@ -571,21 +571,14 @@ class CombatHandler:
                 ]
                 defeated_monsters = [m for m in all_monsters if not m.is_alive()]
 
-                # 각 몬스터로부터 보상 수집
+                # 각 몬스터로부터 보상 수집 (현재 보상 시스템 비활성화)
                 for monster_combatant in defeated_monsters:
-                    # monster_combatant.data에 Monster 객체의 보상 정보가 저장되어 있음
-                    monster_data = monster_combatant.data
-                    if monster_data:
-                        gold_reward = monster_data.get("gold_reward", 10)
-                        rewards["gold"] += gold_reward
-                        logger.debug(
-                            f"몬스터 {monster_combatant.name} 보상: 골드 {gold_reward}"
-                        )
-                    else:
-                        # 데이터가 없으면 기본 보상
-                        rewards["gold"] += 10
+                    # 보상 시스템 재개발 예정 - 현재는 드롭 아이템만 처리
+                    logger.debug(
+                        f"몬스터 {monster_combatant.name} 처치됨"
+                    )
 
-                logger.info(f"전투 보상: 골드 {rewards['gold']}")
+                logger.info(f"전투 종료 - 몬스터 {len(defeated_monsters)}마리 처치")
         else:
             logger.info(f"전투 {combat.id} 종료 - 무승부")
 

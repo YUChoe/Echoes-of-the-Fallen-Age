@@ -83,8 +83,6 @@ DATABASE_SCHEMA: List[str] = [
         monster_type TEXT DEFAULT 'passive', -- 'aggressive', 'passive', 'neutral'
         behavior TEXT DEFAULT 'stationary', -- 'stationary', 'roaming', 'territorial'
         stats TEXT DEFAULT '{}', -- JSON 형태로 저장 (MonsterStats)
-        experience_reward INTEGER DEFAULT 50,
-        gold_reward INTEGER DEFAULT 10,
         drop_items TEXT DEFAULT '[]', -- JSON 형태로 저장 (DropItem 목록)
         x INTEGER, -- X 좌표
         y INTEGER, -- Y 좌표
@@ -225,8 +223,6 @@ async def migrate_database(db_manager) -> None:
                 monster_type TEXT DEFAULT 'passive',
                 behavior TEXT DEFAULT 'stationary',
                 stats TEXT DEFAULT '{}',
-                experience_reward INTEGER DEFAULT 50,
-                gold_reward INTEGER DEFAULT 10,
                 drop_items TEXT DEFAULT '[]',
                 x INTEGER,
                 y INTEGER,

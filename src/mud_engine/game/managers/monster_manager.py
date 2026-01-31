@@ -379,7 +379,6 @@ class MonsterManager:
                 monster_type=monster_data.get('monster_type', MonsterType.PASSIVE),
                 behavior=monster_data.get('behavior', MonsterBehavior.STATIONARY),
                 stats=monster_data.get('stats', MonsterStats()),
-                gold_reward=monster_data.get('gold_reward', 10),
                 drop_items=monster_data.get('drop_items', []),
                 x=monster_data.get('x'),
                 y=monster_data.get('y'),

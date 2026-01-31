@@ -107,8 +107,6 @@ CREATE TABLE monsters (
     monster_type TEXT DEFAULT 'passive',     -- 몬스터 타입 (aggressive, passive, neutral)
     behavior TEXT DEFAULT 'stationary',      -- 행동 패턴 (stationary, roaming, territorial)
     stats TEXT DEFAULT '{}',          -- 능력치 (JSON: D&D 기반)
-    experience_reward INTEGER DEFAULT 50,    -- 경험치 보상
-    gold_reward INTEGER DEFAULT 10,   -- 골드 보상
     drop_items TEXT DEFAULT '[]',     -- 드롭 아이템 (JSON)
     respawn_time INTEGER DEFAULT 300, -- 리스폰 시간 (초)
     last_death_time TIMESTAMP,        -- 마지막 사망 시간

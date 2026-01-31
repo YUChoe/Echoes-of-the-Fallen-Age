@@ -132,7 +132,6 @@ class TemplateLoader:
                 monster_type=monster_type,
                 behavior=behavior,
                 stats=stats,
-                gold_reward=template.get('gold_reward', 0),
                 drop_items=template.get('drop_items', []),
                 x=None,  # 좌표는 나중에 설정
                 y=None,  # 좌표는 나중에 설정
