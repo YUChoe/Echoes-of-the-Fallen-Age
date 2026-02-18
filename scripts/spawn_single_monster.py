@@ -66,10 +66,6 @@ def create_monster_from_template(template_id: str, x: int, y: int) -> Optional[M
             stats_data = template['stats']
             monster_data['stats'] = MonsterStats(**stats_data)
 
-        # 보상
-        if 'gold_reward' in template:
-            monster_data['gold_reward'] = template['gold_reward']
-
         # 드롭 아이템
         if 'drop_items' in template:
             drop_items = []

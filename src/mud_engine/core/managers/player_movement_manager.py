@@ -168,17 +168,7 @@ class PlayerMovementManager:
                             'entity': monster
                         }
                         entity_index += 1
-
-                # NPC 번호 매핑 (1-9번 범위 내)
-                for npc in room_info.get('npcs', []):
-                    if entity_index <= 9:  # 최대 9번까지
-                        entity_map[entity_index] = {
-                            'type': 'npc',
-                            'id': npc.id,
-                            'name': npc.get_localized_name(locale),
-                            'entity': npc
-                        }
-                        entity_index += 1
+                # TODO: 우후도 계산은 어떻게?
 
                 # 아이템 번호 매핑 (11번부터 시작)
                 item_index = 11
@@ -211,7 +201,7 @@ class PlayerMovementManager:
                 session.room_entity_map = entity_map
 
                 # 디버깅: entity_map 로깅
-                logger.info(f"entity_map created: {entity_map}")
+                logger.debug(f"entity_map created: {entity_map}")
                 for num, info in entity_map.items():
                     logger.info(f"entity_map {num}: {info['type']} - {info['name']} (ID: {info['id']})")
 
@@ -243,16 +233,16 @@ class PlayerMovementManager:
                             "is_neutral": monster.is_neutral()
                         }
                         for monster in room_info.get('monsters', [])
-                    ],
-                    "npcs": [
-                        {
-                            "id": npc.id,
-                            "name": npc.get_localized_name(locale),
-                            "description": npc.get_localized_description(locale),
-                            "npc_type": npc.npc_type,
-                            "is_merchant": npc.is_merchant()
-                        }
-                        for npc in room_info.get('npcs', [])
+                    # ],
+                    # "npcs": [
+                    #     {
+                    #         "id": npc.id,
+                    #         "name": npc.get_localized_name(locale),
+                    #         "description": npc.get_localized_description(locale),
+                    #         "npc_type": npc.npc_type,
+                    #         "is_merchant": npc.is_merchant()
+                    #     }
+                    #     for npc in room_info.get('npcs', [])
                     ]
                 }
 
@@ -263,7 +253,7 @@ class PlayerMovementManager:
                 })
 
                 # UI 업데이트 정보 전송
-                await self.game_engine.ui_manager.send_ui_update(session, room_info)
+                # await self.game_engine.ui_manager.send_ui_update(session, room_info)
 
                 logger.debug(f"방 정보 전송 완료: {session.player.username} -> 방 {room_id}")
 
@@ -380,21 +370,20 @@ class PlayerMovementManager:
 
         try:
             disconnected_player = session.player.username
+            player_id = session.player.id
 
-            # 전투 중이었다면 전투 종료 처리
+            # 전투 중이었다면 연결 해제 상태로 표시 (전투 유지)
             if getattr(session, 'in_combat', False):
                 combat_id = getattr(session, 'combat_id', None)
                 if combat_id:
-                    combat = self.game_engine.combat_manager.get_combat(combat_id)
-                    if combat and combat.is_active:
-                        # 전투 인스턴스 종료
-                        self.game_engine.combat_manager.end_combat(combat_id)
-                        logger.info(f"플레이어 {disconnected_player} 연결 해제로 전투 {combat_id} 종료")
+                    # 전투 인스턴스 종료 대신 연결 해제 상태로 표시
+                    self.game_engine.combat_manager.mark_player_disconnected(player_id)
+                    logger.info(f"플레이어 {disconnected_player} 연결 해제 - 전투 {combat_id} 유지 (2분 타임아웃)")
 
-                # 전투 상태 초기화
-                session.in_combat = False
-                session.combat_id = None
-                session.original_room_id = None
+                # 세션 전투 상태는 유지 (재접속 시 복구용)
+                # session.in_combat = False  # 주석 처리 - 유지
+                # session.combat_id = None   # 주석 처리 - 유지
+                # session.original_room_id = None  # 주석 처리 - 유지
 
             # 이 플레이어를 따라가던 다른 플레이어들의 따라가기 해제
             for other_session in self.game_engine.session_manager.get_authenticated_sessions():
@@ -757,7 +746,6 @@ class PlayerMovementManager:
                 player_repo = PlayerRepository(db_manager)
 
                 update_data = {
-                    'last_room_id': room_id,
                     'last_room_x': x,
                     'last_room_y': y
                 }
@@ -765,17 +753,7 @@ class PlayerMovementManager:
 
                 logger.debug(f"플레이어 {session.player.username} 좌표 업데이트: ({x}, {y})")
             else:
-                # 좌표를 추출할 수 없는 경우 room_id만 업데이트
-                from ...game.repositories import PlayerRepository
-                from ...database import get_database_manager
-
-                db_manager = await get_database_manager()
-                player_repo = PlayerRepository(db_manager)
-
-                update_data = {'last_room_id': room_id}
-                await player_repo.update(session.player.id, update_data)
-
-                logger.debug(f"플레이어 {session.player.username} room_id만 업데이트: {room_id}")
+                logger.debug(f"플레이어 {session.player.username} 좌표 추출 실패: {room_id}")
 
         except Exception as e:
             logger.error(f"플레이어 좌표 업데이트 실패: {e}")

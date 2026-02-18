@@ -11,8 +11,11 @@ import json
 from typing import Optional, Dict, Any
 
 class TelnetClient:
+    connections: Dict[str, telnetlib.Telnet]
+    session_counter: int
+
     def __init__(self):
-        self.connections: Dict[str, telnetlib.Telnet] = {}
+        self.connections = {}
         self.session_counter = 0
 
     def connect(self, host: str, port: int, timeout: int = 5) -> Dict[str, Any]:

@@ -1,0 +1,218 @@
+{
+    "cmd.attack.desc": {
+        "en": "Attack a monster",
+        "ko": "몬스터를 공격합니다"
+    },
+    "cmd.buy.desc": {
+        "en": "Buy items from merchants",
+        "ko": "상인에게서 아이템을 구매합니다"
+    },
+    "cmd.changename.desc": {
+        "en": "Change your display name (once per day)",
+        "ko": "게임 내 표시 이름을 변경합니다 (하루에 한 번만 가능)"
+    },
+    "cmd.combat.desc": {
+        "en": "Check current combat status",
+        "ko": "현재 전투 상태를 확인합니다"
+    },
+    "cmd.drop.desc": {
+        "en": "Drop an item from inventory to current room",
+        "ko": "인벤토리의 객체를 현재 방에 놓습니다"
+    },
+    "cmd.east.desc": {
+        "en": "Move east",
+        "ko": "east 방향으로 이동합니다"
+    },
+    "cmd.equip.desc": {
+        "en": "Equip an item from inventory",
+        "ko": "인벤토리의 장비를 착용합니다"
+    },
+    "cmd.exits.desc": {
+        "en": "Check available exits from current room",
+        "ko": "현재 방의 출구를 확인합니다"
+    },
+    "cmd.follow.desc": {
+        "en": "Follow another player",
+        "ko": "다른 플레이어를 따라갑니다"
+    },
+    "cmd.get.desc": {
+        "en": "Pick up an object from the room",
+        "ko": "방에 있는 객체를 인벤토리에 추가합니다"
+    },
+    "cmd.give.desc": {
+        "en": "Give an item to another player",
+        "ko": "다른 플레이어에게 아이템을 줍니다"
+    },
+    "cmd.go.desc": {
+        "en": "Move in a specified direction",
+        "ko": "지정한 방향으로 이동합니다"
+    },
+    "cmd.help.desc": {
+        "en": "Show command help",
+        "ko": "명령어 도움말을 표시합니다"
+    },
+    "cmd.inspect.desc": {
+        "en": "Examine monsters or NPCs in detail",
+        "ko": "몬스터나 NPC의 상세 정보를 확인합니다"
+    },
+    "cmd.inventory.desc": {
+        "en": "Show your current inventory",
+        "ko": "현재 소지하고 있는 객체들을 표시합니다"
+    },
+    "cmd.language.desc": {
+        "en": "Change language settings",
+        "ko": "언어 설정을 변경합니다"
+    },
+    "cmd.look.desc": {
+        "en": "Look around or examine a specific target",
+        "ko": "주변을 둘러보거나 특정 대상을 자세히 살펴봅니다"
+    },
+    "cmd.north.desc": {
+        "en": "Move north",
+        "ko": "north 방향으로 이동합니다"
+    },
+    "cmd.players.desc": {
+        "en": "Show players in current room",
+        "ko": "현재 방에 있는 플레이어들을 표시합니다"
+    },
+    "cmd.quit.desc": {
+        "en": "Exit the game",
+        "ko": "게임을 종료합니다"
+    },
+    "cmd.say.desc": {
+        "en": "Send a message to all players in the same room",
+        "ko": "같은 방에 있는 모든 플레이어에게 메시지를 전달합니다"
+    },
+    "cmd.sell.desc": {
+        "en": "Sell items to merchants",
+        "ko": "상인에게 아이템을 판매합니다"
+    },
+    "cmd.shop.desc": {
+        "en": "View merchant's inventory",
+        "ko": "상점의 상품 목록을 봅니다"
+    },
+    "cmd.south.desc": {
+        "en": "Move south",
+        "ko": "south 방향으로 이동합니다"
+    },
+    "cmd.stats.desc": {
+        "en": "Check your character stats and status",
+        "ko": "플레이어의 능력치와 상태를 확인합니다"
+    },
+    "cmd.talk.desc": {
+        "en": "Talk to NPCs",
+        "ko": "NPC와 대화합니다"
+    },
+    "cmd.tell.desc": {
+        "en": "Send a private message to a specific player",
+        "ko": "특정 플레이어에게 개인 메시지를 전달합니다"
+    },
+    "cmd.unequip.desc": {
+        "en": "Unequip currently equipped items",
+        "ko": "착용 중인 장비를 해제합니다"
+    },
+    "cmd.use.desc": {
+        "en": "Use consumable items or activate objects",
+        "ko": "소모품이나 사용 가능한 아이템을 사용합니다"
+    },
+    "cmd.west.desc": {
+        "en": "Move west",
+        "ko": "west 방향으로 이동합니다"
+    },
+    "cmd.whisper.desc": {
+        "en": "Whisper to another player",
+        "ko": "다른 플레이어에게 귓속말을 합니다"
+    },
+    "cmd.who.desc": {
+        "en": "Show list of currently connected players",
+        "ko": "현재 접속 중인 플레이어 목록을 표시합니다"
+    },
+    "cmd.admin.desc": {
+        "en": "Show administrator command list",
+        "ko": "관리자 명령어 목록을 표시합니다"
+    },
+    "cmd.adminchangename.desc": {
+        "en": "Change another player's name (admin only)",
+        "ko": "다른 플레이어의 이름을 변경합니다 (관리자 전용)"
+    },
+    "cmd.createexit.desc": {
+        "en": "Create exits between rooms",
+        "ko": "방 사이에 출구를 생성합니다"
+    },
+    "cmd.createobject.desc": {
+        "en": "Create new game objects",
+        "ko": "새로운 게임 객체를 생성합니다"
+    },
+    "cmd.createroom.desc": {
+        "en": "Create new rooms",
+        "ko": "새로운 방을 생성합니다"
+    },
+    "cmd.editroom.desc": {
+        "en": "Edit existing rooms",
+        "ko": "기존 방을 편집합니다"
+    },
+    "cmd.goto.desc": {
+        "en": "Teleport to specified coordinates",
+        "ko": "지정한 좌표로 바로 이동합니다"
+    },
+    "cmd.info.desc": {
+        "en": "Show detailed room information",
+        "ko": "현재 방의 상세 정보를 표시합니다"
+    },
+    "cmd.scheduler.desc": {
+        "en": "Manage global scheduler (list/info/enable/disable)",
+        "ko": "글로벌 스케줄러 관리 (list/info/enable/disable)"
+    },
+    "admin.changename.usage": {
+        "en": "Usage: adminchangename <player_id> <new_name>",
+        "ko": "사용법: adminchangename <플레이어아이디> <새이름>"
+    },
+    "admin.changename.insufficient_args": {
+        "en": "❌ Insufficient arguments",
+        "ko": "❌ 인자 부족"
+    },
+    "admin.changename.success": {
+        "en": "✅ Successfully changed {old_name}'s name to '{new_name}'",
+        "ko": "✅ {old_name}님의 이름을 '{new_name}'(으)로 변경했습니다"
+    },
+    "admin.changename.player_not_found": {
+        "en": "❌ Player '{player_id}' not found",
+        "ko": "❌ 플레이어 '{player_id}'을(를) 찾을 수 없습니다"
+    },
+    "admin.changename.error": {
+        "en": "❌ An error occurred while changing the name.",
+        "ko": "❌ 이름 변경 중 오류가 발생했습니다."
+    },
+    "admin.changename.failed": {
+        "en": "❌ Name change failed: {error}",
+        "ko": "❌ 이름 변경 실패: {error}"
+    },
+    "who.connected_players": {
+        "en": "📋 Connected players ({count}):",
+        "ko": "📋 접속 중인 플레이어 ({count}명):"
+    },
+    "who.no_players": {
+        "en": "No players currently connected.",
+        "ko": "현재 접속 중인 플레이어가 없습니다."
+    },
+    "who.player_entry": {
+        "en": "• {username}{marker} (online: {time}s)",
+        "ko": "• {username}{marker} (접속시간: {time}초)"
+    },
+    "who.you_marker": {
+        "en": " (you)",
+        "ko": " (당신)"
+    },
+    "say.success": {
+        "en": "💬 You say: \"{message}\"",
+        "ko": "💬 당신이 말했습니다: \"{message}\""
+    },
+    "say.broadcast": {
+        "en": "💬 {username} says: \"{message}\"",
+        "ko": "💬 {username}님이 말합니다: \"{message}\""
+    },
+    "say.usage_error": {
+        "en": "Please enter a message to say.\nUsage: say <message>",
+        "ko": "말할 내용을 입력해주세요.\n사용법: say <메시지>"
+    }
+}

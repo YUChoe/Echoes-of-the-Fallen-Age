@@ -6,7 +6,7 @@ from typing import Dict, Optional, Any, TYPE_CHECKING
 from datetime import datetime
 
 from .event_bus import EventBus, Event, EventType, get_event_bus
-from .managers import CommandManager, EventHandler, PlayerMovementManager, UIManager, AdminManager
+from .managers import CommandManager, EventHandler, PlayerMovementManager, AdminManager
 from .managers.time_manager import TimeManager
 from .managers.scheduler_manager import SchedulerManager
 from .types import SessionType
@@ -60,8 +60,8 @@ class GameEngine:
         # CombatManager 및 CombatHandler 초기화
         from ..game.combat import CombatManager
         from ..game.combat_handler import CombatHandler
-        self.combat_manager = CombatManager()
-        self.combat_handler = CombatHandler(self.combat_manager, self.world_manager)
+        self.combat_manager = CombatManager(self.session_manager)
+        self.combat_handler = CombatHandler(self.combat_manager, self.world_manager, self, self.session_manager)
 
         self._running = False
         self._start_time: Optional[datetime] = None
@@ -71,7 +71,6 @@ class GameEngine:
             self.command_manager = CommandManager(self)
             self.event_handler = EventHandler(self)
             self.movement_manager = PlayerMovementManager(self)
-            self.ui_manager = UIManager(self)
             self.admin_manager = AdminManager(self)
             self.time_manager = TimeManager(self)
             self.scheduler_manager = SchedulerManager(self)
@@ -142,6 +141,14 @@ class GameEngine:
 
         # 글로벌 스케줄러 시작
         try:
+            # 전투 tick 이벤트 등록 (15초마다 실행)
+            from .managers.scheduler_manager import ScheduleInterval
+            self.scheduler_manager.register_event(
+                "combat_tick",
+                self._process_combat_tick,
+                [ScheduleInterval.SECOND_00, ScheduleInterval.SECOND_15,
+                 ScheduleInterval.SECOND_30, ScheduleInterval.SECOND_45]
+            )
             await self.scheduler_manager.start()
             logger.info("글로벌 스케줄러 시작 완료")
         except Exception as e:
@@ -241,26 +248,20 @@ class GameEngine:
         session.game_engine = self
         session.locale = player.preferred_locale
 
-        # 플레이어를 마지막 위치 또는 기본 방으로 이동
-        target_room_id = player.last_room_id if player.last_room_id else "town_square"
+        # 플레이어를 마지막 위치(좌표 기반) 또는 기본 방으로 이동
+        target_room = await self.world_manager.get_room_at_coordinates(
+            player.last_room_x, player.last_room_y
+        )
+        if not target_room:
+            logger.warning(f"저장된 좌표 ({player.last_room_x}, {player.last_room_y})에 방이 없음. 기본 방으로 이동")
+            target_room = await self.world_manager.get_room_at_coordinates(0, 0)
 
-        # 방이 존재하는지 확인
-        room = await self.world_manager.get_room(target_room_id)
-        if not room:
-            logger.warning(f"저장된 방 {target_room_id}이 존재하지 않음. 기본 방으로 이동")
-            target_room_id = "town_square"
+        target_room_id = target_room.id if target_room else "town_square"
 
         await self.movement_manager.move_player_to_room(session, target_room_id)
 
         # 방 정보를 가져와서 좌표로 로그 표시
-        try:
-            room = await self.world_manager.get_room(target_room_id)
-            if room and hasattr(room, 'x') and hasattr(room, 'y'):
-                logger.info(f"플레이어 {player.username} 로그인: 위치 ({room.x}, {room.y})로 복원")
-            else:
-                logger.info(f"플레이어 {player.username} 로그인: 위치 {target_room_id}로 복원")
-        except Exception:
-            logger.info(f"플레이어 {player.username} 로그인: 위치 {target_room_id}로 복원")
+        logger.info(f"플레이어 {player.username} 로그인: 위치 ({player.last_room_x}, {player.last_room_y})로 복원")
 
         # 플레이어 연결 이벤트 발행
         await self.event_bus.publish(Event(
@@ -301,21 +302,19 @@ class GameEngine:
         await self.movement_manager.handle_player_disconnect_cleanup(session)
 
         if session.player:
-            # 현재 위치 저장
+            # 현재 위치 저장 (좌표 기반)
             current_room_id = getattr(session, 'current_room_id', None)
             if current_room_id:
                 try:
-                    session.player.last_room_id = current_room_id
-                    await self.player_manager.save_player(session.player)
-
                     # 방 좌표 가져오기
-                    try:
-                        room = await self.world_manager.get_room(current_room_id)
-                        coord = f"({room.x}, {room.y})" if room else "알 수 없음"
-                    except Exception:
-                        coord = "알 수 없음"
-
-                    logger.info(f"플레이어 {session.player.username} 로그아웃: 위치 {coord} 저장")
+                    room = await self.world_manager.get_room(current_room_id)
+                    if room:
+                        session.player.last_room_x = room.x
+                        session.player.last_room_y = room.y
+                        await self.player_manager.save_player(session.player)
+                        logger.info(f"플레이어 {session.player.username} 로그아웃: 위치 ({room.x}, {room.y}) 저장")
+                    else:
+                        logger.warning(f"플레이어 {session.player.username} 로그아웃: 방 정보를 찾을 수 없음")
                 except Exception as e:
                     logger.error(f"플레이어 위치 저장 실패: {e}")
             # 플레이어 로그아웃 이벤트 발행
@@ -482,3 +481,60 @@ class GameEngine:
             if session.player and session.player.id == player_id:
                 return session
         return None
+
+    # === 전투 시스템 관련 메서드들 ===
+
+    async def _process_combat_tick(self) -> None:
+        """
+        전투 tick 처리 (스케줄러에서 15초마다 호출)
+        연결된 플레이어가 없는 전투의 타임아웃을 관리합니다.
+        """
+        try:
+            result = await self.combat_manager.process_combat_tick()
+
+            if result["timed_out_combats"]:
+                for combat_id in result["timed_out_combats"]:
+                    logger.info(f"전투 {combat_id} 타임아웃으로 종료됨")
+
+            # 활성 전투가 있으면 로그
+            if result["active_combats"] > 0:
+                logger.debug(f"전투 tick 처리 완료: 활성 전투 {result['active_combats']}개")
+
+        except Exception as e:
+            logger.error(f"전투 tick 처리 오류: {e}", exc_info=True)
+
+    async def try_rejoin_combat(self, session: SessionType) -> bool:
+        """
+        플레이어 재접속 시 기존 전투에 복귀 시도
+
+        Args:
+            session: 재접속한 플레이어의 세션
+
+        Returns:
+            bool: 전투 복귀 성공 여부
+        """
+        if not session.player:
+            return False
+
+        player_id = session.player.id
+        combat = self.combat_manager.try_rejoin_combat(player_id, session.player)
+
+        if combat:
+            # 세션 전투 상태 복구
+            session.in_combat = True
+            session.combat_id = combat.id
+            session.current_room_id = f"combat_{combat.id}"
+            session.original_room_id = combat.room_id
+
+            # 전투 복귀 메시지 전송
+            await session.send_message({
+                "type": "combat_rejoin",
+                "message": "⚔️ 진행 중인 전투에 복귀했습니다!",
+                "combat_id": combat.id,
+                "combat_status": combat.to_dict()
+            })
+
+            logger.info(f"플레이어 {session.player.username} 전투 {combat.id}에 복귀")
+            return True
+
+        return False

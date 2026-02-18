@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2025-12-20
+**Last Updated**: 2026-01-31
 
 ## Overview
 
@@ -34,14 +34,10 @@ CREATE TABLE players (
     stat_constitution INTEGER DEFAULT 10,     -- 체력
     stat_charisma INTEGER DEFAULT 10,         -- 매력
     stat_level INTEGER DEFAULT 1,             -- 레벨
-    stat_experience INTEGER DEFAULT 0,        -- 경험치
-    stat_experience_to_next INTEGER DEFAULT 100,  -- 다음 레벨까지 필요 경험치
     stat_equipment_bonuses TEXT DEFAULT '{}', -- 장비 보너스 (JSON)
     stat_temporary_effects TEXT DEFAULT '{}', -- 임시 효과 (JSON)
 
-    -- 게임 상태
-    gold INTEGER DEFAULT 100,                 -- 골드
-    last_room_id TEXT DEFAULT "town_square",  -- 마지막 위치
+    -- 마지막 위치 (좌표 기반)
     last_room_x INTEGER DEFAULT 0,            -- 마지막 X 좌표
     last_room_y INTEGER DEFAULT 0,            -- 마지막 Y 좌표
 
@@ -111,8 +107,6 @@ CREATE TABLE monsters (
     monster_type TEXT DEFAULT 'passive',     -- 몬스터 타입 (aggressive, passive, neutral)
     behavior TEXT DEFAULT 'stationary',      -- 행동 패턴 (stationary, roaming, territorial)
     stats TEXT DEFAULT '{}',          -- 능력치 (JSON: D&D 기반)
-    experience_reward INTEGER DEFAULT 50,    -- 경험치 보상
-    gold_reward INTEGER DEFAULT 10,   -- 골드 보상
     drop_items TEXT DEFAULT '[]',     -- 드롭 아이템 (JSON)
     respawn_time INTEGER DEFAULT 300, -- 리스폰 시간 (초)
     last_death_time TIMESTAMP,        -- 마지막 사망 시간

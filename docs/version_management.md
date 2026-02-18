@@ -7,14 +7,17 @@ MUD Engine은 빌드 시점에 Git 정보를 수집하여 버전 정보를 생�
 ## 구성 요소
 
 ### 1. 버전 정보 생성 스크립트
+
 - **파일**: `scripts/generate_version_info.py`
 - **기능**: Git 저장소에서 커밋 해시, 브랜치, 태그 등의 정보를 수집하여 JSON 파일로 저장
 
 ### 2. 버전 관리자
+
 - **파일**: `src/mud_engine/utils/version_manager.py`
 - **기능**: 런타임에 버전 정보를 로드하고 관리
 
 ### 3. 버전 정보 파일
+
 - **파일**: `src/mud_engine/version_info.json`
 - **생성**: 빌드 시점에 자동 생성
 - **내용**: 커밋 해시, 브랜치, 빌드 시간 등
@@ -94,7 +97,7 @@ build_date = version_manager.get_build_date()
 ```
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║        The Karnas Chronicles                                  ║
+║        The Chronicles of Karnas                                   ║
 ║                                                               ║
 ║        Divided Dominion                                       ║
 ║        분할된 지배권, 카르나스에 오신 것을 환영합니다           ║

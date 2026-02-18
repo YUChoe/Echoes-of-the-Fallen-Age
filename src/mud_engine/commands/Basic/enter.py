@@ -1,12 +1,13 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Enter 명령어 구현"""
 
 import logging
+
 from typing import List, Optional, Dict, Any
-from .base import BaseCommand, CommandResult
-from ..core.types import SessionType
-from ..core.localization import get_localization_manager
+from ..base import BaseCommand, CommandResult, CommandResultType
+from ...core.types import SessionType
+from ...core.localization import get_localization_manager
+from ...server.telnet_session import TelnetSession
 
 
 class EnterCommand(BaseCommand):

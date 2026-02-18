@@ -6,7 +6,7 @@ import logging
 from typing import Dict, List, Optional
 
 from ..database.repository import BaseRepository
-from .models import Player, Character, Room, GameObject
+from .models import Player, Room, GameObject
 from .monster import Monster
 
 logger = logging.getLogger(__name__)
@@ -46,58 +46,6 @@ class PlayerRepository(BaseRepository[Player]):
             return await self.update(player_id, {'last_login': datetime.now().isoformat()})
         except Exception as e:
             logger.error(f"마지막 로그인 시간 업데이트 실패 ({player_id}): {e}")
-            raise
-
-
-class CharacterRepository(BaseRepository[Character]):
-    """캐릭터 리포지토리"""
-
-    def get_table_name(self) -> str:
-        return "characters"
-
-    def get_model_class(self):
-        return Character
-
-    async def get_by_player_id(self, player_id: str) -> List[Character]:
-        """플레이어 ID로 캐릭터 목록 조회"""
-        try:
-            return await self.find_by(player_id=player_id)
-        except Exception as e:
-            logger.error(f"플레이어 캐릭터 조회 실패 ({player_id}): {e}")
-            raise
-
-    async def get_by_name(self, name: str) -> Optional[Character]:
-        """캐릭터 이름으로 조회"""
-        try:
-            results = await self.find_by(name=name)
-            return results[0] if results else None
-        except Exception as e:
-            logger.error(f"캐릭터 이름으로 조회 실패 ({name}): {e}")
-            raise
-
-    async def name_exists(self, name: str) -> bool:
-        """캐릭터 이름 중복 확인"""
-        try:
-            character = await self.get_by_name(name)
-            return character is not None
-        except Exception as e:
-            logger.error(f"캐릭터 이름 중복 확인 실패 ({name}): {e}")
-            raise
-
-    async def get_characters_in_room(self, room_id: str) -> List[Character]:
-        """특정 방에 있는 캐릭터들 조회"""
-        try:
-            return await self.find_by(current_room_id=room_id)
-        except Exception as e:
-            logger.error(f"방 내 캐릭터 조회 실패 ({room_id}): {e}")
-            raise
-
-    async def move_to_room(self, character_id: str, room_id: str) -> Optional[Character]:
-        """캐릭터를 특정 방으로 이동"""
-        try:
-            return await self.update(character_id, {'current_room_id': room_id})
-        except Exception as e:
-            logger.error(f"캐릭터 이동 실패 ({character_id} -> {room_id}): {e}")
             raise
 
 
@@ -319,24 +267,11 @@ class ModelManager:
     def __init__(self, db_manager=None):
         """ModelManager 초기화"""
         self.players = PlayerRepository(db_manager)
-        self.characters = CharacterRepository(db_manager)
+        # self.characters = CharacterRepository(db_manager)
         self.rooms = RoomRepository(db_manager)
         self.game_objects = GameObjectRepository(db_manager)
 
         logger.info("ModelManager 초기화 완료")
-
-    async def validate_character_room_reference(self, character_id: str) -> bool:
-        """캐릭터의 방 참조 무결성 검증"""
-        try:
-            character = await self.characters.get_by_id(character_id)
-            if not character or not character.current_room_id:
-                return True  # 방이 설정되지 않은 경우는 유효
-
-            room = await self.rooms.get_by_id(character.current_room_id)
-            return room is not None
-        except Exception as e:
-            logger.error(f"캐릭터 방 참조 검증 실패 ({character_id}): {e}")
-            return False
 
     async def validate_object_location_reference(self, object_id: str) -> bool:
         """객체의 위치 참조 무결성 검증"""
@@ -348,52 +283,14 @@ class ModelManager:
             if obj.location_type == 'room':
                 room = await self.rooms.get_by_id(obj.location_id)
                 return room is not None
-            elif obj.location_type == 'inventory':
-                character = await self.characters.get_by_id(obj.location_id)
-                return character is not None
+            # elif obj.location_type == 'inventory':
+            #     character = await self.characters.get_by_id(obj.location_id)
+            #     return character is not None
 
             return False
         except Exception as e:
             logger.error(f"객체 위치 참조 검증 실패 ({object_id}): {e}")
             return False
-
-    async def cleanup_orphaned_references(self) -> Dict[str, int]:
-        """고아 참조 정리"""
-        cleanup_count = {
-            'characters_moved': 0,
-            'objects_moved': 0
-        }
-
-        try:
-            # 존재하지 않는 방을 참조하는 캐릭터들을 기본 방으로 이동
-            all_characters = await self.characters.get_all()
-            default_room_id = 'town_square'  # 기본 방 ID
-
-            for character in all_characters:
-                if character.current_room_id:
-                    room_exists = await self.validate_character_room_reference(character.id)
-                    if not room_exists:
-                        await self.characters.move_to_room(character.id, default_room_id)
-                        cleanup_count['characters_moved'] += 1
-                        logger.warning(f"캐릭터 {character.id}를 기본 방으로 이동")
-
-            # 존재하지 않는 위치를 참조하는 객체들을 기본 방으로 이동
-            all_objects = await self.game_objects.get_all()
-
-            for obj in all_objects:
-                if obj.location_id:
-                    location_exists = await self.validate_object_location_reference(obj.id)
-                    if not location_exists:
-                        await self.game_objects.move_object_to_room(obj.id, default_room_id)
-                        cleanup_count['objects_moved'] += 1
-                        logger.warning(f"객체 {obj.id}를 기본 방으로 이동")
-
-            logger.info(f"고아 참조 정리 완료: {cleanup_count}")
-            return cleanup_count
-
-        except Exception as e:
-            logger.error(f"고아 참조 정리 실패: {e}")
-            raise
 
 class MonsterRepository(BaseRepository):
     """몬스터 리포지토리"""

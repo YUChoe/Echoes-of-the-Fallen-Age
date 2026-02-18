@@ -29,13 +29,8 @@ DATABASE_SCHEMA: List[str] = [
         stat_constitution INTEGER DEFAULT 10,
         stat_charisma INTEGER DEFAULT 10,
         stat_level INTEGER DEFAULT 1,
-        stat_experience INTEGER DEFAULT 0,
-        stat_experience_to_next INTEGER DEFAULT 100,
         stat_equipment_bonuses TEXT DEFAULT '{}',
         stat_temporary_effects TEXT DEFAULT '{}',
-
-        -- 경제 시스템
-        gold INTEGER DEFAULT 100,
 
         -- 퀘스트 시스템
         completed_quests TEXT DEFAULT '[]', -- JSON 형태로 저장 (완료된 퀘스트 ID 목록)
@@ -88,8 +83,6 @@ DATABASE_SCHEMA: List[str] = [
         monster_type TEXT DEFAULT 'passive', -- 'aggressive', 'passive', 'neutral'
         behavior TEXT DEFAULT 'stationary', -- 'stationary', 'roaming', 'territorial'
         stats TEXT DEFAULT '{}', -- JSON 형태로 저장 (MonsterStats)
-        experience_reward INTEGER DEFAULT 50,
-        gold_reward INTEGER DEFAULT 10,
         drop_items TEXT DEFAULT '[]', -- JSON 형태로 저장 (DropItem 목록)
         x INTEGER, -- X 좌표
         y INTEGER, -- Y 좌표
@@ -180,11 +173,8 @@ async def migrate_database(db_manager) -> None:
             ('stat_constitution', 'INTEGER DEFAULT 10'),
             ('stat_charisma', 'INTEGER DEFAULT 10'),
             ('stat_level', 'INTEGER DEFAULT 1'),
-            ('stat_experience', 'INTEGER DEFAULT 0'),
-            ('stat_experience_to_next', 'INTEGER DEFAULT 100'),
             ('stat_equipment_bonuses', "TEXT DEFAULT '{}'"),
             ('stat_temporary_effects', "TEXT DEFAULT '{}'"),
-            ('gold', 'INTEGER DEFAULT 100')  # 경제 시스템
         ]
 
         for column_name, column_def in stat_columns:
@@ -233,8 +223,6 @@ async def migrate_database(db_manager) -> None:
                 monster_type TEXT DEFAULT 'passive',
                 behavior TEXT DEFAULT 'stationary',
                 stats TEXT DEFAULT '{}',
-                experience_reward INTEGER DEFAULT 50,
-                gold_reward INTEGER DEFAULT 10,
                 drop_items TEXT DEFAULT '[]',
                 x INTEGER,
                 y INTEGER,

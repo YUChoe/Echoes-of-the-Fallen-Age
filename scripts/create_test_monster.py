@@ -34,8 +34,6 @@ async def main():
                 'current_hp': 25
             },
             'behavior': 'AGGRESSIVE',
-            'experience_reward': 25,
-            'gold_reward': 5,
             'drop_items': [],
             'x': 2,
             'y': -5,
@@ -63,9 +61,9 @@ async def main():
         await db_manager.execute("""
             INSERT INTO monsters (
                 id, name_en, name_ko, description_en, description_ko,
-                monster_type, behavior, stats, experience_reward, gold_reward,
+                monster_type, behavior, stats,
                 drop_items, x, y, is_alive, faction_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             monster_data['id'],
             monster_data['name_en'],
@@ -75,8 +73,6 @@ async def main():
             'aggressive',
             monster_data['behavior'],
             json.dumps(monster_data['stats']),
-            monster_data['experience_reward'],
-            monster_data['gold_reward'],
             json.dumps(monster_data['drop_items']),
             monster_data['x'],
             monster_data['y'],

@@ -13,11 +13,13 @@ logger = logging.getLogger(__name__)
 
 class SessionManager:
     """Telnet 세션 관리자 (간소화 버전)"""
+    sessions: Dict[str, TelnetSession]
+    player_sessions: Dict[str, str]  # player_id -> session_id 매핑
 
     def __init__(self):
         """SessionManager 초기화"""
-        self.sessions: Dict[str, TelnetSession] = {}
-        self.player_sessions: Dict[str, str] = {}  # player_id -> session_id 매핑
+        self.sessions = {}
+        self.player_sessions = {}  # player_id -> session_id 매핑
         logger.info("SessionManager 초기화 완료")
 
     def add_session(self, session: TelnetSession) -> None:
@@ -80,7 +82,7 @@ class SessionManager:
                     await existing_session.close("다른 곳에서 로그인하여 연결이 종료됩니다.")
                 except Exception as e:
                     logger.warning(f"기존 세션 종료 처리 실패: {e}")
-                
+
                 # 기존 세션 정리
                 self.remove_session(existing_session_id)
 
@@ -167,21 +169,21 @@ class SessionManager:
 
     def iter_authenticated_sessions(self):
         """인증된 세션을 순회하는 이터레이터 반환
-        
+
         리스트/딕셔너리 호환성 문제를 해결하는 헬퍼 메서드
-        
+
         Yields:
             TelnetSession: 인증된 세션
         """
         for session in self.sessions.values():
             if session.is_authenticated:
                 yield session
-    
+
     def iter_all_sessions(self):
         """모든 세션을 순회하는 이터레이터 반환
-        
+
         리스트/딕셔너리 호환성 문제를 해결하는 헬퍼 메서드
-        
+
         Yields:
             TelnetSession: 세션
         """

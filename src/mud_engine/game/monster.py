@@ -169,7 +169,6 @@ class Monster(BaseModel):
     monster_type: MonsterType = MonsterType.PASSIVE
     behavior: MonsterBehavior = MonsterBehavior.STATIONARY
     stats: MonsterStats = field(default_factory=MonsterStats)
-    gold_reward: int = 10  # 처치 시 주는 골드
     drop_items: List[DropItem] = field(default_factory=list)  # 드롭 아이템 목록
     x: Optional[int] = None  # X 좌표
     y: Optional[int] = None  # Y 좌표
@@ -206,9 +205,6 @@ class Monster(BaseModel):
 
         if not isinstance(self.stats, MonsterStats):
             raise ValueError("몬스터 능력치는 MonsterStats 객체여야 합니다")
-
-        if self.gold_reward < 0:
-            raise ValueError("골드 보상은 0 이상이어야 합니다")
 
         if not isinstance(self.drop_items, list):
             raise ValueError("드롭 아이템은 리스트 형태여야 합니다")
@@ -381,6 +377,12 @@ class Monster(BaseModel):
                     drop_items_data.append(item)
             data['drop_items'] = json.dumps(drop_items_data, ensure_ascii=False)
 
+        # 더 이상 사용하지 않는 필드 제거 (DB 스키마에서 삭제됨)
+        deprecated_fields = ['experience_reward', 'gold_reward']
+        for field_name in deprecated_fields:
+            if field_name in data:
+                del data[field_name]
+
         return data
 
     @classmethod
@@ -476,7 +478,9 @@ class Monster(BaseModel):
                         converted_data[date_field] = None
 
         # 더 이상 사용하지 않는 필드 제거 (하위 호환성)
-        if 'experience_reward' in converted_data:
-            del converted_data['experience_reward']
+        deprecated_fields = ['experience_reward', 'gold_reward']
+        for field_name in deprecated_fields:
+            if field_name in converted_data:
+                del converted_data[field_name]
 
         return cls(**converted_data)

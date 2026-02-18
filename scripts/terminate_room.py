@@ -85,8 +85,8 @@ async def main():
         # 2. 방에 있는 플레이어들 이동
         print("\n2. 방에 있는 플레이어들 확인 중...")
         cursor = await db_manager.execute(
-            "SELECT id, username FROM players WHERE last_room_id = ?",
-            (target_room.id,)
+            "SELECT id, username FROM players WHERE last_room_x = ? AND last_room_y = ?",
+            (target_room.x, target_room.y)
         )
         players_in_room = await cursor.fetchall()
 
@@ -103,8 +103,8 @@ async def main():
                 safe_room_id = safe_room_data[0]
                 for player_id, username in players_in_room:
                     await db_manager.execute(
-                        "UPDATE players SET last_room_id = ?, last_room_x = 0, last_room_y = 0 WHERE id = ?",
-                        (safe_room_id, player_id)
+                        "UPDATE players SET last_room_x = 0, last_room_y = 0 WHERE id = ?",
+                        (player_id,)
                     )
                     print(f"    - {username} -> 마을 광장으로 이동")
             else:

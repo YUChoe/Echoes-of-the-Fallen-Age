@@ -152,10 +152,9 @@ class TelnetServer:
 {ANSIColors.BOLD}{ANSIColors.BRIGHT_CYAN}
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║        {ANSIColors.BRIGHT_YELLOW}The Karnas Chronicles{ANSIColors.BRIGHT_CYAN}                            ║
-║                                                               ║
-║        {ANSIColors.WHITE}Divided Dominion{ANSIColors.BRIGHT_CYAN}                                    ║
-║        {ANSIColors.WHITE}분할된 지배권, 카르나스에 오신 것을 환영합니다{ANSIColors.BRIGHT_CYAN}        ║
+║        {ANSIColors.BRIGHT_YELLOW}The Chronicles of Karnas{ANSIColors.BRIGHT_CYAN}                            ║
+║        {ANSIColors.WHITE}: Divided Dominion{ANSIColors.BRIGHT_CYAN}                                    ║
+║        {ANSIColors.WHITE}카르나스 연대기: 분할된 지배권 {ANSIColors.BRIGHT_CYAN}        ║
 ║                                                               ║
 ║        {ANSIColors.DIM}Version: {version_string}{ANSIColors.BRIGHT_CYAN}                           ║
 ║                                                               ║
@@ -326,6 +325,10 @@ Your adventure begins in a world transformed into ruins and monster lairs.
             # 게임 엔진에 세션 추가
             if self.game_engine:
                 await self.game_engine.add_player_session(session, player)
+
+                # 전투 복귀 시도
+                if await self.game_engine.try_rejoin_combat(session):
+                    logger.info(f"플레이어 {username} 전투 복귀 성공")
 
             # 다국어 환영 메시지
             from ..core.localization import get_localization_manager

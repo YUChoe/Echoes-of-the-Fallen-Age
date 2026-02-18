@@ -10,24 +10,25 @@ from enum import Enum
 
 class StatType(Enum):
     """능력치 타입 정의"""
+
     # 1차 능력치 (기본 스탯)
-    STR = "strength"      # 힘 - 물리 공격력, 소지 무게에 영향
-    DEX = "dexterity"     # 민첩 - 회피율, 명중률, 속도에 영향
+    STR = "strength"  # 근력 - 물리 공격력, 소지 무게에 영향
+    DEX = "dexterity"  # 민첩 - 회피율, 명중률, 속도에 영향
     INT = "intelligence"  # 지능 - 마법 공격력, MP에 영향
-    WIS = "wisdom"        # 지혜 - 마법 방어력, MP 회복에 영향
-    CON = "constitution"  # 체력 - HP, 스태미나에 영향
-    CHA = "charisma"      # 매력 - NPC 상호작용, 거래에 영향
+    WIS = "wisdom"  # 지혜 - 마법 방어력, MP 회복에 영향
+    CON = "constitution"  # 건강 - HP, 스태미나에 영향
+    CHA = "charisma"  # 매력 - NPC 상호작용, 거래에 영향
 
     # 2차 능력치 (파생 스탯)
-    HP = "health_points"     # 생명력
-    MP = "mana_points"       # 마나
-    STA = "stamina"          # 스태미나
-    ATK = "attack"           # 공격력
-    DEF = "defense"          # 방어력
-    SPD = "speed"            # 속도
-    RES = "resistance"       # 마법 저항력
-    LCK = "luck"             # 운
-    INF = "influence"        # 영향력 (매력 기반)
+    HP = "health_points"  # 생명력
+    MP = "mana_points"  # 마나
+    STA = "stamina"  # 스태미나
+    ATK = "attack"  # 공격력
+    DEF = "defense"  # 방어력
+    SPD = "speed"  # 속도
+    RES = "resistance"  # 마법 저항력
+    LCK = "luck"  # 운
+    INF = "influence"  # 영향력 (매력 기반)
 
 
 @dataclass
@@ -45,6 +46,9 @@ class PlayerStats:
     # 레벨 관련
     level: int = 1
 
+    # current
+    current_hp: int = 0
+
     # 장비 보너스 (착용한 장비로부터 받는 추가 능력치)
     equipment_bonuses: Dict[str, int] = field(default_factory=dict)
 
@@ -58,8 +62,14 @@ class PlayerStats:
     def validate(self) -> None:
         """능력치 데이터 유효성 검증"""
         # 1차 능력치는 1-100 범위
-        primary_stats = [self.strength, self.dexterity, self.intelligence,
-                        self.wisdom, self.constitution, self.charisma]
+        primary_stats = [
+            self.strength,
+            self.dexterity,
+            self.intelligence,
+            self.wisdom,
+            self.constitution,
+            self.charisma,
+        ]
 
         for stat in primary_stats:
             if not isinstance(stat, int) or stat < 1 or stat > 100:
@@ -68,11 +78,20 @@ class PlayerStats:
         if self.level < 1 or self.level > 100:
             raise ValueError("레벨은 1-100 범위여야 합니다")
 
+        if self.current_hp == 0:
+            self.current_hp = self._calculate_hp()  # 초기값
+
     def get_primary_stat(self, stat_type: StatType) -> int:
         """1차 능력치 조회 (장비 보너스 포함)"""
         base_value = getattr(self, stat_type.value, 0)
         equipment_bonus = self.equipment_bonuses.get(stat_type.value, 0)
         return base_value + equipment_bonus
+
+    def get_current_hp(self) -> int:
+        return self.current_hp
+
+    def set_current_hp(self, new_hp) -> None:
+        self.current_hp = min(new_hp, self._calculate_hp())
 
     def get_secondary_stat(self, stat_type: StatType) -> int:
         """2차 능력치 계산 및 조회"""
@@ -98,10 +117,10 @@ class PlayerStats:
             return 0
 
     def _calculate_hp(self) -> int:
-        """HP 계산: 기본 100 + (체력 * 5) + (레벨 * 10)"""
-        base_hp = 100
+        """HP 계산: 기본 10 + (체력 * 5) + (레벨 * 2)"""
+        base_hp = 10
         con_bonus = self.get_primary_stat(StatType.CON) * 5
-        level_bonus = self.level * 10
+        level_bonus = self.level * 2
         return base_hp + con_bonus + level_bonus
 
     def _calculate_mp(self) -> int:
@@ -124,7 +143,7 @@ class PlayerStats:
         base_atk = 10
         str_bonus = self.get_primary_stat(StatType.STR) * 2
         level_bonus = self.level
-        equipment_bonus = self.equipment_bonuses.get('ATK', 0)
+        equipment_bonus = self.equipment_bonuses.get("ATK", 0)
         return base_atk + str_bonus + level_bonus + equipment_bonus
 
     def _calculate_defense(self) -> int:
@@ -132,7 +151,7 @@ class PlayerStats:
         base_def = 2
         con_bonus = int(self.get_primary_stat(StatType.CON) * 0.3)
         level_bonus = int(self.level * 0.2)
-        equipment_bonus = self.equipment_bonuses.get('DEF', 0)
+        equipment_bonus = self.equipment_bonuses.get("DEF", 0)
         return base_def + con_bonus + level_bonus + equipment_bonus
 
     def _calculate_speed(self) -> int:
@@ -151,12 +170,14 @@ class PlayerStats:
     def _calculate_luck(self) -> int:
         """운 계산: 기본 10 + (모든 능력치 평균 / 10)"""
         base_lck = 10
-        avg_stats = (self.get_primary_stat(StatType.STR) +
-                    self.get_primary_stat(StatType.DEX) +
-                    self.get_primary_stat(StatType.INT) +
-                    self.get_primary_stat(StatType.WIS) +
-                    self.get_primary_stat(StatType.CON) +
-                    self.get_primary_stat(StatType.CHA)) / 6
+        avg_stats = (
+            self.get_primary_stat(StatType.STR)
+            + self.get_primary_stat(StatType.DEX)
+            + self.get_primary_stat(StatType.INT)
+            + self.get_primary_stat(StatType.WIS)
+            + self.get_primary_stat(StatType.CON)
+            + self.get_primary_stat(StatType.CHA)
+        ) / 6
         avg_bonus = int(avg_stats / 10)
         return base_lck + avg_bonus
 
@@ -186,12 +207,16 @@ class PlayerStats:
             if self.equipment_bonuses[stat_name] <= 0:
                 del self.equipment_bonuses[stat_name]
 
-
-
     def level_up_stat(self, stat_type: StatType, points: int = 1) -> bool:
         """능력치 레벨업 (스탯 포인트 사용)"""
-        if stat_type in [StatType.STR, StatType.DEX, StatType.INT,
-                        StatType.WIS, StatType.CON, StatType.CHA]:
+        if stat_type in [
+            StatType.STR,
+            StatType.DEX,
+            StatType.INT,
+            StatType.WIS,
+            StatType.CON,
+            StatType.CHA,
+        ]:
             current_value = getattr(self, stat_type.value)
             if current_value + points <= 100:
                 setattr(self, stat_type.value, current_value + points)
@@ -203,126 +228,78 @@ class PlayerStats:
         stats = {}
 
         # 1차 능력치
-        for stat_type in [StatType.STR, StatType.DEX, StatType.INT,
-                         StatType.WIS, StatType.CON, StatType.CHA]:
+        for stat_type in [
+            StatType.STR,
+            StatType.DEX,
+            StatType.INT,
+            StatType.WIS,
+            StatType.CON,
+            StatType.CHA,
+        ]:
             stats[stat_type.value] = self.get_primary_stat(stat_type)
 
         # 2차 능력치
-        for stat_type in [StatType.HP, StatType.MP, StatType.STA,
-                         StatType.ATK, StatType.DEF, StatType.SPD,
-                         StatType.RES, StatType.LCK, StatType.INF]:
+        for stat_type in [
+            StatType.HP,
+            StatType.MP,
+            StatType.STA,
+            StatType.ATK,
+            StatType.DEF,
+            StatType.SPD,
+            StatType.RES,
+            StatType.LCK,
+            StatType.INF,
+        ]:
             stats[stat_type.value] = self.get_secondary_stat(stat_type)
 
         # 레벨 정보
-        stats['level'] = self.level
-        stats['max_carry_weight'] = self.get_max_carry_weight()
+        stats["level"] = self.level
+        stats["max_carry_weight"] = self.get_max_carry_weight()
 
         return stats
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (데이터베이스 저장용)"""
         return {
-            'strength': self.strength,
-            'dexterity': self.dexterity,
-            'intelligence': self.intelligence,
-            'wisdom': self.wisdom,
-            'constitution': self.constitution,
-            'charisma': self.charisma,
-            'level': self.level,
-            'equipment_bonuses': json.dumps(self.equipment_bonuses, ensure_ascii=False),
-            'temporary_effects': json.dumps(self.temporary_effects, ensure_ascii=False)
+            "strength": self.strength,
+            "dexterity": self.dexterity,
+            "intelligence": self.intelligence,
+            "wisdom": self.wisdom,
+            "constitution": self.constitution,
+            "charisma": self.charisma,
+            "level": self.level,
+            "equipment_bonuses": json.dumps(self.equipment_bonuses, ensure_ascii=False),
+            "temporary_effects": json.dumps(self.temporary_effects, ensure_ascii=False),
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'PlayerStats':
+    def from_dict(cls, data: Dict[str, Any]) -> "PlayerStats":
         """딕셔너리에서 객체 생성"""
         # 하위 호환성: 경험치 필드 제거 (더 이상 사용하지 않음)
         data_copy = data.copy()
-        data_copy.pop('experience', None)
-        data_copy.pop('experience_to_next', None)
+        data_copy.pop("experience", None)
+        data_copy.pop("experience_to_next", None)
 
         # JSON 문자열 필드 파싱
-        if isinstance(data_copy.get('equipment_bonuses'), str):
+        if isinstance(data_copy.get("equipment_bonuses"), str):
             try:
-                data_copy['equipment_bonuses'] = json.loads(data_copy['equipment_bonuses'])
+                data_copy["equipment_bonuses"] = json.loads(
+                    data_copy["equipment_bonuses"]
+                )
             except (json.JSONDecodeError, TypeError):
-                data_copy['equipment_bonuses'] = {}
+                data_copy["equipment_bonuses"] = {}
 
-        if isinstance(data_copy.get('temporary_effects'), str):
+        if isinstance(data_copy.get("temporary_effects"), str):
             try:
-                data_copy['temporary_effects'] = json.loads(data_copy['temporary_effects'])
+                data_copy["temporary_effects"] = json.loads(
+                    data_copy["temporary_effects"]
+                )
             except (json.JSONDecodeError, TypeError):
-                data_copy['temporary_effects'] = {}
+                data_copy["temporary_effects"] = {}
 
         # 기본값 설정
-        for field in ['equipment_bonuses', 'temporary_effects']:
+        for field in ["equipment_bonuses", "temporary_effects"]:
             if field not in data_copy:
                 data_copy[field] = {}
 
         return cls(**data_copy)
-
-
-@dataclass
-class StatCalculator:
-    """능력치 계산 유틸리티 클래스"""
-
-    @staticmethod
-    def calculate_success_rate(base_stat: int, difficulty: int = 50,
-                             luck_modifier: int = 0) -> float:
-        """
-        행동 성공률 계산
-
-        Args:
-            base_stat: 기본 능력치
-            difficulty: 난이도 (기본 50)
-            luck_modifier: 운 보정값
-
-        Returns:
-            float: 성공률 (0.0 ~ 1.0)
-        """
-        # 기본 공식: (능력치 + 운보정) / (능력치 + 운보정 + 난이도)
-        adjusted_stat = max(1, base_stat + luck_modifier)
-        success_rate = adjusted_stat / (adjusted_stat + difficulty)
-
-        # 최소 5%, 최대 95% 제한
-        return max(0.05, min(0.95, success_rate))
-
-    @staticmethod
-    def calculate_damage(attack_stat: int, defense_stat: int,
-                        weapon_damage: int = 0, luck_modifier: int = 0) -> int:
-        """
-        데미지 계산
-
-        Args:
-            attack_stat: 공격력
-            defense_stat: 방어력
-            weapon_damage: 무기 데미지
-            luck_modifier: 운 보정값
-
-        Returns:
-            int: 최종 데미지
-        """
-        base_damage = attack_stat + weapon_damage + luck_modifier
-        damage_reduction = defense_stat * 0.5
-        final_damage = max(1, int(base_damage - damage_reduction))
-
-        return final_damage
-
-    @staticmethod
-    def calculate_critical_chance(dexterity: int, luck: int) -> float:
-        """
-        크리티컬 확률 계산
-
-        Args:
-            dexterity: 민첩성
-            luck: 운
-
-        Returns:
-            float: 크리티컬 확률 (0.0 ~ 1.0)
-        """
-        base_chance = 0.05  # 기본 5%
-        dex_bonus = dexterity * 0.001  # 민첩 1당 0.1%
-        luck_bonus = luck * 0.002  # 운 1당 0.2%
-
-        total_chance = base_chance + dex_bonus + luck_bonus
-        return min(0.5, total_chance)  # 최대 50% 제한

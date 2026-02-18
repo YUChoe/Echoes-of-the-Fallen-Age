@@ -7,6 +7,13 @@ from datetime import datetime
 
 from ..types import SessionType
 
+from ...commands import (
+    SayCommand, WhisperCommand, WhoCommand,
+    LookCommand, QuitCommand, HelpCommand, StatsCommand,
+    MoveCommand, EnterCommand
+)  # 명령어가 늘어날 수 있으니 이렇게 하자. 근데 * 이런 건 안되나?
+
+
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
     from ...commands.processor import CommandProcessor
@@ -36,27 +43,26 @@ class CommandManager:
             raise
 
     def _setup_commands(self) -> None:
-        """기본 명령어들 설정"""
+        """명령어 설정"""
         if not self.command_processor:
             logger.error("CommandProcessor가 초기화되지 않았습니다.")
             return
 
-        # 기본 명령어들 import 및 등록
-        from ...commands.basic_commands import (
-            SayCommand, TellCommand, WhoCommand, LookCommand, QuitCommand,
-            GoCommand, ExitsCommand, MoveCommand, HelpCommand, StatsCommand
-        )
-
+        # 기본 명령어
         self.command_processor.register_command(SayCommand())
-        self.command_processor.register_command(TellCommand())
+        self.command_processor.register_command(WhisperCommand())
         self.command_processor.register_command(WhoCommand(self.game_engine.session_manager))
         self.command_processor.register_command(LookCommand())
         self.command_processor.register_command(QuitCommand())
         self.command_processor.register_command(StatsCommand())
+        self.command_processor.register_command(HelpCommand(self.command_processor))
 
-        # 이동 관련 명령어들 등록
-        self.command_processor.register_command(GoCommand())
-        self.command_processor.register_command(ExitsCommand())
+        # 이동 명령어
+        self.command_processor.register_command(EnterCommand())
+        self.command_processor.register_command(MoveCommand('north', ['n']))
+        self.command_processor.register_command(MoveCommand('south', ['s']))
+        self.command_processor.register_command(MoveCommand('east', ['e']))
+        self.command_processor.register_command(MoveCommand('west', ['w']))
 
         # 객체 상호작용 명령어들 등록
         from ...commands.object_commands import GetCommand, DropCommand, InventoryCommand, EquipCommand, UnequipCommand, UseCommand
@@ -72,28 +78,10 @@ class CommandManager:
         self.command_processor.register_command(OpenCommand())
         self.command_processor.register_command(PutCommand())
 
-        # Enter 명령어 등록
-        from ...commands.enter_command import EnterCommand
-        self.command_processor.register_command(EnterCommand())
 
         # 장비 관련 명령어들 등록 (unequipall만 유지)
         from ...commands.equipment_commands import UnequipAllCommand
         self.command_processor.register_command(UnequipAllCommand())
-
-        # 방향별 이동 명령어들 등록
-        directions = [
-            ('north', ['n']),
-            ('south', ['s']),
-            ('east', ['e']),
-            ('west', ['w'])
-        ]
-
-        for direction, aliases in directions:
-            self.command_processor.register_command(MoveCommand(direction, aliases))
-
-        # HelpCommand는 command_processor 참조가 필요
-        help_command = HelpCommand(self.command_processor)
-        self.command_processor.register_command(help_command)
 
         # 관리자 명령어들 등록
         from ...commands.admin_commands import (
@@ -119,11 +107,11 @@ class CommandManager:
 
         # 플레이어 상호작용 명령어들 등록
         from ...commands.interaction_commands import (
-            GiveCommand, FollowCommand, WhisperCommand, PlayersCommand
+            GiveCommand, FollowCommand, PlayersCommand
         )
         self.command_processor.register_command(GiveCommand())
         self.command_processor.register_command(FollowCommand())
-        self.command_processor.register_command(WhisperCommand())
+        # self.command_processor.register_command(WhisperCommand())
         self.command_processor.register_command(PlayersCommand())
 
         # 몬스터 상호작용 명령어들 등록
@@ -152,10 +140,6 @@ class CommandManager:
         # 언어 설정 명령어들 등록
         from ...commands.language_commands import LanguageCommand
         self.command_processor.register_command(LanguageCommand())
-
-        # 조사 명령어 등록
-        from ...commands.inspect_commands import InspectCommand
-        self.command_processor.register_command(InspectCommand())
 
         logger.info("기본 명령어 등록 완료 (이동, 객체 상호작용, 관리자, 플레이어 상호작용, NPC 상호작용, 전투, 사용자 이름, 조사 명령어 포함)")
 
@@ -209,18 +193,6 @@ class CommandManager:
                 "type": result.result_type.value,
                 **result.data
             })
-
-        # UI 업데이트가 필요한 명령어인지 확인
-        ui_update_commands = ['look', 'go', 'north', 'south', 'east', 'west', 'up', 'down',
-                             'northeast', 'northwest', 'southeast', 'southwest', 'get', 'drop']
-
-        # 명령어 처리 후 UI 업데이트 (방 정보가 변경될 수 있는 명령어들)
-        if (hasattr(result, 'command_name') and result.command_name in ui_update_commands) or \
-           result.data.get('ui_update_needed', False):
-            if hasattr(session, 'current_room_id') and session.current_room_id:
-                room_info = await self.game_engine.get_room_info(session.current_room_id, session.locale)
-                if room_info:
-                    await self.game_engine.ui_manager.send_ui_update(session, room_info)
 
         # 브로드캐스트 처리
         if result.broadcast and result.broadcast_message:

@@ -3,27 +3,27 @@
 
 from .processor import CommandProcessor
 from .base import BaseCommand, CommandResult
-from .basic_commands import SayCommand, TellCommand, WhoCommand, LookCommand, HelpCommand, QuitCommand, MoveCommand, GoCommand, ExitsCommand, StatsCommand
-from .interaction_commands import EmoteCommand, FollowCommand, WhisperCommand, PlayersCommand
+from .interaction_commands import EmoteCommand, FollowCommand, PlayersCommand
 from .object_commands import InventoryCommand
+
+from .Basic import SayCommand, WhisperCommand, WhoCommand, QuitCommand, LookCommand, HelpCommand, EnterCommand, StatsCommand, MoveCommand
 
 __all__ = [
     "CommandProcessor",
     "BaseCommand",
     "CommandResult",
     "SayCommand",
-    "TellCommand",
+    "WhisperCommand",
     "WhoCommand",
     "LookCommand",
     "HelpCommand",
     "QuitCommand",
     "MoveCommand",
-    "GoCommand",
-    "ExitsCommand",
+    "EnterCommand",
     "StatsCommand",
     "EmoteCommand",
     "FollowCommand",
-    "WhisperCommand",
     "PlayersCommand",
     "InventoryCommand"
 ]
+# 근데 __all__ 에 안 적어도 from ... import .. 할때 잘 되네?
