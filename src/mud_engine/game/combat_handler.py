@@ -689,7 +689,7 @@ class CombatHandler:
             self.combat_manager.add_player_to_combat(combat.id, player, player.id)
         else:
             logger.info("mark")
-            combat = self.combat_manager.create_combat(room_id)
+            combat = self.combat_manager.create_combat(room_id)  # TODO: 이 때 턴이 정해지면 안됨. 아래의 add 가 다 끝나면 그 이후에 만들어 져야 함 
             # 플레이어 추가
             logger.info("플레이어 추가")
             self.combat_manager.add_player_to_combat(combat.id, player, player.id)
