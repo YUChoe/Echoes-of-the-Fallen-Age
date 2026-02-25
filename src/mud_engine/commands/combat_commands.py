@@ -106,9 +106,12 @@ class AttackCommand(BaseCommand):
             ]
         )
 
-        if combat.get_current_combatant() == session.player.id:
+        logger.info(f"33333 {combat.get_current_combatant().id == session.player.id}")  # 이게 왜 false ?
+        if combat.get_current_combatant().id == session.player.id:
+            logger.info(f"33333 hhhhhh")
             start_message += f"{self._get_turn_message(combat, session.player.id, locale)}"
         else:
+            # 다른 플레이어 이거나 몹인 경우 이렇게 처리 해도 됨
             if locale == "ko":  # TODO:
                 start_message += f"{ANSIColors.RED}⏳ {monster_name}의 턴입니다...{ANSIColors.RESET}"
             else:
@@ -168,10 +171,10 @@ class AttackCommand(BaseCommand):
         return "\n".join([
                 self.I18N.get_message("combat.your_turn", locale),
                 "",
-                f'1: {self.I18N.get_message("combat.action_attack", locale)}',
-                f'2️: {self.I18N.get_message("combat.action_defend", locale)}',
-                f'3️: {self.I18N.get_message("combat.action_flee", locale)}',
-                f'4: Item  ',
+                f'{self.I18N.get_message("combat.action_attack", locale)}',
+                f'{self.I18N.get_message("combat.action_defend", locale)}',
+                f'{self.I18N.get_message("combat.action_flee", locale)}',
+                f'[4] Item  ',
                 self.I18N.get_message("combat.enter_command", locale)
         ])
 

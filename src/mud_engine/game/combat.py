@@ -451,6 +451,20 @@ class CombatManager:
     async def create_turn_for_new_instance(self, combat: CombatInstance, locale: str = "en" ) -> None:
         # 전투 참가자들에게 결정 된 턴 순서 브로드캐스트
         msg = ["순서: "]  # TODO: i18n
+        logger.info(f"{combat.turn_order}")
+        superadmin_id: str
+        for combatant_id in combat.turn_order:
+            if combat.get_combatant(combatant_id).name == 'SUPERADMIN':
+                superadmin_id = combat.get_combatant(combatant_id).id
+                break  # 하나만 찾아라
+        if superadmin_id:
+            combat.turn_order.insert(0,
+                    combat.turn_order.pop(
+                        combat.turn_order.index(superadmin_id)
+                    )
+            )
+            logger.info(f"after {combat.turn_order}")
+
         for combatant_id in combat.turn_order:
             name = combat.get_combatant(combatant_id).name
             if 'monster' in combat.get_combatant(combatant_id).data:
@@ -458,6 +472,7 @@ class CombatManager:
             msg.append(f"[{name}]")
         logger.info(" ".join(msg))
 
+        # BROADCASE
         combatant: Combatant
         for combatant in combat.combatants:
             if combatant.combatant_type == CombatantType.PLAYER:
