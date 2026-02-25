@@ -697,7 +697,7 @@ class CombatHandler:
             logger.info("몬스터 추가")
             self.combat_manager.add_monster_to_combat(combat.id, monster)
 
-        self.combat_manager.create_turn_for_new_instance(combat)  # 턴 결정
+        await self.combat_manager.create_turn_for_new_instance(combat)  # 턴 결정
 
         logger.info(
             f"전투 시작[{combat.id}] {player.username} vs {monster.get_localized_name('ko')}"

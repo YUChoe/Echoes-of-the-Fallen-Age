@@ -448,7 +448,7 @@ class CombatManager:
 
     # TODO: 문제는 참자가 마다 locale 설정이 다를 수 있으니 관련 정보를 combatant 안에 한번에 받아야 함
     # 그리고 나중에 클라이언트가 이부분 처리를 하게 된다면 다 제거하고 영어+기호 로만 전달 후 클라에서 변환하도록 만들 것
-    def create_turn_for_new_instance(self, combat: CombatInstance, locale: str = "en" ) -> None:
+    async def create_turn_for_new_instance(self, combat: CombatInstance, locale: str = "en" ) -> None:
         # 전투 참가자들에게 결정 된 턴 순서 브로드캐스트
         msg = ["순서: "]  # TODO: i18n
         for combatant_id in combat.turn_order:
@@ -463,12 +463,8 @@ class CombatManager:
             if combatant.combatant_type == CombatantType.PLAYER:
                 session = self.session_manager.get_player_session(combatant.id)
                 if session:
-                    # 백그라운드에서 비동기 실행
-                    asyncio.create_task(
-                        session.send_message({
-                            "type": "combat_message",
-                            "message": " ".join(msg)
-                        })
+                    await session.send_message(
+                        {"type": "combat_message","message": " ".join(msg)}
                     )
         return
 
