@@ -446,11 +446,15 @@ class CombatManager:
         logger.info(f"방 {room_id}에 전투 인스턴스 {combat.id} 생성")
         return combat
 
-    def create_turn_for_new_instance(self, combat: CombatInstance) -> None:
+    # TODO: 문제는 참자가 마다 locale 설정이 다를 수 있으니 관련 정보를 combatant 안에 한번에 받아야 함
+    # 그리고 나중에 클라이언트가 이부분 처리를 하게 된다면 다 제거하고 영어+기호 로만 전달 후 클라에서 변환하도록 만들 것
+    def create_turn_for_new_instance(self, combat: CombatInstance, locale: str = "en" ) -> None:
         # 전투 참가자들에게 결정 된 턴 순서 브로드캐스트
-        msg = ["순서: "]
+        msg = ["순서: "]  # TODO: i18n
         for combatant_id in combat.turn_order:
             name = combat.get_combatant(combatant_id).name
+            if 'monster' in combat.get_combatant(combatant_id).data:
+                name = combat.get_combatant(combatant_id).data['monster'].get_localized_name(locale)
             msg.append(f"[{name}]")
         logger.info(" ".join(msg))
 
