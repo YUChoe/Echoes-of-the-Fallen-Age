@@ -688,14 +688,16 @@ class CombatHandler:
             logger.info("플레이어 만 추가")
             self.combat_manager.add_player_to_combat(combat.id, player, player.id)
         else:
-            logger.info("mark")
-            combat = self.combat_manager.create_combat(room_id)  # TODO: 이 때 턴이 정해지면 안됨. 아래의 add 가 다 끝나면 그 이후에 만들어 져야 함 
+            logger.info("새 인스턴스")
+            combat = self.combat_manager.create_combat(room_id)  # TODO: 이 때 턴이 정해지면 안됨. 아래의 add 가 다 끝나면 그 이후에 만들어 져야 함
             # 플레이어 추가
             logger.info("플레이어 추가")
             self.combat_manager.add_player_to_combat(combat.id, player, player.id)
             # 몬스터 추가
             logger.info("몬스터 추가")
             self.combat_manager.add_monster_to_combat(combat.id, monster)
+
+        self.combat_manager.create_turn_for_new_instance(combat)  # 턴 결정
 
         logger.info(
             f"전투 시작[{combat.id}] {player.username} vs {monster.get_localized_name('ko')}"

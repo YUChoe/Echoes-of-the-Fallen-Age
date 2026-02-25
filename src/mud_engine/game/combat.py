@@ -2,6 +2,7 @@
 전투 시스템 - 인스턴스 기반 턴제 전투
 """
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -443,7 +444,9 @@ class CombatManager:
         self.combat_instances[combat.id] = combat
         self.room_combats[room_id] = combat.id
         logger.info(f"방 {room_id}에 전투 인스턴스 {combat.id} 생성")
+        return combat
 
+    def create_turn_for_new_instance(self, combat: CombatInstance) -> None:
         # 전투 참가자들에게 결정 된 턴 순서 브로드캐스트
         msg = ["순서: "]
         for combatant_id in combat.turn_order:
@@ -456,8 +459,14 @@ class CombatManager:
             if combatant.combatant_type == CombatantType.PLAYER:
                 session = self.session_manager.get_player_session(combatant.id)
                 if session:
-                    session.send_message({ "type": "combat_message", "message": " ".join(msg) })
-        return combat
+                    # 백그라운드에서 비동기 실행
+                    asyncio.create_task(
+                        session.send_message({
+                            "type": "combat_message",
+                            "message": " ".join(msg)
+                        })
+                    )
+        return
 
     def get_combat_instances(self) -> Dict[str, CombatInstance]:
         return self.combat_instances

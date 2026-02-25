@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 class AttackCommand(BaseCommand):
     """
     공격 명령어 - 턴제 전투
-    전투 시작 의 의미도 됨. 
-    몹이 선제 공격을 한 경우 이 명령이 실행 된 것으로 취급 할 수도 있음. 
+    전투 시작 의 의미도 됨.
+    몹이 선제 공격을 한 경우 이 명령이 실행 된 것으로 취급 할 수도 있음.
     """
-    
+
     def __init__(self, combat_handler: CombatHandler):
         super().__init__(
             name="attack",
@@ -43,11 +43,11 @@ class AttackCommand(BaseCommand):
         if not target_input.isdigit():
             logger.error(f"target_input[{target_input}] is not digit")
             return None
-        
+
         entity_num = int(target_input)
         entity_map = getattr(session, "room_entity_map", {})
 
-        # debug 
+        # debug
         for entity_num in entity_map:
             entity_info = entity_map[entity_num]
             logger.info(f"entity_map[{entity_num}]: {entity_info['type']}")
@@ -74,19 +74,19 @@ class AttackCommand(BaseCommand):
         current_room_id = getattr(session, "current_room_id", None)
         if not current_room_id: return self.create_error_result("현재 위치를 확인할 수 없습니다.")
         logger.info(f'target_input[{target_input}] current_room_id[{current_room_id}]')
-        
-        # 번호로 대상 찾기 
+
+        # 번호로 대상 찾기
         target_monster = self.get_monster_entity_by_input_digit(session, target_input)
         if not target_input:
             return self.create_error_result(f"해당하는 대상을 찾을 수 없습니다.")
 
-        # 인스턴스 생성 
+        # 인스턴스 생성
         combat = await self.combat_handler.start_combat(
                 session.player, target_monster, current_room_id
         )
         logger.info(combat)
-        # 생성되면서 턴 순서도 로그에 찍혀야 함 
-        
+        # 생성되면서 턴 순서도 로그에 찍혀야 함
+
         # 세션 상태 업데이트
         session.in_combat = True
         session.original_room_id = current_room_id
@@ -94,7 +94,7 @@ class AttackCommand(BaseCommand):
         session.current_room_id = f"combat_{combat.id}"  # 전투 인스턴스로 이동
         logger.info(session)
 
-        # 출력 
+        # 출력
         locale = get_user_locale(session)
         monster_name = target_monster.get_localized_name(locale)
         start_message = "\n".join(
@@ -108,13 +108,13 @@ class AttackCommand(BaseCommand):
 
         if combat.get_current_combatant() == session.player.id:
             start_message += f"{self._get_turn_message(combat, session.player.id, locale)}"
-        else:            
-            if locale == "ko":  # TODO: 
+        else:
+            if locale == "ko":  # TODO:
                 start_message += f"{ANSIColors.RED}⏳ {monster_name}의 턴입니다...{ANSIColors.RESET}"
             else:
                 start_message += f"{ANSIColors.RED}⏳ {monster_name}'s turn...{ANSIColors.RESET}"
-            
-        # TODO: subscribe 3sectickscheduler 
+
+        # TODO: subscribe 3sectickscheduler
 
         return self.create_success_result(
             message=start_message.strip(),
@@ -124,13 +124,13 @@ class AttackCommand(BaseCommand):
                 "combat_status": combat.to_dict(),
             },
         )
-    
+
 
     def _get_combat_status_message(self, session: SessionType, combat: CombatInstance, locale: str = "en") -> str:
         """전투 상태 메시지 생성"""
         lines = [
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-            f"{ANSIColors.RED}{self.I18N.get_message("combat.round", locale, round=combat.turn_number)}{ANSIColors.RESET}",
+            f'{ANSIColors.RED}{self.I18N.get_message("combat.round", locale, round=combat.turn_number)}{ANSIColors.RESET}',
             ""
         ]
 
@@ -146,7 +146,7 @@ class AttackCommand(BaseCommand):
         monsters = combat.get_alive_monsters()
         room_entity_map = getattr(session, "room_entity_map", {})
         for monster in monsters:
-            monster_name = monster.name # monster.name 은 id 
+            monster_name = monster.name # monster.name 은 id
             if monster.data and "monster" in monster.data:
                 monster_obj = monster.data["monster"]
                 monster_name = monster_obj.get_localized_name(locale)
@@ -155,23 +155,23 @@ class AttackCommand(BaseCommand):
                     logger.info(f"found id[{monster.name}] {room_entity_map[num]}")
                     break
             else:
-                num = "?"               
+                num = "?"
             lines.append(
                 f"[{num}] 👹 {monster_name}: HP: {monster.current_hp}/{monster.max_hp}"
             )
         lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         return "\n".join(lines) + "\n"
-    
+
     def _get_turn_message(self, combat: CombatInstance, player_id: str, locale: str = "en") -> str:
         """플레이어 턴 메시지 생성"""
-        
+
         return "\n".join([
                 self.I18N.get_message("combat.your_turn", locale),
                 "",
-                f"1: {self.I18N.get_message("combat.action_attack", locale)}",
-                f"2️: {self.I18N.get_message("combat.action_defend", locale)}",
-                f"3️: {self.I18N.get_message("combat.action_flee", locale)}",
-                f"4: Item  ",
+                f'1: {self.I18N.get_message("combat.action_attack", locale)}',
+                f'2️: {self.I18N.get_message("combat.action_defend", locale)}',
+                f'3️: {self.I18N.get_message("combat.action_flee", locale)}',
+                f'4: Item  ',
                 self.I18N.get_message("combat.enter_command", locale)
         ])
 
@@ -234,7 +234,7 @@ class DefendCommand(BaseCommand):
             return self.create_error_result(
                 "전투를 찾을 수 없거나 이미 종료되었습니다."
             )
-        # TODO: 이거 세션 유효랑 체크들을 한번에 할 수 없나 
+        # TODO: 이거 세션 유효랑 체크들을 한번에 할 수 없나
 
         # 현재 턴 확인
         current_combatant = combat.get_current_combatant()
@@ -500,14 +500,14 @@ class ItemCommand(BaseCommand):
             return self.create_error_result(
                 "전투를 찾을 수 없거나 이미 종료되었습니다."
             )
-        
+
         message = "!!!!!!!!"
         logger.info(message)
         return self.create_success_result(
             message=message,
             data={"action": "combat_action_result", "combat_status": combat.to_dict()},
         )
-    
+
 
 
 
