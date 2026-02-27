@@ -128,18 +128,23 @@ class CommandProcessor:
             str: 변환된 명령어 라인
         """
         command_line = command_line.strip()
+        cmdline_list = command_line.split()
+        cmd = cmdline_list[0]
 
         # 숫자만 입력된 경우 변환
-        if command_line in ['1', '2', '3']:
+        if cmd in ['1', '2', '3', '4']:
             combat_actions = {
                 '1': 'attack',
                 '2': 'defend',
                 '3': 'flee',
                 '4': 'item'
             }
-            converted = combat_actions.get(command_line, command_line)
-            logger.info(f"전투 숫자 입력 변환: '{command_line}' -> '{converted}'")
-            return converted
+            # converted = combat_actions.get(command_line, command_line)
+            converted = combat_actions.get(cmd, cmd)
+            cmdline_list[0] = converted  # 변환 된 명령어
+            command_line = ' '.join(cmdline_list)
+            logger.info(f"전투 숫자 입력 변환: '{command_line}'")
+            return command_line
 
         return command_line
 
@@ -185,7 +190,7 @@ class CommandProcessor:
             command = FleeCommand(combat_handler)
             return await command.execute(session, args)
         elif command_name == 'item':
-            # 전투 중 아이템 슬롯과 아이템 사용하는 명령 호출 
+            # 전투 중 아이템 슬롯과 아이템 사용하는 명령 호출
             command = ItemCommand(combat_handler)
             return await command.execute(session, args)
         else:
@@ -240,6 +245,7 @@ class CommandProcessor:
                 result_type=CommandResultType.ERROR,
                 message="인증되지 않은 사용자입니다."
             )
+        logger.info(f"invoked process_command command_line[{command_line}]")
 
         # "." 입력 시 이전 명령어 반복
         if command_line.strip() == ".":
@@ -255,6 +261,7 @@ class CommandProcessor:
 
         # 전투 중일 때 숫자 입력을 명령어로 변환
         if getattr(session, 'in_combat', False):
+            logger.info("in_combat ")
             command_line = self._convert_combat_number_to_command(command_line)
 
         # 명령어 파싱
@@ -277,6 +284,8 @@ class CommandProcessor:
                     message="전투 중에만 사용할 수 있는 명령어입니다."
                 )
             # 전투 중이면 동적으로 명령어 생성하여 실행
+            logger.info(f"222333222 {command_name}")
+            logger.info(f"222333222 {args}")
             return await self._execute_combat_command(session, command_name, args)
 
         # 명령어 조회

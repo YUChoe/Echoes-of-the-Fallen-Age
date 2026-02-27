@@ -45,12 +45,15 @@ class AttackCommand(BaseCommand):
             return None
 
         entity_num = int(target_input)
+        logger.info(f"target_input[{target_input}] entity_num[{entity_num}]")
         entity_map = getattr(session, "room_entity_map", {})
 
         # debug
-        for entity_num in entity_map:
-            entity_info = entity_map[entity_num]
-            logger.info(f"entity_map[{entity_num}]: {entity_info['type']}")
+        logger.info("entity_map starting")
+        for entnum in entity_map:
+            entity_info = entity_map[entnum]
+            logger.info(f"entity_map[{entnum}]: {entity_info['type']}")
+        logger.info("entity_map finished")
 
         if entity_num in entity_map:
             entity_info = entity_map[entity_num]
@@ -64,9 +67,9 @@ class AttackCommand(BaseCommand):
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         # 전투 시작
-        if not self.validate_args(args, min_args=1):
+        if not self.validate_args(args, min_args=0):
             return self.create_error_result(
-                "공격할 대상을 지정해주세요.\n사용법: attack <몹id>"
+                "공격할 대상을 지정해주세요.\n사용법: attack <몹num>"
             )  # TODO: en help
 
         """새로운 전투 시작"""
@@ -106,9 +109,8 @@ class AttackCommand(BaseCommand):
             ]
         )
 
-        logger.info(f"33333 {combat.get_current_combatant().id == session.player.id}")  # 이게 왜 false ?
+        logger.info(f"player turn {combat.get_current_combatant().id == session.player.id}")  # 이게 왜 false ?
         if combat.get_current_combatant().id == session.player.id:
-            logger.info(f"33333 hhhhhh")
             start_message += f"{self._get_turn_message(combat, session.player.id, locale)}"
         else:
             # 다른 플레이어 이거나 몹인 경우 이렇게 처리 해도 됨

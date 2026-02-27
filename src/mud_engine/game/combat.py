@@ -452,10 +452,11 @@ class CombatManager:
         # 전투 참가자들에게 결정 된 턴 순서 브로드캐스트
         msg = ["순서: "]  # TODO: i18n
         logger.info(f"{combat.turn_order}")
-        superadmin_id: str
+        superadmin_id: str = ""
         for combatant_id in combat.turn_order:
             if combat.get_combatant(combatant_id).name == 'SUPERADMIN':
                 superadmin_id = combat.get_combatant(combatant_id).id
+                logger.info(f"superadmin_id {superadmin_id}")
                 break  # 하나만 찾아라
         if superadmin_id:
             combat.turn_order.insert(0,
@@ -557,6 +558,7 @@ class CombatManager:
 
         # Combatant 생성 (D&D 능력치 사용)
         # 몬스터 이름은 원본 Monster 객체를 참조하여 동적으로 처리
+        logger.info(f"monster[{monster}]")
         combatant = Combatant(
             id=monster.id,
             name=monster.id,  # ID로 저장하고 표시 시 동적으로 언어별 이름 조회

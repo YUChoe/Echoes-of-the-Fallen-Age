@@ -672,7 +672,7 @@ class CombatHandler:
         """
         # 몹을 통해 이미 존재 하는 combat을 찾음
         _found = False
-        logger.info("invoked")
+        logger.info("invoked start_combat")
         logger.info(monster)
 
         for combat in self.combat_manager.combat_instances.values():
