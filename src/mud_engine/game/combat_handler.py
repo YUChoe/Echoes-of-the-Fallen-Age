@@ -203,8 +203,8 @@ class CombatHandler:
         )
         combat.add_combat_log(turn)
 
-        # 다음 턴으로 진행
-        combat.advance_turn()
+        # # 다음 턴으로 진행
+        # combat.advance_turn()
 
         # 전투 종료 확인은 combat_commands.py에서만 처리
         # 여기서는 공격 결과만 반환
@@ -248,6 +248,7 @@ class CombatHandler:
         # 1. 공격 굴림 (d20 + 공격 보너스)
         attack_bonus = self._calculate_attack_bonus(actor)
         attack_roll, is_critical = self.dnd_engine.make_attack_roll(attack_bonus)
+        logger.info(f"attack_bonus[{attack_bonus}] attack_roll[{attack_roll}] is_critical[{is_critical}]")
 
         # 2. 대상 AC (방어도) 계산
         # target.data에서 armor_class 가져오기
@@ -255,17 +256,19 @@ class CombatHandler:
             target_ac = target.data["armor_class"]
         else:
             target_ac = 10 + target.defense  # 기본 AC 10 + 방어력
+        logger.info(f"target_ac[{target_ac}] target.defense[{target.defense}]")
 
         # 3. 명중 판정
         hit = self.dnd_engine.check_hit(attack_roll, target_ac)
+        logger.info(f"hit[{hit}]")
 
-        # 방어 상태 해제
+        # actor 방어 상태 해제 (왜냐면 지금 공격 하니까)
         actor.is_defending = False
 
         # 빗나감
         if not hit and not is_critical:
             # 기본 언어는 영어로 설정 (추후 세션 정보에서 가져올 수 있도록 개선 필요)
-            locale = "ko"
+            locale = "en"
             actor_name = self._get_combatant_name(actor, locale)
             target_name = self._get_combatant_name(target, locale)
 
@@ -291,7 +294,9 @@ class CombatHandler:
         # 4. 데미지 계산
         # 데미지 주사위 표기법 생성 (예: "1d8+2")
         damage_dice = self._get_damage_dice(actor)
+        logger.info(f"damage_dice[{damage_dice}]")  # 어 난 이게 좋은데...
         damage = self.dnd_engine.calculate_damage(damage_dice, is_critical)
+        logger.info(f"damage[{damage}]")
 
         # 5. 방어 중이면 데미지 50% 감소
         if target.is_defending:
@@ -301,9 +306,10 @@ class CombatHandler:
         # 6. 대상에게 데미지 적용 (방어력 적용)
         actual_damage = max(1, damage - target.defense)
         target.current_hp = max(0, target.current_hp - actual_damage)
+        logger.info(f"actual_damage[{actual_damage}] target.current_hp[{target.current_hp}]")  # 죽었으면 0 됐겠지
 
         # 메시지 생성
-        locale = "ko"  # 한국어로 설정
+        locale = "en"
         actor_name = self._get_combatant_name(actor, locale)
         target_name = self._get_combatant_name(target, locale)
 
@@ -311,7 +317,7 @@ class CombatHandler:
         weapon_name = self._get_weapon_name(actor, locale)
 
         message = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
-        message += f"🎲 공격 굴림: {attack_roll} vs AC {target_ac}\n"
+        message += f"🎲 공격 굴림({damage_dice}): {attack_roll} vs AC {target_ac}\n"
 
         if is_critical:
             message += f"💥 크리티컬 히트! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
@@ -659,7 +665,7 @@ class CombatHandler:
         self, player: Player, monster: Monster, room_id: str, broadcast_callback=None
     ) -> CombatInstance:
         """
-        새로운 전투 시작
+        새로운 전투 시작 + 이미 전투 중인 경우 기존 CombatInstance 리턴
 
         Args:
             player: 플레이어 객체
@@ -684,18 +690,26 @@ class CombatHandler:
                 break
 
         if _found:
-            # 플레이어 만 추가
-            logger.info("플레이어 만 추가")
-            self.combat_manager.add_player_to_combat(combat.id, player, player.id)
-        else:
-            logger.info("새 인스턴스")
-            combat = self.combat_manager.create_combat(room_id)  # TODO: 이 때 턴이 정해지면 안됨. 아래의 add 가 다 끝나면 그 이후에 만들어 져야 함
-            # 플레이어 추가
-            logger.info("플레이어 추가")
-            self.combat_manager.add_player_to_combat(combat.id, player, player.id)
-            # 몬스터 추가
-            logger.info("몬스터 추가")
-            self.combat_manager.add_monster_to_combat(combat.id, monster)
+            # 플레이어가 없는 경우 플레이어 추가
+            for combatant in combat.combatants:
+                if combatant.id == player.id:  # 꼭 찾는걸 이렇게 해야 하나
+                    logger.info("found")
+                    break
+            else:
+                logger.info("플레이어 만 추가")
+                self.combat_manager.add_player_to_combat(combat.id, player, player.id)
+            # 턴도 다시 결정 할 필요 없음
+            return combat
+
+        # 신규 인스턴스
+        logger.info("신규 인스턴스")
+        combat = self.combat_manager.create_combat(room_id)
+        # 플레이어 추가
+        logger.info("플레이어 추가")
+        self.combat_manager.add_player_to_combat(combat.id, player, player.id)
+        # 몬스터 추가
+        logger.info("몬스터 추가")
+        self.combat_manager.add_monster_to_combat(combat.id, monster)
 
         await self.combat_manager.create_turn_for_new_instance(combat)  # 턴 결정
 

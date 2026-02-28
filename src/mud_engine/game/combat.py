@@ -151,8 +151,8 @@ class CombatInstance:
     room_id: str = ""
     combatants: List[Combatant] = field(default_factory=list)
     turn_order: List[str] = field(default_factory=list)  # combatant_id 순서
-    current_turn_index: int = 0
-    turn_number: int = 1
+    current_turn_index: int = 0  # 위의 리스트의 인덱스이니 턴이 증가함으로 인해 도돌이
+    turn_number: int = 1  # 계속 증가
     combat_log: List[CombatTurn] = field(default_factory=list)
     is_active: bool = True
     started_at: datetime = field(default_factory=datetime.now)
@@ -239,24 +239,25 @@ class CombatInstance:
             if c.is_alive() and c.combatant_type == CombatantType.MONSTER
         ]
 
-    def advance_turn(self) -> None:
+    def advance_turn(self, is_recursive=False) -> None:
+        logger.info("invoked advance_turn")
         """다음 턴으로 진행"""
         if not self.turn_order:
+            logger.info("not self.turn_order")
             return
 
         # 다음 참가자로 이동
         self.current_turn_index += 1
-
-        # 한 라운드가 끝나면 다시 처음부터
         if self.current_turn_index >= len(self.turn_order):
             self.current_turn_index = 0
-            self.turn_number += 1
-            logger.info(f"전투 {self.id} 라운드 {self.turn_number} 시작")
+            if not is_recursive: self.turn_number += 1
+            logger.info(f"전투 {self.id} 턴 {self.turn_number}")
 
         # 사망한 참가자는 건너뛰기
         current = self.get_current_combatant()
         if current and not current.is_alive():
-            self.advance_turn()
+            logger.info("current_combatant dead")
+            self.advance_turn(True)  # 이런 경우 self.turn_number 는 증가하면 안됨
 
     def add_combat_log(self, turn: CombatTurn) -> None:
         """전투 로그 추가"""
@@ -264,6 +265,7 @@ class CombatInstance:
 
     def is_combat_over(self) -> bool:
         """전투 종료 여부 확인"""
+        # TODO: PVP 떄는 어떻게 판단? 우리편 다른편으로 구분 되어야 할 듯
         alive_players = self.get_alive_players()
         alive_monsters = self.get_alive_monsters()
 
