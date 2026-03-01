@@ -7,7 +7,7 @@
   "weight": 2.0,
   "equipment_slot": "right_hand",
   "properties": {
-    "damage": 8,
+    "dice": "1d4",
     "durability": 50,
     "attack_speed": 1.0,
     "weapon_type": "melee",

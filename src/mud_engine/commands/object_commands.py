@@ -745,16 +745,11 @@ class EquipCommand(BaseCommand):
 
             # 아이템 속성에서 능력치 보너스 추출
             stats_bonus = equipment.properties.get('stats_bonus', {})
-            damage = equipment.properties.get('damage', 0)
 
             # stats_bonus 적용 (나무 곤봉 등)
             for stat_name, bonus in stats_bonus.items():
                 if isinstance(bonus, (int, float)) and bonus > 0:
                     player.stats.add_equipment_bonus(stat_name, int(bonus))
-
-            # damage 속성을 ATK 보너스로 적용 (곤봉 등)
-            if damage > 0:
-                player.stats.add_equipment_bonus('ATK', damage)
 
             # 플레이어 정보 업데이트
             await game_engine.session_manager.update_player(player)
@@ -770,16 +765,11 @@ class EquipCommand(BaseCommand):
 
             # 아이템 속성에서 능력치 보너스 추출
             stats_bonus = equipment.properties.get('stats_bonus', {})
-            damage = equipment.properties.get('damage', 0)
 
             # stats_bonus 제거 (나무 곤봉 등)
             for stat_name, bonus in stats_bonus.items():
                 if isinstance(bonus, (int, float)) and bonus > 0:
                     player.stats.remove_equipment_bonus(stat_name, int(bonus))
-
-            # damage 속성 제거 (곤봉 등)
-            if damage > 0:
-                player.stats.remove_equipment_bonus('ATK', damage)
 
             # 플레이어 정보 업데이트
             await game_engine.session_manager.update_player(player)
@@ -864,16 +854,11 @@ class UnequipCommand(BaseCommand):
 
             # 아이템 속성에서 능력치 보너스 추출
             stats_bonus = equipment.properties.get('stats_bonus', {})
-            damage = equipment.properties.get('damage', 0)
 
             # stats_bonus 제거 (나무 곤봉 등)
             for stat_name, bonus in stats_bonus.items():
                 if isinstance(bonus, (int, float)) and bonus > 0:
                     player.stats.remove_equipment_bonus(stat_name, int(bonus))
-
-            # damage 속성 제거 (곤봉 등)
-            if damage > 0:
-                player.stats.remove_equipment_bonus('ATK', damage)
 
             # 플레이어 정보 업데이트
             await game_engine.session_manager.update_player(player)

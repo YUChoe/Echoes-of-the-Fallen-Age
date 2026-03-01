@@ -45,12 +45,23 @@ class CombatHandler:
         else:
             return combatant.name
 
-    def _get_weapon_name(self, combatant, locale: str = "ko") -> str:
+    async def _get_weapon_name(self, combatant, locale: str = "ko") -> str:
         """전투 참가자의 무기 이름 반환"""
         if combatant.combatant_type.value == "player":
             # 플레이어의 경우 장착된 무기 확인
-            # 사용자가 곤봉을 들고 있다고 했으므로 곤봉으로 설정
-            return "곤봉" if locale == "ko" else "club"
+            if combatant.data and self.world_manager:
+                player_obj = combatant.data.get("player")
+                if player_obj:
+                    try:
+                        inventory_objects = await self.world_manager.get_inventory_objects(player_obj.id)
+                        for obj in inventory_objects:
+                            if obj.is_equipped and obj.equipment_slot == "right_hand":
+                                return obj.get_localized_name(locale)
+                    except Exception as e:
+                        logger.warning(f"무기 이름 가져오기 실패: {e}")
+
+            # 장착된 무기가 없으면 맨손
+            return "맨손" if locale == "ko" else "bare hands"
         elif combatant.combatant_type.value == "monster":
             # 몬스터의 경우 종류에 따라 다른 무기
             if combatant.data and "monster" in combatant.data:
@@ -273,7 +284,7 @@ class CombatHandler:
             target_name = self._get_combatant_name(target, locale)
 
             # 무기 정보 가져오기
-            weapon_name = self._get_weapon_name(actor, locale)
+            weapon_name = await self._get_weapon_name(actor, locale)
 
             message = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
             message += f"🎲 공격 굴림: {attack_roll} vs AC {target_ac}\n"
@@ -293,7 +304,7 @@ class CombatHandler:
 
         # 4. 데미지 계산
         # 데미지 주사위 표기법 생성 (예: "1d8+2")
-        damage_dice = self._get_damage_dice(actor)
+        damage_dice = await self._get_damage_dice(actor)
         logger.info(f"damage_dice[{damage_dice}]")  # 어 난 이게 좋은데...
         damage = self.dnd_engine.calculate_damage(damage_dice, is_critical)
         logger.info(f"damage[{damage}]")
@@ -314,7 +325,7 @@ class CombatHandler:
         target_name = self._get_combatant_name(target, locale)
 
         # 무기 정보 가져오기
-        weapon_name = self._get_weapon_name(actor, locale)
+        weapon_name = await self._get_weapon_name(actor, locale)
 
         message = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
         message += f"🎲 공격 굴림({damage_dice}): {attack_roll} vs AC {target_ac}\n"
@@ -364,12 +375,36 @@ class CombatHandler:
         # 기본값: 공격력 기반 계산
         return max(1, combatant.attack_power // 5)
 
-    def _get_damage_dice(self, combatant: Combatant) -> str:
+    async def _get_damage_dice(self, combatant: Combatant) -> str:
         """데미지 주사위 표기법 생성
 
-        공격력 기반으로 주사위 표기법 생성
-        예: 공격력 8 -> "1d6+2"
+        장착된 무기의 dice 속성을 사용하거나, 플레이어는 맨손(1d1), 몬스터는 공격력 기반으로 생성
         """
+        # 플레이어의 경우 장착된 무기의 dice 확인
+        if combatant.combatant_type.value == "player" and combatant.data:
+            player_obj = combatant.data.get("player")
+            if player_obj and self.world_manager:
+                try:
+                    # 플레이어의 장착된 무기 가져오기
+                    inventory_objects = await self.world_manager.get_inventory_objects(player_obj.id)
+
+                    # right_hand 슬롯에 장착된 무기 찾기
+                    for obj in inventory_objects:
+                        if obj.is_equipped and obj.equipment_slot == "right_hand":
+                            # properties에서 dice 가져오기
+                            if hasattr(obj, 'properties') and obj.properties:
+                                dice = obj.properties.get('dice')
+                                if dice:
+                                    logger.info(f"장착된 무기 dice 사용: {dice}")
+                                    return dice
+                except Exception as e:
+                    logger.warning(f"무기 정보 가져오기 실패: {e}")
+
+            # 플레이어인데 장착된 무기가 없으면 맨손 공격
+            logger.info("장착된 무기 없음 - 맨손 공격(1d1) 사용")
+            return "1d1"
+
+        # 몬스터는 공격력 기반 계산
         base_dice = combatant.attack_power // 3  # 주사위 개수
         bonus = combatant.attack_power % 3  # 보너스
 
