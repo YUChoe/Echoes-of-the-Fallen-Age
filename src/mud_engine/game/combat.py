@@ -161,7 +161,7 @@ class CombatInstance:
     disconnected_players: Dict[str, datetime] = field(default_factory=dict)
     # 타임아웃 tick 카운트 (8회 = 2분, 15초 간격)
     timeout_ticks: int = 0
-    max_timeout_ticks: int = 8  # 8 * 15초 = 2분
+    max_timeout_ticks: int = 8  # 8 * 15초 = 2분  # TODO: 이건 또 뭐야
 
     def __post_init__(self):
         """초기화 후 턴 순서 결정"""

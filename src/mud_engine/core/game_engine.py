@@ -6,7 +6,7 @@ from typing import Dict, Optional, Any, TYPE_CHECKING
 from datetime import datetime
 
 from .event_bus import EventBus, Event, EventType, get_event_bus
-from .managers import CommandManager, EventHandler, PlayerMovementManager, AdminManager
+from .managers import CommandManager, EventHandler, PlayerMovementManager, AdminManager, GlobalTickManager
 from .managers.time_manager import TimeManager
 from .managers.scheduler_manager import SchedulerManager
 from .types import SessionType
@@ -74,6 +74,7 @@ class GameEngine:
             self.admin_manager = AdminManager(self)
             self.time_manager = TimeManager(self)
             self.scheduler_manager = SchedulerManager(self)
+            self.global_tick_manager = GlobalTickManager(self)
 
             # 튜토리얼 안내 시스템 초기화
             from ..game.tutorial_announcer import get_tutorial_announcer
@@ -154,6 +155,13 @@ class GameEngine:
         except Exception as e:
             logger.error(f"글로벌 스케줄러 시작 실패: {e}")
 
+        # 글로벌 3초 Tick 시작
+        try:
+            await self.global_tick_manager.start()
+            logger.info("글로벌 Tick 매니저 시작 완료")
+        except Exception as e:
+            logger.error(f"글로벌 Tick 매니저 시작 실패: {e}")
+
         # 튜토리얼 안내 시스템 시작
         try:
             await self.tutorial_announcer.start()
@@ -185,6 +193,13 @@ class GameEngine:
             logger.info("글로벌 스케줄러 중지 완료")
         except Exception as e:
             logger.error(f"글로벌 스케줄러 중지 실패: {e}")
+
+        # 글로벌 Tick 중지
+        try:
+            await self.global_tick_manager.stop()
+            logger.info("글로벌 Tick 매니저 중지 완료")
+        except Exception as e:
+            logger.error(f"글로벌 Tick 매니저 중지 실패: {e}")
 
         # 시간 시스템 중지
         try:
