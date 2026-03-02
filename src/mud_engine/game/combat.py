@@ -12,6 +12,9 @@ from uuid import uuid4
 
 from .monster import Monster
 from .models import Player
+from ..core.localization import get_localization_manager
+from ..core.types import SessionType
+from ..server.ansi_colors import ANSIColors
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +165,7 @@ class CombatInstance:
     # 타임아웃 tick 카운트 (8회 = 2분, 15초 간격)
     timeout_ticks: int = 0
     max_timeout_ticks: int = 8  # 8 * 15초 = 2분  # TODO: 이건 또 뭐야
+    I18N = get_localization_manager()
 
     def __post_init__(self):
         """초기화 후 턴 순서 결정"""
@@ -425,6 +429,78 @@ class CombatInstance:
             "started_at": self.started_at.isoformat(),
             "ended_at": self.ended_at.isoformat() if self.ended_at else None,
         }
+
+    # 한방에 결과가 나오다니 믿을 수가 엄따 ㄷㄷㄷ
+    def get_turn_status_message(self, target_monster, session, locale='en') -> str:
+        monster_name = target_monster.get_localized_name(locale)
+        start_message = "\n".join([
+            f"{self._get_combat_status_message(session, locale)}",
+        ])
+
+        if self.get_current_combatant().id == session.player.id:
+            logger.info(f"player turn")
+            start_message += f"{self._get_turn_message(session.player.id, locale)}"
+        else:
+            # 다른 플레이어 이거나 몹인 경우 이렇게 처리 해도 됨
+            if locale == "ko":  # TODO:
+                start_message += f"{ANSIColors.RED}⏳ {monster_name}의 턴입니다...{ANSIColors.RESET}"
+            else:
+                start_message += f"{ANSIColors.RED}⏳ {monster_name}'s turn...{ANSIColors.RESET}"
+        logger.info(start_message)
+        return start_message
+
+    def _get_combat_status_message(self, session: SessionType, locale: str = "en") -> str:
+        """전투 상태 메시지 생성"""
+        lines = [
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            f'{ANSIColors.RED}{self.I18N.get_message("combat.round", locale, round=self.turn_number)}{ANSIColors.RESET}',
+            ""
+        ]
+
+        # 플레이어 정보
+        players = self.get_alive_players()
+        if players:
+            player = players[0]
+            lines.append(f"[0] 👤 {player.name} HP: {player.current_hp}/{player.max_hp}")
+
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+        # 몬스터 정보
+        monsters = self.get_alive_monsters()
+        room_entity_map = getattr(session, "room_entity_map", {})
+        for monster in monsters:
+            monster_name = monster.name # monster.name 은 id
+            if monster.data and "monster" in monster.data:
+                monster_obj = monster.data["monster"]
+                monster_name = monster_obj.get_localized_name(locale)
+            for num in room_entity_map:
+                if 'id' in room_entity_map[num] and room_entity_map[num]['id'] == monster.name:
+                    logger.info(f"found id[{monster.name}] {room_entity_map[num]}")
+                    break
+            else:
+                num = "?"
+            lines.append(
+                f"[{num}] 👹 {monster_name}: HP: {monster.current_hp}/{monster.max_hp}"
+            )
+        lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logger.info(lines)
+        return "\n".join(lines) + "\n"
+
+    def _get_turn_message(self, player_id: str, locale: str = "en") -> str:
+        """플레이어 턴 메시지 생성"""
+        turn_message = "\n".join([
+                self.I18N.get_message("combat.your_turn", locale),
+                "",
+                f'{self.I18N.get_message("combat.action_attack", locale)}',
+                f'{self.I18N.get_message("combat.action_defend", locale)}',
+                f'{self.I18N.get_message("combat.action_flee", locale)}',
+                f'[4] Item  ',
+                f'[5] Spell',
+                self.I18N.get_message("combat.enter_command", locale)
+        ])
+        logger.info(turn_message)
+        return turn_message
+
 
 
 class CombatManager:
@@ -730,4 +806,3 @@ class CombatManager:
         if not combat:
             return []
         return list(combat.disconnected_players.keys())
-

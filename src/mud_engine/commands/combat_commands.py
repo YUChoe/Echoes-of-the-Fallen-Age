@@ -117,85 +117,26 @@ class AttackCommand(BaseCommand):
         # 출력
         locale = get_user_locale(session)
         monster_name = target_monster.get_localized_name(locale)
-        start_message = "\n".join(
-            [
-                "",
-                f'{ANSIColors.RED}{self.I18N.get_message("combat.start", locale, monster=monster_name)}{ANSIColors.RESET}',
-                "",
-                f"{self._get_combat_status_message(session, combat, locale)}",
-            ]
-        )
+        start_message = [
+            "",
+            f'{ANSIColors.RED}{self.I18N.get_message("combat.start", locale, monster=monster_name)}{ANSIColors.RESET}',
+            ""
+        ]
 
-        logger.info(f"player turn {combat.get_current_combatant().id == session.player.id}")  # 이게 왜 false ?
-        if combat.get_current_combatant().id == session.player.id:
-            start_message += f"{self._get_turn_message(combat, session.player.id, locale)}"
-        else:
-            # 다른 플레이어 이거나 몹인 경우 이렇게 처리 해도 됨
-            if locale == "ko":  # TODO:
-                start_message += f"{ANSIColors.RED}⏳ {monster_name}의 턴입니다...{ANSIColors.RESET}"
-            else:
-                start_message += f"{ANSIColors.RED}⏳ {monster_name}'s turn...{ANSIColors.RESET}"
-
-        # TODO: subscribe 3sectickscheduler
+        start_message.append(
+            combat.get_turn_status_message(
+                target_monster,  # 복수 일 수도 있잖아?!
+                session,
+                locale=get_user_locale(session)))
 
         return self.create_success_result(
-            message=start_message.strip(),
+            message='\n'.join(start_message).strip(),
             data={
                 "action": "combat_start",
                 "combat_id": combat.id,
                 "combat_status": combat.to_dict(),
             },
         )
-
-
-    def _get_combat_status_message(self, session: SessionType, combat: CombatInstance, locale: str = "en") -> str:
-        """전투 상태 메시지 생성"""
-        lines = [
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-            f'{ANSIColors.RED}{self.I18N.get_message("combat.round", locale, round=combat.turn_number)}{ANSIColors.RESET}',
-            ""
-        ]
-
-        # 플레이어 정보
-        players = combat.get_alive_players()
-        if players:
-            player = players[0]
-            lines.append(f"[0] 👤 {player.name} HP: {player.current_hp}/{player.max_hp}")
-
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-        # 몬스터 정보
-        monsters = combat.get_alive_monsters()
-        room_entity_map = getattr(session, "room_entity_map", {})
-        for monster in monsters:
-            monster_name = monster.name # monster.name 은 id
-            if monster.data and "monster" in monster.data:
-                monster_obj = monster.data["monster"]
-                monster_name = monster_obj.get_localized_name(locale)
-            for num in room_entity_map:
-                if 'id' in room_entity_map[num] and room_entity_map[num]['id'] == monster.name:
-                    logger.info(f"found id[{monster.name}] {room_entity_map[num]}")
-                    break
-            else:
-                num = "?"
-            lines.append(
-                f"[{num}] 👹 {monster_name}: HP: {monster.current_hp}/{monster.max_hp}"
-            )
-        lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        return "\n".join(lines) + "\n"
-
-    def _get_turn_message(self, combat: CombatInstance, player_id: str, locale: str = "en") -> str:
-        """플레이어 턴 메시지 생성"""
-
-        return "\n".join([
-                self.I18N.get_message("combat.your_turn", locale),
-                "",
-                f'{self.I18N.get_message("combat.action_attack", locale)}',
-                f'{self.I18N.get_message("combat.action_defend", locale)}',
-                f'{self.I18N.get_message("combat.action_flee", locale)}',
-                f'[4] Item  ',
-                self.I18N.get_message("combat.enter_command", locale)
-        ])
 
     async def _execute_combat_attack(self, session: SessionType, target: Combatant, combat: CombatInstance) -> CommandResult:
         """전투 중 공격 액션 실행"""
@@ -396,13 +337,14 @@ class DefendCommand(BaseCommand):
         locale = get_user_locale(session)
         message = f"{result.get('message', '')}\n"
 
-        # 몬스터 턴 메시지 추가
-        if monster_messages:
-            message += "\n" + "\n".join(monster_messages) + "\n"
+        # TODO:
+        # # 몬스터 턴 메시지 추가
+        # if monster_messages:
+        #     message += "\n" + "\n".join(monster_messages) + "\n"
 
-        message += "\n" + attack_cmd._get_combat_status_message(session, combat, locale)
-        message += "\n\n"
-        message += attack_cmd._get_turn_message(combat, session.player.id, locale)
+        # message += "\n" + attack_cmd._get_combat_status_message(session, combat, locale)
+        # message += "\n\n"
+        # message += attack_cmd._get_turn_message(combat, session.player.id, locale)
 
         return self.create_success_result(
             message=message,
@@ -570,10 +512,10 @@ class FleeCommand(BaseCommand):
         # 몬스터 턴 메시지 추가
         if monster_messages:
             message += "\n" + "\n".join(monster_messages) + "\n"
-
-        message += "\n" + attack_cmd._get_combat_status_message(session, combat, locale)
-        message += "\n\n"
-        message += attack_cmd._get_turn_message(combat, session.player.id, locale)
+        # TODO:
+        # message += "\n" + attack_cmd._get_combat_status_message(session, combat, locale)
+        # message += "\n\n"
+        # message += attack_cmd._get_turn_message(combat, session.player.id, locale)
 
         return self.create_success_result(
             message=message,
@@ -650,12 +592,12 @@ class CombatStatusCommand(BaseCommand):
         if not combat:
             return self.create_error_result("전투를 찾을 수 없습니다.")
 
-        attack_cmd = AttackCommand(self.combat_handler)
-        locale = get_user_locale(session)
-        message = attack_cmd._get_combat_status_message(session, combat, locale)
-        message += "\n\n"
-        message += attack_cmd._get_turn_message(combat, session.player.id, locale)
-
+        # attack_cmd = AttackCommand(self.combat_handler)
+        # locale = get_user_locale(session)
+        # message = attack_cmd._get_combat_status_message(session, combat, locale)
+        # message += "\n\n"
+        # message += attack_cmd._get_turn_message(combat, session.player.id, locale)
+        message = ""  # TODO:
         return self.create_success_result(
             message=message,
             data={"action": "combat_status", "combat_status": combat.to_dict()},
