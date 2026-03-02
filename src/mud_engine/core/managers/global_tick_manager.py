@@ -44,7 +44,7 @@ class GlobalTickManager:
             await asyncio.sleep(3)
 
             # 완료된 태스크 정리
-            self._tasks = [t for t in self._tasks if not t.done()]
+            self._tasks = [t for t in self._tasks if t and not t.done()]
 
             if not self._running:
                 break
@@ -59,7 +59,7 @@ class GlobalTickManager:
                 pass
 
         for t in self._tasks:
-            if not t.done(): t.cancle()
+            if t and not t.done(): t.cancle()
 
         if self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
@@ -79,7 +79,8 @@ class GlobalTickManager:
                 if s.in_combat == True:
                     logger.info(f"session_id[{s.session_id}] in_combat True session.combat_id[{s.combat_id}]")
                     # 배틀 객체 가져오기
-                    _combats = self.combat_handler.active_combats()
+                    _combats = self.combat_handler.active_combats
+                    logger.info(_combats)
                     for cid in _combats:
                         logger.info(f"cid[{cid}]")
                         if cid == s.combat_id:
