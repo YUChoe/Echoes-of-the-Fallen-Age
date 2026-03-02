@@ -104,6 +104,14 @@ class AttackCommand(BaseCommand):
             target_combatant = self.get_target_combatant_by_monster_id(target_monster.id, combat)
             result = await self._execute_combat_attack(session, target_combatant, combat)
             combat.advance_turn() # << 턴넘김
+
+            if combat.is_combat_over():
+                return result
+
+            # 전투 참가자들에게 다음 턴 브로드캐스트
+            msg = combat.get_combat_status_message(locale='en')
+            await self.combat_handler.send_broadcast_combat_message(combat, msg)
+
             return result
 
         """else: 새로운 전투 시작"""
@@ -125,7 +133,7 @@ class AttackCommand(BaseCommand):
 
         start_message.append(
             combat.get_turn_status_message(
-                target_monster,  # 복수 일 수도 있잖아?!
+                # target_monster,  # 복수 일 수도 있잖아?!
                 session,
                 locale=get_user_locale(session)))
 

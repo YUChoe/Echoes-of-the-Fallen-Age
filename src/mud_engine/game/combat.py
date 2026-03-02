@@ -262,6 +262,7 @@ class CombatInstance:
         if current and not current.is_alive():
             logger.info("current_combatant dead")
             self.advance_turn(True)  # 이런 경우 self.turn_number 는 증가하면 안됨
+        # NOTE: 누구턴 메시지는 실행 한 곳에서
 
     # def add_combat_log(self, turn: CombatTurn) -> None:
     #     """전투 로그 추가"""
@@ -430,26 +431,42 @@ class CombatInstance:
             "ended_at": self.ended_at.isoformat() if self.ended_at else None,
         }
 
-    # 한방에 결과가 나오다니 믿을 수가 엄따 ㄷㄷㄷ
-    def get_turn_status_message(self, target_monster, session, locale='en') -> str:
-        monster_name = target_monster.get_localized_name(locale)
+    def get_turn_status_message(self, session, locale='en') -> str:
         start_message = "\n".join([
-            f"{self._get_combat_status_message(session, locale)}",
+            f"{self.get_combat_status_message(locale)}",
         ])
 
         if self.get_current_combatant().id == session.player.id:
             logger.info(f"player turn")
             start_message += f"{self._get_turn_message(session.player.id, locale)}"
         else:
+            # monster_name = target_monster.get_localized_name(locale)
+            monster_name = self.get_current_combatant().get_display_name(locale)
             # 다른 플레이어 이거나 몹인 경우 이렇게 처리 해도 됨
             if locale == "ko":  # TODO:
                 start_message += f"{ANSIColors.RED}⏳ {monster_name}의 턴입니다...{ANSIColors.RESET}"
             else:
                 start_message += f"{ANSIColors.RED}⏳ {monster_name}'s turn...{ANSIColors.RESET}"
         logger.info(start_message)
+        """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚔️ Turn 2
+
+[0] 👤 SUPERADMIN HP: 62/62
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[1] 👹 Small Rat: HP: 4/17
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 Your turn! Choose your action:
+
+[1] attack  - Attack with weapon
+[2] defend  - Defensive stance (50% damage reduction next turn)
+[3] flee    - Flee from combat (50% chance)
+[4] Item
+[5] Spell
+Enter command:"""
         return start_message
 
-    def _get_combat_status_message(self, session: SessionType, locale: str = "en") -> str:
+    def get_combat_status_message(self, locale: str = "en") -> str:
         """전투 상태 메시지 생성"""
         lines = [
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
@@ -467,7 +484,8 @@ class CombatInstance:
 
         # 몬스터 정보
         monsters = self.get_alive_monsters()
-        room_entity_map = getattr(session, "room_entity_map", {})
+        # room_entity_map = getattr(session, "room_entity_map", {})  # ???? 이게 왜 getattr 에 ?
+        room_entity_map:dict = {}  # TODO: 타입
         for monster in monsters:
             monster_name = monster.name # monster.name 은 id
             if monster.data and "monster" in monster.data:
@@ -484,6 +502,13 @@ class CombatInstance:
             )
         lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info(lines)
+        """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚔️ Turn 2
+[0] 👤 SUPERADMIN HP: 62/62
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[1] 👹 Small Rat: HP: 4/17
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"""
         return "\n".join(lines) + "\n"
 
     def _get_turn_message(self, player_id: str, locale: str = "en") -> str:

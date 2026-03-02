@@ -222,13 +222,15 @@ class CombatHandler:
 
         return result
 
-    async def _execute_action(
-        self,
-        combat: CombatInstance,
-        actor: Combatant,
-        action: CombatAction,
-        target_id: Optional[str],
-    ) -> Dict[str, Any]:
+    # 전투 참가자들에게 브로드캐스트
+    async def send_broadcast_combat_message(self, combat: CombatInstance, message: str):
+        for combatant in combat.get_alive_players():
+            session = self.session_manager.get_player_session(combatant.id)
+            if session:
+                await session.send_message({ "type": "combat_message", "message": message })
+
+
+    async def _execute_action(self, combat: CombatInstance, actor: Combatant, action: CombatAction, target_id: Optional[str],) -> Dict[str, Any]:
         """행동 실행"""
         if action == CombatAction.ATTACK:
             return await self._execute_attack(combat, actor, target_id)
@@ -241,9 +243,7 @@ class CombatHandler:
         else:
             return {"success": False, "message": "알 수 없는 행동입니다."}
 
-    async def _execute_attack(
-        self, combat: CombatInstance, actor: Combatant, target_id: Optional[str]
-    ) -> Dict[str, Any]:
+    async def _execute_attack(self, combat: CombatInstance, actor: Combatant, target_id: Optional[str]) -> Dict[str, Any]:
         """공격 실행 (D&D 5e 룰 적용)"""
         if not target_id:
             return {"success": False, "message": "공격 대상을 지정해야 합니다."}
@@ -550,26 +550,22 @@ class CombatHandler:
         logger.info(f"몬스터 공격 결과: {result.get('success', False)}, 메시지: {msg}")
 
         # 전투 참가자들에게 몬스터 공격 결과 브로드캐스트
-        for combatant in combat.combatants:
-            if combatant.combatant_type == CombatantType.PLAYER:
-                session = self.session_manager.get_player_session(combatant.id)
-                if session:
-                    await session.send_message({ "type": "combat_message", "message": msg })
-
-        # 턴 로그 추가
-        # turn = CombatTurn(
-        #     turn_number=combat.turn_number,
-        #     combatant_id=current_combatant.id,
-        #     action=CombatAction.ATTACK,
-        #     target_id=target.id,
-        #     damage_dealt=result.get("damage_dealt", 0),
-        #     message=result.get("message", ""),
-        # )
-        # combat.add_combat_log(turn)
+        # for combatant in combat.combatants:
+        #     if combatant.combatant_type == CombatantType.PLAYER:
+        #         session = self.session_manager.get_player_session(combatant.id)
+        #         if session:
+        #             await session.send_message({ "type": "combat_message", "message": msg })
+        await self.send_broadcast_combat_message(combat, msg)
 
         # 다음 턴으로 진행
         combat.advance_turn()
 
+        if combat.is_combat_over():
+            return result
+
+        # 전투 참가자들에게 다음 턴 브로드캐스트
+        msg = combat.get_combat_status_message(locale='en')
+        await self.send_broadcast_combat_message(combat, msg)
         # # 전투 종료 확인
         # if combat.is_combat_over():
         #     rewards = await self._end_combat(combat)

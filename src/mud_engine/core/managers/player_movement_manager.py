@@ -199,6 +199,7 @@ class PlayerMovementManager:
 
                 # 세션에 저장
                 session.room_entity_map = entity_map
+                # TODO: 이걸 세션이 아니라 룸 인스턴스 또 는 콤뱃인스턴스에 저장 해야...
 
                 # 디버깅: entity_map 로깅
                 logger.debug(f"entity_map created: {entity_map}")
