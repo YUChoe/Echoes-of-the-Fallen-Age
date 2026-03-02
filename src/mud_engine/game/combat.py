@@ -153,7 +153,7 @@ class CombatInstance:
     turn_order: List[str] = field(default_factory=list)  # combatant_id 순서
     current_turn_index: int = 0  # 위의 리스트의 인덱스이니 턴이 증가함으로 인해 도돌이
     turn_number: int = 1  # 계속 증가
-    combat_log: List[CombatTurn] = field(default_factory=list)
+    # combat_log: List[CombatTurn] = field(default_factory=list)
     is_active: bool = True
     started_at: datetime = field(default_factory=datetime.now)
     ended_at: Optional[datetime] = None
@@ -259,9 +259,9 @@ class CombatInstance:
             logger.info("current_combatant dead")
             self.advance_turn(True)  # 이런 경우 self.turn_number 는 증가하면 안됨
 
-    def add_combat_log(self, turn: CombatTurn) -> None:
-        """전투 로그 추가"""
-        self.combat_log.append(turn)
+    # def add_combat_log(self, turn: CombatTurn) -> None:
+    #     """전투 로그 추가"""
+    #     self.combat_log.append(turn)
 
     def is_combat_over(self) -> bool:
         """전투 종료 여부 확인"""
@@ -400,9 +400,9 @@ class CombatInstance:
             "player": player_info,
             "monsters": monster_info,
             "monster": monster_info[0] if monster_info else None,  # 호환성
-            "last_turn": (
-                self.combat_log[-1].message if self.combat_log else "전투 시작"
-            ),
+            # "last_turn": (
+            #     self.combat_log[-1].message if self.combat_log else "전투 시작"
+            # ),
             "current_target_index": 0,
         }
 

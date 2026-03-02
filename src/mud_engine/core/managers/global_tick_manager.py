@@ -68,10 +68,11 @@ class GlobalTickManager:
     async def _worker(self):
         try:
             # 실제 작업 수행
-            # TODO: 현재 전투중인 세션을 찾는다
-            #   - 각 세션 중에 몹 턴이면 몹턴을 실행하고 턴을 넘긴다
-            #   - 몹/플레이어가 죽었으면 corpse 를 container 로 떨군다. << 이건 여기서 할게 아니라 attack 에서 할 일인 듯
-            #   - 전투가 종료 되었는지 (한쪽편이 모두 전멸 했는지) 찾아서 인스턴스를 종료 시킨다.
+            # TODO:
+            #   - [X] 현재 전투중인 세션을 찾는다
+            #   - [ ] 각 세션 중에 몹 턴이면 몹턴을 실행하고 턴을 넘긴다
+            #   - [ ] 몹/플레이어가 죽었으면 corpse 를 container 로 떨군다. << 이건 여기서 할게 아니라 attack 에서 할 일인 듯
+            #   - [ ] 전투가 종료 되었는지 (한쪽편이 모두 전멸 했는지) 찾아서 인스턴스를 종료 시킨다.
             # 어우 졸려 피곤해
 
             for s in self.session_manager.get_all_sessions():
@@ -81,7 +82,7 @@ class GlobalTickManager:
                     # 배틀 객체 가져오기
                     _combats = self.combat_handler.active_combats
                     logger.info(_combats)
-                    for cid in _combats:
+                    for cid in _combats:  # 이 루프는 세션 갯수만큼 반복 됨.. 으음..
                         logger.info(f"cid[{cid}]")
                         if cid == s.combat_id:
                             _combat_instancese = _combats[cid]
@@ -89,8 +90,20 @@ class GlobalTickManager:
                             logger.info(f"Found combatant is [{combatant.combatant_type}]")
                             if combatant.combatant_type == CombatantType.MONSTER:  # 이거 어서 참조 하는디?
                                 logger.info("몹 턴")
+                                await self._process_monster_turn(cid)
+                            break  # 해당 세션에 대한 combat_id 를 찾으려는 것이므로 찾았으면 break
+
 
         except asyncio.CancelledError:
             logger.info("Worker 태스크 취소됨")
             # 정리 작업 수행
             raise  # 반드시 re-raise
+
+    async def _process_monster_turn(self, combat_id):
+        # monster_result =
+        await self.combat_handler.process_monster_turn(combat_id)
+        # 안에서
+        # - _execute_attack
+        # - session.send_message 브로드캐스트
+        # - # 다음 턴으로 진행 combat.advance_turn()
+        # 다 하면 끝?

@@ -203,16 +203,16 @@ class CombatHandler:
         )
 
         # 턴 로그 추가
-        turn = CombatTurn(
-            turn_number=combat.turn_number,
-            combatant_id=player_id,
-            action=action,
-            target_id=target_id,
-            damage_dealt=result.get("damage_dealt", 0),
-            damage_received=result.get("damage_received", 0),
-            message=result.get("message", ""),
-        )
-        combat.add_combat_log(turn)
+        # turn = CombatTurn(
+        #     turn_number=combat.turn_number,
+        #     combatant_id=player_id,
+        #     action=action,
+        #     target_id=target_id,
+        #     damage_dealt=result.get("damage_dealt", 0),
+        #     damage_received=result.get("damage_received", 0),
+        #     message=result.get("message", ""),
+        # )
+        # combat.add_combat_log(turn)
 
         # # 다음 턴으로 진행
         # combat.advance_turn()
@@ -253,6 +253,7 @@ class CombatHandler:
             return {"success": False, "message": "대상을 찾을 수 없습니다."}
 
         if not target.is_alive():
+            # TODO: 사망 한 대상이라도 공격은 받을 수 있어야? 예를 들어 부활 시키지 못하게 한다던지
             return {"success": False, "message": "이미 사망한 대상입니다."}
 
         # D&D 5e 룰 적용
@@ -379,6 +380,8 @@ class CombatHandler:
         """데미지 주사위 표기법 생성
 
         장착된 무기의 dice 속성을 사용하거나, 플레이어는 맨손(1d1), 몬스터는 공격력 기반으로 생성
+        TODO: 몹도 장착 무기 기반.
+        TODO: 숙련 굴림 추가 필요
         """
         # 플레이어의 경우 장착된 무기의 dice 확인
         if combatant.combatant_type.value == "player" and combatant.data:
@@ -389,6 +392,7 @@ class CombatHandler:
                     inventory_objects = await self.world_manager.get_inventory_objects(player_obj.id)
 
                     # right_hand 슬롯에 장착된 무기 찾기
+                    # TODO: left_hand 도
                     for obj in inventory_objects:
                         if obj.is_equipped and obj.equipment_slot == "right_hand":
                             # properties에서 dice 가져오기
@@ -403,25 +407,22 @@ class CombatHandler:
             # 플레이어인데 장착된 무기가 없으면 맨손 공격
             logger.info("장착된 무기 없음 - 맨손 공격(1d1) 사용")
             return "1d1"
-
-        # 몬스터는 공격력 기반 계산
-        base_dice = combatant.attack_power // 3  # 주사위 개수
-        bonus = combatant.attack_power % 3  # 보너스
-
-        if base_dice <= 0:
-            base_dice = 1
-
-        # 주사위 크기 결정 (d4, d6, d8)
-        if combatant.attack_power < 5:
-            dice_size = 4
-        elif combatant.attack_power < 10:
-            dice_size = 6
         else:
-            dice_size = 8
+            # 몬스터는 공격력 기반 계산
+            # TODO: 위의 내용 반영
+            base_dice = combatant.attack_power // 3  # 주사위 개수
 
-        if bonus > 0:
-            return f"{base_dice}d{dice_size}+{bonus}"
-        else:
+            if base_dice <= 0:
+                base_dice = 1
+
+            # 주사위 크기 결정 (d4, d6, d8)
+            if combatant.attack_power < 10:
+                dice_size = 4
+            elif combatant.attack_power < 20:
+                dice_size = 6
+            else:
+                dice_size = 8
+
             return f"{base_dice}d{dice_size}"
 
     async def _execute_defend(self, actor: Combatant) -> Dict[str, Any]:
@@ -510,23 +511,25 @@ class CombatHandler:
         }
 
     async def process_monster_turn(self, combat_id: str) -> Dict[str, Any]:
-        """몬스터 턴 처리 (AI)"""
-        logger.info(f"몬스터 턴 처리 시작 - combat_id: {combat_id}")
+        """몹 턴
+        모든 몹의 턴은 3초틱 스케줄러에서 "만" 호출 된다.
+        """
+        logger.info(f"몹 턴 처리 시작 - combat_id: {combat_id}")
 
         combat = self.combat_manager.get_combat(combat_id)
-        if not combat or not combat.is_active:
-            logger.warning(
-                f"전투를 찾을 수 없거나 비활성 상태 - combat_id: {combat_id}"
-            )
-            return {
-                "success": False,
-                "message": "전투를 찾을 수 없거나 이미 종료되었습니다.",
-            }
+        # if not combat or not combat.is_active:
+        #     logger.warning(
+        #         f"전투를 찾을 수 없거나 비활성 상태 - combat_id: {combat_id}"
+        #     )
+        #     return {
+        #         "success": False,
+        #         "message": "전투를 찾을 수 없거나 이미 종료되었습니다.",
+        #     }
 
         current_combatant = combat.get_current_combatant()
-        if not current_combatant:
-            logger.warning(f"현재 턴의 참가자를 찾을 수 없음 - combat_id: {combat_id}")
-            return {"success": False, "message": "현재 턴의 참가자를 찾을 수 없습니다."}
+        # if not current_combatant:
+        #     logger.warning(f"현재 턴의 참가자를 찾을 수 없음 - combat_id: {combat_id}")
+        #     return {"success": False, "message": "현재 턴의 참가자를 찾을 수 없습니다."}
 
         logger.info(f"몬스터 {current_combatant.name}의 턴 처리 중...")
 
@@ -554,25 +557,25 @@ class CombatHandler:
                     await session.send_message({ "type": "combat_message", "message": msg })
 
         # 턴 로그 추가
-        turn = CombatTurn(
-            turn_number=combat.turn_number,
-            combatant_id=current_combatant.id,
-            action=CombatAction.ATTACK,
-            target_id=target.id,
-            damage_dealt=result.get("damage_dealt", 0),
-            message=result.get("message", ""),
-        )
-        combat.add_combat_log(turn)
+        # turn = CombatTurn(
+        #     turn_number=combat.turn_number,
+        #     combatant_id=current_combatant.id,
+        #     action=CombatAction.ATTACK,
+        #     target_id=target.id,
+        #     damage_dealt=result.get("damage_dealt", 0),
+        #     message=result.get("message", ""),
+        # )
+        # combat.add_combat_log(turn)
 
         # 다음 턴으로 진행
         combat.advance_turn()
 
-        # 전투 종료 확인
-        if combat.is_combat_over():
-            rewards = await self._end_combat(combat)
-            result["combat_over"] = True
-            result["winners"] = [c.to_dict() for c in combat.get_winners()]
-            result["rewards"] = rewards
+        # # 전투 종료 확인
+        # if combat.is_combat_over():
+        #     rewards = await self._end_combat(combat)
+        #     result["combat_over"] = True
+        #     result["winners"] = [c.to_dict() for c in combat.get_winners()]
+        #     result["rewards"] = rewards
 
         return result
 
