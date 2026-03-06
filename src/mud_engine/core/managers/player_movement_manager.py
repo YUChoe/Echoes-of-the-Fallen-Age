@@ -199,7 +199,10 @@ class PlayerMovementManager:
 
                 # 세션에 저장
                 session.room_entity_map = entity_map
-                # TODO: 이걸 세션이 아니라 룸 인스턴스 또 는 콤뱃인스턴스에 저장 해야...
+                # 세션이 전투중이면 combatInst 에 entity_map 저장
+                if session.in_combat:
+                    combat_inst: CombatInstance = self.game_engine.combat_manager.get_combat(session.combat_id)
+                    combat_inst.set_entity_map(entity_map)
 
                 # 디버깅: entity_map 로깅
                 logger.debug(f"entity_map created: {entity_map}")

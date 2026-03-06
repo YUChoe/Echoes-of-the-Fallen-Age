@@ -564,7 +564,8 @@ class CombatHandler:
             return result
 
         # 전투 참가자들에게 다음 턴 브로드캐스트
-        msg = combat.get_combat_status_message(locale='en')
+        logger.info("get_combat_status_message by process_monster_turn# 전투 참가자들에게 다음 턴 브로드캐스트")
+        msg = combat.get_combat_status_message(locale='en')  # session은 오직 player.id 를 위해
         await self.send_broadcast_combat_message(combat, msg)
         # # 전투 종료 확인
         # if combat.is_combat_over():

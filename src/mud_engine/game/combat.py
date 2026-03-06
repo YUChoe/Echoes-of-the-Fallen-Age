@@ -166,6 +166,8 @@ class CombatInstance:
     timeout_ticks: int = 0
     max_timeout_ticks: int = 8  # 8 * 15초 = 2분  # TODO: 이건 또 뭐야
     I18N = get_localization_manager()
+    _entity_map: Dict[str, Any] = field(default_factory=dict)
+
 
     def __post_init__(self):
         """초기화 후 턴 순서 결정"""
@@ -223,6 +225,12 @@ class CombatInstance:
         current_id = self.turn_order[self.current_turn_index]
         return self.get_combatant(current_id)
 
+    def get_entity_map(self):
+        return self._entity_map
+
+    def set_entity_map(self, new_entity_map):
+        self._entity_map = new_entity_map
+
     def get_alive_combatants(self) -> List[Combatant]:
         """생존한 참가자 목록 반환"""
         return [c for c in self.combatants if c.is_alive()]
@@ -252,10 +260,13 @@ class CombatInstance:
 
         # 다음 참가자로 이동
         self.current_turn_index += 1
-        if self.current_turn_index >= len(self.turn_order):
-            self.current_turn_index = 0
-            if not is_recursive: self.turn_number += 1
+        if not is_recursive:
+            self.turn_number += 1
             logger.info(f"전투 {self.id} 턴 {self.turn_number}")
+
+        if self.current_turn_index >= len(self.turn_order):
+            # 순서 맨뒤에서 다시 맨앞으로
+            self.current_turn_index = 0
 
         # 사망한 참가자는 건너뛰기
         current = self.get_current_combatant()
@@ -263,6 +274,7 @@ class CombatInstance:
             logger.info("current_combatant dead")
             self.advance_turn(True)  # 이런 경우 self.turn_number 는 증가하면 안됨
         # NOTE: 누구턴 메시지는 실행 한 곳에서
+
 
     # def add_combat_log(self, turn: CombatTurn) -> None:
     #     """전투 로그 추가"""
@@ -432,9 +444,17 @@ class CombatInstance:
         }
 
     def get_turn_status_message(self, session, locale='en') -> str:
+        logger.info("get_combat_status_message by get_turn_status_message")
         start_message = "\n".join([
             f"{self.get_combat_status_message(locale)}",
         ])
+
+
+
+        # TODO: get_turn_status_message 쓰는데에 실행 방법/순서 리팩토링
+        # TODO: 아래의 누구턴인지를 세션 정보 없이 보여줄 수 있게 리팩토링
+
+
 
         if self.get_current_combatant().id == session.player.id:
             logger.info(f"player turn")
@@ -485,7 +505,8 @@ Enter command:"""
         # 몬스터 정보
         monsters = self.get_alive_monsters()
         # room_entity_map = getattr(session, "room_entity_map", {})  # ???? 이게 왜 getattr 에 ?
-        room_entity_map:dict = {}  # TODO: 타입
+        room_entity_map = self.get_entity_map()
+        logger.info(room_entity_map)  # 왜 못찾음? 왜 {} 임?
         for monster in monsters:
             monster_name = monster.name # monster.name 은 id
             if monster.data and "monster" in monster.data:

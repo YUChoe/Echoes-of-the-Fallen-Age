@@ -471,7 +471,8 @@ class TelnetSession:
 
             # 텍스트 인코딩 및 전송
             if newline:
-                text += "\r\n"
+                text += "\n"
+                # text += "\r\n"
 
             self.writer.write(text.encode('utf-8'))
             await self.writer.drain()

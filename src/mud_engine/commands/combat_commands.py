@@ -46,7 +46,11 @@ class AttackCommand(BaseCommand):
 
         entity_num = int(target_input)
         logger.info(f"target_input[{target_input}] entity_num[{entity_num}]")
-        entity_map = getattr(session, "room_entity_map", {})
+        if session.in_combat:
+            combat_instances: CombatInstance = self.combat_handler.combat_manager.get_combat(session.combat_id)
+            entity_map = combat_instances.get_entity_map()
+        else:
+            entity_map = getattr(session, "room_entity_map", {})
 
         # debug
         logger.info("entity_map starting")
@@ -99,17 +103,25 @@ class AttackCommand(BaseCommand):
         logger.info(combat)
         # 생성되면서 턴 순서도 로그에 찍혀야 함
 
+        # 인스턴스에 엔티티 기록
+        combat.set_entity_map(getattr(session, "room_entity_map", {}))
+
         if session.in_combat == True:
             # 전투 중에 attack 명령 인 경우 - 공격 액션 실행
             target_combatant = self.get_target_combatant_by_monster_id(target_monster.id, combat)
             result = await self._execute_combat_attack(session, target_combatant, combat)
+            await self.combat_handler.send_broadcast_combat_message(combat, result.message)
+            result.message = ""  # 위에서 출력 하고 clear
             combat.advance_turn() # << 턴넘김
 
             if combat.is_combat_over():
                 return result
 
             # 전투 참가자들에게 다음 턴 브로드캐스트
-            msg = combat.get_combat_status_message(locale='en')
+            # logger.info("get_combat_status_message by execute session.in_combat == True:")  # 여기는 아닐듯 ...'s turn 이 없으니
+            # msg = combat.get_combat_status_message(locale='en')
+            # await self.combat_handler.send_broadcast_combat_message(combat, msg)
+            msg = combat.get_turn_status_message(session, locale='en')
             await self.combat_handler.send_broadcast_combat_message(combat, msg)
 
             return result
@@ -120,7 +132,7 @@ class AttackCommand(BaseCommand):
         session.original_room_id = current_room_id
         session.combat_id = combat.id
         session.current_room_id = f"combat_{combat.id}"  # 전투 인스턴스로 이동
-        logger.info(session)
+        logger.debug(session)
 
         # 출력
         locale = get_user_locale(session)
@@ -148,8 +160,6 @@ class AttackCommand(BaseCommand):
 
     async def _execute_combat_attack(self, session: SessionType, target: Combatant, combat: CombatInstance) -> CommandResult:
         """전투 중 공격 액션 실행"""
-        # TODO: 그나저나 여기 왜 이리 쓸데 없이 복잡함?
-
         combat_id = combat.id
 
         # combat_handler 가서 공격 실행
