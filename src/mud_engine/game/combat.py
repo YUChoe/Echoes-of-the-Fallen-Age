@@ -176,9 +176,7 @@ class CombatInstance:
     def _determine_turn_order(self) -> None:
         """민첩 기반 턴 순서 결정 (높은 순서대로)"""
         # 민첩이 높은 순서대로 정렬
-        sorted_combatants = sorted(
-            self.combatants, key=lambda c: c.agility, reverse=True
-        )
+        sorted_combatants = sorted(self.combatants, key=lambda c: c.agility, reverse=True)
         self.turn_order = [c.id for c in sorted_combatants]
         logger.info(f"전투 {self.id} 턴 순서 결정: {self.turn_order}")
 
@@ -236,19 +234,11 @@ class CombatInstance:
 
     def get_alive_players(self) -> List[Combatant]:
         """생존한 플레이어 목록 반환"""
-        return [
-            c
-            for c in self.combatants
-            if c.is_alive() and c.combatant_type == CombatantType.PLAYER
-        ]
+        return [c for c in self.combatants if c.is_alive() and c.combatant_type == CombatantType.PLAYER]
 
     def get_alive_monsters(self) -> List[Combatant]:
         """생존한 몬스터 목록 반환"""
-        return [
-            c
-            for c in self.combatants
-            if c.is_alive() and c.combatant_type == CombatantType.MONSTER
-        ]
+        return [c for c in self.combatants if c.is_alive() and c.combatant_type == CombatantType.MONSTER]
 
     def advance_turn(self, is_recursive=False) -> None:
         logger.info("invoked advance_turn")
@@ -320,17 +310,13 @@ class CombatInstance:
         """
         if not self.has_connected_players():
             self.timeout_ticks += 1
-            logger.info(
-                f"전투 {self.id}: 타임아웃 tick {self.timeout_ticks}/{self.max_timeout_ticks}"
-            )
+            logger.info(f"전투 {self.id}: 타임아웃 tick {self.timeout_ticks}/{self.max_timeout_ticks}")
             return self.timeout_ticks >= self.max_timeout_ticks
         else:
             # 연결된 플레이어가 있으면 tick 리셋
             if self.timeout_ticks > 0:
                 self.timeout_ticks = 0
-                logger.info(
-                    f"전투 {self.id}: 타임아웃 tick 리셋 (연결된 플레이어 있음)"
-                )
+                logger.info(f"전투 {self.id}: 타임아웃 tick 리셋 (연결된 플레이어 있음)")
         return False
 
     def end_combat(self) -> None:
@@ -434,11 +420,7 @@ class CombatInstance:
             "turn_order": self.turn_order,
             "current_turn_index": self.current_turn_index,
             "turn_number": self.turn_number,
-            "current_combatant": (
-                self.get_current_combatant().to_dict()
-                if self.get_current_combatant()
-                else None
-            ),
+            "current_combatant": (self.get_current_combatant().to_dict() if self.get_current_combatant() else None),
             "is_active": self.is_active,
             "is_over": self.is_combat_over(),
             "started_at": self.started_at.isoformat(),
@@ -449,10 +431,10 @@ class CombatInstance:
         logger.info("get_whos_turn invoked")
         # 현재 전투 턴 combatant 로 이름 구하기
         combatant = self.get_current_combatant()
-        next_turn_id = combatant.id
+        # next_turn_id = combatant.id
 
-        if self.get_current_combatant().id == next_turn_id:
-            logger.info(f"player turn")
+        # if self.get_current_combatant().id == next_turn_id:
+        #     logger.info(f"player turn")
         # start_message += f"{self._get_turn_message(next_turn_id, locale)}"
 
         # monster_name = target_monster.get_localized_name(locale)
@@ -461,6 +443,7 @@ class CombatInstance:
             message = f"{ANSIColors.RED}⏳ {combatant.get_display_name(locale)}의 턴입니다...{ANSIColors.RESET}"
         else:
             message = f"{ANSIColors.RED}⏳ {combatant.get_display_name(locale)}'s turn...{ANSIColors.RESET}"
+
         logger.info(message)
         return message
 
@@ -476,9 +459,7 @@ class CombatInstance:
         players = self.get_alive_players()
         if players:
             player = players[0]
-            lines.append(
-                f"[0] 👤 {player.name} HP: {player.current_hp}/{player.max_hp}"
-            )
+            lines.append(f"[0] 👤 {player.name} HP: {player.current_hp}/{player.max_hp}")
 
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
@@ -493,17 +474,12 @@ class CombatInstance:
                 monster_obj = monster.data["monster"]
                 monster_name = monster_obj.get_localized_name(locale)
             for num in room_entity_map:
-                if (
-                    "id" in room_entity_map[num]
-                    and room_entity_map[num]["id"] == monster.name
-                ):
+                if "id" in room_entity_map[num] and room_entity_map[num]["id"] == monster.name:
                     logger.info(f"found id[{monster.name}] {room_entity_map[num]}")
                     break
             else:
                 num = "?"
-            lines.append(
-                f"[{num}] 👹 {monster_name}: HP: {monster.current_hp}/{monster.max_hp}"
-            )
+            lines.append(f"[{num}] 👹 {monster_name}: HP: {monster.current_hp}/{monster.max_hp}")
         lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         logger.info(lines)
         """
@@ -515,7 +491,7 @@ class CombatInstance:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"""
         return "\n".join(lines) + "\n"
 
-    def _get_turn_message(self, player_id: str, locale: str = "en") -> str:
+    def get_player_turn_message(self, locale: str = "en") -> str:
         """플레이어 턴 메시지 생성"""
         turn_message = "\n".join(
             [
@@ -538,9 +514,7 @@ class CombatManager:
 
     def __init__(self, session_manager: Any = None):
         """전투 매니저 초기화"""
-        self.combat_instances: Dict[
-            str, CombatInstance
-        ] = {}  # combat_id -> CombatInstance
+        self.combat_instances: Dict[str, CombatInstance] = {}  # combat_id -> CombatInstance
         self.room_combats: Dict[str, str] = {}  # room_id -> combat_id
         self.player_combats: Dict[str, str] = {}  # player_id -> combat_id
         self.session_manager = session_manager
@@ -556,9 +530,7 @@ class CombatManager:
 
     # TODO: 문제는 참자가 마다 locale 설정이 다를 수 있으니 관련 정보를 combatant 안에 한번에 받아야 함
     # 그리고 나중에 클라이언트가 이부분 처리를 하게 된다면 다 제거하고 영어+기호 로만 전달 후 클라에서 변환하도록 만들 것
-    async def create_turn_for_new_instance(
-        self, combat: CombatInstance, locale: str = "en"
-    ) -> None:
+    async def create_turn_for_new_instance(self, combat: CombatInstance, locale: str = "en") -> None:
         # 전투 참가자들에게 결정 된 턴 순서 브로드캐스트
         msg = ["순서: "]  # TODO: i18n
         logger.info(f"{combat.turn_order}")
@@ -569,19 +541,13 @@ class CombatManager:
                 logger.info(f"superadmin_id {superadmin_id}")
                 break  # 하나만 찾아라
         if superadmin_id:
-            combat.turn_order.insert(
-                0, combat.turn_order.pop(combat.turn_order.index(superadmin_id))
-            )
+            combat.turn_order.insert(0, combat.turn_order.pop(combat.turn_order.index(superadmin_id)))
             logger.info(f"after {combat.turn_order}")
 
         for combatant_id in combat.turn_order:
             name = combat.get_combatant(combatant_id).name
             if "monster" in combat.get_combatant(combatant_id).data:
-                name = (
-                    combat.get_combatant(combatant_id)
-                    .data["monster"]
-                    .get_localized_name(locale)
-                )
+                name = combat.get_combatant(combatant_id).data["monster"].get_localized_name(locale)
             msg.append(f"[{name}]")
         logger.info(" ".join(msg))
 
@@ -591,9 +557,7 @@ class CombatManager:
             if combatant.combatant_type == CombatantType.PLAYER:
                 session = self.session_manager.get_player_session(combatant.id)
                 if session:
-                    await session.send_message(
-                        {"type": "combat_message", "message": " ".join(msg)}
-                    )
+                    await session.send_message({"type": "combat_message", "message": " ".join(msg)})
         return
 
     def get_combat_instances(self) -> Dict[str, CombatInstance]:
@@ -627,9 +591,7 @@ class CombatManager:
         combat = self.get_combat_by_room(room_id)
         return combat is not None and combat.is_active
 
-    def add_player_to_combat(
-        self, combat_id: str, player: Player, player_id: str
-    ) -> bool:
+    def add_player_to_combat(self, combat_id: str, player: Player, player_id: str) -> bool:
         """플레이어를 전투에 추가"""
         combat = self.get_combat(combat_id)
         if not combat or not combat.is_active:
@@ -733,11 +695,7 @@ class CombatManager:
 
     def cleanup_finished_combats(self) -> int:
         """종료된 전투 인스턴스 정리"""
-        finished_combats = [
-            combat_id
-            for combat_id, combat in self.combat_instances.items()
-            if not combat.is_active
-        ]
+        finished_combats = [combat_id for combat_id, combat in self.combat_instances.items() if not combat.is_active]
 
         for combat_id in finished_combats:
             del self.combat_instances[combat_id]
@@ -769,9 +727,7 @@ class CombatManager:
         logger.info(f"플레이어 {player_id} 연결 해제 - 전투 {combat.id} 유지")
         return True
 
-    def try_rejoin_combat(
-        self, player_id: str, player: Player
-    ) -> Optional[CombatInstance]:
+    def try_rejoin_combat(self, player_id: str, player: Player) -> Optional[CombatInstance]:
         """
         플레이어 재접속 시 기존 전투에 복귀 시도
 

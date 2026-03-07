@@ -6,7 +6,14 @@ import logging
 import random
 from typing import Optional, List, Dict, Any
 
-from .combat import CombatManager, CombatInstance, CombatAction, CombatTurn, Combatant, CombatantType
+from .combat import (
+    CombatManager,
+    CombatInstance,
+    CombatAction,
+    CombatTurn,
+    Combatant,
+    CombatantType,
+)
 from .monster import Monster, MonsterType
 from .models import Player
 from ..server.ansi_colors import ANSIColors
@@ -23,7 +30,13 @@ logger = logging.getLogger(__name__)
 class CombatHandler:
     """전투 핸들러 - 전투 로직 처리"""
 
-    def __init__(self, combat_manager: CombatManager, world_manager: Any = None, game_engine: Any = None, session_manager: Any = None):
+    def __init__(
+        self,
+        combat_manager: CombatManager,
+        world_manager: Any = None,
+        game_engine: Any = None,
+        session_manager: Any = None,
+    ):
         """전투 핸들러 초기화"""
         self.combat_manager = combat_manager
         self.world_manager = world_manager
@@ -102,11 +115,7 @@ class CombatHandler:
             return None
 
         # 공격적인 몬스터 찾기 (전투 중이 아닌 몬스터만)
-        aggressive_monsters = [
-            m
-            for m in monsters
-            if m.is_aggressive() and m.is_alive and not self.is_monster_in_combat(m.id)
-        ]
+        aggressive_monsters = [m for m in monsters if m.is_aggressive() and m.is_alive and not self.is_monster_in_combat(m.id)]
 
         if not aggressive_monsters:
             logger.debug(f"방 {room_id}에 공격 가능한 선공형 몬스터 없음")
@@ -117,13 +126,9 @@ class CombatHandler:
 
         if existing_combat and existing_combat.is_active:
             # 기존 전투에 플레이어 추가
-            success = self.combat_manager.add_player_to_combat(
-                existing_combat.id, player, player_id
-            )
+            success = self.combat_manager.add_player_to_combat(existing_combat.id, player, player_id)
             if success:
-                logger.info(
-                    f"플레이어 {player_id}를 기존 전투 {existing_combat.id}에 추가"
-                )
+                logger.info(f"플레이어 {player_id}를 기존 전투 {existing_combat.id}에 추가")
                 return existing_combat
             return None
 
@@ -137,11 +142,7 @@ class CombatHandler:
         for monster in aggressive_monsters:
             self.combat_manager.add_monster_to_combat(combat.id, monster)
 
-        logger.info(
-            f"전투 시작: 방 {room_id}, "
-            f"플레이어 {player_id}, "
-            f"몬스터 {len(aggressive_monsters)}마리"
-        )
+        logger.info(f"전투 시작: 방 {room_id}, 플레이어 {player_id}, 몬스터 {len(aggressive_monsters)}마리")
 
         return combat
 
@@ -198,9 +199,7 @@ class CombatHandler:
             return {"success": False, "message": "당신의 턴이 아닙니다."}
 
         # 행동 처리
-        result = await self._execute_action(
-            combat, current_combatant, action, target_id
-        )
+        result = await self._execute_action(combat, current_combatant, action, target_id)
 
         # 턴 로그 추가
         # turn = CombatTurn(
@@ -227,10 +226,24 @@ class CombatHandler:
         for combatant in combat.get_alive_players():
             session = self.session_manager.get_player_session(combatant.id)
             if session:
-                await session.send_message({ "type": "combat_message", "message": message })
+                await session.send_message({"type": "combat_message", "message": message})
 
+    async def send_battle_command_menu(self, combat: CombatInstance):
+        for combatant in combat.get_alive_players():
+            if combatant.combatant_type != CombatantType.PLAYER: continue
+            if combatant.id != combat.get_current_combatant().id: continue
+            session = self.session_manager.get_player_session(combatant.id)
+            if session:
+                message = combat.get_player_turn_message(session.locale)
+                await session.send_message({"type": "combat_message", "message": message})
 
-    async def _execute_action(self, combat: CombatInstance, actor: Combatant, action: CombatAction, target_id: Optional[str],) -> Dict[str, Any]:
+    async def _execute_action(
+        self,
+        combat: CombatInstance,
+        actor: Combatant,
+        action: CombatAction,
+        target_id: Optional[str],
+    ) -> Dict[str, Any]:
         """행동 실행"""
         if action == CombatAction.ATTACK:
             return await self._execute_attack(combat, actor, target_id)
@@ -334,9 +347,7 @@ class CombatHandler:
         if is_critical:
             message += f"💥 크리티컬 히트! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
         else:
-            message += (
-                f"✅ 명중! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
-            )
+            message += f"✅ 명중! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
 
         if target.is_defending:
             message += " (방어 중 - 50% 감소)"
@@ -396,8 +407,8 @@ class CombatHandler:
                     for obj in inventory_objects:
                         if obj.is_equipped and obj.equipment_slot == "right_hand":
                             # properties에서 dice 가져오기
-                            if hasattr(obj, 'properties') and obj.properties:
-                                dice = obj.properties.get('dice')
+                            if hasattr(obj, "properties") and obj.properties:
+                                dice = obj.properties.get("dice")
                                 if dice:
                                     logger.info(f"장착된 무기 dice 사용: {dice}")
                                     return dice
@@ -436,18 +447,14 @@ class CombatHandler:
         # 기본 언어는 영어로 설정 (세션 정보가 없는 경우)
         locale = "en"
 
-        message = localization.get_message(
-            "combat.defend_stance", locale, actor=actor.name
-        )
+        message = localization.get_message("combat.defend_stance", locale, actor=actor.name)
 
         return {
             "success": True,
             "message": f"{ANSIColors.RED}{message}{ANSIColors.RESET}",
         }
 
-    async def _execute_flee(
-        self, combat: CombatInstance, actor: Combatant
-    ) -> Dict[str, Any]:
+    async def _execute_flee(self, combat: CombatInstance, actor: Combatant) -> Dict[str, Any]:
         """도망 실행"""
         # 도망 성공 확률 (50%)
         flee_chance = 0.5
@@ -469,9 +476,7 @@ class CombatHandler:
             # 전투에서 제거
             combat.remove_combatant(actor.id)
 
-            message = localization.get_message(
-                "combat.fled_from_combat", locale, actor=actor.name
-            )
+            message = localization.get_message("combat.fled_from_combat", locale, actor=actor.name)
 
             return {
                 "success": True,
@@ -479,9 +484,7 @@ class CombatHandler:
                 "fled": True,
             }
         else:
-            message = localization.get_message(
-                "combat.flee_failed", locale, actor=actor.name
-            )
+            message = localization.get_message("combat.flee_failed", locale, actor=actor.name)
 
             return {
                 "success": True,
@@ -501,9 +504,7 @@ class CombatHandler:
         # 기본 언어는 영어로 설정 (세션 정보가 없는 경우)
         locale = "en"
 
-        message = localization.get_message(
-            "combat.wait_action", locale, actor=actor.name
-        )
+        message = localization.get_message("combat.wait_action", locale, actor=actor.name)
 
         return {
             "success": True,
@@ -540,9 +541,7 @@ class CombatHandler:
             return {"success": False, "message": "공격할 대상이 없습니다."}
 
         target = random.choice(alive_players)
-        logger.info(
-            f"몬스터 {current_combatant.name}이(가) {target.name}을(를) 공격 시도"
-        )
+        logger.info(f"몬스터 {current_combatant.name}이(가) {target.name}을(를) 공격 시도")
 
         # 공격 실행
         result = await self._execute_attack(combat, current_combatant, target.id)
@@ -565,7 +564,7 @@ class CombatHandler:
 
         # 전투 참가자들에게 다음 턴 브로드캐스트
         logger.info("get_combat_status_message by process_monster_turn# 전투 참가자들에게 다음 턴 브로드캐스트")
-        msg = combat.get_combat_status_message(locale='en')  # session은 오직 player.id 를 위해
+        msg = combat.get_combat_status_message(locale="en")
         await self.send_broadcast_combat_message(combat, msg)
         # # 전투 종료 확인
         # if combat.is_combat_over():
@@ -573,6 +572,9 @@ class CombatHandler:
         #     result["combat_over"] = True
         #     result["winners"] = [c.to_dict() for c in combat.get_winners()]
         #     result["rewards"] = rewards
+        msg = combat.get_whos_turn(locale="en")
+        await self.send_broadcast_combat_message(combat, msg)
+        await self.send_battle_command_menu(combat)
 
         return result
 
@@ -599,25 +601,17 @@ class CombatHandler:
             # 플레이어가 승리한 경우 보상 지급
             from .combat import CombatantType
 
-            player_winners = [
-                w for w in winners if w.combatant_type == CombatantType.PLAYER
-            ]
+            player_winners = [w for w in winners if w.combatant_type == CombatantType.PLAYER]
 
             if player_winners:
                 # 처치한 몬스터들로부터 보상 계산
-                all_monsters = [
-                    c
-                    for c in combat.combatants
-                    if c.combatant_type != CombatantType.PLAYER
-                ]
+                all_monsters = [c for c in combat.combatants if c.combatant_type != CombatantType.PLAYER]
                 defeated_monsters = [m for m in all_monsters if not m.is_alive()]
 
                 # 각 몬스터로부터 보상 수집 (현재 보상 시스템 비활성화)
                 for monster_combatant in defeated_monsters:
                     # 보상 시스템 재개발 예정 - 현재는 드롭 아이템만 처리
-                    logger.debug(
-                        f"몬스터 {monster_combatant.name} 처치됨"
-                    )
+                    logger.debug(f"몬스터 {monster_combatant.name} 처치됨")
 
                 logger.info(f"전투 종료 - 몬스터 {len(defeated_monsters)}마리 처치")
         else:
@@ -628,10 +622,7 @@ class CombatHandler:
 
         if self.world_manager:
             for combatant in combat.combatants:
-                if (
-                    combatant.combatant_type != CombatantType.PLAYER
-                    and not combatant.is_alive()
-                ):
+                if combatant.combatant_type != CombatantType.PLAYER and not combatant.is_alive():
                     # 몬스터가 죽었으면 DB에 저장하고 아이템 드롭
                     try:
                         monster = await self.world_manager.get_monster(combatant.id)
@@ -646,9 +637,7 @@ class CombatHandler:
                             if monster.is_alive:
                                 monster.die()
                                 await self.world_manager.update_monster(monster)
-                                logger.info(
-                                    f"몬스터 {combatant.name} ({combatant.id}) 사망 처리 완료"
-                                )
+                                logger.info(f"몬스터 {combatant.name} ({combatant.id}) 사망 처리 완료")
                     except Exception as e:
                         logger.error(f"몬스터 사망 처리 실패 ({combatant.id}): {e}")
 
@@ -690,15 +679,9 @@ class CombatHandler:
     @property
     def active_combats(self) -> Dict[str, CombatInstance]:
         """활성 전투 목록 (호환성을 위한 속성)"""
-        return {
-            combat_id: combat
-            for combat_id, combat in self.combat_manager.combat_instances.items()
-            if combat.is_active
-        }
+        return {combat_id: combat for combat_id, combat in self.combat_manager.combat_instances.items() if combat.is_active}
 
-    async def start_combat(
-        self, player: Player, monster: Monster, room_id: str, broadcast_callback=None
-    ) -> CombatInstance:
+    async def start_combat(self, player: Player, monster: Monster, room_id: str, broadcast_callback=None) -> CombatInstance:
         """
         새로운 전투 시작 + 이미 전투 중인 경우 기존 CombatInstance 리턴
 
@@ -725,7 +708,7 @@ class CombatHandler:
                 break
 
         if _found:
-            # 플레이어가 없는 경우 플레이어 추가
+            # 플레이어가 인스턴스에 없는 경우 플레이어 추가
             for combatant in combat.combatants:
                 if combatant.id == player.id:  # 꼭 찾는걸 이렇게 해야 하나
                     logger.info("found")
@@ -739,7 +722,7 @@ class CombatHandler:
         # 신규 인스턴스
         logger.info("신규 인스턴스")
         combat = self.combat_manager.create_combat(room_id)
-        # 플레이어 추가
+        # 플레이어(== 나?) 추가
         logger.info("플레이어 추가")
         self.combat_manager.add_player_to_combat(combat.id, player, player.id)
         # 몬스터 추가
@@ -748,15 +731,11 @@ class CombatHandler:
 
         await self.combat_manager.create_turn_for_new_instance(combat)  # 턴 결정
 
-        logger.info(
-            f"전투 시작[{combat.id}] {player.username} vs {monster.get_localized_name('ko')}"
-        )
+        logger.info(f"전투 시작[{combat.id}] {player.username} vs {monster.get_localized_name('ko')}")
 
         return combat
 
-    async def add_monsters_to_combat(
-        self, player_id: str, monsters: List[Monster]
-    ) -> bool:
+    async def add_monsters_to_combat(self, player_id: str, monsters: List[Monster]) -> bool:
         """
         기존 전투에 몬스터 추가
 

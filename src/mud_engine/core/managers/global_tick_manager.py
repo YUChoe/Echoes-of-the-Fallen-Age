@@ -90,4 +90,5 @@ class GlobalTickManager:
 
     async def _process_monster_turn(self, combat_id):
         await self.combat_handler.process_monster_turn(combat_id)
+        logger.info("process_monster_turn finished")
 # 아 깔끔하다 역시 내 코드
