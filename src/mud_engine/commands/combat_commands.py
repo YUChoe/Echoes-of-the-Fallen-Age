@@ -39,7 +39,9 @@ class AttackCommand(BaseCommand):
         self.I18N = get_localization_manager()
 
     # 이거 무조건 비동기로 만들어야 하나?
-    def get_monster_entity_by_input_digit(self, session: SessionType, target_input) -> Monster:
+    def get_monster_entity_by_input_digit(
+        self, session: SessionType, target_input
+    ) -> Monster:
         if not target_input.isdigit():
             logger.error(f"target_input[{target_input}] is not digit")
             return None
@@ -47,7 +49,9 @@ class AttackCommand(BaseCommand):
         entity_num = int(target_input)
         logger.info(f"target_input[{target_input}] entity_num[{entity_num}]")
         if session.in_combat:
-            combat_instances: CombatInstance = self.combat_handler.combat_manager.get_combat(session.combat_id)
+            combat_instances: CombatInstance = (
+                self.combat_handler.combat_manager.get_combat(session.combat_id)
+            )
             entity_map = combat_instances.get_entity_map()
         else:
             entity_map = getattr(session, "room_entity_map", {})
@@ -69,7 +73,9 @@ class AttackCommand(BaseCommand):
         target_monster = entity_info["entity"]
         return target_monster
 
-    def get_target_combatant_by_monster_id(self, monster_id: str, combat: CombatInstance) -> Combatant:
+    def get_target_combatant_by_monster_id(
+        self, monster_id: str, combat: CombatInstance
+    ) -> Combatant:
         # monster_id 라고 써 놓긴 했는데, 플레이어 일 수도 있고 동료 일 수도 있고
         for combatant in combat.combatants:
             logger.debug(f"combatant.id[{combatant.id}] ? [{monster_id}]")
@@ -95,11 +101,14 @@ class AttackCommand(BaseCommand):
         logger.info(f"target_monster.id[{target_monster.id}]")
 
         current_room_id = getattr(session, "current_room_id", None)
-        if not current_room_id: return self.create_error_result("현재 위치를 확인할 수 없습니다.")
-        logger.info(f'target_input[{target_input}] current_room_id[{current_room_id}]')
+        if not current_room_id:
+            return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+        logger.info(f"target_input[{target_input}] current_room_id[{current_room_id}]")
 
         # 인스턴스 확인 및 생성
-        combat = await self.combat_handler.start_combat(session.player, target_monster, current_room_id)
+        combat = await self.combat_handler.start_combat(
+            session.player, target_monster, current_room_id
+        )
         logger.info(combat)
         # 생성되면서 턴 순서도 로그에 찍혀야 함
 
@@ -108,20 +117,26 @@ class AttackCommand(BaseCommand):
 
         if session.in_combat == True:
             # 전투 중에 attack 명령 인 경우 - 공격 액션 실행
-            target_combatant = self.get_target_combatant_by_monster_id(target_monster.id, combat)
-            result = await self._execute_combat_attack(session, target_combatant, combat)
-            await self.combat_handler.send_broadcast_combat_message(combat, result.message)
+            target_combatant = self.get_target_combatant_by_monster_id(
+                target_monster.id, combat
+            )
+            result = await self._execute_combat_attack(
+                session, target_combatant, combat
+            )
+            await self.combat_handler.send_broadcast_combat_message(
+                combat, result.message
+            )
             result.message = ""  # 위에서 출력 하고 clear
-            combat.advance_turn() # << 턴넘김
+            combat.advance_turn()  # << 턴넘김
 
             if combat.is_combat_over():
                 return result
 
+            # 피 얼마나 남았는지 등 상태 출력
+            msg = combat.get_combat_status_message(locale="en")
+            await self.combat_handler.send_broadcast_combat_message(combat, msg)
             # 전투 참가자들에게 다음 턴 브로드캐스트
-            # logger.info("get_combat_status_message by execute session.in_combat == True:")  # 여기는 아닐듯 ...'s turn 이 없으니
-            # msg = combat.get_combat_status_message(locale='en')
-            # await self.combat_handler.send_broadcast_combat_message(combat, msg)
-            msg = combat.get_turn_status_message(session, locale='en')
+            msg = combat.get_whos_turn(locale="en")
             await self.combat_handler.send_broadcast_combat_message(combat, msg)
 
             return result
@@ -139,18 +154,19 @@ class AttackCommand(BaseCommand):
         monster_name = target_monster.get_localized_name(locale)
         start_message = [
             "",
-            f'{ANSIColors.RED}{self.I18N.get_message("combat.start", locale, monster=monster_name)}{ANSIColors.RESET}',
-            ""
+            f"{ANSIColors.RED}{self.I18N.get_message('combat.start', locale, monster=monster_name)}{ANSIColors.RESET}",
+            "",
         ]
 
-        start_message.append(
-            combat.get_turn_status_message(
-                # target_monster,  # 복수 일 수도 있잖아?!
-                session,
-                locale=get_user_locale(session)))
-
+        # start_message.append(
+        #     combat.get_turn_status_message(
+        #         # target_monster,  # 복수 일 수도 있잖아?!
+        #         session,
+        #         locale=get_user_locale(session)))
+        start_message.append(combat.get_combat_status_message(locale))
+        start_message.append(combat.get_whos_turn(locale))
         return self.create_success_result(
-            message='\n'.join(start_message).strip(),
+            message="\n".join(start_message).strip(),
             data={
                 "action": "combat_start",
                 "combat_id": combat.id,
@@ -158,7 +174,9 @@ class AttackCommand(BaseCommand):
             },
         )
 
-    async def _execute_combat_attack(self, session: SessionType, target: Combatant, combat: CombatInstance) -> CommandResult:
+    async def _execute_combat_attack(
+        self, session: SessionType, target: Combatant, combat: CombatInstance
+    ) -> CommandResult:
         """전투 중 공격 액션 실행"""
         combat_id = combat.id
 
@@ -258,30 +276,6 @@ class AttackCommand(BaseCommand):
     #     return "[" + "█" * filled + "░" * empty + "]"
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class DefendCommand(BaseCommand):
     """방어 명령어"""
 
@@ -351,8 +345,8 @@ class DefendCommand(BaseCommand):
             return await self._end_combat(session, combat, {})
 
         # 다음 턴 메시지
-        attack_cmd = AttackCommand(self.combat_handler)
-        locale = get_user_locale(session)
+        AttackCommand(self.combat_handler)
+        # locale = get_user_locale(session)
         message = f"{result.get('message', '')}\n"
 
         # TODO:
@@ -524,7 +518,7 @@ class FleeCommand(BaseCommand):
             return await self._end_combat(session, combat, {})
 
         # 다음 턴 메시지
-        attack_cmd = AttackCommand(self.combat_handler)
+        AttackCommand(self.combat_handler)
         message = f"{result.get('message', '')}\n"
 
         # 몬스터 턴 메시지 추가
@@ -552,13 +546,12 @@ class FleeCommand(BaseCommand):
 
 
 class ItemCommand(BaseCommand):
-
     def __init__(self, combat_handler: CombatHandler):
         super().__init__(
             name="item",
             aliases=[],
             description="",
-            usage="item 12 1  # use/throw item [12] to [1]"
+            usage="item 12 1  # use/throw item [12] to [1]",
         )
         self.combat_handler = combat_handler
 
@@ -579,8 +572,6 @@ class ItemCommand(BaseCommand):
             message=message,
             data={"action": "combat_action_result", "combat_status": combat.to_dict()},
         )
-
-
 
 
 class CombatStatusCommand(BaseCommand):
