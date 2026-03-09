@@ -396,6 +396,7 @@ class InventoryCommand(BaseCommand):
 
         # 카테고리 필터링
         filter_category = None
+        logger.info(f"args[{args}]")
         if args:
             filter_category = args[0].lower()
             valid_categories = {'weapon', 'armor', 'consumable', 'misc', 'material', 'equipped'}
@@ -411,7 +412,12 @@ class InventoryCommand(BaseCommand):
             if not inventory_objects:
                 return self.create_info_result(get_message("inventory.empty", locale))
 
-            # 카테고리별 필터링
+            # logger.info(f"inventory_objects[{inventory_objects}]")
+            _cnt = 0
+            for _item in inventory_objects:
+                _cnt += 1
+                logger.info(f"inventory_objects[{_cnt}]{_item.to_simple()}]")
+            # 카테고리별 필터링 ?? 이게 뭐하는거임?
             if filter_category:
                 if filter_category == 'equipped':
                     filtered_objects = [obj for obj in inventory_objects if obj.is_equipped]
@@ -419,6 +425,8 @@ class InventoryCommand(BaseCommand):
                     filtered_objects = [obj for obj in inventory_objects if obj.category == filter_category]
             else:
                 filtered_objects = inventory_objects
+            logger.debug(f"filter_category[{filter_category}] filtered_objects[{filtered_objects}]")
+            # 나중에 착용중인 아이템은 [equipped] 라고 표시 됨
 
             if not filtered_objects:
                 category_name = filter_category if filter_category else get_message("inventory.category_all", locale)
@@ -428,21 +436,26 @@ class InventoryCommand(BaseCommand):
 
             # 소지 용량 정보
             capacity_info = session.player.get_carry_capacity_info(inventory_objects)
+            logger.info(f"capacity_info[{capacity_info}]")
 
             # 인벤토리 목록 생성
             response = get_message("inventory.title", locale, username=session.player.username)
             if filter_category:
                 response += f" ({filter_category})"
-            response += ":\n\n"
+
+            logger.info(f"[{response}]") # 중간점검 🎒 player5426's inventory:
 
             # 용량 정보 표시
-            response += get_message("inventory.capacity", locale,
-                                  current=f"{capacity_info['current_weight']:.1f}",
-                                  max=f"{capacity_info['max_weight']:.1f}",
-                                  percentage=f"{capacity_info['percentage']:.1f}") + "\n"
-            if capacity_info['is_overloaded']:
-                response += get_message("inventory.overloaded", locale) + "\n"
-            response += "\n"
+            # response += get_message("inventory.capacity", locale,
+            #                       current=f"{capacity_info['current_weight']:.1f}",
+            #                       max=f"{capacity_info['max_weight']:.1f}",
+            #                       percentage=f"{capacity_info['percentage']:.1f}") + "\n"
+            # if capacity_info['is_overloaded']:
+            #     response += get_message("inventory.overloaded", locale) + "\n"
+            response += f" {capacity_info['current_weight']:.1f}/{capacity_info['max_weight']:.1f} ({capacity_info['percentage']:.1f}%)"
+            response += "\n\n"
+
+            logger.info(f"[{response}]")
 
             # 카테고리별로 정렬 및 같은 아이템 집계
             items: Dict[str, Dict] = {}
@@ -461,7 +474,9 @@ class InventoryCommand(BaseCommand):
                 if obj.is_equipped:
                     items[obj_name]['equipped_count'] += 1
 
-            # 하나의 목록으로 표시
+            # 하나의 목록으로 표시 + entity index TODO: WIP
+            _idx = 100
+            inventory_entity = {}
             for obj_name in sorted(items.keys()):
                 item_data = items[obj_name]
                 count = len(item_data['objects'])
@@ -480,9 +495,16 @@ class InventoryCommand(BaseCommand):
                 # 착용 표시
                 equipped_mark = get_message("inventory.equipped_marker", locale) if equipped_count > 0 else ""
 
-                response += f"• {obj_name}{count_display} {weight_display}{equipped_mark}\n"
+                response += f"• [{_idx}] {obj_name}{count_display} {weight_display}{equipped_mark}\n"
+                inventory_entity[_idx] = item_data  # TODO: 이걸 inv 명령 때만이 아니라 다른 상황에도 갱신이 되어야 함
+                _idx += 1
 
-            response += "\n" + get_message("inventory.total_items", locale, count=len(filtered_objects))
+            for _idx in inventory_entity.keys():
+                _list = inventory_entity[_idx]['objects']
+                for gobj in _list:
+                    logger.info(f"inventory_entity[{_idx}] {gobj.to_simple()}")
+
+            response += "\n" # + get_message("inventory.total_items", locale, count=len(filtered_objects))
 
             return self.create_success_result(
                 message=response.strip(),

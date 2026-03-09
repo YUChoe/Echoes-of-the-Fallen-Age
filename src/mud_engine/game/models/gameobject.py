@@ -198,6 +198,9 @@ class GameObject(BaseModel):
 
         return data
 
+    def to_simple(self) -> str:
+        return f"{self.name} location[{self.location_type}] is_equipped[{self.is_equipped}]"
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "GameObject":
         """딕셔너리에서 모델 생성"""
