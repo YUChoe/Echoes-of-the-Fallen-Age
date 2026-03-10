@@ -295,36 +295,32 @@ class DropCommand(BaseCommand):
         current_room_id = getattr(session, 'current_room_id', None)
         if not current_room_id:
             return self.create_error_result("현재 위치를 확인할 수 없습니다.")
-
+        logger.info(f"current_room_id[{current_room_id}]")
         # GameEngine을 통해 객체 버리기 처리
         game_engine = getattr(session, 'game_engine', None)
         if not game_engine:
             return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
-        object_name = " ".join(args).lower()
+        # object_name = " ".join(args).lower()
+        object_entity = int(args[0])
+        logger.info(f"DropCommand execute invoked object_entity[{object_entity}]")
+
+        inventory_entity = getattr(session, 'inventory_entity_map', {})  # session 을 dict로 쓸 수 있네.. 흐음..
+        logger.info(f"inventory_entity from session cnt[{len(inventory_entity.keys())}]")
 
         try:
-            # 플레이어 인벤토리의 객체들 조회
-            inventory_objects = await game_engine.world_manager.get_inventory_objects(session.player.id)
-
-            # 객체 이름으로 검색
-            target_object = None
-            for obj in inventory_objects:
-                obj_name_en = obj.get_localized_name('en').lower()
-                obj_name_ko = obj.get_localized_name('ko').lower()
-                if object_name in obj_name_en or object_name in obj_name_ko:
-                    target_object = obj
-                    break
-
+            # 객체를 inventory_entity_map 로 검색
+            target_object = inventory_entity[object_entity]['objects'][0]  # 첫번째 아이템 한번에 하나씩 옮긴다면
+            logger.info(f"target_object[{target_object.to_simple()}]")
             if not target_object:
+                logger.info(f"인벤토리에 '{' '.join(args)}'이(가) 없습니다.")
                 return self.create_error_result(f"인벤토리에 '{' '.join(args)}'이(가) 없습니다.")
 
             # 객체를 현재 방으로 이동
-            success = await game_engine.world_manager.move_object_to_room(
-                target_object.id, current_room_id
-            )
+            success = await game_engine.world_manager.move_object_to_room(target_object.id, current_room_id)
 
             if not success:
+                logger.error("객체를 버릴 수 없습니다.")
                 return self.create_error_result("객체를 버릴 수 없습니다.")
 
             # 객체 드롭 이벤트 발행
@@ -347,7 +343,7 @@ class DropCommand(BaseCommand):
             player_message = f"📦 {obj_name}을(를) 버렸습니다."
 
             # 다른 플레이어들에게 알림
-            broadcast_message = f"📦 {session.player.username}님이 {obj_name}을(를) 버렸습니다."
+            broadcast_message = f"📦 {session.player.username}가 {obj_name}을(를) 버렸습니다."
 
             return self.create_success_result(
                 message=player_message,
@@ -394,6 +390,9 @@ class InventoryCommand(BaseCommand):
         if hasattr(session, 'player') and session.player and hasattr(session.player, 'preferred_locale'):
             locale = session.player.preferred_locale
 
+        inventory_entity = getattr(session, 'inventory_entity_map', {})  # session 을 dict로 쓸 수 있네.. 흐음..
+        logger.info(f"inventory_entity from session cnt[{len(inventory_entity.keys())}]")
+
         # 카테고리 필터링
         filter_category = None
         logger.info(f"args[{args}]")
@@ -416,7 +415,7 @@ class InventoryCommand(BaseCommand):
             _cnt = 0
             for _item in inventory_objects:
                 _cnt += 1
-                logger.info(f"inventory_objects[{_cnt}]{_item.to_simple()}]")
+                logger.debug(f"inventory_objects[{_cnt}]{_item.to_simple()}]")
             # 카테고리별 필터링 ?? 이게 뭐하는거임?
             if filter_category:
                 if filter_category == 'equipped':
@@ -436,14 +435,14 @@ class InventoryCommand(BaseCommand):
 
             # 소지 용량 정보
             capacity_info = session.player.get_carry_capacity_info(inventory_objects)
-            logger.info(f"capacity_info[{capacity_info}]")
+            logger.debug(f"capacity_info[{capacity_info}]")
 
             # 인벤토리 목록 생성
             response = get_message("inventory.title", locale, username=session.player.username)
             if filter_category:
                 response += f" ({filter_category})"
 
-            logger.info(f"[{response}]") # 중간점검 🎒 player5426's inventory:
+            logger.debug(f"[{response}]") # 중간점검 🎒 player5426's inventory:
 
             # 용량 정보 표시
             # response += get_message("inventory.capacity", locale,
@@ -496,13 +495,17 @@ class InventoryCommand(BaseCommand):
                 equipped_mark = get_message("inventory.equipped_marker", locale) if equipped_count > 0 else ""
 
                 response += f"• [{_idx}] {obj_name}{count_display} {weight_display}{equipped_mark}\n"
-                inventory_entity[_idx] = item_data  # TODO: 이걸 inv 명령 때만이 아니라 다른 상황에도 갱신이 되어야 함
+                inventory_entity[_idx] = item_data
                 _idx += 1
 
             for _idx in inventory_entity.keys():
                 _list = inventory_entity[_idx]['objects']
                 for gobj in _list:
                     logger.info(f"inventory_entity[{_idx}] {gobj.to_simple()}")
+
+            # session 에 저장
+            # TODO: 이걸 inv 명령 때만이 아니라 다른 상황에도 갱신이 되어야 함
+            session.inventory_entity_map = inventory_entity
 
             response += "\n" # + get_message("inventory.total_items", locale, count=len(filtered_objects))
 
