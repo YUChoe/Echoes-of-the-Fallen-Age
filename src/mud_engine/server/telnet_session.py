@@ -517,6 +517,7 @@ class TelnetSession:
                 return False
 
             # 텍스트 인코딩 및 전송
+            text = text.replace("\r", "\n").replace("\n\n", "\n")  # 중간에 들어간 행변환 처리
             if newline:
                 text += "\n"
                 # text += "\r\n"
