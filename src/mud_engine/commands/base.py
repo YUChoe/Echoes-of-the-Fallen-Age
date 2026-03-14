@@ -126,6 +126,7 @@ class BaseCommand(ABC):
 
     def create_error_result(self, message: str, data: Dict[str, Any] = None) -> CommandResult:
         """오류 결과 생성"""
+        # 여기에 로그를 안 넣는 이유는 발생 위치도 확인 하기 위해
         return CommandResult(
             result_type=CommandResultType.ERROR,
             message=message,

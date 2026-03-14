@@ -7,6 +7,7 @@ from typing import List, Dict
 from .base import BaseCommand, CommandResult, CommandResultType
 from ..core.types import SessionType
 from ..game.models import GameObject
+from ..core.event_bus import Event, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +278,7 @@ class DropCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             name="drop",
-            aliases=["put", "place"],
+            aliases=["place"],
             description="인벤토리의 객체를 현재 방에 놓습니다",
             usage="drop <객체명>"
         )
@@ -324,7 +325,6 @@ class DropCommand(BaseCommand):
                 return self.create_error_result("객체를 버릴 수 없습니다.")
 
             # 객체 드롭 이벤트 발행
-            from ..core.event_bus import Event, EventType
             await game_engine.event_bus.publish(Event(
                 event_type=EventType.OBJECT_DROPPED,
                 source=session.session_id,

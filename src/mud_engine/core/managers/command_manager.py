@@ -65,7 +65,8 @@ class CommandManager:
         self.command_processor.register_command(MoveCommand('west', ['w']))
 
         # 객체 상호작용 명령어들 등록
-        from ...commands.object_commands import GetCommand, DropCommand, InventoryCommand, EquipCommand, UnequipCommand, UseCommand
+        from ...commands.object_commands import GetCommand, DropCommand, InventoryCommand, UseCommand
+        from ...commands.object_commands import EquipCommand, UnequipCommand
         self.command_processor.register_command(GetCommand())
         self.command_processor.register_command(DropCommand())
         self.command_processor.register_command(InventoryCommand())
