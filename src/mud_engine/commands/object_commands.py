@@ -971,6 +971,7 @@ class UseCommand(BaseCommand):
         except Exception as e:
             logger.error(f"아이템 사용 명령어 실행 중 오류: {e}")
             return self.create_error_result("아이템을 사용하는 중 오류가 발생했습니다.")
+
     async def _take_from_container(self, session: SessionType, args: List[str]) -> CommandResult:
         """컨테이너에서 아이템 가져오기 (take X from Y)"""
         container_target = args[-1]  # 마지막 인자가 컨테이너
@@ -984,7 +985,11 @@ class UseCommand(BaseCommand):
             # 컨테이너 찾기
             container_id, container_name = await self._find_container(session, game_engine, container_target)
             if not container_id:
-                return self.create_error_result(f"'{container_target}' 상자를 찾을 수 없습니다.")
+                logger.info(f"'{container_target}' 상자를 찾을 수 없습니다.")
+                message = f"Could't find a conatainer {container_target}."
+                if session.locale != 'en':
+                    message = f"'{container_target}' 상자를 찾을 수 없습니다."
+                return self.create_error_result(message)
 
             # 컨테이너 내부 아이템들 조회
             container_items = await game_engine.world_manager.get_container_items(container_id)

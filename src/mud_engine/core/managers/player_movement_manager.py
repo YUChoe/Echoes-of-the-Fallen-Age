@@ -172,8 +172,9 @@ class PlayerMovementManager:
 
                 # 아이템 번호 매핑 (11번부터 시작)
                 item_index = 11
-                # grouped_objects가 있으면 그것을 사용, 없으면 일반 objects 사용
+                # grouped_objects가 있으면 그것을 사용, 없으면 일반 objects 사용 WorldManager._group_stackable_objects 에서 생성
                 grouped_objects = room_info.get('grouped_objects', [])
+                logger.info(f"grouped_objects[{grouped_objects}]")
                 if grouped_objects:
                     for group in grouped_objects:
                         # 그룹의 첫 번째 객체 ID를 사용

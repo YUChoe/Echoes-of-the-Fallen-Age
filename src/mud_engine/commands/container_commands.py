@@ -45,26 +45,6 @@ class OpenCommand(BaseCommand):
 
     async def _open_by_number(self, session: SessionType, game_engine, entity_number: int) -> CommandResult:
         """번호로 상자 열기"""
-        # entity_map = getattr(session, 'room_entity_map', {})
-        # if not entity_map:
-        #     entity_map = getattr(session, 'inventory_entity_map', {})
-        # # 이게 or 이어야 함
-        # if not entity_map:
-        #     return self.create_error_result("방+inv 엔티티를 찾을 수 없습니다.")
-
-        # if entity_number not in entity_map:
-        #     logger.info(f"'{entity_number}'번 대상을 찾을 수 없습니다.")
-        #     logger.info(f"entity_map[{entity_map}]")
-        #     return self.create_error_result(f"'{entity_number}'번 대상을 찾을 수 없습니다.")
-
-        # entity_info = entity_map[entity_number]
-        # if entity_info.get('type') != 'object':
-        #     logger.info(f"'{entity_number}'번은 열 수 있는 대상이 아닙니다.")
-        #     return self.create_error_result(f"'{entity_number}'번은 열 수 있는 대상이 아닙니다.")
-
-        # container_id = entity_info.get('id')
-        # container_name = entity_info.get('name', '알 수 없는 상자')
-
         # 상자 찾기 - 방에서 먼저 그 다음에 인벤토리. 근데 인덱스숫자만 보고도 알 수 있긴 한데
         # container_command:202
         container_id, container_name = await self._find_container_in_room(session, game_engine, entity_number)
@@ -73,36 +53,14 @@ class OpenCommand(BaseCommand):
         if not container_id:
             # 그래도 없으면
             logger.info(f"'{entity_number}' 상자를 찾을 수 없습니다.")
-            return self.create_error_result(f"'{entity_number}' 상자를 찾을 수 없습니다.")
+            message = f"Could't find a conatainer {entity_number}."
+            if session.locale != 'en':
+                message = f"'{entity_number}' 상자를 찾을 수 없습니다."
+            return self.create_error_result(message)
 
         logger.info(f"found [{entity_number}] container_id[{container_id}] container_name[{container_name}]")
 
         return await self._open_container(session, game_engine, container_id, container_name)
-
-    # async def _open_by_name(self, session: SessionType, game_engine, target_name: str) -> CommandResult:
-    #     """이름으로 상자 열기"""
-    #     # 현재 방의 오브젝트들 중에서 찾기
-    #     current_room_id = getattr(session, 'current_room_id', None)
-    #     if not current_room_id:
-    #         return self.create_error_result("현재 위치를 확인할 수 없습니다.")
-
-    #     try:
-    #         room_objects = await game_engine.world_manager.get_room_objects(current_room_id)
-
-    #         # 이름으로 매칭되는 컨테이너 찾기
-    #         locale = session.player.preferred_locale if session.player else "en"
-    #         for obj in room_objects:
-    #             obj_name = obj.get_localized_name(locale).lower()
-    #             if target_name.lower() in obj_name:
-    #                 # 컨테이너인지 확인
-    #                 if self._is_container(obj):
-    #                     return await self._open_container(session, game_engine, obj.id, obj.get_localized_name(locale))
-
-    #         return self.create_error_result(f"'{target_name}'을(를) 찾을 수 없거나 열 수 없는 대상입니다.")
-
-    #     except Exception as e:
-    #         logger.error(f"상자 열기 오류: {e}")
-    #         return self.create_error_result("상자를 여는 중 오류가 발생했습니다.")
 
     async def _find_container_in_room(self, session: SessionType, game_engine, entity_number: int) -> tuple[Optional[str], Optional[str]]:
         """상자 찾기 - 번호 로만 TODO: 나중에 id 로 """
@@ -125,17 +83,7 @@ class OpenCommand(BaseCommand):
             logger.info(f"entity_info[{entity_info}]")
             if self._is_container(entity_info):
                 return entity_info.id, entity_info.name  # TODO: name 을 locale 로
-            # if entity_info.get('type') == 'object':
-            #     # 컨테이너인지 확인
-            #     obj = entity_info.get('entity')  # 기존엔 왜 됐지???
-            #     if obj and self._is_container(obj):
-            #         return entity_info.get('id'), entity_info.get('name')# TODO: name 을 locale 로
         return None, None
-
-        # entity_info = entity_map[entity_number]
-        # if entity_info.get('type') != 'object':
-        #     logger.info(f"'{entity_number}'번은 열 수 있는 대상이 아닙니다.")
-        #     return self.create_error_result(f"'{entity_number}'번은 열 수 있는 대상이 아닙니다.")
 
     async def _find_item_in_inv(self, session: SessionType, game_engine, entity_number: int) -> tuple[Optional[str], Optional[str]]:
         inventory_entity = getattr(session, 'inventory_entity_map', {})  # session 을 dict로 쓸 수 있네.. 흐음..
@@ -167,15 +115,10 @@ class OpenCommand(BaseCommand):
             locale = session.player.preferred_locale if session.player else "en"
 
             if not container_items:
-                message = f"""
-📦 {container_name}을(를) 열었습니다.
-
-상자가 비어있습니다.
-
-사용법:
-- put <아이템> in <상자번호>: 아이템을 상자에 넣기
-- take <아이템> from <상자번호>: 상자에서 아이템 꺼내기
-                """.strip()
+                if locale == 'en':
+                    message = f"📦 You opened {container_name}.\nIt is empty."
+                else: # kr
+                    message = f"📦 {container_name}을(를) 열었습니다.\n상자가 비어있습니다."
             else:
                 # 아이템 목록 생성
                 item_list = []
@@ -186,17 +129,10 @@ class OpenCommand(BaseCommand):
                         item_list.append(f"  [{i}] {item_name} x{quantity}")
                     else:
                         item_list.append(f"  [{i}] {item_name}")
-
-                message = f"""
-📦 {container_name}을(를) 열었습니다.
-
-상자 안의 아이템들:
-{chr(10).join(item_list)}
-
-사용법:
-- put <아이템> in <상자번호>: 아이템을 상자에 넣기
-- take <아이템번호> from <상자번호>: 상자에서 아이템 꺼내기
-                """.strip()
+                if locale == 'en':
+                    message = f"📦 You opened {container_name}.\n{chr(10).join(item_list)}"
+                else:
+                    message = f"📦 {container_name}을(를) 열었습니다.\n{chr(10).join(item_list)}"
 
             return self.create_success_result(
                 message=message,
@@ -248,20 +184,12 @@ class PutCommand(BaseCommand):
             if not container_id:
                 # 그래도 없으면
                 logger.info(f"'{container_target}' 상자를 찾을 수 없습니다.")
-                return self.create_error_result(f"'{container_target}' 상자를 찾을 수 없습니다.")
+                message = f"Could't find a conatainer {container_target}."
+                if session.locale != 'en':
+                    message = f"'{container_target}' 상자를 찾을 수 없습니다."
+                return self.create_error_result(message)
 
             logger.info(f"found [{container_target}] container_id[{container_id}] container_name[{container_name}]")
-
-            # 플레이어 인벤토리에서 아이템 찾기
-            # inventory_items = await game_engine.world_manager.get_inventory_objects(session.player.id)
-            # target_item = None
-
-            # locale = session.player.preferred_locale if session.player else "en"
-
-            # for item in inventory_items:
-            #     if item_name.lower() in item.get_localized_name(locale).lower():
-            #         target_item = item
-            #         break
 
             # 인덱스로 찾기
             target_item_id, target_item_name = await self._find_item_in_inv(session, game_engine, item_entity_id)
