@@ -15,8 +15,9 @@ from .combat import (
     CombatantType,
 )
 from .monster import Monster, MonsterType
-from .models import Player
+from .models import Player, GameObject
 from ..server.ansi_colors import ANSIColors
+from uuid import uuid4
 
 # D&D 전투 엔진 import
 try:
@@ -269,6 +270,10 @@ class CombatHandler:
             # TODO: 사망 한 대상이라도 공격은 받을 수 있어야? 예를 들어 부활 시키지 못하게 한다던지
             return {"success": False, "message": "이미 사망한 대상입니다."}
 
+        _actor_is_superadmin = False
+        if actor.get_display_name() == 'SUPERADMIN':  # TODO: 방법을 바꿔야 함
+            _actor_is_superadmin = True  # NOTE: test 로직 시험 할 때
+
         # D&D 5e 룰 적용
         # 1. 공격 굴림 (d20 + 공격 보너스)
         attack_bonus = self._calculate_attack_bonus(actor)
@@ -291,7 +296,7 @@ class CombatHandler:
         actor.is_defending = False
 
         # 빗나감
-        if not hit and not is_critical:
+        if not hit and not is_critical and not _actor_is_superadmin:
             # 기본 언어는 영어로 설정 (추후 세션 정보에서 가져올 수 있도록 개선 필요)
             locale = "en"
             actor_name = self._get_combatant_name(actor, locale)
@@ -330,6 +335,9 @@ class CombatHandler:
 
         # 6. 대상에게 데미지 적용 (방어력 적용)
         actual_damage = max(1, damage - target.defense)
+        if _actor_is_superadmin:
+            logger.warn(f"_actor_is_superadmin actual_damage[{actual_damage}] -> [{(actual_damage + 10) * 5}]")
+            actual_damage = (actual_damage + 10) * 5
         target.current_hp = max(0, target.current_hp - actual_damage)
         logger.info(f"actual_damage[{actual_damage}] target.current_hp[{target.current_hp}]")  # 죽었으면 0 됐겠지
 
@@ -354,6 +362,8 @@ class CombatHandler:
 
         if not target.is_alive():
             message += f"\n💀 {target_name}이(가) 죽었습니다!"
+            # 사망 처리 - corpse 생성 (전투 종료 여부와 무관)
+            await self._handle_death(combat, target)
 
         message += ANSIColors.RESET
 
@@ -373,6 +383,66 @@ class CombatHandler:
             "target_hp": target.current_hp,
             "target_max_hp": target.max_hp,
         }
+
+    async def _handle_death(self, combat: CombatInstance, dead_combatant: Combatant) -> None:
+        """사망 처리 - corpse 컨테이너를 원래 방에 생성 (전투 종료 여부와 무관)"""
+        try:
+            if not self.world_manager:
+                logger.warning("world_manager 없음 - corpse 생성 불가")
+                return
+
+            # 사망한 대상의 이름 결정
+            name_en = dead_combatant.name
+            name_ko = dead_combatant.name
+            desc_en = ""
+            desc_ko = ""
+
+            if dead_combatant.combatant_type == CombatantType.MONSTER:
+                if dead_combatant.data and "monster" in dead_combatant.data:
+                    monster_obj: Monster = dead_combatant.data["monster"]
+                    name_en = monster_obj.get_localized_name("en")
+                    name_ko = monster_obj.get_localized_name("ko")
+                    desc_en = f"The lifeless remains of {name_en}."
+                    desc_ko = f"{name_ko}의 시체입니다."
+
+                    # 몬스터 DB 사망 처리
+                    monster = await self.world_manager.get_monster(dead_combatant.id)
+                    if monster and monster.is_alive:
+                        monster.die()
+                        await self.world_manager.update_monster(monster)
+                        logger.info(f"몬스터 {dead_combatant.id} DB 사망 처리 완료")
+            else:
+                # 플레이어 사망
+                desc_en = f"The lifeless remains of {name_en}."
+                desc_ko = f"{name_ko}의 시체입니다."
+
+            # corpse 컨테이너 생성 - 원래 방(인스턴스 아님)에 배치
+            room_id = combat.room_id
+            corpse_id = str(uuid4())
+            corpse_data = {
+                "id": corpse_id,
+                "name": {"en": f"Corpse of {name_en}", "ko": f"{name_ko}의 사체"},
+                "description": {"en": desc_en, "ko": desc_ko},
+                "location_type": "room",
+                "location_id": room_id,
+                "properties": {
+                    "is_container": True,
+                    "max_capacity": 20,
+                    "corpse_of": dead_combatant.id,
+                    "corpse_type": dead_combatant.combatant_type.value,
+                },
+                "weight": 10.0,
+                "max_stack": 1,
+            }
+            await self.world_manager.create_game_object(corpse_data)
+            logger.info(f"Corpse 생성 완료: {corpse_id} (room: {room_id}, target: {name_en})")
+
+            # 전투 참가자들에게 corpse 생성 알림
+            corpse_msg = f"💀 {name_en}의 사체가 바닥에 떨어졌습니다."
+            await self.send_broadcast_combat_message(combat, corpse_msg)
+
+        except Exception as e:
+            logger.error(f"사망 처리(corpse 생성) 실패: {e}", exc_info=True)
 
     def _calculate_attack_bonus(self, combatant: Combatant) -> int:
         """공격 보너스 계산

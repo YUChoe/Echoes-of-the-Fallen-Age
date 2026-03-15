@@ -1,2 +1,6 @@
 [tool.ruff]
-ignore = ["F401", "F541", "E712", "E701"]
+lint.ignore = ["F401", "F541", "E712", "E701",
+"F841",  # Local variable assigned to but never used
+"E722",  # Do not use bare `except`
+]
+line-length = 140

@@ -143,7 +143,7 @@ class CommandProcessor:
             converted = combat_actions.get(cmd, cmd)
             cmdline_list[0] = converted  # 변환 된 명령어
             command_line = ' '.join(cmdline_list)
-            logger.info(f"전투 숫자 입력 변환: '{command_line}'")
+            logger.info(f"전투 숫자 입력 변환: '{cmd}' -> '{command_line}'")
             return command_line
 
         return command_line

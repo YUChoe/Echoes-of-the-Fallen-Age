@@ -13,6 +13,8 @@ from ..game.monster import Monster, MonsterType
 from ..game.combat import CombatAction, CombatInstance, Combatant
 from ..game.combat_handler import CombatHandler
 from ..server.ansi_colors import ANSIColors
+from .Basic import LookCommand
+
 
 
 from ..utils import coordinate_utils
@@ -89,7 +91,8 @@ class AttackCommand(BaseCommand):
         # 번호로 대상 찾기
         target_monster = self.get_monster_entity_by_input_digit(session, target_input)
         if not target_input:
-            return self.create_error_result(f"해당하는 대상을 찾을 수 없습니다.")
+            logger.info(f"공격 대상을 찾을 수 없습니다.args[{args}] target_input[{target_input}]")
+            return self.create_error_result(f"공격 대상을 찾을 수 없습니다.\n{self.usage}")
         logger.info(f"target_monster.id[{target_monster.id}]")
 
         current_room_id = getattr(session, "current_room_id", None)
@@ -114,6 +117,10 @@ class AttackCommand(BaseCommand):
             combat.advance_turn()  # << 턴넘김
 
             if combat.is_combat_over():
+                await self._end_combat(session, combat, {})
+                _lcmd = LookCommand()
+                await _lcmd._look_around(session)
+
                 return result
 
             # 피 얼마나 남았는지 등 상태 출력
@@ -160,97 +167,45 @@ class AttackCommand(BaseCommand):
         combat_id = combat.id
 
         # combat_handler 가서 공격 실행
-        # 근데 플레이어의 공격이랑 몹의 공격이랑 다를게 있나? 왜 분리가 되어 있는거지
         result = await self.combat_handler.process_player_action(combat_id, session.player.id, CombatAction.ATTACK, target.id)
         logger.info(f"result[{result}]")
         return self.create_success_result(
             message=result.get("message", ""),
             data={"action": "combat_action_result", "combat_status": combat.to_dict()},
         )
-        # if not result.get("success"):
-        #     return self.create_error_result(result.get("message", "공격 실패"))
 
-        # # 공격 메시지 먼저 저장
-        # attack_message = result.get("message", "")
+    async def _end_combat(self, session: SessionType, combat: CombatInstance, result: dict) -> CommandResult:
+        # 전투 종료 공지
+        await self.combat_handler.send_broadcast_combat_message(combat, "전투가 종료 되었습니다.")
 
-        # # 전투 종료 확인 - combat.is_combat_over()를 직접 확인
-        # if combat.is_combat_over():
-        #     # 공격 메시지와 함께 전투 종료 처리
-        #     end_result = await self._end_combat(session, combat, result)
-        #     # 공격 메시지를 승리 메시지 앞에 추가
-        #     if attack_message:
-        #         combined_message = f"{attack_message}\n\n{end_result.message}"
-        #         end_result.message = combined_message
-        #     return end_result
+        # 원래 방으로 복귀
+        original_room_id = getattr(session, "original_room_id", None)
+        if original_room_id:
+            logger.info(f"원래 방으로 복귀 {original_room_id}")
+            session.current_room_id = original_room_id
 
-        # # 몬스터 턴 자동 처리
-        # monster_messages = []
-        # while combat.is_active and not combat.is_combat_over():
-        #     current = combat.get_current_combatant()
-        #     if not current:
-        #         break
+        # 전투 상태 초기화
+        session.in_combat = False
+        session.original_room_id = None
+        session.combat_id = None
 
-        #     # 플레이어 턴이면 중단
-        #     from ..game.combat import CombatantType
+        # 현재 플레이어를 전투에서 제거
+        self.combat_handler.combat_manager.remove_player_from_combat(session.player.id)
 
-        #     if current.combatant_type == CombatantType.PLAYER:
-        #         break
+        # 다른 플레이어가 남아있는지 확인
+        remaining_players = combat.get_alive_players()
+        if len(remaining_players) == 0:
+            # 모든 플레이어가 나갔으면 전투 종료
+            self.combat_handler.combat_manager.end_combat(combat.id)
+            logger.info(f"전투 {combat.id} 종료 - 모든 플레이어 이탈")
+        else:
+            logger.info(f"전투 {combat.id} 유지 - 남은 플레이어 {len(remaining_players)}명")
 
-        #     # 몬스터 턴 처리
-        #     monster_result = await self.combat_handler.process_monster_turn(combat.id)
-        #     if monster_result.get("success") and monster_result.get("message"):
-        #         monster_messages.append(monster_result["message"])
+        return self.create_success_result(
+            message=f"전투 {combat.id} 가 종료 되었습니다.",
+            data={"action": "combat_end"},
+        )
 
-        #     # 전투 종료 확인 - combat.is_combat_over()를 직접 확인
-        #     if combat.is_combat_over():
-        #         # 공격 메시지와 몬스터 메시지를 포함한 전투 종료 처리
-        #         end_result = await self._end_combat(session, combat, monster_result)
-        #         # 모든 메시지를 승리 메시지 앞에 추가
-        #         all_messages = [attack_message] + monster_messages
-        #         combined_message = (
-        #             "\n".join(filter(None, all_messages)) + f"\n\n{end_result.message}"
-        #         )
-        #         end_result.message = combined_message
-        #         return end_result
-
-        # # 전투 종료 재확인 - combat.is_combat_over() 직접 확인
-        # if combat.is_combat_over():
-        #     # 공격 메시지와 몬스터 메시지를 포함한 전투 종료 처리
-        #     end_result = await self._end_combat(session, combat, {})
-        #     # 모든 메시지를 승리 메시지 앞에 추가
-        #     all_messages = [attack_message] + monster_messages
-        #     combined_message = (
-        #         "\n".join(filter(None, all_messages)) + f"\n\n{end_result.message}"
-        #     )
-        #     end_result.message = combined_message
-        #     return end_result
-
-        # # 다음 턴 메시지
-        # locale = session.player.preferred_locale if session.player else "ko"
-        # message = f"{attack_message}\n"
-
-        # # 몬스터 턴 메시지 추가
-        # if monster_messages:
-        #     message += "\n" + "\n".join(monster_messages) + "\n"
-
-        # message += "\n" + self._get_combat_status_message(combat, locale)
-        # message += "\n\n"
-        # message += self._get_turn_message(combat, session.player.id, locale)
-
-        # return self.create_success_result(
-        #     message=attack_message,
-        #     data={"action": "combat_action_result", "combat_status": combat.to_dict()},
-        # )
-
-    # def _get_hp_bar(self, current: int, maximum: int, length: int = 10) -> str:
-    #     """HP 바 생성"""
-    #     if maximum <= 0:
-    #         return "[" + "░" * length + "]"
-
-    #     filled = int((current / maximum) * length)
-    #     empty = length - filled
-
-    #     return "[" + "█" * filled + "░" * empty + "]"
 
 
 class DefendCommand(BaseCommand):
@@ -321,15 +276,6 @@ class DefendCommand(BaseCommand):
         AttackCommand(self.combat_handler)
         # locale = get_user_locale(session)
         message = f"{result.get('message', '')}\n"
-
-        # TODO:
-        # # 몬스터 턴 메시지 추가
-        # if monster_messages:
-        #     message += "\n" + "\n".join(monster_messages) + "\n"
-
-        # message += "\n" + attack_cmd._get_combat_status_message(session, combat, locale)
-        # message += "\n\n"
-        # message += attack_cmd._get_turn_message(combat, session.player.id, locale)
 
         return self.create_success_result(
             message=message,

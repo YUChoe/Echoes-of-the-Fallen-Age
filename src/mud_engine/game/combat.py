@@ -232,6 +232,8 @@ class CombatInstance:
         """생존한 참가자 목록 반환"""
         return [c for c in self.combatants if c.is_alive()]
 
+    # TODO: comnatant 를 player vs mobs 로 한정할 수 없고 전체를 몰아 넣고 나와 적대적인지 아닌지로 구분 해야 함
+    #    그리고 턴은 골고루 돌아 옴
     def get_alive_players(self) -> List[Combatant]:
         """생존한 플레이어 목록 반환"""
         return [c for c in self.combatants if c.is_alive() and c.combatant_type == CombatantType.PLAYER]

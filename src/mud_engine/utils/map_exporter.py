@@ -1515,7 +1515,6 @@ class MapExporter:
         html = html.replace('{player_rows}', player_rows)
 
         # 방 상세 정보 JSON 데이터 추가
-        import json
         room_details_json = json.dumps(room_details, ensure_ascii=False, indent=2)
         html = html.replace('{room_details_json}', room_details_json)
 

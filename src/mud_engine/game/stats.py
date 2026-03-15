@@ -298,8 +298,8 @@ class PlayerStats:
                 data_copy["temporary_effects"] = {}
 
         # 기본값 설정
-        for field in ["equipment_bonuses", "temporary_effects"]:
-            if field not in data_copy:
-                data_copy[field] = {}
+        for _field in ["equipment_bonuses", "temporary_effects"]:
+            if _field not in data_copy:
+                data_copy[_field] = {}
 
         return cls(**data_copy)

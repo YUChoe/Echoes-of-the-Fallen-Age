@@ -9,8 +9,6 @@ from ...core.types import SessionType
 from ...core.localization import get_localization_manager
 from ...server.telnet_session import TelnetSession
 from ...game.stats import StatType
-from ...core.localization import get_localization_manager
-from ...game.stats import StatType
 
 logger = logging.getLogger(__name__)
 

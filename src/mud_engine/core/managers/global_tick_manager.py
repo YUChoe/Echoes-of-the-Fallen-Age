@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from typing import TYPE_CHECKING
+from ...commands.combat_commands import AttackCommand
 
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
@@ -69,7 +70,7 @@ class GlobalTickManager:
             for s in self.session_manager.get_all_sessions():
                 logger.debug(f"session_id[{s.session_id}]")
                 if not s.in_combat: continue
-                logger.info(f"session_id[{s.session_id}] in_combat True session.combat_id[{s.combat_id}]")
+                logger.info(f"몹턴 session_id[{s.session_id}] in_combat True session.combat_id[{s.combat_id}]")
                 # 배틀 객체 가져오기
                 _combats = self.combat_handler.active_combats
                 for cid in _combats:  # 이 루프는 세션 갯수만큼 반복 됨.. 으음..
@@ -80,6 +81,10 @@ class GlobalTickManager:
                         if combatant.combatant_type == CombatantType.MONSTER:
                             logger.info(f"몹 턴 combatant is [{combatant.combatant_type}]")
                             await self._process_monster_turn(cid)
+                            # 전투 종료 확인
+                            if _combat_instancese.is_combat_over():
+                                acmd = AttackCommand(_combats)
+                                await acmd._end_combat(s, _combat_instancese, {})
                         break  # 해당 세션에 대한 combat_id 를 찾으려는 것이므로 찾았으면 break
 
 

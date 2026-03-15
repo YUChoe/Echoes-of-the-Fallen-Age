@@ -48,14 +48,14 @@ class Config:
         if value is None:
             return default
 
-        if cast_type == bool:
+        if cast_type is bool:
             return str(value).lower() in ('true', '1', 'yes', 'on')
-        elif cast_type == int:
+        elif cast_type is int:
             try:
                 return int(value)
             except (ValueError, TypeError):
                 return default
-        elif cast_type == float:
+        elif cast_type is float:
             try:
                 return float(value)
             except (ValueError, TypeError):
