@@ -161,10 +161,10 @@ class TelnetServer:
 ╚═══════════════════════════════════════════════════════════════╝
 {ANSIColors.RESET}
 
-{ANSIColors.CYAN}Centuries after the fall of the Golden Empire...
-Your adventure begins in a world transformed into ruins and monster lairs.
+{ANSIColors.CYAN}Your adventure begins in a world turned to ruins and monster-infested wastelands,
+after suffering a crushing defeat in a war against an enigmatic sorcerer.
 
-황금 제국이 무너진 뒤 수백 년...
+정체를 알 수 없는 마법사와의 전쟁에서 대 패 한 후
 폐허와 괴물의 소굴로 변한 세상에서 당신의 모험이 시작됩니다.{ANSIColors.RESET}
 
 """

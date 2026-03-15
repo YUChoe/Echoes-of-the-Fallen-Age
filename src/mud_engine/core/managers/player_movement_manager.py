@@ -172,8 +172,9 @@ class PlayerMovementManager:
 
                 # 아이템 번호 매핑 (11번부터 시작)
                 item_index = 11
-                # grouped_objects가 있으면 그것을 사용, 없으면 일반 objects 사용
+                # grouped_objects가 있으면 그것을 사용, 없으면 일반 objects 사용 WorldManager._group_stackable_objects 에서 생성
                 grouped_objects = room_info.get('grouped_objects', [])
+                logger.info(f"grouped_objects[{grouped_objects}]")
                 if grouped_objects:
                     for group in grouped_objects:
                         # 그룹의 첫 번째 객체 ID를 사용
@@ -199,6 +200,10 @@ class PlayerMovementManager:
 
                 # 세션에 저장
                 session.room_entity_map = entity_map
+                # 세션이 전투중이면 combatInst 에 entity_map 저장
+                if session.in_combat:
+                    combat_inst: CombatInstance = self.game_engine.combat_manager.get_combat(session.combat_id)
+                    combat_inst.set_entity_map(entity_map)
 
                 # 디버깅: entity_map 로깅
                 logger.debug(f"entity_map created: {entity_map}")

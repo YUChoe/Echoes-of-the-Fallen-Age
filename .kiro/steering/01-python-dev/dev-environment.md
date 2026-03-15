@@ -13,6 +13,7 @@
 - **가상 환경 필수**: 모든 Python 작업은 가상 환경에서만 실행
 - **PYTHONPATH 설정**: `PYTHONPATH=.` 항상 포함
 - **gitbash 사용**: Windows에서도 bash 명령어만 사용
+- https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/ 숙지
 
 ## 핵심 개발 원칙
 - **비동기 프로그래밍**: 모든 비동기 함수는 `async/await` 패턴 사용

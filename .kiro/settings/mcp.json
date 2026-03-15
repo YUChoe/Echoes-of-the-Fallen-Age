@@ -1,56 +1,19 @@
 {
   "mcpServers": {
-    "Context7": {
+    "knowledge-graph": {
       "command": "npx",
       "args": [
         "-y",
-        "@upstash/context7-mcp"
-      ],
-      "env": {},
-      "disabled": false,
-      "autoApprove": []
-    },
-    "playwright": {
-      "command": "npx",
-      "args": [
-        "@playwright/mcp@latest"
+        "git+https@github.com:YUChoe/memory-mcp.git",
+        "C:\\Users\\yonguk.choe\\src\\Echoes-of-the-Fallen-Age\\.kiro"
       ],
       "disabled": false,
       "autoApprove": [
-        "browser_navigate",
-        "browser_type",
-        "browser_click",
-        "browser_fill_form",
-        "browser_evaluate",
-        "browser_snapshot",
-        "browser_console_messages",
-        "browser_wait_for",
-        "browser_press_key",
-        "browser_tabs",
-        "browser_close",
-        "browser_select_option",
-        "browser_handle_dialog",
-        "browser_handle_dialog",
-        "browser_file_upload",
-        "browser_network_requests",
-        "browser_take_screenshot",
-        "browser_run_code"
-      ]
-    },
-    "memory": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-memory@latest"
-      ],
-      "disabled": false,
-      "autoApprove": [
-        "search_nodes",
-        "create_entities",
-        "add_observations",
-        "create_relations",
         "read_graph",
-        "open_nodes"
+        "create_entities",
+        "create_relations",
+        "search_nodes",
+        "add_observations"
       ]
     },
     "telnet-mcp": {
@@ -59,7 +22,7 @@
         "-y",
         "git+https://github.com/YUChoe/telnet-mcp"
       ],
-      "disabled": false,
+      "disabled": true,
       "autoApprove": [
         "telnet_connect",
         "telnet_read",

@@ -7,6 +7,7 @@ from typing import List, Dict
 from .base import BaseCommand, CommandResult, CommandResultType
 from ..core.types import SessionType
 from ..game.models import GameObject
+from ..core.event_bus import Event, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +278,7 @@ class DropCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             name="drop",
-            aliases=["put", "place"],
+            aliases=["place"],
             description="인벤토리의 객체를 현재 방에 놓습니다",
             usage="drop <객체명>"
         )
@@ -295,40 +296,35 @@ class DropCommand(BaseCommand):
         current_room_id = getattr(session, 'current_room_id', None)
         if not current_room_id:
             return self.create_error_result("현재 위치를 확인할 수 없습니다.")
-
+        logger.info(f"current_room_id[{current_room_id}]")
         # GameEngine을 통해 객체 버리기 처리
         game_engine = getattr(session, 'game_engine', None)
         if not game_engine:
             return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
-        object_name = " ".join(args).lower()
+        # object_name = " ".join(args).lower()
+        object_entity = int(args[0])
+        logger.info(f"DropCommand execute invoked object_entity[{object_entity}]")
+
+        inventory_entity = getattr(session, 'inventory_entity_map', {})  # session 을 dict로 쓸 수 있네.. 흐음..
+        logger.info(f"inventory_entity from session cnt[{len(inventory_entity.keys())}]")
 
         try:
-            # 플레이어 인벤토리의 객체들 조회
-            inventory_objects = await game_engine.world_manager.get_inventory_objects(session.player.id)
-
-            # 객체 이름으로 검색
-            target_object = None
-            for obj in inventory_objects:
-                obj_name_en = obj.get_localized_name('en').lower()
-                obj_name_ko = obj.get_localized_name('ko').lower()
-                if object_name in obj_name_en or object_name in obj_name_ko:
-                    target_object = obj
-                    break
-
+            # 객체를 inventory_entity_map 로 검색
+            target_object = inventory_entity[object_entity]['objects'][0]  # 첫번째 아이템 한번에 하나씩 옮긴다면
+            logger.info(f"target_object[{target_object.to_simple()}]")
             if not target_object:
+                logger.info(f"인벤토리에 '{' '.join(args)}'이(가) 없습니다.")
                 return self.create_error_result(f"인벤토리에 '{' '.join(args)}'이(가) 없습니다.")
 
             # 객체를 현재 방으로 이동
-            success = await game_engine.world_manager.move_object_to_room(
-                target_object.id, current_room_id
-            )
+            success = await game_engine.world_manager.move_object_to_room(target_object.id, current_room_id)
 
             if not success:
+                logger.error("객체를 버릴 수 없습니다.")
                 return self.create_error_result("객체를 버릴 수 없습니다.")
 
             # 객체 드롭 이벤트 발행
-            from ..core.event_bus import Event, EventType
             await game_engine.event_bus.publish(Event(
                 event_type=EventType.OBJECT_DROPPED,
                 source=session.session_id,
@@ -347,7 +343,7 @@ class DropCommand(BaseCommand):
             player_message = f"📦 {obj_name}을(를) 버렸습니다."
 
             # 다른 플레이어들에게 알림
-            broadcast_message = f"📦 {session.player.username}님이 {obj_name}을(를) 버렸습니다."
+            broadcast_message = f"📦 {session.player.username}가 {obj_name}을(를) 버렸습니다."
 
             return self.create_success_result(
                 message=player_message,
@@ -394,8 +390,12 @@ class InventoryCommand(BaseCommand):
         if hasattr(session, 'player') and session.player and hasattr(session.player, 'preferred_locale'):
             locale = session.player.preferred_locale
 
+        inventory_entity = getattr(session, 'inventory_entity_map', {})  # session 을 dict로 쓸 수 있네.. 흐음..
+        logger.info(f"inventory_entity from session cnt[{len(inventory_entity.keys())}]")
+
         # 카테고리 필터링
         filter_category = None
+        logger.info(f"args[{args}]")
         if args:
             filter_category = args[0].lower()
             valid_categories = {'weapon', 'armor', 'consumable', 'misc', 'material', 'equipped'}
@@ -411,7 +411,12 @@ class InventoryCommand(BaseCommand):
             if not inventory_objects:
                 return self.create_info_result(get_message("inventory.empty", locale))
 
-            # 카테고리별 필터링
+            # logger.info(f"inventory_objects[{inventory_objects}]")
+            _cnt = 0
+            for _item in inventory_objects:
+                _cnt += 1
+                logger.debug(f"inventory_objects[{_cnt}]{_item.to_simple()}]")
+            # 카테고리별 필터링 ?? 이게 뭐하는거임?
             if filter_category:
                 if filter_category == 'equipped':
                     filtered_objects = [obj for obj in inventory_objects if obj.is_equipped]
@@ -419,6 +424,8 @@ class InventoryCommand(BaseCommand):
                     filtered_objects = [obj for obj in inventory_objects if obj.category == filter_category]
             else:
                 filtered_objects = inventory_objects
+            logger.debug(f"filter_category[{filter_category}] filtered_objects[{filtered_objects}]")
+            # 나중에 착용중인 아이템은 [equipped] 라고 표시 됨
 
             if not filtered_objects:
                 category_name = filter_category if filter_category else get_message("inventory.category_all", locale)
@@ -428,21 +435,26 @@ class InventoryCommand(BaseCommand):
 
             # 소지 용량 정보
             capacity_info = session.player.get_carry_capacity_info(inventory_objects)
+            logger.debug(f"capacity_info[{capacity_info}]")
 
             # 인벤토리 목록 생성
             response = get_message("inventory.title", locale, username=session.player.username)
             if filter_category:
                 response += f" ({filter_category})"
-            response += ":\n\n"
+
+            logger.debug(f"[{response}]") # 중간점검 🎒 player5426's inventory:
 
             # 용량 정보 표시
-            response += get_message("inventory.capacity", locale,
-                                  current=f"{capacity_info['current_weight']:.1f}",
-                                  max=f"{capacity_info['max_weight']:.1f}",
-                                  percentage=f"{capacity_info['percentage']:.1f}") + "\n"
-            if capacity_info['is_overloaded']:
-                response += get_message("inventory.overloaded", locale) + "\n"
-            response += "\n"
+            # response += get_message("inventory.capacity", locale,
+            #                       current=f"{capacity_info['current_weight']:.1f}",
+            #                       max=f"{capacity_info['max_weight']:.1f}",
+            #                       percentage=f"{capacity_info['percentage']:.1f}") + "\n"
+            # if capacity_info['is_overloaded']:
+            #     response += get_message("inventory.overloaded", locale) + "\n"
+            response += f" {capacity_info['current_weight']:.1f}/{capacity_info['max_weight']:.1f} ({capacity_info['percentage']:.1f}%)"
+            response += "\n\n"
+
+            logger.info(f"[{response}]")
 
             # 카테고리별로 정렬 및 같은 아이템 집계
             items: Dict[str, Dict] = {}
@@ -461,7 +473,9 @@ class InventoryCommand(BaseCommand):
                 if obj.is_equipped:
                     items[obj_name]['equipped_count'] += 1
 
-            # 하나의 목록으로 표시
+            # 하나의 목록으로 표시 + entity index TODO: WIP
+            _idx = 100
+            inventory_entity = {}
             for obj_name in sorted(items.keys()):
                 item_data = items[obj_name]
                 count = len(item_data['objects'])
@@ -480,9 +494,20 @@ class InventoryCommand(BaseCommand):
                 # 착용 표시
                 equipped_mark = get_message("inventory.equipped_marker", locale) if equipped_count > 0 else ""
 
-                response += f"• {obj_name}{count_display} {weight_display}{equipped_mark}\n"
+                response += f"• [{_idx}] {obj_name}{count_display} {weight_display}{equipped_mark}\n"
+                inventory_entity[_idx] = item_data
+                _idx += 1
 
-            response += "\n" + get_message("inventory.total_items", locale, count=len(filtered_objects))
+            for _idx in inventory_entity.keys():
+                _list = inventory_entity[_idx]['objects']
+                for gobj in _list:
+                    logger.info(f"inventory_entity[{_idx}] {gobj.to_simple()}")
+
+            # session 에 저장
+            # TODO: 이걸 inv 명령 때만이 아니라 다른 상황에도 갱신이 되어야 함
+            session.inventory_entity_map = inventory_entity
+
+            response += "\n" # + get_message("inventory.total_items", locale, count=len(filtered_objects))
 
             return self.create_success_result(
                 message=response.strip(),
@@ -745,16 +770,11 @@ class EquipCommand(BaseCommand):
 
             # 아이템 속성에서 능력치 보너스 추출
             stats_bonus = equipment.properties.get('stats_bonus', {})
-            damage = equipment.properties.get('damage', 0)
 
             # stats_bonus 적용 (나무 곤봉 등)
             for stat_name, bonus in stats_bonus.items():
                 if isinstance(bonus, (int, float)) and bonus > 0:
                     player.stats.add_equipment_bonus(stat_name, int(bonus))
-
-            # damage 속성을 ATK 보너스로 적용 (곤봉 등)
-            if damage > 0:
-                player.stats.add_equipment_bonus('ATK', damage)
 
             # 플레이어 정보 업데이트
             await game_engine.session_manager.update_player(player)
@@ -770,16 +790,11 @@ class EquipCommand(BaseCommand):
 
             # 아이템 속성에서 능력치 보너스 추출
             stats_bonus = equipment.properties.get('stats_bonus', {})
-            damage = equipment.properties.get('damage', 0)
 
             # stats_bonus 제거 (나무 곤봉 등)
             for stat_name, bonus in stats_bonus.items():
                 if isinstance(bonus, (int, float)) and bonus > 0:
                     player.stats.remove_equipment_bonus(stat_name, int(bonus))
-
-            # damage 속성 제거 (곤봉 등)
-            if damage > 0:
-                player.stats.remove_equipment_bonus('ATK', damage)
 
             # 플레이어 정보 업데이트
             await game_engine.session_manager.update_player(player)
@@ -864,16 +879,11 @@ class UnequipCommand(BaseCommand):
 
             # 아이템 속성에서 능력치 보너스 추출
             stats_bonus = equipment.properties.get('stats_bonus', {})
-            damage = equipment.properties.get('damage', 0)
 
             # stats_bonus 제거 (나무 곤봉 등)
             for stat_name, bonus in stats_bonus.items():
                 if isinstance(bonus, (int, float)) and bonus > 0:
                     player.stats.remove_equipment_bonus(stat_name, int(bonus))
-
-            # damage 속성 제거 (곤봉 등)
-            if damage > 0:
-                player.stats.remove_equipment_bonus('ATK', damage)
 
             # 플레이어 정보 업데이트
             await game_engine.session_manager.update_player(player)
@@ -961,6 +971,7 @@ class UseCommand(BaseCommand):
         except Exception as e:
             logger.error(f"아이템 사용 명령어 실행 중 오류: {e}")
             return self.create_error_result("아이템을 사용하는 중 오류가 발생했습니다.")
+
     async def _take_from_container(self, session: SessionType, args: List[str]) -> CommandResult:
         """컨테이너에서 아이템 가져오기 (take X from Y)"""
         container_target = args[-1]  # 마지막 인자가 컨테이너
@@ -974,7 +985,11 @@ class UseCommand(BaseCommand):
             # 컨테이너 찾기
             container_id, container_name = await self._find_container(session, game_engine, container_target)
             if not container_id:
-                return self.create_error_result(f"'{container_target}' 상자를 찾을 수 없습니다.")
+                logger.info(f"'{container_target}' 상자를 찾을 수 없습니다.")
+                message = f"Could't find a conatainer {container_target}."
+                if session.locale != 'en':
+                    message = f"'{container_target}' 상자를 찾을 수 없습니다."
+                return self.create_error_result(message)
 
             # 컨테이너 내부 아이템들 조회
             container_items = await game_engine.world_manager.get_container_items(container_id)

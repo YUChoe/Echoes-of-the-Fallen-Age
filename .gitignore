@@ -79,3 +79,6 @@ data/announcements.txt
 
 # 빌드 시점 생성 파일
 src/mud_engine/version_info.json
+
+.excalidraw*
+knowledge-graph.json

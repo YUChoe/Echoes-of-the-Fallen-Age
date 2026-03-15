@@ -277,6 +277,8 @@ class WorldManager:
 
     def _group_stackable_objects(self, objects: List[GameObject]) -> List[Dict[str, Any]]:
         """stackable 오브젝트들을 그룹화합니다."""
+        logger.info("_group_stackable_objects invoked")
+        return []  # WIP TODO: 바닥에 떨어진건 그룹 하지 말자?
         try:
             # 오브젝트를 이름별로 그룹화
             object_groups: Dict[str, Dict[str, Any]] = {}
@@ -297,7 +299,7 @@ class WorldManager:
 
                 object_groups[group_key]['objects'].append(obj)
 
-            # 그룹화된 결과 생성
+            # 그룹화된 결과(grouped_objects) 생성
             grouped_objects = []
             for group_key, group in object_groups.items():
                 objects_list = group['objects']

@@ -40,8 +40,8 @@
         "ko": "❌ 도망치지 못했습니다!"
     },
     "combat.round": {
-        "en": "⚔️ Combat Round {round}",
-        "ko": "⚔️ 전투 라운드 {round}"
+        "en": "⚔️ Turn {round}",
+        "ko": "⚔️ 턴 {round}"
     },
     "combat.player_hp": {
         "en": "👤 {name}",

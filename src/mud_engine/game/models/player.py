@@ -222,7 +222,7 @@ class Player(BaseModel):
 
         # 더 이상 사용하지 않는 필드 제거 (하위 호환성)
         deprecated_fields = ["gold", "last_room_id", "stat_experience", "stat_experience_to_next"]
-        for field in deprecated_fields:
-            data.pop(field, None)
+        for _field in deprecated_fields:
+            data.pop(_field, None)
 
         return cls(**data)

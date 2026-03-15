@@ -5,10 +5,12 @@ from .command_manager import CommandManager
 from .event_handler import EventHandler
 from .player_movement_manager import PlayerMovementManager
 from .admin_manager import AdminManager
+from .global_tick_manager import GlobalTickManager
 
 __all__ = [
     'CommandManager',
     'EventHandler',
     'PlayerMovementManager',
-    'AdminManager'
+    'AdminManager',
+    'GlobalTickManager'
 ]

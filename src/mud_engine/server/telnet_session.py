@@ -15,8 +15,12 @@ logger = logging.getLogger(__name__)
 class TelnetSession:
     """Telnet 클라이언트 세션을 관리하는 클래스"""
 
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
-                 session_id: Optional[str] = None):
+    def __init__(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        session_id: Optional[str] = None,
+    ):
         """
         TelnetSession 초기화
 
@@ -52,11 +56,15 @@ class TelnetSession:
         self.terminal_height: int = 24  # 터미널 높이
 
         # IP 주소 추출
-        peername = writer.get_extra_info('peername')
+        peername = writer.get_extra_info("peername")
         if peername:
             self.ip_address = peername[0]
 
-        short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+        short_session_id = (
+            self.session_id.split("-")[-1]
+            if "-" in self.session_id
+            else self.session_id
+        )
         logger.info(f"새 Telnet 세션 생성: {short_session_id} (IP: {self.ip_address})")
 
     async def initialize_telnet(self) -> None:
@@ -71,7 +79,7 @@ class TelnetSession:
         IAC = bytes([255])  # Interpret As Command
         WILL = bytes([251])
         WONT = bytes([252])
-        DO = bytes([253])
+        DO = bytes([253])  # noqa: F841
         DONT = bytes([254])
 
         ECHO = bytes([1])
@@ -98,8 +106,14 @@ class TelnetSession:
         self.is_authenticated = True
         self.locale = player.preferred_locale
         self.update_activity()
-        short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
-        logger.info(f"Telnet 세션 {short_session_id}에 플레이어 '{player.username}' 인증 완료")
+        short_session_id = (
+            self.session_id.split("-")[-1]
+            if "-" in self.session_id
+            else self.session_id
+        )
+        logger.info(
+            f"Telnet 세션 {short_session_id}에 플레이어 '{player.username}' 인증 완료"
+        )
 
     def update_activity(self) -> None:
         """마지막 활동 시간 업데이트"""
@@ -125,14 +139,14 @@ class TelnetSession:
             # 디버깅: 전송되는 메시지 타입 확인
             msg_type = message.get("type", "")
             # print(f"DEBUG: send_message called with type: {msg_type}")
-            logger.error(f"FORCE DEBUG: send_message called with type: {msg_type}")
+            logger.info(f"send_message called with type: {msg_type}")
 
             if msg_type == "room_info":
                 # print(f"DEBUG: room_info message detected!")
-                logger.error(f"FORCE DEBUG: room_info message detected!")
+                logger.info(f"room_info message detected!")
                 entity_map = message.get("entity_map", {})
                 # print(f"DEBUG: entity_map in room_info: {entity_map is not None}")
-                logger.error(f"FORCE DEBUG: entity_map in room_info: {entity_map is not None}")
+                logger.info(f"entity_map in room_info: {entity_map is not None}")
 
             # 메시지 타입에 따라 적절한 포맷으로 변환
             text = self._format_message(message)
@@ -140,7 +154,7 @@ class TelnetSession:
             # 빈 문자열이면 전송하지 않음 (내부 업데이트 메시지)
             if not text or text.strip() == "":
                 return True
-
+            text = f"\n{text}\n"
             return await self.send_text(text)
 
         except Exception as e:
@@ -160,7 +174,7 @@ class TelnetSession:
         from ..core.localization import get_localization_manager
 
         msg_type = message.get("type", "")
-        localization = get_localization_manager()
+        # localization = get_localization_manager()
 
         # 에러 메시지
         if "error" in message:
@@ -200,7 +214,9 @@ class TelnetSession:
         # 기본값
         return str(message)
 
-    def _format_room_info(self, room_data: Dict[str, Any], entity_map: Dict[int, Dict[str, Any]] = None) -> str:
+    def _format_room_info(
+        self, room_data: Dict[str, Any], entity_map: Dict[int, Dict[str, Any]] = None
+    ) -> str:
         """방 정보를 Telnet 포맷으로 변환
 
         Args:
@@ -224,8 +240,9 @@ class TelnetSession:
             lines.append("")
 
         # 시간대 정보
-        if self.game_engine and hasattr(self.game_engine, 'time_manager'):
+        if self.game_engine and hasattr(self.game_engine, "time_manager"):
             from ..core.localization import get_localization_manager
+
             localization = get_localization_manager()
 
             time_of_day = self.game_engine.time_manager.get_current_time()
@@ -239,15 +256,21 @@ class TelnetSession:
         exits = room_data.get("exits", {})
         if exits:
             from ..core.localization import get_localization_manager
+
             localization = get_localization_manager()
 
-            exit_list = ", ".join([ANSIColors.exit_direction(direction) for direction in exits.keys()])
-            lines.append(localization.get_message("room.exits", self.locale, exits=exit_list))
+            exit_list = ", ".join(
+                [ANSIColors.exit_direction(direction) for direction in exits.keys()]
+            )
+            lines.append(
+                localization.get_message("room.exits", self.locale, exits=exit_list)
+            )
 
         # 플레이어
         players = room_data.get("players", [])
         if players:
             from ..core.localization import get_localization_manager
+
             localization = get_localization_manager()
 
             lines.append("")
@@ -270,12 +293,13 @@ class TelnetSession:
         # 번호로 엔티티 ID 역매핑 생성 (아이템 처리 전에 먼저 생성)
         id_to_number = {}
         for num, entity_info in entity_map.items():
-            id_to_number[entity_info['id']] = num
+            id_to_number[entity_info["id"]] = num
 
         # 객체
         objects = room_data.get("objects", [])
         if objects:
             from ..core.localization import get_localization_manager
+
             localization = get_localization_manager()
 
             lines.append("")
@@ -288,25 +312,31 @@ class TelnetSession:
 
             if grouped_objects:
                 for group in grouped_objects:
-                    if self.locale == 'ko':
-                        display_name = group.get("display_name_ko", group.get("name_ko", "알 수 없음"))
+                    if self.locale == "ko":
+                        display_name = group.get(
+                            "display_name_ko", group.get("name_ko", "알 수 없음")
+                        )
                     else:
-                        display_name = group.get("display_name_en", group.get("name_en", "Unknown"))
+                        display_name = group.get(
+                            "display_name_en", group.get("name_en", "Unknown")
+                        )
 
                     # 아이템 번호 찾기 - 그룹의 첫 번째 객체 ID로 매칭
                     item_number = None
                     first_obj_id = None
-                    if group.get('objects') and len(group['objects']) > 0:
+                    if group.get("objects") and len(group["objects"]) > 0:
                         # GameObject 인스턴스에서 ID 추출
-                        first_obj = group['objects'][0]
-                        first_obj_id = getattr(first_obj, 'id', None)
+                        first_obj = group["objects"][0]
+                        first_obj_id = getattr(first_obj, "id", None)
 
                     # id_to_number 딕셔너리 사용 (NPC와 동일한 방식)
                     if first_obj_id and first_obj_id in id_to_number:
                         item_number = id_to_number[first_obj_id]
 
                     if item_number:
-                        lines.append(f"• [{item_number}] {ANSIColors.item_name(display_name)}")
+                        lines.append(
+                            f"• [{item_number}] {ANSIColors.item_name(display_name)}"
+                        )
                     else:
                         lines.append(f"• {ANSIColors.item_name(display_name)}")
             else:
@@ -319,7 +349,9 @@ class TelnetSession:
                     item_number = id_to_number.get(obj_id)
 
                     if item_number:
-                        lines.append(f"• [{item_number}] {ANSIColors.item_name(obj_name)}")
+                        lines.append(
+                            f"• [{item_number}] {ANSIColors.item_name(obj_name)}"
+                        )
                     else:
                         lines.append(f"• {ANSIColors.item_name(obj_name)}")
 
@@ -332,7 +364,7 @@ class TelnetSession:
         hostile_monsters = []
 
         if monsters and self.player:
-            player_faction = self.player.faction_id or 'ash_knights'
+            player_faction = self.player.faction_id or "ash_knights"
 
             for monster in monsters:
                 monster_faction = monster.get("faction_id")
@@ -354,6 +386,7 @@ class TelnetSession:
         all_npcs = friendly_monsters
         if all_npcs:
             from ..core.localization import get_localization_manager
+
             localization = get_localization_manager()
 
             lines.append("")
@@ -369,6 +402,7 @@ class TelnetSession:
         # 중립 몬스터 표시
         if neutral_monsters:
             from ..core.localization import get_localization_manager
+
             localization = get_localization_manager()
 
             lines.append("")
@@ -377,11 +411,14 @@ class TelnetSession:
                 monster_name = monster.get("name", "알 수 없음")
                 monster_id = monster.get("id", "")
                 entity_num = id_to_number.get(monster_id, "?")
-                lines.append(f"  [{entity_num}] 🐾 {ANSIColors.neutral_name(monster_name)}")
+                lines.append(
+                    f"  [{entity_num}] 🐾 {ANSIColors.neutral_name(monster_name)}"
+                )
 
         # 적대적인 몬스터 표시
         if hostile_monsters:
             from ..core.localization import get_localization_manager
+
             localization = get_localization_manager()
 
             lines.append("")
@@ -390,12 +427,16 @@ class TelnetSession:
                 monster_name = monster.get("name", "알 수 없음")
                 monster_id = monster.get("id", "")
                 entity_num = id_to_number.get(monster_id, "?")
-                lines.append(f"  [{entity_num}] {ANSIColors.monster_name(monster_name)}")
+                lines.append(
+                    f"  [{entity_num}] {ANSIColors.monster_name(monster_name)}"
+                )
 
         lines.append("")
         return "\r\n".join(lines)
 
-    def _is_friendly_faction(self, player_faction: str, monster_faction: Optional[str]) -> bool:
+    def _is_friendly_faction(
+        self, player_faction: str, monster_faction: Optional[str]
+    ) -> bool:
         """플레이어와 몬스터 종족 간의 우호 관계 확인
 
         Args:
@@ -415,7 +456,7 @@ class TelnetSession:
 
         # 하드코딩된 우호 종족 관계 (추후 DB에서 동적으로 로드 가능)
         friendly_factions = {
-            'ash_knights': ['ash_knights'],  # 같은 종족만 우호적
+            "ash_knights": ["ash_knights"],  # 같은 종족만 우호적
             # 추가 동맹 종족은 여기에 추가
         }
 
@@ -426,7 +467,9 @@ class TelnetSession:
 
         return False
 
-    def _is_neutral_faction(self, player_faction: str, monster_faction: Optional[str]) -> bool:
+    def _is_neutral_faction(
+        self, player_faction: str, monster_faction: Optional[str]
+    ) -> bool:
         """플레이어와 몬스터 종족 간의 중립 관계 확인
 
         Args:
@@ -442,7 +485,7 @@ class TelnetSession:
 
         # 하드코딩된 중립 종족 관계 (추후 DB에서 동적으로 로드 가능)
         neutral_factions = {
-            'ash_knights': ['animals'],  # 동물은 중립
+            "ash_knights": ["animals"],  # 동물은 중립
         }
 
         # 중립 종족이면 True
@@ -465,15 +508,21 @@ class TelnetSession:
         """
         try:
             if self.writer.is_closing():
-                short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+                short_session_id = (
+                    self.session_id.split("-")[-1]
+                    if "-" in self.session_id
+                    else self.session_id
+                )
                 logger.warning(f"Telnet 세션 {short_session_id}: 연결이 이미 닫혀있음")
                 return False
 
             # 텍스트 인코딩 및 전송
+            text = text.replace("\r", "\n").replace("\n\n", "\n")  # 중간에 들어간 행변환 처리
             if newline:
-                text += "\r\n"
+                text += "\n"
+                # text += "\r\n"
 
-            self.writer.write(text.encode('utf-8'))
+            self.writer.write(text.encode("utf-8"))
             await self.writer.drain()
             self.update_activity()
             return True
@@ -482,8 +531,9 @@ class TelnetSession:
             logger.error(f"Telnet 세션 {self.session_id} 텍스트 전송 실패: {e}")
             return False
 
-    async def send_colored_text(self, text: str, color_code: str = "",
-                               newline: bool = True) -> bool:
+    async def send_colored_text(
+        self, text: str, color_code: str = "", newline: bool = True
+    ) -> bool:
         """
         ANSI 색상 코드를 사용하여 텍스트 전송
 
@@ -514,7 +564,9 @@ class TelnetSession:
         """
         return await self.send_colored_text(f"❌ {error_message}", "\033[31m")
 
-    async def send_success(self, message: str, data: Optional[Dict[str, Any]] = None) -> bool:
+    async def send_success(
+        self, message: str, data: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
         클라이언트에게 성공 메시지 전송 (녹색)
 
@@ -607,7 +659,7 @@ class TelnetSession:
         # Telnet 명령어 바이트
         IAC = 255  # 0xFF - Interpret As Command
         DONT = 254  # 0xFE
-        DO = 253    # 0xFD
+        DO = 253  # 0xFD
         WONT = 252  # 0xFC
         WILL = 251  # 0xFB
 
@@ -651,10 +703,10 @@ class TelnetSession:
         """
         # 백스페이스 및 제어 문자
         BACKSPACE = 0x08  # ^H (Ctrl+H)
-        DELETE = 0x7F     # DEL
-        CR = 0x0D         # Carriage Return (\r)
-        LF = 0x0A         # Line Feed (\n)
-        IAC = 0xFF        # Telnet IAC
+        DELETE = 0x7F  # DEL
+        CR = 0x0D  # Carriage Return (\r)
+        LF = 0x0A  # Line Feed (\n)
+        IAC = 0xFF  # Telnet IAC
 
         buffer = bytearray()
         start_time = asyncio.get_event_loop().time() if timeout else None
@@ -675,8 +727,7 @@ class TelnetSession:
                 try:
                     if remaining:
                         byte_data = await asyncio.wait_for(
-                            self.reader.read(1),
-                            timeout=remaining
+                            self.reader.read(1), timeout=remaining
                         )
                     else:
                         byte_data = await self.reader.read(1)
@@ -695,7 +746,9 @@ class TelnetSession:
                 if byte_val == IAC:
                     # IAC 명령어 시퀀스 읽기 (최대 2바이트 더)
                     try:
-                        cmd_byte = await asyncio.wait_for(self.reader.read(1), timeout=0.1)
+                        cmd_byte = await asyncio.wait_for(
+                            self.reader.read(1), timeout=0.1
+                        )
                         if cmd_byte:
                             cmd = cmd_byte[0]
                             # DO, DONT, WILL, WONT는 3바이트 명령어
@@ -719,7 +772,9 @@ class TelnetSession:
                     if byte_val == CR:
                         # 다음 바이트가 LF인지 확인 (peek)
                         try:
-                            next_byte = await asyncio.wait_for(self.reader.read(1), timeout=0.05)
+                            next_byte = await asyncio.wait_for(
+                                self.reader.read(1), timeout=0.05
+                            )
                             if next_byte and next_byte[0] != LF:
                                 # LF가 아니면 다시 버퍼에 넣어야 하지만 불가능하므로 무시
                                 pass
@@ -735,7 +790,7 @@ class TelnetSession:
 
             # 디코딩
             try:
-                decoded_line = buffer.decode('utf-8', errors='ignore').strip()
+                decoded_line = buffer.decode("utf-8", errors="ignore").strip()
                 self.update_activity()
                 return decoded_line
             except Exception as e:
@@ -758,10 +813,18 @@ class TelnetSession:
                 await self.send_text(f"\r\n{message}\r\n")
                 self.writer.close()
                 await self.writer.wait_closed()
-                short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+                short_session_id = (
+                    self.session_id.split("-")[-1]
+                    if "-" in self.session_id
+                    else self.session_id
+                )
                 logger.info(f"Telnet 세션 {short_session_id} 연결 종료: {message}")
         except Exception as e:
-            short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+            short_session_id = (
+                self.session_id.split("-")[-1]
+                if "-" in self.session_id
+                else self.session_id
+            )
             logger.error(f"Telnet 세션 {short_session_id} 종료 중 오류: {e}")
 
     def is_active(self, timeout_seconds: int = 300) -> bool:
@@ -798,18 +861,24 @@ class TelnetSession:
             "is_active": self.is_active(),
             "connection_closed": self.writer.is_closing(),
             "locale": self.locale,
-            "use_ansi_colors": self.use_ansi_colors
+            "use_ansi_colors": self.use_ansi_colors,
         }
 
     def __str__(self) -> str:
         """세션 문자열 표현"""
         player_info = f"({self.player.username})" if self.player else "(미인증)"
-        short_session_id = self.session_id.split('-')[-1] if '-' in self.session_id else self.session_id
+        short_session_id = (
+            self.session_id.split("-")[-1]
+            if "-" in self.session_id
+            else self.session_id
+        )
         return f"TelnetSession[{short_session_id}]{player_info}"
 
     def __repr__(self) -> str:
         """세션 상세 표현"""
-        return (f"TelnetSession(session_id='{self.session_id}', "
-                f"player={self.player.username if self.player else None}, "
-                f"authenticated={self.is_authenticated}, "
-                f"active={self.is_active()})")
+        return (
+            f"TelnetSession(session_id='{self.session_id}', "
+            f"player={self.player.username if self.player else None}, "
+            f"authenticated={self.is_authenticated}, "
+            f"active={self.is_active()})"
+        )
