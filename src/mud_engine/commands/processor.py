@@ -9,7 +9,7 @@ from datetime import datetime
 from .base import BaseCommand, CommandResult, CommandResultType
 from .utils import is_session_available, is_game_engine_available, get_user_locale, is_in_combat
 from ..commands.combat_commands import DefendCommand, FleeCommand, ItemCommand
-
+from ..commands.combat import EndTurnCommand
 from ..core.types import SessionType
 from ..core.event_bus import EventBus, Event, EventType
 from ..core.localization import get_message
@@ -132,12 +132,13 @@ class CommandProcessor:
         cmd = cmdline_list[0]
 
         # 숫자만 입력된 경우 변환
-        if cmd in ['1', '2', '3', '4']:
+        if cmd in ['1', '2', '3', '4', '9']:
             combat_actions = {
                 '1': 'attack',
                 '2': 'defend',
                 '3': 'flee',
-                '4': 'item'
+                '4': 'item',
+                '9': 'endturn'
             }
             # converted = combat_actions.get(command_line, command_line)
             converted = combat_actions.get(cmd, cmd)
@@ -192,6 +193,9 @@ class CommandProcessor:
         elif command_name == 'item':
             # 전투 중 아이템 슬롯과 아이템 사용하는 명령 호출
             command = ItemCommand(combat_handler)
+            return await command.execute(session, args)
+        elif command_name == 'endturn':
+            command = EndTurnCommand(combat_handler)
             return await command.execute(session, args)
         else:
             return CommandResult(
@@ -275,7 +279,7 @@ class CommandProcessor:
 
         # 전투 전용 명령어 처리 (defend, flee)
         in_combat = getattr(session, 'in_combat', False)
-        combat_only_commands = ['defend', 'flee', 'item', 'spell']
+        combat_only_commands = ['defend', 'flee', 'item', 'spell', 'endturn']
 
         if command_name in combat_only_commands:
             if not in_combat:
@@ -284,8 +288,8 @@ class CommandProcessor:
                     message="전투 중에만 사용할 수 있는 명령어입니다."
                 )
             # 전투 중이면 동적으로 명령어 생성하여 실행
-            logger.info(f"222333222 {command_name}")
-            logger.info(f"222333222 {args}")
+            logger.info(f"command_name {command_name}")
+            logger.info(f"args {args}")
             return await self._execute_combat_command(session, command_name, args)
 
         # 명령어 조회

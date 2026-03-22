@@ -26,7 +26,7 @@ class CombatAction(Enum):
     DEFEND = "defend"
     SKILL = "skill"
     FLEE = "flee"
-    WAIT = "wait"
+    ENDTURN = "endturn"
 
 
 class CombatantType(Enum):
@@ -413,6 +413,11 @@ class CombatInstance:
             "current_target_index": 0,
         }
 
+    def to_simple(self) -> str:
+        r = f'CombatInstance[{self.id} room_id[{self.room_id}] is_active[{self.is_active}]'
+        r += f'_entity_map[{self._entity_map}]'
+        return r
+
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환"""
         return {
@@ -503,7 +508,8 @@ class CombatInstance:
                 f"{self.I18N.get_message('combat.action_defend', locale)}",
                 f"{self.I18N.get_message('combat.action_flee', locale)}",
                 f"[4] Item  ",
-                f"[5] Spell",
+                f"[7] Spell",
+                f"[9] End Turn / 턴넘기기",
                 self.I18N.get_message("combat.enter_command", locale),
             ]
         )
@@ -532,7 +538,7 @@ class CombatManager:
 
     # TODO: 문제는 참자가 마다 locale 설정이 다를 수 있으니 관련 정보를 combatant 안에 한번에 받아야 함
     # 그리고 나중에 클라이언트가 이부분 처리를 하게 된다면 다 제거하고 영어+기호 로만 전달 후 클라에서 변환하도록 만들 것
-    async def create_turn_for_new_instance(self, combat: CombatInstance, locale: str = "en") -> None:
+    async def turn_boardcast_for_new_instance(self, combat: CombatInstance, locale: str = "en") -> None:
         # 전투 참가자들에게 결정 된 턴 순서 브로드캐스트
         msg = ["순서: "]  # TODO: i18n
         logger.info(f"{combat.turn_order}")
@@ -545,6 +551,30 @@ class CombatManager:
         if superadmin_id:
             combat.turn_order.insert(0, combat.turn_order.pop(combat.turn_order.index(superadmin_id)))
             logger.info(f"after {combat.turn_order}")
+
+        for combatant_id in combat.turn_order:
+            name = combat.get_combatant(combatant_id).name
+            if "monster" in combat.get_combatant(combatant_id).data:
+                name = combat.get_combatant(combatant_id).data["monster"].get_localized_name(locale)
+            msg.append(f"[{name}]")
+        logger.info(" ".join(msg))
+
+        # BROADCASE
+        combatant: Combatant
+        for combatant in combat.combatants:
+            if combatant.combatant_type == CombatantType.PLAYER:
+                session = self.session_manager.get_player_session(combatant.id)
+                if session:
+                    await session.send_message({"type": "combat_message", "message": " ".join(msg)})
+        return
+
+    async def turn_boardcast_for_new_instance_with_aggresive_mob(self, combat:CombatInstance, monster:Monster):
+        msg = ["순서: "]  # TODO: i18n
+        logger.info(f"{combat.turn_order}")
+        locale = 'en'  # TODO
+
+        combat.turn_order.insert(0, combat.turn_order.pop(combat.turn_order.index(monster.id)))
+        logger.info(f"after {combat.turn_order}")
 
         for combatant_id in combat.turn_order:
             name = combat.get_combatant(combatant_id).name
@@ -632,7 +662,7 @@ class CombatManager:
         if not combat or not combat.is_active:
             logger.warning(f"전투 {combat_id}를 찾을 수 없거나 비활성 상태")
             return False
-        logger.info(combat)
+        logger.info(combat.to_simple())
 
         # Combatant 생성 (D&D 능력치 사용)
         # 몬스터 이름은 원본 Monster 객체를 참조하여 동적으로 처리

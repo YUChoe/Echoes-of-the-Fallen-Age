@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """플레이어 인증 관련 서비스를 제공합니다."""
+import logging
 import bcrypt
 from typing import Optional
 from datetime import datetime
@@ -8,6 +9,7 @@ from .repositories import PlayerRepository
 from ..game.models import Player
 from ..utils.exceptions import AuthenticationError
 
+logger = logging.getLogger(__name__)
 
 class AuthService:
     """인증 관련 로직을 처리하는 서비스 클래스입니다."""
@@ -71,6 +73,8 @@ class AuthService:
             AuthenticationError: 인증에 실패한 경우
         """
         player: Optional[Player] = await self._player_repo.get_by_username(username)
+
+        logger.info(f"HP: {player.stats.current_hp}")
 
         if not player or not self.verify_password(password, player.password_hash):
             raise AuthenticationError("사용자 이름 또는 비밀번호가 잘못되었습니다.")

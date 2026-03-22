@@ -86,10 +86,57 @@ class GlobalTickManager:
                                 acmd = AttackCommand(_combats)
                                 await acmd._end_combat(s, _combat_instancese, {})
                         break  # 해당 세션에 대한 combat_id 를 찾으려는 것이므로 찾았으면 break
+        except asyncio.CancelledError:
+            logger.info("Worker 태스크 취소됨 - 전투중 몹턴")
+            # 정리 작업 수행
+            raise  # 반드시 re-raise
+        # ===== ===== ===== ===== ===== =====
+        try:
+            locale = 'en' # 서버내부처리를 위해서는 디폴트 값 이용
+            for s in self.session_manager.get_all_sessions():
+                logger.debug(f"session_id[{s.session_id}]")
+                if s.in_combat: continue
+                room_info = await self.game_engine.get_room_info(s.current_room_id, locale)
+                if not room_info or not room_info.get('monsters'):
+                    return
+                aggressive_monsters = []
+                for monster in room_info['monsters']:
+                    logger.info(f"몬스터 체크: {monster.get_localized_name(locale)}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
+                    # 선공형이고 살아있는 몬스터만
+                    if monster.is_aggressive() and monster.is_alive:
+                        aggressive_monsters.append(monster)
+                        logger.info(f"선공형 몬스터 발견: {monster.get_localized_name(locale)}")
+                if not aggressive_monsters:
+                    logger.info(f"방 {s.current_room_id}에 선공형 몬스터 없음")
+                    return
+                logger.info(aggressive_monsters)  # TODO: aggressive_monsters[0] 만 사용?
+                # TODO: 선공형몹이 플레이어를 발견했습니다 메시지
+                # 인스턴스 확인 및 생성
+                combat = await self.combat_handler.start_combat(s.player, aggressive_monsters[0], s.current_room_id, aggresive=True)
+                logger.info(combat.to_simple())
 
+                # 인스턴스에 엔티티 기록
+                combat.set_entity_map(getattr(s, "room_entity_map", {}))
+
+                # 세션 상태 업데이트
+                s.in_combat = True
+                s.original_room_id =s.current_room_id
+                s.combat_id = combat.id
+                s.current_room_id = f"combat_{combat.id}"  # 전투 인스턴스로 이동
+                logger.info(s)
+
+                # 만약 몹 턴이면 공격
+                combatant = combat.get_current_combatant()  # 현재 누구 턴
+                if combatant.combatant_type == CombatantType.MONSTER:
+                    logger.info(f"몹 턴 combatant is [{combatant.combatant_type}]")
+                    await self._process_monster_turn(combat.id)
+                    # 전투 종료 확인
+                    if combat.is_combat_over():
+                        acmd = AttackCommand(_combats)
+                        await acmd._end_combat(s, _combat_instancese, {})
 
         except asyncio.CancelledError:
-            logger.info("Worker 태스크 취소됨")
+            logger.info("Worker 태스크 취소됨 - 몹 선공")
             # 정리 작업 수행
             raise  # 반드시 re-raise
 

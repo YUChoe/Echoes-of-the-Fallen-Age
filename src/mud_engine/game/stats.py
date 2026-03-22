@@ -36,15 +36,15 @@ class PlayerStats:
     """플레이어 능력치 클래스"""
 
     # 1차 능력치 (기본 스탯) - 기본값 10
-    strength: int = 10
-    dexterity: int = 10
-    intelligence: int = 10
-    wisdom: int = 10
-    constitution: int = 10
-    charisma: int = 10
+    strength: int = 1
+    dexterity: int = 1
+    intelligence: int = 1
+    wisdom: int = 1
+    constitution: int = 1
+    charisma: int = 1
 
     # 레벨 관련
-    level: int = 1
+    level: int = 1  # 삭제 대상
 
     # current
     current_hp: int = 0
@@ -207,21 +207,21 @@ class PlayerStats:
             if self.equipment_bonuses[stat_name] <= 0:
                 del self.equipment_bonuses[stat_name]
 
-    def level_up_stat(self, stat_type: StatType, points: int = 1) -> bool:
-        """능력치 레벨업 (스탯 포인트 사용)"""
-        if stat_type in [
-            StatType.STR,
-            StatType.DEX,
-            StatType.INT,
-            StatType.WIS,
-            StatType.CON,
-            StatType.CHA,
-        ]:
-            current_value = getattr(self, stat_type.value)
-            if current_value + points <= 100:
-                setattr(self, stat_type.value, current_value + points)
-                return True
-        return False
+    # def level_up_stat(self, stat_type: StatType, points: int = 1) -> bool:
+    #     """능력치 레벨업 (스탯 포인트 사용)"""
+    #     if stat_type in [
+    #         StatType.STR,
+    #         StatType.DEX,
+    #         StatType.INT,
+    #         StatType.WIS,
+    #         StatType.CON,
+    #         StatType.CHA,
+    #     ]:
+    #         current_value = getattr(self, stat_type.value)
+    #         if current_value + points <= 100:
+    #             setattr(self, stat_type.value, current_value + points)
+    #             return True
+    #     return False
 
     def get_all_stats(self) -> Dict[str, int]:
         """모든 능력치 조회"""

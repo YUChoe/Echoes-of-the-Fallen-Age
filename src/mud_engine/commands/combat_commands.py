@@ -102,7 +102,7 @@ class AttackCommand(BaseCommand):
 
         # 인스턴스 확인 및 생성
         combat = await self.combat_handler.start_combat(session.player, target_monster, current_room_id)
-        logger.info(combat)
+        logger.info(combat.to_simple())
         # 생성되면서 턴 순서도 로그에 찍혀야 함
 
         # 인스턴스에 엔티티 기록
@@ -469,7 +469,7 @@ class ItemCommand(BaseCommand):
         if not combat or not combat.is_active:
             return self.create_error_result("전투를 찾을 수 없거나 이미 종료되었습니다.")
 
-        message = "!!!!!!!!"
+        message = "ItemCommand!!!!!!!!"
         logger.info(message)
         return self.create_success_result(
             message=message,
