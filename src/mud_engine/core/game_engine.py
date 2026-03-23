@@ -17,6 +17,7 @@ from ..database.connection import DatabaseManager
 if TYPE_CHECKING:
     from ..server.session_manager import SessionManager
     from ..game.models import Player
+    from ..stat import PlayerStats
 
 logger = logging.getLogger(__name__)
 
@@ -393,6 +394,31 @@ class GameEngine:
                     count += 1
 
         return count
+
+    async def broadcast_to_room_by_detection_ability(self,
+            room_id: str, message: str, exclude_session: Optional[str] = None) -> None:
+        """
+        특정 방의 이동 메시지 브로드캐스트 플레이어가 센스가 떨어지면 못 알아챌 수도 있음
+
+        Args:
+            room_id: 방 ID
+            message: 브로드캐스트할 메시지
+            exclude_session: 제외할 세션 ID (선택사항)
+
+        Returns:
+            None
+        """
+        message = {
+            "type": "moving message",
+            "message": message
+        }
+        for session in self.session_manager.iter_authenticated_sessions():
+            if (session.player and session.session_id != exclude_session) and (getattr(session, 'current_room_id', None) == room_id):
+                logger.info(f"현재 방[{room_id}]에 플레이어 발견 ")
+                s: PlayerStats = session.player.stats
+                logger.info(f"int[{s.intelligence}] dex[{s.dexterity}]")
+                await session.send_message(message)
+        return
 
     async def broadcast_to_all(self, message: Dict[str, Any],
                               authenticated_only: bool = True) -> int:

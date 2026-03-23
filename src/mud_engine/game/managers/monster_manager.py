@@ -5,7 +5,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from uuid import uuid4
-
+from .room_manager import RoomManager
 from ..repositories import MonsterRepository
 from ..monster import Monster, MonsterType, MonsterBehavior, MonsterStats
 from ...config import TemplateLoader
@@ -532,11 +532,14 @@ class MonsterManager:
         except Exception as e:
             logger.error(f"몬스터 로밍 처리 실패: {e}")
 
-    async def _roam_monster(self, monster: Monster, roaming_config: Dict[str, Any], room_manager=None, game_engine=None, random_value: float = 0.0) -> None:
+    async def _roam_monster(self, monster: Monster, roaming_config: Dict[str, Any], room_manager: RoomManager=None, game_engine=None, random_value: float = 0.0) -> None:
         """몬스터를 로밍 범위 내에서 이동시킵니다."""
         try:
             if monster.x is None or monster.y is None:
                 return
+            priv_x = monster.x
+            priv_y = monster.y
+            priv_room = await room_manager.get_room_at_coordinates(priv_x, priv_y)
 
             if room_manager:
 
@@ -570,7 +573,7 @@ class MonsterManager:
                         continue
 
                     # 해당 좌표에 방이 존재하는지 확인
-                    target_room = await room_manager.get_room_at_coordinates(target_x, target_y)
+                    target_room = await room_manager.get_room_at_coordinates(target_x, target_y)  # target_room은 아래의 배열에 넣는데에만 쓰임
                     if target_room:
                         available_moves.append((direction, target_x, target_y))
 
@@ -592,6 +595,11 @@ class MonsterManager:
                     monster_name = monster.get_localized_name('en')[:15] if monster.get_localized_name('en') else short_id
 
                     logger.info(f"{monster_name} {short_id} ({current_x}, {current_y}) -> ({target_x}, {target_y}) 로밍 (확률: {random_value:.2f})")
+
+                    target_room = await room_manager.get_room_at_coordinates(target_x, target_y)  # 그래서 여기서 다시 room을 가져 옴
+                    await self._game_engine.broadcast_to_room_by_detection_ability(priv_room.id, f"{monster_name} leaves the room.")
+                    await self._game_engine.broadcast_to_room_by_detection_ability(target_room.id, f"{monster_name} enters this room.")
+
         except Exception as e:
             logger.error(f"몬스터 로밍 실패 ({monster.id}): {e}")
 
