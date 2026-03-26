@@ -189,7 +189,7 @@ class CombatHandler:
             return {"success": False, "message": "알 수 없는 행동입니다."}
 
     async def _execute_attack(self, combat: CombatInstance, actor: Combatant, target_id: Optional[str]) -> Dict[str, Any]:
-        """공격 실행 (D&D 5e 룰 적용)"""
+        """공격 실행 (D&D 5e 룰 적용) - 메시지는 즉시 전송"""
         if not target_id:
             return {"success": False, "message": "공격 대상을 지정해야 합니다."}
 
@@ -198,120 +198,94 @@ class CombatHandler:
             return {"success": False, "message": "대상을 찾을 수 없습니다."}
 
         if not target.is_alive():
-            # TODO: 사망 한 대상이라도 공격은 받을 수 있어야? 예를 들어 부활 시키지 못하게 한다던지
             return {"success": False, "message": "이미 사망한 대상입니다."}
 
         _actor_is_superadmin = False
-        if actor.get_display_name() == 'SUPERADMIN':  # TODO: 방법을 바꿔야 함
-            _actor_is_superadmin = True  # NOTE: test 로직 시험 할 때
+        if actor.get_display_name() == 'SUPERADMIN':
+            _actor_is_superadmin = True
 
         # D&D 5e 룰 적용
-        # 1. 공격 굴림 (d20 + 공격 보너스)
         attack_bonus = self._calculate_attack_bonus(actor)
         attack_roll, is_critical = self.dnd_engine.make_attack_roll(attack_bonus)
         logger.info(f"attack_bonus[{attack_bonus}] attack_roll[{attack_roll}] is_critical[{is_critical}]")
 
-        # 2. 대상 AC (방어도) 계산
-        # target.data에서 armor_class 가져오기
+        # 대상 AC 계산
         if target.data and "armor_class" in target.data:
             target_ac = target.data["armor_class"]
         else:
-            target_ac = 10 + target.defense  # 기본 AC 10 + 방어력
+            target_ac = 10 + target.defense
         logger.info(f"target_ac[{target_ac}] target.defense[{target.defense}]")
 
-        # 3. 명중 판정
+        # 명중 판정
         hit = self.dnd_engine.check_hit(attack_roll, target_ac)
         logger.info(f"hit[{hit}]")
 
-        # actor 방어 상태 해제 (왜냐면 지금 공격 하니까)
+        # actor 방어 상태 해제
         actor.is_defending = False
 
-        # 빗나감
+        locale = "en"
+        actor_name = self._get_combatant_name(actor, locale)
+        target_name = self._get_combatant_name(target, locale)
+        weapon_name = await self._get_weapon_name(actor, locale)
+
+        # 빗나감 - 즉시 전송
         if not hit and not is_critical and not _actor_is_superadmin:
-            # 기본 언어는 영어로 설정 (추후 세션 정보에서 가져올 수 있도록 개선 필요)
-            locale = "en"
-            actor_name = self._get_combatant_name(actor, locale)
-            target_name = self._get_combatant_name(target, locale)
-
-            # 무기 정보 가져오기
-            weapon_name = await self._get_weapon_name(actor, locale)
-
-            message = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
-            message += f"🎲 공격 굴림: {attack_roll} vs AC {target_ac}\n"
-            message += f"❌ 공격이 빗나갔습니다!{ANSIColors.RESET}"
+            miss_msg = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
+            miss_msg += f"🎲 공격 굴림: {attack_roll} vs AC {target_ac}\n"
+            miss_msg += f"❌ 공격이 빗나갔습니다!{ANSIColors.RESET}"
+            await self.send_broadcast_combat_message(combat, miss_msg)
 
             return {
-                "success": True,
-                "message": message,
-                "damage_dealt": 0,
-                "is_critical": False,
-                "hit": False,
-                "attack_roll": attack_roll,
-                "target_ac": target_ac,
-                "target_hp": target.current_hp,
+                "success": True, "hit": False, "damage_dealt": 0,
+                "is_critical": False, "attack_roll": attack_roll,
+                "target_ac": target_ac, "target_hp": target.current_hp,
                 "target_max_hp": target.max_hp,
             }
 
-        # 4. 데미지 계산
-        # 데미지 주사위 표기법 생성 (예: "1d8+2")
+        # 데미지 계산
         damage_dice = await self._get_damage_dice(actor)
-        logger.info(f"damage_dice[{damage_dice}]")  # 어 난 이게 좋은데...
+        logger.info(f"damage_dice[{damage_dice}]")
         damage = self.dnd_engine.calculate_damage(damage_dice, is_critical)
         logger.info(f"damage[{damage}]")
 
-        # 5. 방어 중이면 데미지 50% 감소
         if target.is_defending:
             damage = damage // 2
             logger.info(f"{target.name} 방어 중 - 데미지 50% 감소")
 
-        # 6. 대상에게 데미지 적용 (방어력 적용)
         actual_damage = max(1, damage - target.defense)
         if _actor_is_superadmin:
-            logger.warn(f"_actor_is_superadmin actual_damage[{actual_damage}] -> [{(actual_damage + 10) * 5}]")
+            logger.warning(f"_actor_is_superadmin actual_damage[{actual_damage}] -> [{(actual_damage + 10) * 5}]")
             actual_damage = (actual_damage + 10) * 5
         target.current_hp = max(0, target.current_hp - actual_damage)
-        logger.info(f"actual_damage[{actual_damage}] target.current_hp[{target.current_hp}]")  # 죽었으면 0 됐겠지
+        logger.info(f"actual_damage[{actual_damage}] target.current_hp[{target.current_hp}]")
 
-        # 메시지 생성
-        locale = "en"
-        actor_name = self._get_combatant_name(actor, locale)
-        target_name = self._get_combatant_name(target, locale)
-
-        # 무기 정보 가져오기
-        weapon_name = await self._get_weapon_name(actor, locale)
-
-        message = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
-        message += f"🎲 공격 굴림({damage_dice}): {attack_roll} vs AC {target_ac}\n"
-
+        # 공격 결과 메시지 즉시 전송
+        hit_msg = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
+        hit_msg += f"🎲 공격 굴림({damage_dice}): {attack_roll} vs AC {target_ac}\n"
         if is_critical:
-            message += f"💥 크리티컬 히트! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
+            hit_msg += f"💥 크리티컬 히트! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
         else:
-            message += f"✅ 명중! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
-
+            hit_msg += f"✅ 명중! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
         if target.is_defending:
-            message += " (방어 중 - 50% 감소)"
+            hit_msg += " (방어 중 - 50% 감소)"
+        hit_msg += ANSIColors.RESET
+        await self.send_broadcast_combat_message(combat, hit_msg)
 
+        # 사망 처리 - 즉시 전송
         if not target.is_alive():
-            message += f"\n💀 {target_name}이(가) 죽었습니다!"
-            # 사망 처리 - corpse 생성 (전투 종료 여부와 무관)
+            death_msg = f"{ANSIColors.RED}💀 {target_name}이(가) 죽었습니다!{ANSIColors.RESET}"
+            await self.send_broadcast_combat_message(combat, death_msg)
             await self._handle_death(combat, target)
 
-        message += ANSIColors.RESET
-
-        # TODO: 실제 player stat 에 저장 되어야 함
+        # player stat 저장
         if target.data and "player" in target.data:
             p: Player = target.data["player"]
             p.stats.set_current_hp(target.current_hp)
-        # ===== ===== ===== =====
+
         return {
-            "success": True,
-            "message": message,
-            "damage_dealt": actual_damage,
-            "is_critical": is_critical,
-            "hit": True,
-            "attack_roll": attack_roll,
-            "target_ac": target_ac,
-            "target_hp": target.current_hp,
+            "success": True, "hit": True, "damage_dealt": actual_damage,
+            "is_critical": is_critical, "attack_roll": attack_roll,
+            "target_ac": target_ac, "target_hp": target.current_hp,
             "target_max_hp": target.max_hp,
         }
 
@@ -438,16 +412,12 @@ class CombatHandler:
             return f"{base_dice}d{dice_size}"
 
     async def _execute_defend(self, actor: Combatant) -> Dict[str, Any]:
-        """방어 실행"""
+        """방어 실행 - 즉시 전송은 호출자가 처리"""
         actor.is_defending = True
 
         from ..core.localization import get_localization_manager
-
         localization = get_localization_manager()
-
-        # 기본 언어는 영어로 설정 (세션 정보가 없는 경우)
         locale = "en"
-
         message = localization.get_message("combat.defend_stance", locale, actor=actor.name)
 
         return {
@@ -554,18 +524,9 @@ class CombatHandler:
         target = random.choice(alive_players)
         logger.info(f"몬스터 {current_combatant.name}이(가) {target.name}을(를) 공격 시도")
 
-        # 공격 실행
+        # 공격 실행 (_execute_attack 내부에서 즉시 broadcast됨)
         result = await self._execute_attack(combat, current_combatant, target.id)
-        msg = f"{result.get('message', 'N/A')}"
-        logger.info(f"몬스터 공격 결과: {result.get('success', False)}, 메시지: {msg}")
-
-        # 전투 참가자들에게 몬스터 공격 결과 브로드캐스트
-        # for combatant in combat.combatants:
-        #     if combatant.combatant_type == CombatantType.PLAYER:
-        #         session = self.session_manager.get_player_session(combatant.id)
-        #         if session:
-        #             await session.send_message({ "type": "combat_message", "message": msg })
-        await self.send_broadcast_combat_message(combat, msg)
+        logger.info(f"몬스터 공격 결과: {result.get('success', False)}")
 
         # 다음 턴으로 진행
         combat.advance_turn()

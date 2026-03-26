@@ -112,21 +112,18 @@ class AttackCommand(BaseCommand):
             # 전투 중에 attack 명령 인 경우 - 공격 액션 실행
             target_combatant = self.get_target_combatant_by_monster_id(target_monster.id, combat)
             result = await self._execute_combat_attack(session, target_combatant, combat)
-            await self.combat_handler.send_broadcast_combat_message(combat, result.message)
-            result.message = ""  # 위에서 출력 하고 clear
-            combat.advance_turn()  # << 턴넘김
+            # _execute_attack 내부에서 이미 broadcast됨 → 중복 전송 제거
+            combat.advance_turn()
 
             if combat.is_combat_over():
                 await self._end_combat(session, combat, {})
                 _lcmd = LookCommand()
                 await _lcmd._look_around(session)
-
                 return result
 
-            # 피 얼마나 남았는지 등 상태 출력
+            # 상태 출력
             msg = combat.get_combat_status_message(session.locale)
             await self.combat_handler.send_broadcast_combat_message(combat, msg)
-            # 전투 참가자들에게 다음 턴 브로드캐스트
             msg = combat.get_whos_turn(session.locale)
             await self.combat_handler.send_broadcast_combat_message(combat, msg)
             await self.combat_handler.send_battle_command_menu(combat)
@@ -163,14 +160,13 @@ class AttackCommand(BaseCommand):
         )
 
     async def _execute_combat_attack(self, session: SessionType, target: Combatant, combat: CombatInstance) -> CommandResult:
-        """전투 중 공격 액션 실행"""
+        """전투 중 공격 액션 실행 - _execute_attack 내부에서 즉시 broadcast됨"""
         combat_id = combat.id
 
-        # combat_handler 가서 공격 실행
         result = await self.combat_handler.process_player_action(combat_id, session.player.id, CombatAction.ATTACK, target.id)
         logger.info(f"result[{result}]")
         return self.create_success_result(
-            message=result.get("message", ""),
+            message="",
             data={"action": "combat_action_result", "combat_status": combat.to_dict()},
         )
 
@@ -242,29 +238,29 @@ class DefendCommand(BaseCommand):
         if not result.get("success"):
             return self.create_error_result(result.get("message", "방어 실패"))
 
+        # 방어 결과 즉시 broadcast
+        if result.get("message"):
+            combat = self.combat_handler.combat_manager.get_combat(combat_id)
+            if combat:
+                await self.combat_handler.send_broadcast_combat_message(combat, result["message"])
+
         # 전투 종료 확인
         if result.get("combat_over"):
             return await self._end_combat(session, combat, result)
 
         # 몬스터 턴 자동 처리
-        monster_messages = []
         while combat.is_active and not combat.is_combat_over():
             current = combat.get_current_combatant()
             if not current:
                 break
 
-            # 플레이어 턴이면 중단
             from ..game.combat import CombatantType
-
             if current.combatant_type == CombatantType.PLAYER:
                 break
 
-            # 몬스터 턴 처리
+            # 몬스터 턴 처리 (_execute_attack 내부에서 즉시 broadcast됨)
             monster_result = await self.combat_handler.process_monster_turn(combat.id)
-            if monster_result.get("success") and monster_result.get("message"):
-                monster_messages.append(monster_result["message"])
 
-            # 전투 종료 확인
             if monster_result.get("combat_over"):
                 return await self._end_combat(session, combat, monster_result)
 
@@ -272,13 +268,8 @@ class DefendCommand(BaseCommand):
         if combat.is_combat_over():
             return await self._end_combat(session, combat, {})
 
-        # 다음 턴 메시지
-        AttackCommand(self.combat_handler)
-        # locale = get_user_locale(session)
-        message = f"{result.get('message', '')}\n"
-
         return self.create_success_result(
-            message=message,
+            message="",
             data={"action": "combat_action_result", "combat_status": combat.to_dict()},
         )
 
@@ -326,7 +317,10 @@ class FleeCommand(BaseCommand):
         if not result.get("success"):
             return self.create_error_result(result.get("message", "도망 실패"))
 
-        # 전투에서 제거 됨
+        # 도망 결과 즉시 broadcast
+        if result.get("message"):
+            await self.combat_handler.send_broadcast_combat_message(combat, result["message"])
+
         locale = get_user_locale(session)
 
         # 도망 성공 여부 확인
@@ -396,25 +390,18 @@ class FleeCommand(BaseCommand):
                     data={"action": "flee_success"},
                 )
 
-        # 도망 실패 - 몬스터 턴 처리
-        monster_messages = []
+        # 도망 실패 - 몬스터 턴 처리 (_execute_attack 내부에서 즉시 broadcast됨)
         while combat.is_active and not combat.is_combat_over():
             current = combat.get_current_combatant()
             if not current:
                 break
 
-            # 플레이어 턴이면 중단
             from ..game.combat import CombatantType
-
             if current.combatant_type == CombatantType.PLAYER:
                 break
 
-            # 몬스터 턴 처리
             monster_result = await self.combat_handler.process_monster_turn(combat.id)
-            if monster_result.get("success") and monster_result.get("message"):
-                monster_messages.append(monster_result["message"])
 
-            # 전투 종료 확인
             if monster_result.get("combat_over"):
                 return await self._end_combat(session, combat, monster_result)
 
@@ -422,20 +409,8 @@ class FleeCommand(BaseCommand):
         if combat.is_combat_over():
             return await self._end_combat(session, combat, {})
 
-        # 다음 턴 메시지
-        AttackCommand(self.combat_handler)
-        message = f"{result.get('message', '')}\n"
-
-        # 몬스터 턴 메시지 추가
-        if monster_messages:
-            message += "\n" + "\n".join(monster_messages) + "\n"
-        # TODO:
-        # message += "\n" + attack_cmd._get_combat_status_message(session, combat, locale)
-        # message += "\n\n"
-        # message += attack_cmd._get_turn_message(combat, session.player.id, locale)
-
         return self.create_success_result(
-            message=message,
+            message="",
             data={"action": "combat_action_result", "combat_status": combat.to_dict()},
         )
 
