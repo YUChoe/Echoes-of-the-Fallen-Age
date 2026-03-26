@@ -308,7 +308,7 @@ class StatsCommand(BaseCommand):
             else:
                 return "⚔️ Equipment: Unable to load information."
 
-    def _get_equipment_slots_display(self, locale: str = 'ko') -> dict:
+    def _get_equipment_slots_display(self, locale: str = 'en') -> dict:
         """부위별 장비 슬롯 표시 정보"""
         if locale == 'ko':
             return {

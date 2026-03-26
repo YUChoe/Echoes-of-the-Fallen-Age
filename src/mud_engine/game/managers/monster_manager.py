@@ -473,7 +473,7 @@ class MonsterManager:
             logger.error(f"몬스터 방 이동 실패 ({monster_id} -> {room_id}): {e}")
             raise
 
-    async def find_monsters_by_name(self, name_pattern: str, locale: str = 'ko') -> List[Monster]:
+    async def find_monsters_by_name(self, name_pattern: str, locale: str = 'en') -> List[Monster]:
         """이름 패턴으로 몬스터를 검색합니다."""
         try:
             all_monsters = await self.get_all_monsters()

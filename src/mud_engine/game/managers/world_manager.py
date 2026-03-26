@@ -158,7 +158,7 @@ class WorldManager:
     async def move_monster_to_room(self, monster_id: str, room_id: str, game_engine=None) -> bool:
         return await self._monster_manager.move_monster_to_room(monster_id, room_id, self._room_manager, game_engine)
 
-    async def find_monsters_by_name(self, name_pattern: str, locale: str = 'ko') -> List[Monster]:
+    async def find_monsters_by_name(self, name_pattern: str, locale: str = 'en') -> List[Monster]:
         return await self._monster_manager.find_monsters_by_name(name_pattern, locale)
 
     # === 스폰 시스템 위임 ===

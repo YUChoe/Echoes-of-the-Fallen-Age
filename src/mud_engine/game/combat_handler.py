@@ -59,7 +59,7 @@ class CombatHandler:
         else:
             return combatant.name
 
-    async def _get_weapon_name(self, combatant, locale: str = "ko") -> str:
+    async def _get_weapon_name(self, combatant, locale: str = "en") -> str:
         """전투 참가자의 무기 이름 반환"""
         if combatant.combatant_type.value == "player":
             # 플레이어의 경우 장착된 무기 확인
