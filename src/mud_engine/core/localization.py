@@ -27,6 +27,7 @@ class LocalizationManager:
         """기본 메시지 로드"""
         # 기본 시스템 메시지들
         self.load_from_file('data/translations/auth.json')
+        self.load_from_file('data/translations/admin.json')
         self.load_from_file('data/translations/combat.json')
         self.load_from_file('data/translations/command.json')
         self.load_from_file('data/translations/item.json')

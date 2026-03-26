@@ -7,10 +7,13 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from .base import BaseCommand, CommandResult, CommandResultType
+from .utils import get_user_locale
 from ..core.types import SessionType
+from ..core.localization import get_localization_manager
 from ..game.models import Room, GameObject
 
 logger = logging.getLogger(__name__)
+I18N = get_localization_manager()
 
 
 class AdminCommand(BaseCommand):
@@ -29,9 +32,10 @@ class AdminCommand(BaseCommand):
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """관리자 권한 확인 후 명령어 실행"""
         if not self.check_admin_permission(session):
+            locale = get_user_locale(session)
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="❌ 관리자 권한이 필요한 명령어입니다."
+                message=I18N.get_message("admin.permission_denied", locale)
             )
 
         return await self.execute_admin(session, args)
@@ -53,17 +57,18 @@ class CreateRoomCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """방 생성 실행"""
+        locale = get_user_locale(session)
         if len(args) < 1:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="사용법: createroom <방ID> [설명]"
+                message=I18N.get_message("admin.createroom.usage", locale)
             )
 
         room_id = args[0]
-        room_description = " ".join(args[1:]) if len(args) > 1 else "새로 생성된 방입니다."
+        default_desc = I18N.get_message("admin.createroom.default_desc", locale)
+        room_description = " ".join(args[1:]) if len(args) > 1 else default_desc
 
         try:
-            # 게임 엔진을 통해 방 생성
             room_data = {
                 "id": room_id,
                 "description": {"ko": room_description, "en": room_description},
@@ -75,21 +80,21 @@ class CreateRoomCommand(AdminCommand):
             if success:
                 return CommandResult(
                     result_type=CommandResultType.SUCCESS,
-                    message=f"✅ 방 (ID: {room_id})이 성공적으로 생성되었습니다.",
+                    message=I18N.get_message("admin.createroom.success", locale, room_id=room_id),
                     broadcast=True,
-                    broadcast_message=f"🏗️ 관리자가 새로운 방을 생성했습니다."
+                    broadcast_message=I18N.get_message("admin.createroom.broadcast", locale)
                 )
             else:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 방 생성에 실패했습니다."
+                    message=I18N.get_message("admin.createroom.failed", locale)
                 )
 
         except Exception as e:
             logger.error(f"방 생성 중 오류: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 방 생성 중 오류가 발생했습니다: {str(e)}"
+                message=I18N.get_message("admin.createroom.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -120,17 +125,17 @@ class EditRoomCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """방 편집 실행"""
+        locale = get_user_locale(session)
         if len(args) < 2:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="사용법: editroom <방ID> <설명>"
+                message=I18N.get_message("admin.editroom.usage", locale)
             )
 
         room_id = args[0]
         new_description = " ".join(args[1:])
 
         try:
-            # 방 편집 데이터 준비
             updates = {
                 "description": {"ko": new_description, "en": new_description}
             }
@@ -140,21 +145,21 @@ class EditRoomCommand(AdminCommand):
             if success:
                 return CommandResult(
                     result_type=CommandResultType.SUCCESS,
-                    message=f"✅ 방 {room_id}의 설명이 변경되었습니다.",
+                    message=I18N.get_message("admin.editroom.success", locale, room_id=room_id),
                     broadcast=True,
-                    broadcast_message=f"🔧 관리자가 방 {room_id}을 수정했습니다."
+                    broadcast_message=I18N.get_message("admin.editroom.broadcast", locale, room_id=room_id)
                 )
             else:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 방 편집에 실패했습니다."
+                    message=I18N.get_message("admin.editroom.failed", locale)
                 )
 
         except Exception as e:
             logger.error(f"방 편집 중 오류: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 방 편집 중 오류가 발생했습니다: {str(e)}"
+                message=I18N.get_message("admin.editroom.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -185,28 +190,27 @@ class CreateExitCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """출구 생성 실행"""
+        locale = get_user_locale(session)
         if len(args) < 3:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="사용법: createexit <출발방ID> <방향> <도착방ID>"
+                message=I18N.get_message("admin.createexit.usage", locale)
             )
 
         from_room = args[0]
         direction = args[1].lower()
         to_room = args[2]
 
-        # 유효한 방향인지 확인
         valid_directions = ['north', 'south', 'east', 'west', 'up', 'down',
                           'northeast', 'northwest', 'southeast', 'southwest']
 
         if direction not in valid_directions:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"유효하지 않은 방향입니다. 사용 가능한 방향: {', '.join(valid_directions)}"
+                message=I18N.get_message("admin.createexit.invalid_direction", locale, directions=', '.join(valid_directions))
             )
 
         try:
-            # 출구 추가
             updates = {
                 "exits": {direction: to_room}
             }
@@ -216,21 +220,21 @@ class CreateExitCommand(AdminCommand):
             if success:
                 return CommandResult(
                     result_type=CommandResultType.SUCCESS,
-                    message=f"✅ {from_room}에서 {to_room}으로 가는 {direction} 출구가 생성되었습니다.",
+                    message=I18N.get_message("admin.createexit.success", locale, from_room=from_room, to_room=to_room, direction=direction),
                     broadcast=True,
-                    broadcast_message=f"🚪 관리자가 새로운 출구를 생성했습니다."
+                    broadcast_message=I18N.get_message("admin.createexit.broadcast", locale)
                 )
             else:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 출구 생성에 실패했습니다."
+                    message=I18N.get_message("admin.createexit.failed", locale)
                 )
 
         except Exception as e:
             logger.error(f"출구 생성 중 오류: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 출구 생성 중 오류가 발생했습니다: {str(e)}"
+                message=I18N.get_message("admin.createexit.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -265,10 +269,11 @@ class CreateObjectCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """객체 생성 실행"""
+        locale = get_user_locale(session)
         if len(args) < 3:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="사용법: createobject <객체ID> <객체이름> <타입> [위치ID]"
+                message=I18N.get_message("admin.createobject.usage", locale)
             )
 
         obj_id = args[0]
@@ -276,17 +281,15 @@ class CreateObjectCommand(AdminCommand):
         obj_type = args[2].lower()
         location_id = args[3] if len(args) > 3 else session.current_room_id
 
-        # 유효한 객체 타입인지 확인
         valid_types = ['item', 'weapon', 'armor', 'food', 'book', 'key', 'treasure', 'furniture', 'container']
 
         if obj_type not in valid_types:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"유효하지 않은 객체 타입입니다. 사용 가능한 타입: {', '.join(valid_types)}"
+                message=I18N.get_message("admin.createobject.invalid_type", locale, types=', '.join(valid_types))
             )
 
         try:
-            # 객체 생성 데이터 준비
             object_data = {
                 "id": obj_id,
                 "name": {"ko": obj_name, "en": obj_name},
@@ -302,21 +305,21 @@ class CreateObjectCommand(AdminCommand):
             if success:
                 return CommandResult(
                     result_type=CommandResultType.SUCCESS,
-                    message=f"✅ 객체 '{obj_name}' (ID: {obj_id})이 {location_id}에 생성되었습니다.",
+                    message=I18N.get_message("admin.createobject.success", locale, obj_name=obj_name, obj_id=obj_id, location_id=location_id),
                     broadcast=True,
-                    broadcast_message=f"✨ 관리자가 새로운 객체 '{obj_name}'을 생성했습니다."
+                    broadcast_message=I18N.get_message("admin.createobject.broadcast", locale, obj_name=obj_name)
                 )
             else:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 객체 생성에 실패했습니다."
+                    message=I18N.get_message("admin.createobject.failed", locale)
                 )
 
         except Exception as e:
             logger.error(f"객체 생성 중 오류: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 객체 생성 중 오류가 발생했습니다: {str(e)}"
+                message=I18N.get_message("admin.createobject.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -357,24 +360,23 @@ class KickPlayerCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """플레이어 추방 실행"""
+        locale = get_user_locale(session)
         if len(args) < 1:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="사용법: kick <플레이어명> [사유]"
+                message=I18N.get_message("admin.kick.usage", locale)
             )
 
         target_username = args[0]
-        reason = " ".join(args[1:]) if len(args) > 1 else "관리자에 의한 추방"
+        reason = " ".join(args[1:]) if len(args) > 1 else I18N.get_message("admin.kick.default_reason", locale)
 
-        # 자기 자신을 추방하려는 경우 방지
         if target_username == session.player.username:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="❌ 자기 자신을 추방할 수 없습니다."
+                message=I18N.get_message("admin.kick.self", locale)
             )
 
         try:
-            # 대상 플레이어 세션 찾기
             target_session = None
             for sess in session.game_engine.session_manager.get_authenticated_sessions().values():
                 if sess.player and sess.player.username == target_username:
@@ -384,41 +386,39 @@ class KickPlayerCommand(AdminCommand):
             if not target_session:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 플레이어 '{target_username}'을 찾을 수 없습니다."
+                    message=I18N.get_message("admin.kick.not_found", locale, username=target_username)
                 )
 
-            # 대상이 관리자인 경우 추방 불가
             if target_session.player.is_admin:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 다른 관리자를 추방할 수 없습니다."
+                    message=I18N.get_message("admin.kick.is_admin", locale)
                 )
 
-            # 추방 메시지 전송
+            target_locale = get_user_locale(target_session)
             await target_session.send_message({
                 "type": "system_message",
-                "message": f"🚫 관리자에 의해 추방되었습니다. 사유: {reason}",
+                "message": I18N.get_message("admin.kick.target_msg", target_locale, reason=reason),
                 "disconnect": True
             })
 
-            # 세션 제거
             await session.game_engine.session_manager.remove_session(
                 target_session.session_id,
-                f"관리자 추방: {reason}"
+                f"Admin kick: {reason}"
             )
 
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
-                message=f"✅ 플레이어 '{target_username}'을 추방했습니다. 사유: {reason}",
+                message=I18N.get_message("admin.kick.success", locale, username=target_username, reason=reason),
                 broadcast=True,
-                broadcast_message=f"🚫 플레이어 '{target_username}'이 관리자에 의해 추방되었습니다."
+                broadcast_message=I18N.get_message("admin.kick.broadcast", locale, username=target_username)
             )
 
         except Exception as e:
             logger.error(f"플레이어 추방 중 오류: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 플레이어 추방 중 오류가 발생했습니다: {str(e)}"
+                message=I18N.get_message("admin.kick.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -452,31 +452,29 @@ class GotoCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """좌표로 이동 실행"""
+        locale = get_user_locale(session)
         if len(args) < 2:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="사용법: goto <x좌표> <y좌표>"
+                message=I18N.get_message("admin.goto.usage", locale)
             )
 
-        # 전투 중에는 이동 불가
         if getattr(session, 'in_combat', False):
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="❌ 전투 중에는 이동할 수 없습니다. 먼저 전투에서 도망치거나 승리하세요."
+                message=I18N.get_message("admin.in_combat", locale)
             )
 
         try:
-            # 좌표 파싱
             x = int(args[0])
             y = int(args[1])
         except ValueError:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="❌ 좌표는 숫자로 입력해야 합니다. 예: goto 5 7"
+                message=I18N.get_message("admin.goto.invalid_coords", locale)
             )
 
         try:
-            # x, y 좌표로 방 찾기
             cursor = await session.game_engine.db_manager.execute(
                 "SELECT id FROM rooms WHERE x = ? AND y = ?",
                 (x, y)
@@ -486,61 +484,55 @@ class GotoCommand(AdminCommand):
             if not room_row:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 좌표 ({x}, {y})에 해당하는 방을 찾을 수 없습니다."
+                    message=I18N.get_message("admin.goto.room_not_found", locale, x=x, y=y)
                 )
 
             target_room_id = room_row[0]
-
-            # 대상 방 정보 가져오기
             target_room = await session.game_engine.world_manager.get_room(target_room_id)
 
             if not target_room:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 좌표 ({x}, {y})에 해당하는 방을 찾을 수 없습니다."
+                    message=I18N.get_message("admin.goto.room_not_found", locale, x=x, y=y)
                 )
 
-            # 현재 방에서 플레이어 제거 알림
             if hasattr(session, 'current_room_id') and session.current_room_id:
                 await session.game_engine.broadcast_to_room(
                     session.current_room_id,
                     {
                         "type": "room_message",
-                        "message": f"✨ {session.player.username}이(가) 순간이동으로 사라졌습니다."
+                        "message": I18N.get_message("admin.goto.leave_msg", locale, username=session.player.username)
                     },
                     exclude_session=session.session_id
                 )
 
-            # PlayerMovementManager를 사용하여 플레이어 이동
             success = await session.game_engine.movement_manager.move_player_to_room(session, target_room_id)
 
             if not success:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 좌표 ({x}, {y})로 이동할 수 없습니다."
+                    message=I18N.get_message("admin.goto.move_failed", locale, x=x, y=y)
                 )
 
-            # 새 방에 도착 알림
             await session.game_engine.broadcast_to_room(
                 target_room_id,
                 {
                     "type": "room_message",
-                    "message": f"✨ {session.player.get_display_name()}님이 순간이동으로 나타났습니다."
+                    "message": I18N.get_message("admin.goto.arrive_msg", locale, username=session.player.get_display_name())
                 },
                 exclude_session=session.session_id
             )
 
-            # 좌표 정보 사용
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
-                message=f"✅ 좌표 ({x}, {y})로 이동했습니다."
+                message=I18N.get_message("admin.goto.success", locale, x=x, y=y)
             )
 
         except Exception as e:
             logger.error(f"방 이동 중 오류: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 방 이동 중 오류가 발생했습니다: {str(e)}"
+                message=I18N.get_message("admin.goto.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -580,14 +572,14 @@ class RoomInfoCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """방 정보 조회 실행"""
+        locale = get_user_locale(session)
         if not session.current_room_id:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="❌ 현재 방 정보를 찾을 수 없습니다."
+                message=I18N.get_message("admin.roominfo.no_room", locale)
             )
 
         try:
-            # DB에서 방 정보 직접 조회
             cursor = await session.game_engine.db_manager.execute(
                 "SELECT * FROM rooms WHERE id = ?",
                 (session.current_room_id,)
@@ -597,7 +589,7 @@ class RoomInfoCommand(AdminCommand):
             if not room_row:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 방 ID '{session.current_room_id}'를 데이터베이스에서 찾을 수 없습니다."
+                    message=I18N.get_message("admin.roominfo.not_in_db", locale, room_id=session.current_room_id)
                 )
 
             # 컬럼 이름 가져오기
@@ -742,7 +734,7 @@ class RoomInfoCommand(AdminCommand):
             logger.error(f"방 정보 조회 중 오류: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 방 정보 조회 중 오류가 발생했습니다: {str(e)}"
+                message=I18N.get_message("admin.roominfo.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -840,10 +832,11 @@ class SpawnMonsterCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """템플릿에서 몬스터 생성"""
+        locale = get_user_locale(session)
         if not args:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="❌ 사용법: spawnmonster <template_id> [room_id]"
+                message=I18N.get_message("admin.spawn.usage", locale)
             )
 
         template_id = args[0]
@@ -852,27 +845,24 @@ class SpawnMonsterCommand(AdminCommand):
         if not room_id:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="❌ 방 ID를 지정하거나 방에 있어야 합니다."
+                message=I18N.get_message("admin.spawn.no_room", locale)
             )
 
         try:
-            # GameEngine에서 WorldManager 접근
             game_engine = session.game_engine
             if not game_engine:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 게임 엔진에 접근할 수 없습니다."
+                    message=I18N.get_message("admin.no_game_engine", locale)
                 )
 
-            # 방 존재 확인
             room = await game_engine.world_manager.get_room(room_id)
             if not room:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 방을 찾을 수 없습니다: {room_id}"
+                    message=I18N.get_message("admin.spawn.room_not_found", locale, room_id=room_id)
                 )
 
-            # 템플릿에서 몬스터 생성
             monster = await game_engine.world_manager._monster_manager._spawn_monster_from_template(
                 room_id=room_id,
                 template_id=template_id
@@ -881,22 +871,21 @@ class SpawnMonsterCommand(AdminCommand):
             if not monster:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 템플릿에서 몬스터 생성 실패: {template_id}"
+                    message=I18N.get_message("admin.spawn.template_failed", locale, template_id=template_id)
                 )
 
-            # 좌표 정보 포함한 성공 메시지
             coord_info = f"({room.x}, {room.y})" if hasattr(room, 'x') and hasattr(room, 'y') else room_id
 
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
-                message=f"✅ 몬스터 생성 완료: {monster.get_localized_name('ko')} (위치: {coord_info})"
+                message=I18N.get_message("admin.spawn.success", locale, name=monster.get_localized_name(locale), coord=coord_info)
             )
 
         except Exception as e:
             logger.error(f"몬스터 생성 실패: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 몬스터 생성 중 오류 발생: {str(e)}"
+                message=I18N.get_message("admin.spawn.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -940,25 +929,25 @@ class ListTemplatesCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """템플릿 목록 표시"""
+        locale = get_user_locale(session)
         try:
             game_engine = session.game_engine
             if not game_engine:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 게임 엔진에 접근할 수 없습니다."
+                    message=I18N.get_message("admin.no_game_engine", locale)
                 )
 
-            # 템플릿 로더에서 템플릿 목록 가져오기
             template_loader = game_engine.world_manager._monster_manager._template_loader
             templates = template_loader.get_all_monster_templates()
 
             if not templates:
                 return CommandResult(
                     result_type=CommandResultType.INFO,
-                    message="📋 로드된 몬스터 템플릿이 없습니다."
+                    message=I18N.get_message("admin.templates.empty", locale)
                 )
 
-            template_list = "📋 사용 가능한 몬스터 템플릿:\n\n"
+            template_list = "📋 Monster Templates:\n\n"
 
             for template_id, template_data in templates.items():
                 name_ko = template_data.get('name', {}).get('ko', '이름 없음')
@@ -967,11 +956,11 @@ class ListTemplatesCommand(AdminCommand):
                 level = template_data.get('stats', {}).get('level', 1)
 
                 template_list += f"• {template_id}\n"
-                template_list += f"  이름: {name_ko} ({name_en})\n"
-                template_list += f"  타입: {monster_type}, 레벨: {level}\n\n"
+                template_list += f"  {name_ko} ({name_en})\n"
+                template_list += f"  type: {monster_type}, level: {level}\n\n"
 
-            template_list += f"총 {len(templates)}개의 템플릿이 로드되었습니다.\n"
-            template_list += "\n사용법: `spawnmonster <template_id> [room_id]`"
+            template_list += f"Total: {len(templates)} templates\n"
+            template_list += "\nUsage: `spawnmonster <template_id> [room_id]`"
 
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
@@ -982,7 +971,7 @@ class ListTemplatesCommand(AdminCommand):
             logger.error(f"템플릿 목록 조회 실패: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 템플릿 목록 조회 중 오류 발생: {str(e)}"
+                message=I18N.get_message("admin.templates.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -1012,10 +1001,11 @@ class SpawnItemCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """템플릿에서 아이템 생성"""
+        locale = get_user_locale(session)
         if not args:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="❌ 사용법: spawnitem <template_id> [room_id]"
+                message=I18N.get_message("admin.spawnitem.usage", locale)
             )
 
         template_id = args[0]
@@ -1024,27 +1014,24 @@ class SpawnItemCommand(AdminCommand):
         if not room_id:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="❌ 방 ID를 지정하거나 방에 있어야 합니다."
+                message=I18N.get_message("admin.spawnitem.no_room", locale)
             )
 
         try:
-            # GameEngine에서 WorldManager 접근
             game_engine = session.game_engine
             if not game_engine:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 게임 엔진에 접근할 수 없습니다."
+                    message=I18N.get_message("admin.no_game_engine", locale)
                 )
 
-            # 방 존재 확인
             room = await game_engine.world_manager.get_room(room_id)
             if not room:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 방을 찾을 수 없습니다: {room_id}"
+                    message=I18N.get_message("admin.spawnitem.room_not_found", locale, room_id=room_id)
                 )
 
-            # 템플릿에서 아이템 생성
             from uuid import uuid4
             item_id = str(uuid4())
 
@@ -1059,31 +1046,29 @@ class SpawnItemCommand(AdminCommand):
             if not item:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ 템플릿에서 아이템 생성 실패: {template_id}"
+                    message=I18N.get_message("admin.spawnitem.template_failed", locale, template_id=template_id)
                 )
 
-            # 데이터베이스에 아이템 저장
             success = await game_engine.create_object_realtime(item.to_dict(), session)
             if not success:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 아이템을 데이터베이스에 저장하지 못했습니다."
+                    message=I18N.get_message("admin.spawnitem.save_failed", locale)
                 )
 
-            # 좌표 정보 포함한 성공 메시지
             coord_info = f"({room.x}, {room.y})" if hasattr(room, 'x') and hasattr(room, 'y') else room_id
-            item_name = item.name.get('ko', item.name.get('en', 'Unknown Item'))
+            item_name = item.get_localized_name(locale)
 
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
-                message=f"✅ 아이템 생성 완료: {item_name} (위치: {coord_info})"
+                message=I18N.get_message("admin.spawnitem.success", locale, name=item_name, coord=coord_info)
             )
 
         except Exception as e:
             logger.error(f"아이템 생성 실패: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 아이템 생성 중 오류 발생: {str(e)}"
+                message=I18N.get_message("admin.spawnitem.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -1124,25 +1109,25 @@ class ListItemTemplatesCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """아이템 템플릿 목록 표시"""
+        locale = get_user_locale(session)
         try:
             game_engine = session.game_engine
             if not game_engine:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 게임 엔진에 접근할 수 없습니다."
+                    message=I18N.get_message("admin.no_game_engine", locale)
                 )
 
-            # 템플릿 로더에서 아이템 템플릿 목록 가져오기
             template_loader = game_engine.world_manager._monster_manager._template_loader
             templates = template_loader.get_all_item_templates()
 
             if not templates:
                 return CommandResult(
                     result_type=CommandResultType.INFO,
-                    message="📦 로드된 아이템 템플릿이 없습니다."
+                    message=I18N.get_message("admin.itemtemplates.empty", locale)
                 )
 
-            template_list = "📦 사용 가능한 아이템 템플릿:\n\n"
+            template_list = "📦 Item Templates:\n\n"
 
             for template_id, template_data in templates.items():
                 name_ko = template_data.get('name_ko', '이름 없음')
@@ -1151,11 +1136,11 @@ class ListItemTemplatesCommand(AdminCommand):
                 category = template_data.get('category', 'misc')
 
                 template_list += f"• {template_id}\n"
-                template_list += f"  이름: {name_ko} ({name_en})\n"
-                template_list += f"  타입: {object_type}, 카테고리: {category}\n\n"
+                template_list += f"  {name_ko} ({name_en})\n"
+                template_list += f"  type: {object_type}, category: {category}\n\n"
 
-            template_list += f"총 {len(templates)}개의 아이템 템플릿이 로드되었습니다.\n"
-            template_list += "\n사용법: `spawnitem <template_id> [room_id]`"
+            template_list += f"Total: {len(templates)} item templates\n"
+            template_list += "\nUsage: `spawnitem <template_id> [room_id]`"
 
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,
@@ -1166,7 +1151,7 @@ class ListItemTemplatesCommand(AdminCommand):
             logger.error(f"아이템 템플릿 목록 조회 실패: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 아이템 템플릿 목록 조회 중 오류 발생: {str(e)}"
+                message=I18N.get_message("admin.itemtemplates.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
@@ -1197,30 +1182,29 @@ class TerminateCommand(AdminCommand):
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
         """terminate 명령어 실행"""
+        locale = get_user_locale(session)
         if not args:
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message="❌ 삭제할 대상을 지정해주세요.\n사용법: terminate <대상_ID_또는_번호> [reason]"
+                message=I18N.get_message("admin.terminate.usage", locale)
             )
 
         target_identifier = args[0]
-        reason = " ".join(args[1:]) if len(args) > 1 else "관리자에 의한 삭제"
+        reason = " ".join(args[1:]) if len(args) > 1 else I18N.get_message("admin.terminate.default_reason", locale)
 
         try:
-            # 게임 엔진 접근
             game_engine = getattr(session, 'game_engine', None)
             if not game_engine:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 게임 엔진에 접근할 수 없습니다."
+                    message=I18N.get_message("admin.no_game_engine", locale)
                 )
 
-            # 현재 방 ID 가져오기
             current_room_id = getattr(session, 'current_room_id', None)
             if not current_room_id:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message="❌ 현재 위치를 확인할 수 없습니다."
+                    message=I18N.get_message("admin.no_current_room", locale)
                 )
 
             # 엔티티 번호 매핑에서 대상 찾기
@@ -1239,7 +1223,7 @@ class TerminateCommand(AdminCommand):
                 else:
                     return CommandResult(
                         result_type=CommandResultType.ERROR,
-                        message=f"❌ 번호 {entity_num}에 해당하는 대상을 찾을 수 없습니다."
+                        message=I18N.get_message("admin.terminate.entity_not_found", locale, num=entity_num)
                     )
             else:
                 # ID로 직접 검색
@@ -1260,15 +1244,15 @@ class TerminateCommand(AdminCommand):
             if not target_entity:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ '{target_identifier}' 대상을 찾을 수 없습니다."
+                    message=I18N.get_message("admin.terminate.target_not_found", locale, identifier=target_identifier)
                 )
 
             # 대상 정보 확인
             if target_type == 'monster':
-                target_name = target_entity.get_localized_name('ko')
+                target_name = target_entity.get_localized_name(locale)
                 template_id = target_entity.get_property('template_id')
             else:
-                target_name = target_entity.get_localized_name('ko')
+                target_name = target_entity.get_localized_name(locale)
                 template_id = target_entity.get_property('template_id')
 
             # 삭제 실행
@@ -1287,22 +1271,20 @@ class TerminateCommand(AdminCommand):
                 success = await game_engine.world_manager.delete_game_object(target_id)
 
             if success:
-                # 성공 메시지
-                success_msg = f"🗑️ {target_name} (ID: {target_id})이(가) 완전히 삭제되었습니다."
+                success_msg = I18N.get_message("admin.terminate.success", locale, name=target_name, id=target_id)
                 if target_type == 'monster' and template_id:
-                    success_msg += f"\n📍 스폰 포인트도 제거되어 더 이상 respawn되지 않습니다."
-                if reason != "관리자에 의한 삭제":
-                    success_msg += f"\n📝 사유: {reason}"
+                    success_msg += f"\n{I18N.get_message('admin.terminate.spawn_removed', locale)}"
+                default_reason = I18N.get_message("admin.terminate.default_reason", locale)
+                if reason != default_reason:
+                    success_msg += f"\n{I18N.get_message('admin.terminate.reason_note', locale, reason=reason)}"
 
-                # 방에 있는 다른 플레이어들에게 알림
-                broadcast_msg = f"🗑️ 관리자가 {target_name}을(를) 삭제했습니다."
+                broadcast_msg = I18N.get_message("admin.terminate.broadcast", locale, name=target_name)
                 await game_engine.broadcast_to_room(
                     current_room_id,
                     {"type": "admin_action", "message": broadcast_msg},
                     exclude_session=session.session_id
                 )
 
-                # 방 정보 새로고침 (삭제된 대상이 사라지도록)
                 await game_engine.movement_manager.send_room_info_to_player(session, current_room_id)
 
                 logger.info(f"관리자 {session.player.username}이 {target_type} {target_id}를 삭제함 (사유: {reason})")
@@ -1314,14 +1296,14 @@ class TerminateCommand(AdminCommand):
             else:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
-                    message=f"❌ {target_name} 삭제에 실패했습니다."
+                    message=I18N.get_message("admin.terminate.failed", locale, name=target_name)
                 )
 
         except Exception as e:
             logger.error(f"terminate 명령어 실행 실패: {e}")
             return CommandResult(
                 result_type=CommandResultType.ERROR,
-                message=f"❌ 삭제 중 오류가 발생했습니다: {str(e)}"
+                message=I18N.get_message("admin.terminate.error", locale, error=str(e))
             )
 
     def get_help(self) -> str:
