@@ -480,12 +480,9 @@ class CombatStatusCommand(BaseCommand):
         if not combat:
             return self.create_error_result("전투를 찾을 수 없습니다.")
 
-        # attack_cmd = AttackCommand(self.combat_handler)
-        # locale = get_user_locale(session)
-        # message = attack_cmd._get_combat_status_message(session, combat, locale)
-        # message += "\n\n"
-        # message += attack_cmd._get_turn_message(combat, session.player.id, locale)
-        message = ""  # TODO:
+        locale = get_user_locale(session)
+        message = combat.get_combat_status_message(locale)
+        message += combat.get_whos_turn(locale)
         return self.create_success_result(
             message=message,
             data={"action": "combat_status", "combat_status": combat.to_dict()},

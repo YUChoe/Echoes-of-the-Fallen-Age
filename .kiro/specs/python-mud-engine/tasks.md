@@ -147,9 +147,14 @@
 
 ## 향후 작업
 
-- [ ] 25. 다국어 시스템 고도화
-  - [ ] 25.1 모든 시스템 메시지 완전 다국어화 (누락된 번역 키 보완)
+- [-] 25. 다국어 시스템 고도화
+  - [x] 25.1 전투/컨테이너 locale TODO 해결 (완료: combat.py, combat_commands.py, container_commands.py)
   - [ ] 25.2 관리자 명령어 응답 다국어화
+  - [ ] 25.3 object_commands.py 한국어 하드코딩 → i18n 키 전환 (create_error_result 약 20곳)
+  - [ ] 25.4 npc_commands.py 한국어 하드코딩 → i18n 키 전환 (talk/trade/shop 약 15곳)
+  - [ ] 25.5 combat_handler.py 공격 결과 메시지 i18n 키 전환 (명중/빗나감/데미지/사망)
+  - [ ] 25.6 telnet_session.py 방 정보 렌더링 메시지 i18n 키 전환
+  - [ ] 25.7 전투 broadcast를 참가자별 locale로 개별 전송 (설계 변경 필요)
 
 - [ ] 26. 품질 개선
   - [ ] 26.1 단위 테스트 작성 (PlayerStats, DnDCombatEngine, CommandProcessor)
