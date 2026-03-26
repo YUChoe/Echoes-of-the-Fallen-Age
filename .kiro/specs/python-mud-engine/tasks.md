@@ -175,6 +175,6 @@
   - [x] 29.1 admin_commands.py → 클래스별 파일 분리 (14 클래스)
   - [x] 29.2 combat_commands.py → 클래스별 파일 분리 (5 클래스)
   - [x] 29.3 interaction_commands.py → 클래스별 파일 분리 (4 클래스)
-  - [-] 29.4 npc_commands.py → 클래스별 파일 분리 (3 클래스)
-  - [ ] 29.5 combat.py → CombatManager 분리 (enum/dataclass는 유지)
+  - [x] 29.4 npc_commands.py → 클래스별 파일 분리 (3 클래스)
+  - [-] 29.5 combat.py → CombatManager 분리 (enum/dataclass는 유지)
   - [ ] 29.6 repositories.py → 리포지토리별 파일 분리 (5 클래스)

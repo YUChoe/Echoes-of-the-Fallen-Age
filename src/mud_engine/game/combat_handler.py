@@ -7,13 +7,13 @@ import random
 from typing import Optional, List, Dict, Any
 
 from .combat import (
-    CombatManager,
     CombatInstance,
     CombatAction,
     CombatTurn,
     Combatant,
     CombatantType,
 )
+from .combat_manager import CombatManager
 from .monster import Monster, MonsterType
 from .models import Player, GameObject
 from ..server.ansi_colors import ANSIColors
