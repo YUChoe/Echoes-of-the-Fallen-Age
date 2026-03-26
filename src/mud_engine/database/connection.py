@@ -246,6 +246,7 @@ class DatabaseManager:
 
 # 전역 데이터베이스 매니저 인스턴스
 _db_manager: Optional[DatabaseManager] = None
+_db_shutting_down: bool = False
 
 
 async def get_database_manager() -> DatabaseManager:
@@ -255,7 +256,11 @@ async def get_database_manager() -> DatabaseManager:
     Returns:
         DatabaseManager: 데이터베이스 매니저 인스턴스
     """
-    global _db_manager
+    global _db_manager, _db_shutting_down
+
+    if _db_shutting_down:
+        logger.warning("데이터베이스가 종료 중입니다. 새 연결을 생성하지 않습니다.")
+        raise RuntimeError("Database is shutting down")
 
     if _db_manager is None:
         _db_manager = DatabaseManager()
@@ -266,7 +271,9 @@ async def get_database_manager() -> DatabaseManager:
 
 async def close_database_manager() -> None:
     """전역 데이터베이스 매니저 종료"""
-    global _db_manager
+    global _db_manager, _db_shutting_down
+
+    _db_shutting_down = True
 
     if _db_manager:
         try:
