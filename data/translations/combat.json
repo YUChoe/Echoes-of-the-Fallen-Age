@@ -19,6 +19,18 @@
         "en": "⏳ {monster}'s turn...",
         "ko": "⏳ {monster}의 턴입니다..."
     },
+    "combat.whos_turn": {
+        "en": "⏳ {name}'s turn...",
+        "ko": "⏳ {name}의 턴입니다..."
+    },
+    "combat.turn_order": {
+        "en": "Order: ",
+        "ko": "순서: "
+    },
+    "combat.no_target": {
+        "en": "Please specify a target.\nUsage: attack <target_num>",
+        "ko": "공격할 대상을 지정해주세요.\n사용법: attack <몹num>"
+    },
     "combat.attack_hit": {
         "en": "✅ Hit! {damage} damage to {target}!",
         "ko": "✅ 명중! {target}에게 {damage} 데미지!"

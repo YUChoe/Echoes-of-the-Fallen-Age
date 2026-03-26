@@ -84,7 +84,8 @@ class AttackCommand(BaseCommand):
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         # 전투 시작
         if not self.validate_args(args, min_args=0):
-            return self.create_error_result("공격할 대상을 지정해주세요.\n사용법: attack <몹num>")  # TODO: en help
+            locale = get_user_locale(session)
+            return self.create_error_result(self.I18N.get_message("combat.no_target", locale))
 
         target_input = " ".join(args)
 

@@ -446,10 +446,8 @@ class CombatInstance:
 
         # monster_name = target_monster.get_localized_name(locale)
         # 다른 플레이어 이거나 몹인 경우 이렇게 처리 해도 됨
-        if locale == "ko":  # TODO:
-            message = f"{ANSIColors.RED}⏳ {combatant.get_display_name(locale)}의 턴입니다...{ANSIColors.RESET}"
-        else:
-            message = f"{ANSIColors.RED}⏳ {combatant.get_display_name(locale)}'s turn...{ANSIColors.RESET}"
+        name = combatant.get_display_name(locale)
+        message = f"{ANSIColors.RED}{self.I18N.get_message('combat.whos_turn', locale, name=name)}{ANSIColors.RESET}"
 
         logger.info(message)
         return message
@@ -540,7 +538,8 @@ class CombatManager:
     # 그리고 나중에 클라이언트가 이부분 처리를 하게 된다면 다 제거하고 영어+기호 로만 전달 후 클라에서 변환하도록 만들 것
     async def turn_boardcast_for_new_instance(self, combat: CombatInstance, locale: str = "en") -> None:
         # 전투 참가자들에게 결정 된 턴 순서 브로드캐스트
-        msg = ["순서: "]  # TODO: i18n
+        I18N = get_localization_manager()
+        msg = [I18N.get_message("combat.turn_order", locale)]
         logger.info(f"{combat.turn_order}")
         superadmin_id: str = ""
         for combatant_id in combat.turn_order:
@@ -559,19 +558,25 @@ class CombatManager:
             msg.append(f"[{name}]")
         logger.info(" ".join(msg))
 
-        # BROADCASE
-        combatant: Combatant
-        for combatant in combat.combatants:
-            if combatant.combatant_type == CombatantType.PLAYER:
-                session = self.session_manager.get_player_session(combatant.id)
+        # BROADCAST
+        for c in combat.combatants:
+            if c.combatant_type == CombatantType.PLAYER:
+                session = self.session_manager.get_player_session(c.id)
                 if session:
                     await session.send_message({"type": "combat_message", "message": " ".join(msg)})
         return
 
     async def turn_boardcast_for_new_instance_with_aggresive_mob(self, combat:CombatInstance, monster:Monster):
-        msg = ["순서: "]  # TODO: i18n
-        logger.info(f"{combat.turn_order}")
-        locale = 'en'  # TODO
+        I18N = get_localization_manager()
+        # 참가자 중 첫 번째 플레이어의 locale 사용
+        locale = 'en'
+        for combatant in combat.combatants:
+            if combatant.combatant_type == CombatantType.PLAYER:
+                session = self.session_manager.get_player_session(combatant.id)
+                if session:
+                    locale = getattr(session, 'locale', 'en')
+                    break
+        msg = [I18N.get_message("combat.turn_order", locale)]
 
         combat.turn_order.insert(0, combat.turn_order.pop(combat.turn_order.index(monster.id)))
         logger.info(f"after {combat.turn_order}")
@@ -583,11 +588,10 @@ class CombatManager:
             msg.append(f"[{name}]")
         logger.info(" ".join(msg))
 
-        # BROADCASE
-        combatant: Combatant
-        for combatant in combat.combatants:
-            if combatant.combatant_type == CombatantType.PLAYER:
-                session = self.session_manager.get_player_session(combatant.id)
+        # BROADCAST
+        for c in combat.combatants:
+            if c.combatant_type == CombatantType.PLAYER:
+                session = self.session_manager.get_player_session(c.id)
                 if session:
                     await session.send_message({"type": "combat_message", "message": " ".join(msg)})
         return
