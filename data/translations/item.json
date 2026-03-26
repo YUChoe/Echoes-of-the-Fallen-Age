@@ -54,5 +54,97 @@
     "inventory.invalid_category": {
         "en": "Invalid category. Available categories: {categories}",
         "ko": "올바르지 않은 카테고리입니다. 사용 가능한 카테고리: {categories}"
+    },
+    "obj.unauthenticated": {
+        "en": "Unauthenticated user.",
+        "ko": "인증되지 않은 사용자입니다."
+    },
+    "obj.no_location": {
+        "en": "Cannot determine your current location.",
+        "ko": "현재 위치를 확인할 수 없습니다."
+    },
+    "obj.no_engine": {
+        "en": "Cannot access the game engine.",
+        "ko": "게임 엔진에 접근할 수 없습니다."
+    },
+    "obj.invalid_number": {
+        "en": "Please enter a valid number. Example: take 1 from 11",
+        "ko": "올바른 번호를 입력해주세요. 예: take 1 from 11"
+    },
+    "obj.get.error": {
+        "en": "An error occurred whilst picking up the item.",
+        "ko": "아이템을 가져오는 중 오류가 발생했습니다."
+    },
+    "obj.get.not_found": {
+        "en": "'{name}' not found.",
+        "ko": "'{name}'을(를) 찾을 수 없습니다."
+    },
+    "obj.get.failed": {
+        "en": "Cannot pick up the object.",
+        "ko": "객체를 획득할 수 없습니다."
+    },
+    "obj.drop.not_in_inv": {
+        "en": "'{name}' is not in your inventory.",
+        "ko": "인벤토리에 '{name}'이(가) 없습니다."
+    },
+    "obj.drop.failed": {
+        "en": "Cannot drop the object.",
+        "ko": "객체를 버릴 수 없습니다."
+    },
+    "obj.drop.error": {
+        "en": "An error occurred whilst dropping the object.",
+        "ko": "객체를 버리는 중 오류가 발생했습니다."
+    },
+    "obj.inv.error": {
+        "en": "An error occurred whilst checking inventory.",
+        "ko": "인벤토리를 확인하는 중 오류가 발생했습니다."
+    },
+    "obj.examine.error": {
+        "en": "An error occurred whilst examining the object.",
+        "ko": "객체를 살펴보는 중 오류가 발생했습니다."
+    },
+    "obj.equip.not_in_inv": {
+        "en": "'{name}' is not in your inventory.",
+        "ko": "인벤토리에 '{name}'이(가) 없습니다."
+    },
+    "obj.equip.not_equippable": {
+        "en": "{name} cannot be equipped.",
+        "ko": "{name}은(는) 착용할 수 없는 아이템입니다."
+    },
+    "obj.equip.already_equipped": {
+        "en": "{name} is already equipped.",
+        "ko": "{name}은(는) 이미 착용 중입니다."
+    },
+    "obj.equip.error": {
+        "en": "An error occurred whilst equipping.",
+        "ko": "장비를 착용하는 중 오류가 발생했습니다."
+    },
+    "obj.unequip.not_found": {
+        "en": "'{name}' is not currently equipped.",
+        "ko": "착용 중인 '{name}'을(를) 찾을 수 없습니다."
+    },
+    "obj.unequip.error": {
+        "en": "An error occurred whilst unequipping.",
+        "ko": "장비를 해제하는 중 오류가 발생했습니다."
+    },
+    "obj.use.not_in_inv": {
+        "en": "'{name}' is not in your inventory.",
+        "ko": "인벤토리에 '{name}'이(가) 없습니다."
+    },
+    "obj.use.not_usable": {
+        "en": "{name} cannot be used.",
+        "ko": "{name}은(는) 사용할 수 없는 아이템입니다."
+    },
+    "obj.use.error": {
+        "en": "An error occurred whilst using the item.",
+        "ko": "아이템을 사용하는 중 오류가 발생했습니다."
+    },
+    "obj.container.empty": {
+        "en": "{name} is empty.",
+        "ko": "{name}이(가) 비어있습니다."
+    },
+    "obj.container.item_not_found": {
+        "en": "'{item}' not found in {container}.",
+        "ko": "'{item}'을(를) {container}에서 찾을 수 없습니다."
     }
 }
