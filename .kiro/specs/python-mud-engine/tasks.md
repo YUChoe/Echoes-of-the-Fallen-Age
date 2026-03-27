@@ -151,7 +151,7 @@
   - [x] 25.1 전투/컨테이너 locale TODO 해결 (combat.py, combat_commands.py, container_commands.py)
   - [x] 25.2 관리자 명령어 응답 다국어화 (admin_commands.py → admin.json 70키)
   - [x] 25.3 object_commands.py 한국어 하드코딩 → i18n 키 전환 (item.json 20키 추가)
-  - [ ] 25.4 npc/talk_command.py i18n 전환 (퀘스트 대화/안내 메시지 약 40곳)
+  - [-] 25.4 npc/talk_command.py i18n 전환 (퀘스트 대화/안내 메시지 약 40곳)
   - [ ] 25.5 npc/trade_command.py i18n 전환 (거래 메시지 약 15곳)
   - [ ] 25.6 npc/shop_command.py i18n 전환 (상점 메시지 약 30곳)
   - [ ] 25.7 combat_handler.py 공격 결과 메시지 i18n 전환 (명중/빗나감/데미지/사망/시체 생성 약 10곳)

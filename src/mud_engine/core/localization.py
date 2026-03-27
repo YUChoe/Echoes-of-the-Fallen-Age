@@ -34,6 +34,7 @@ class LocalizationManager:
         self.load_from_file('data/translations/moving.json')
         self.load_from_file('data/translations/status.json')
         self.load_from_file('data/translations/system.json')
+        self.load_from_file('data/translations/npc.json')
 
         logger.info(f"기본 메시지 {len(self.messages)}개 로드 완료")
 

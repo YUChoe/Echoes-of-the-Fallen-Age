@@ -6,10 +6,13 @@ from datetime import datetime
 from typing import List
 
 from ...commands.base import BaseCommand, CommandResult
+from ...core.localization import get_localization_manager
 from ...core.types import SessionType
 from ...game.monster import Monster
 
 logger = logging.getLogger(__name__)
+
+I18N = get_localization_manager()
 
 
 class TalkCommand(BaseCommand):
@@ -26,24 +29,26 @@ class TalkCommand(BaseCommand):
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """몬스터와 대화 실행"""
         try:
+            locale = session.player.preferred_locale if session.player else "en"
+
             if not args:
-                return self.create_error_result("누구와 대화하시겠습니까? 사용법: talk <몬스터이름>")
+                return self.create_error_result(I18N.get_message("npc.talk.usage", locale))
 
             monster_input = " ".join(args)
 
             # GameEngine을 통해 몬스터 조회
             game_engine = getattr(session, 'game_engine', None)
             if not game_engine:
-                return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+                return self.create_error_result(I18N.get_message("npc.talk.no_engine", locale))
 
             # 플레이어 현재 좌표 가져오기
             current_room_id = getattr(session, 'current_room_id', None)
             if not current_room_id:
-                return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+                return self.create_error_result(I18N.get_message("npc.talk.no_location", locale))
 
             current_room = await game_engine.world_manager.get_room(current_room_id)
             if not current_room or current_room.x is None or current_room.y is None:
-                return self.create_error_result("현재 방의 좌표를 확인할 수 없습니다.")
+                return self.create_error_result(I18N.get_message("npc.talk.no_room_coords", locale))
 
             player_x, player_y = current_room.x, current_room.y
 
@@ -52,7 +57,6 @@ class TalkCommand(BaseCommand):
             target_monster = None
 
             for monster in monsters:
-                locale = session.player.preferred_locale if session.player else 'en'
                 if (monster_input.lower() in monster.get_localized_name(locale).lower() or
                     monster_input.lower() in monster.get_localized_name('en').lower() or
                     monster_input.lower() in monster.get_localized_name('ko').lower()):
@@ -60,7 +64,9 @@ class TalkCommand(BaseCommand):
                     break
 
             if not target_monster:
-                return self.create_error_result(f"'{monster_input}'을(를) 찾을 수 없습니다.")
+                return self.create_error_result(
+                    I18N.get_message("npc.talk.not_found", locale, target=monster_input)
+                )
 
             # 몬스터 우호도 확인
             player_faction = session.player.faction_id or 'ash_knights'
@@ -68,13 +74,12 @@ class TalkCommand(BaseCommand):
 
             # 중립 몬스터이거나 같은 팩션이면 대화 가능
             if monster_faction and monster_faction != 'neutral' and monster_faction != player_faction:
-                locale = session.player.preferred_locale if session.player else 'en'
                 return self.create_error_result(
-                    f"{target_monster.get_localized_name(locale)}은(는) 적대적이어서 대화할 수 없습니다."
+                    I18N.get_message("npc.talk.hostile", locale,
+                                     name=target_monster.get_localized_name(locale))
                 )
 
             # 대화 가져오기
-            locale = session.player.preferred_locale if session.player else 'en'
             monster_display_name = target_monster.get_localized_name(locale)
 
             # 몬스터 대화 내용 가져오기
@@ -87,9 +92,10 @@ class TalkCommand(BaseCommand):
 
             # 대화 메시지 생성
             if dialogue == "...":
-                message = f"{monster_display_name}은(는) 당신을 조용히 바라봅니다."
+                message = I18N.get_message("npc.talk.silent_stare", locale, name=monster_display_name)
             else:
-                message = f"{monster_display_name}: \"{dialogue}\""
+                message = I18N.get_message("npc.talk.dialogue", locale,
+                                           name=monster_display_name, dialogue=dialogue)
 
             # 퀘스트 메시지 추가
             if quest_message:
@@ -100,7 +106,9 @@ class TalkCommand(BaseCommand):
                 session.current_room_id,
                 {
                     "type": "room_message",
-                    "message": f"{session.player.username}이(가) {monster_display_name}와(과) 대화하고 있습니다."
+                    "message": I18N.get_message("npc.talk.broadcast", locale,
+                                                player=session.player.username,
+                                                monster=monster_display_name)
                 },
                 exclude_session=session.session_id
             )
@@ -109,7 +117,8 @@ class TalkCommand(BaseCommand):
 
         except Exception as e:
             logger.error(f"대화 명령어 실행 실패: {e}", exc_info=True)
-            return self.create_error_result("대화 중 오류가 발생했습니다.")
+            locale = session.player.preferred_locale if session.player else "en"
+            return self.create_error_result(I18N.get_message("npc.talk.error", locale))
 
     def _get_monster_dialogue(self, monster: Monster, locale: str) -> str:
         """몬스터 대화 내용 가져오기"""
@@ -162,10 +171,7 @@ class TalkCommand(BaseCommand):
 
         # 이미 완료한 퀘스트인지 확인
         if quest_id in completed_quests:
-            if locale == "ko":
-                return "🎉 이미 기본 장비를 받으셨군요. 모험을 즐기세요!"
-            else:
-                return "🎉 You already received your basic equipment. Enjoy your adventure!"
+            return I18N.get_message("npc.talk.quest.already_completed", locale)
 
         # 진행 중인 퀘스트인지 확인
         if quest_id in quest_progress:
@@ -178,10 +184,8 @@ class TalkCommand(BaseCommand):
             else:
                 # 아직 수집 중
                 remaining = 10 - essence_count
-                if locale == "ko":
-                    return f"📋 생명의 정수를 {essence_count}/10개 수집하셨군요. {remaining}개 더 필요합니다."
-                else:
-                    return f"📋 You have collected {essence_count}/10 Essence of Life. You need {remaining} more."
+                return I18N.get_message("npc.talk.quest.progress", locale,
+                                        count=essence_count, remaining=remaining)
         else:
             # 새로운 퀘스트 시작
             return await self._start_tutorial_quest(session, game_engine, quest_manager, locale)
@@ -214,26 +218,7 @@ class TalkCommand(BaseCommand):
         except Exception as e:
             logger.error(f"퀘스트 진행 상황 저장 실패: {e}")
 
-        if locale == "ko":
-            return """📜 퀘스트 시작: 기본 장비
-
-🎯 목표: 생명의 정수 10개 수집
-📍 위치: 야생 몬스터 처치 시 획득 가능
-
-완료 후 다시 저에게 오시면 기본 장비를 드리겠습니다:
-• 나무 곤봉 (무기)
-• 리넨 상의 (방어구)
-• 리넨 하의 (방어구)"""
-        else:
-            return """📜 Quest Started: Basic Equipment
-
-🎯 Objective: Collect 10 Essence of Life
-📍 Location: Obtainable by defeating monsters in the wilderness
-
-Return to me when completed to receive basic equipment:
-• Wooden Club (weapon)
-• Linen Shirt (armour)
-• Linen Trousers (armour)"""
+        return I18N.get_message("npc.talk.quest.start", locale)
 
     async def _complete_tutorial_quest(self, session, game_engine, locale: str) -> str:  # type: ignore[no-untyped-def]
         """튜토리얼 퀘스트 완료"""
@@ -244,10 +229,7 @@ Return to me when completed to receive basic equipment:
             removed_count = await self._remove_player_items(session, game_engine, "essence_of_life", 10)
 
             if removed_count < 10:
-                if locale == "ko":
-                    return f"❌ 생명의 정수가 부족합니다. ({removed_count}/10개)"
-                else:
-                    return f"❌ Not enough Essence of Life. ({removed_count}/10)"
+                return I18N.get_message("npc.talk.quest.not_enough", locale, count=removed_count)
 
             # 기본 장비 지급
             equipment_given = await self._give_tutorial_equipment(session, game_engine)
@@ -272,29 +254,11 @@ Return to me when completed to receive basic equipment:
 
             logger.info(f"플레이어 {session.player.username}이 튜토리얼 퀘스트 완료")
 
-            if locale == "ko":
-                return f"""🎉 퀘스트 완료: 기본 장비
-
-✅ 생명의 정수 10개를 받았습니다.
-🎁 보상으로 기본 장비를 지급했습니다:
-{equipment_given}
-
-이제 모험을 시작할 준비가 되었습니다!"""
-            else:
-                return f"""🎉 Quest Completed: Basic Equipment
-
-✅ Received 10 Essence of Life.
-🎁 Basic equipment has been given as reward:
-{equipment_given}
-
-You are now ready to begin your adventure!"""
+            return I18N.get_message("npc.talk.quest.complete", locale, equipment=equipment_given)
 
         except Exception as e:
             logger.error(f"튜토리얼 퀘스트 완료 처리 실패: {e}")
-            if locale == "ko":
-                return "❌ 퀘스트 완료 처리 중 오류가 발생했습니다."
-            else:
-                return "❌ An error occurred while completing the quest."
+            return I18N.get_message("npc.talk.quest.complete_error", locale)
 
     async def _count_player_items(self, session, game_engine, item_name: str) -> int:  # type: ignore[no-untyped-def]
         """플레이어 인벤토리에서 특정 아이템 개수 확인"""
@@ -362,6 +326,7 @@ You are now ready to begin your adventure!"""
     async def _give_tutorial_equipment(self, session, game_engine) -> str:  # type: ignore[no-untyped-def]
         """튜토리얼 기본 장비 지급"""
         try:
+            locale = session.player.preferred_locale if session.player else "en"
             equipment_items = [
                 "tutorial_club",
                 "tutorial_linen_shirt",
@@ -377,14 +342,17 @@ You are now ready to begin your adventure!"""
                     # 아이템 이름 가져오기
                     template = await game_engine.world_manager.get_game_object(item_id)
                     if template:
-                        item_name = template.get_localized_name(session.player.preferred_locale)
+                        item_name = template.get_localized_name(locale)
                         given_items.append(f"• {item_name}")
 
-            return "\n".join(given_items) if given_items else "장비 지급 실패"
+            if given_items:
+                return "\n".join(given_items)
+            return I18N.get_message("npc.talk.quest.equipment_fail", locale)
 
         except Exception as e:
             logger.error(f"튜토리얼 장비 지급 실패: {e}")
-            return "장비 지급 중 오류 발생"
+            locale = session.player.preferred_locale if session.player else "en"
+            return I18N.get_message("npc.talk.quest.equipment_error", locale)
 
     async def _create_item_from_template(self, session, game_engine, template_id: str) -> bool:  # type: ignore[no-untyped-def]
         """템플릿에서 아이템을 복사하여 플레이어에게 지급"""
