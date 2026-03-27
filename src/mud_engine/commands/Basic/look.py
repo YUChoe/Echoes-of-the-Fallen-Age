@@ -75,8 +75,10 @@ class LookCommand(BaseCommand):
 #                         )
         # ===== TODO: 위의 내용은 위치 이동 - 재활용
 
-        # 현재 방 ID 가져오기
+        # 현재 방 ID 가져오기 (전투 중이면 원래 방 사용)
         current_room_id = getattr(session, 'current_room_id', None)
+        if getattr(session, 'in_combat', False):
+            current_room_id = getattr(session, 'original_room_id', current_room_id)
         if not current_room_id:
             return self.create_error_result("현재 위치를 확인할 수 없습니다.")
 
