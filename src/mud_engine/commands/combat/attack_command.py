@@ -77,22 +77,22 @@ class AttackCommand(BaseCommand):
 
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         # 전투 시작
+        locale = get_user_locale(session)
         if not self.validate_args(args, min_args=0):
-            locale = get_user_locale(session)
             return self.create_error_result(self.I18N.get_message("combat.no_target", locale))
 
         target_input = " ".join(args)
 
         # 번호로 대상 찾기
         target_monster = self.get_monster_entity_by_input_digit(session, target_input)
-        if not target_input:
+        if not target_input or not target_monster:
             logger.info(f"공격 대상을 찾을 수 없습니다.args[{args}] target_input[{target_input}]")
             return self.create_error_result(self.I18N.get_message("combat.target_not_found_usage", locale, usage=self.usage))
         logger.info(f"target_monster.id[{target_monster.id}]")
 
         current_room_id = getattr(session, "current_room_id", None)
         if not current_room_id:
-            return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+            return self.create_error_result(self.I18N.get_message("combat.no_target", locale))
         logger.info(f"target_input[{target_input}] current_room_id[{current_room_id}]")
 
         # 인스턴스 확인 및 생성

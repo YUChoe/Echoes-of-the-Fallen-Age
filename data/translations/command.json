@@ -214,5 +214,77 @@
     "say.usage_error": {
         "en": "Please enter a message to say.\nUsage: say <message>",
         "ko": "말할 내용을 입력해주세요.\n사용법: say <메시지>"
+    },
+    "cmd.defend.desc": {
+        "en": "Take a defensive stance",
+        "ko": "방어 자세를 취합니다"
+    },
+    "cmd.emote.desc": {
+        "en": "Express emotions or actions",
+        "ko": "감정이나 행동을 표현합니다"
+    },
+    "cmd.endturn.desc": {
+        "en": "End your turn",
+        "ko": "턴을 넘깁니다"
+    },
+    "cmd.enter.desc": {
+        "en": "Enter a special location or passage",
+        "ko": "특별한 장소나 통로로 들어갑니다"
+    },
+    "cmd.examine.desc": {
+        "en": "Examine objects or targets in detail",
+        "ko": "객체나 대상을 자세히 살펴봅니다"
+    },
+    "cmd.flee.desc": {
+        "en": "Flee from combat (50% chance)",
+        "ko": "전투에서 도망칩니다 (50% 확률)"
+    },
+    "cmd.item.desc": {
+        "en": "Use items during combat",
+        "ko": "전투 중 아이템을 사용합니다"
+    },
+    "cmd.itemtemplates.desc": {
+        "en": "Show available item templates",
+        "ko": "사용 가능한 아이템 템플릿 목록을 표시합니다"
+    },
+    "cmd.kick.desc": {
+        "en": "Kick a player from the server",
+        "ko": "플레이어를 서버에서 추방합니다"
+    },
+    "cmd.open.desc": {
+        "en": "Open a container to view its contents",
+        "ko": "상자나 컨테이너를 열어 내용물을 확인합니다"
+    },
+    "cmd.put.desc": {
+        "en": "Put an item into a container",
+        "ko": "아이템을 상자에 넣습니다"
+    },
+    "cmd.spawnitem.desc": {
+        "en": "Spawn an item from a template",
+        "ko": "템플릿에서 아이템을 생성합니다"
+    },
+    "cmd.spawnmonster.desc": {
+        "en": "Spawn a monster from a template",
+        "ko": "템플릿에서 몬스터를 생성합니다"
+    },
+    "cmd.status.desc": {
+        "en": "Check your character stats and status",
+        "ko": "플레이어의 능력치와 상태를 확인합니다"
+    },
+    "cmd.templates.desc": {
+        "en": "Show available monster templates",
+        "ko": "사용 가능한 몬스터 템플릿 목록을 표시합니다"
+    },
+    "cmd.terminate.desc": {
+        "en": "Permanently delete an object or monster",
+        "ko": "지정한 객체나 몬스터를 완전히 삭제합니다"
+    },
+    "cmd.trade.desc": {
+        "en": "Trade items with monsters",
+        "ko": "몬스터와 아이템을 거래합니다"
+    },
+    "cmd.unequipall.desc": {
+        "en": "Unequip all currently equipped items",
+        "ko": "착용 중인 모든 장비를 해제합니다"
     }
 }

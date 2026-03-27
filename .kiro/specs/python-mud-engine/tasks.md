@@ -176,6 +176,9 @@
 - [x] 30. 전투 중 look 명령어 수정
   - [x] 30.1 전투 중 look 시 원래 방(original_room_id) 정보 표시
 
+- [x] 31. 명령어 description i18n 완성
+  - [x] 31.1 command.json에 누락된 18개 cmd.*.desc 키 추가 (총 59개)
+
 - [ ] 29. 파일 분리 리팩토링 (한 파일 한 클래스 원칙)
   - [x] 29.1 admin_commands.py → 클래스별 파일 분리 (14 클래스)
   - [x] 29.2 combat_commands.py → 클래스별 파일 분리 (5 클래스)
