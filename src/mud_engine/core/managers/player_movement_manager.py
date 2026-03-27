@@ -227,7 +227,6 @@ class PlayerMovementManager:
                         {
                             "id": monster.id,
                             "name": monster.get_localized_name(locale),
-                            "level": monster.level,
                             "current_hp": monster.current_hp,
                             "max_hp": monster.max_hp,
                             "faction_id": monster.faction_id,

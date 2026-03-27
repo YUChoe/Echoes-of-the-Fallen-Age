@@ -173,7 +173,6 @@ class CombatManager:
             "armor_class": monster.stats.armor_class,
             "attack_bonus": monster.stats.attack_bonus,
             "initiative_bonus": monster.stats.initiative_bonus,
-            "level": monster.stats.level,
         }
         logger.info(
             f"몬스터 {monster.id}를 전투 {combat_id}에 추가 (AC: {monster.stats.armor_class}, 공격보너스: {monster.stats.attack_bonus})"

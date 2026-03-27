@@ -38,9 +38,6 @@ class MonsterStats:
     wisdom: int = 10        # 지혜 - 마법 방어력
     charisma: int = 10      # 매력 - 특수 능력
 
-    # 레벨
-    level: int = 1
-
     # 현재 HP (최대 HP는 constitution 기반 계산)
     current_hp: int = 0
 
@@ -51,11 +48,10 @@ class MonsterStats:
 
     @property
     def max_hp(self) -> int:
-        """최대 HP 계산: 기본 10 + (체력 * 2) + (레벨 * 5)"""
+        """최대 HP 계산: 기본 10 + (체력 * 2)"""
         base_hp = 10
         con_bonus = self.constitution * 2
-        level_bonus = self.level * 5
-        return base_hp + con_bonus + level_bonus
+        return base_hp + con_bonus
 
     def get_max_hp(self) -> int:
         """최대 HP 반환"""
@@ -63,11 +59,10 @@ class MonsterStats:
 
     @property
     def attack_power(self) -> int:
-        """공격력 계산: 기본 1 + (힘 / 2) + 레벨"""
+        """공격력 계산: 기본 1 + (힘 / 2)"""
         base_atk = 1
         str_bonus = self.strength // 2
-        level_bonus = self.level
-        return base_atk + str_bonus + level_bonus
+        return base_atk + str_bonus
 
     @property
     def defense(self) -> int:
@@ -82,10 +77,9 @@ class MonsterStats:
 
     @property
     def attack_bonus(self) -> int:
-        """공격 보너스 계산: 힘 보정치 + (레벨 / 4)"""
+        """공격 보너스 계산: 힘 보정치"""
         str_modifier = (self.strength - 10) // 2
-        proficiency = self.level // 4
-        return str_modifier + proficiency
+        return str_modifier
 
     @property
     def initiative_bonus(self) -> int:
@@ -126,14 +120,16 @@ class MonsterStats:
             'intelligence': self.intelligence,
             'wisdom': self.wisdom,
             'charisma': self.charisma,
-            'level': self.level,
             'current_hp': self.current_hp
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'MonsterStats':
         """딕셔너리에서 생성"""
-        return cls(**data)
+        # 하위 호환성: level 필드 무시
+        data_copy = data.copy()
+        data_copy.pop('level', None)
+        return cls(**data_copy)
 
 
 @dataclass
@@ -179,7 +175,6 @@ class Monster(BaseModel):
     roaming_range: int = 2  # 로밍 범위 (방 단위)
     properties: Dict[str, Any] = field(default_factory=dict)  # 추가 속성
     created_at: datetime = field(default_factory=datetime.now)
-    _level: int = field(default=1)  # 내부 레벨 저장용
     faction_id: Optional[str] = None  # 세력 ID (예: 'goblins', 'animals')
 
     def __post_init__(self):
@@ -225,16 +220,6 @@ class Monster(BaseModel):
     def get_localized_description(self, locale: str = 'en') -> str:
         """로케일에 따른 몬스터 설명 반환"""
         return self.description.get(locale, self.description.get('en', self.description.get('ko', 'No description available.')))
-
-    @property
-    def level(self) -> int:
-        """몬스터 레벨 (기본값: 1)"""
-        return getattr(self, '_level', 1)
-
-    @level.setter
-    def level(self, value: int) -> None:
-        """몬스터 레벨 설정"""
-        self._level = value
 
     @property
     def max_hp(self) -> int:
@@ -308,10 +293,8 @@ class Monster(BaseModel):
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (데이터베이스 스키마에 맞게)"""
-        # level을 properties에 저장
         if not isinstance(self.properties, dict):
             self.properties = {}
-        self.properties['level'] = self.level
 
         # BaseModel.to_dict() 호출 전에 DropItem 객체들을 딕셔너리로 변환
         original_drop_items = self.drop_items
@@ -330,10 +313,6 @@ class Monster(BaseModel):
 
         # 원본 drop_items 복원
         self.drop_items = original_drop_items
-
-        # _level 필드 제거 (properties에 이미 저장됨)
-        if '_level' in data:
-            del data['_level']
 
         # name과 description을 개별 컬럼으로 분리
         if 'name' in data:
@@ -459,12 +438,6 @@ class Monster(BaseModel):
                     converted_data['properties'] = {}
             elif not isinstance(properties_data, dict):
                 converted_data['properties'] = {}
-
-        # level 처리 (properties에서 가져오거나 기본값 사용)
-        level_value = 1
-        if 'properties' in converted_data and isinstance(converted_data['properties'], dict):
-            level_value = converted_data['properties'].get('level', 1)
-        converted_data['_level'] = level_value
 
         # 날짜 필드 처리
         for date_field in ['created_at', 'last_death_time']:

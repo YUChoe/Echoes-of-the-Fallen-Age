@@ -43,9 +43,6 @@ class PlayerStats:
     constitution: int = 1
     charisma: int = 1
 
-    # 레벨 관련
-    level: int = 1  # 삭제 대상
-
     # current
     current_hp: int = 0
 
@@ -74,9 +71,6 @@ class PlayerStats:
         for stat in primary_stats:
             if not isinstance(stat, int) or stat < 1 or stat > 100:
                 raise ValueError("1차 능력치는 1-100 범위의 정수여야 합니다")
-
-        if self.level < 1 or self.level > 100:
-            raise ValueError("레벨은 1-100 범위여야 합니다")
 
         if self.current_hp == 0:
             self.current_hp = self._calculate_hp()  # 초기값
@@ -117,19 +111,17 @@ class PlayerStats:
             return 0
 
     def _calculate_hp(self) -> int:
-        """HP 계산: 기본 10 + (체력 * 5) + (레벨 * 2)"""
+        """HP 계산: 기본 10 + (체력 * 5)"""
         base_hp = 10
         con_bonus = self.get_primary_stat(StatType.CON) * 5
-        level_bonus = self.level * 2
-        return base_hp + con_bonus + level_bonus
+        return base_hp + con_bonus
 
     def _calculate_mp(self) -> int:
-        """MP 계산: 기본 50 + (지능 * 3) + (지혜 * 2) + (레벨 * 5)"""
+        """MP 계산: 기본 50 + (지능 * 3) + (지혜 * 2)"""
         base_mp = 50
         int_bonus = self.get_primary_stat(StatType.INT) * 3
         wis_bonus = self.get_primary_stat(StatType.WIS) * 2
-        level_bonus = self.level * 5
-        return base_mp + int_bonus + wis_bonus + level_bonus
+        return base_mp + int_bonus + wis_bonus
 
     def _calculate_stamina(self) -> int:
         """스태미나 계산: 기본 100 + (체력 * 3) + (민첩 * 2)"""
@@ -139,20 +131,18 @@ class PlayerStats:
         return base_sta + con_bonus + dex_bonus
 
     def _calculate_attack(self) -> int:
-        """공격력 계산: 기본 10 + (힘 * 2) + (레벨) + 장비 보너스"""
+        """공격력 계산: 기본 10 + (힘 * 2) + 장비 보너스"""
         base_atk = 10
         str_bonus = self.get_primary_stat(StatType.STR) * 2
-        level_bonus = self.level
         equipment_bonus = self.equipment_bonuses.get("ATK", 0)
-        return base_atk + str_bonus + level_bonus + equipment_bonus
+        return base_atk + str_bonus + equipment_bonus
 
     def _calculate_defense(self) -> int:
-        """방어력 계산: 기본 2 + (체력 * 0.3) + (레벨 * 0.2) + 장비 보너스"""
+        """방어력 계산: 기본 2 + (체력 * 0.3) + 장비 보너스"""
         base_def = 2
         con_bonus = int(self.get_primary_stat(StatType.CON) * 0.3)
-        level_bonus = int(self.level * 0.2)
         equipment_bonus = self.equipment_bonuses.get("DEF", 0)
-        return base_def + con_bonus + level_bonus + equipment_bonus
+        return base_def + con_bonus + equipment_bonus
 
     def _calculate_speed(self) -> int:
         """속도 계산: 기본 10 + (민첩 * 1.5)"""
@@ -161,11 +151,10 @@ class PlayerStats:
         return base_spd + dex_bonus
 
     def _calculate_resistance(self) -> int:
-        """마법 저항력 계산: 기본 5 + (지혜 * 1.5) + (레벨 * 0.3)"""
+        """마법 저항력 계산: 기본 5 + (지혜 * 1.5)"""
         base_res = 5
         wis_bonus = int(self.get_primary_stat(StatType.WIS) * 1.5)
-        level_bonus = int(self.level * 0.3)
-        return base_res + wis_bonus + level_bonus
+        return base_res + wis_bonus
 
     def _calculate_luck(self) -> int:
         """운 계산: 기본 10 + (모든 능력치 평균 / 10)"""
@@ -182,11 +171,10 @@ class PlayerStats:
         return base_lck + avg_bonus
 
     def _calculate_influence(self) -> int:
-        """영향력 계산: 기본 5 + (매력 * 2) + (레벨 * 0.5)"""
+        """영향력 계산: 기본 5 + (매력 * 2)"""
         base_inf = 5
         cha_bonus = self.get_primary_stat(StatType.CHA) * 2
-        level_bonus = int(self.level * 0.5)
-        return base_inf + cha_bonus + level_bonus
+        return base_inf + cha_bonus
 
     def get_max_carry_weight(self) -> int:
         """최대 소지 무게 계산: 기본 50 + (힘 * 5)"""
@@ -252,8 +240,7 @@ class PlayerStats:
         ]:
             stats[stat_type.value] = self.get_secondary_stat(stat_type)
 
-        # 레벨 정보
-        stats["level"] = self.level
+        # 기타 정보
         stats["max_carry_weight"] = self.get_max_carry_weight()
 
         return stats
@@ -267,7 +254,6 @@ class PlayerStats:
             "wisdom": self.wisdom,
             "constitution": self.constitution,
             "charisma": self.charisma,
-            "level": self.level,
             "equipment_bonuses": json.dumps(self.equipment_bonuses, ensure_ascii=False),
             "temporary_effects": json.dumps(self.temporary_effects, ensure_ascii=False),
         }
@@ -275,10 +261,11 @@ class PlayerStats:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PlayerStats":
         """딕셔너리에서 객체 생성"""
-        # 하위 호환성: 경험치 필드 제거 (더 이상 사용하지 않음)
+        # 하위 호환성: 더 이상 사용하지 않는 필드 제거
         data_copy = data.copy()
         data_copy.pop("experience", None)
         data_copy.pop("experience_to_next", None)
+        data_copy.pop("level", None)
 
         # JSON 문자열 필드 파싱
         if isinstance(data_copy.get("equipment_bonuses"), str):

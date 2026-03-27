@@ -154,7 +154,6 @@ class LookCommand(BaseCommand):
 
             # 몬스터 상태 정보
             hp_info = f"HP: {monster.current_hp}/{monster.max_hp}"
-            level_info = f"레벨: {monster.level}"
 
             # 몬스터 태도 정보
             attitude_info = ""
@@ -169,7 +168,7 @@ class LookCommand(BaseCommand):
                 entity_name,
                 "=" * 40,
                 description,
-                f"{hp_info} | {level_info}{attitude_info}",
+                f"{hp_info}{attitude_info}",
                 "📊 능력치:",
                 f"  • 힘 (STR): {monster.stats.strength}",
                 f"  • 민첩 (DEX): {monster.stats.dexterity}",

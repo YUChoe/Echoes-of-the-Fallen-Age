@@ -177,11 +177,6 @@ class MapExporter:
         cursor = await self.db_manager.execute("""
             SELECT r.id, m.name_ko, m.name_en,
                    COALESCE(
-                       json_extract(m.stats, '$.level'),
-                       json_extract(m.properties, '$.level'),
-                       1
-                   ) as level,
-                   COALESCE(
                        json_extract(m.stats, '$.current_hp'),
                        json_extract(m.stats, '$.max_hp'),
                        20
@@ -199,12 +194,11 @@ class MapExporter:
         creatures = await cursor.fetchall()
 
         for creature in creatures:
-            room_id, name_ko, name_en, level, current_hp, max_hp, faction_id = creature
+            room_id, name_ko, name_en, current_hp, max_hp, faction_id = creature
             if room_id in room_details:
                 room_details[room_id]['creatures'].append({
                     'name_ko': name_ko,
                     'name_en': name_en,
-                    'level': level,
                     'hp': f"{current_hp}/{max_hp}",
                     'faction': faction_id or 'unknown'
                 })
@@ -754,7 +748,7 @@ class MapExporter:
                 monsters.innerHTML = `
                     <div class="section-title">몬스터 (${details.monsters.length})</div>
                     <div class="item-list">
-                        ${details.monsters.map(m => `• ${m.name_ko} (${m.name_en}) Lv.${m.level} HP:${m.hp}`).join('<br>')}
+                        ${details.monsters.map(m => `• ${m.name_ko} (${m.name_en}) HP:${m.hp}`).join('<br>')}
                     </div>
                 `;
             }} else {{
@@ -1374,7 +1368,7 @@ class MapExporter:
             // 생명체 목록 (몬스터/NPC 통합)
             if (details.creatures && details.creatures.length > 0) {
                 const creatureList = details.creatures.map(c =>
-                    '• ' + c.name_ko + ' (' + c.name_en + ') Lv.' + c.level + ' HP:' + c.hp + ' [' + c.faction + ']'
+                    '• ' + c.name_ko + ' (' + c.name_en + ') HP:' + c.hp + ' [' + c.faction + ']'
                 ).join('<br>');
                 monsters.innerHTML =
                     '<div class="section-title">생명체 (' + details.creatures.length + ')</div>' +

@@ -50,11 +50,10 @@ class ListTemplatesCommand(AdminCommand):
                 name_ko = template_data.get('name', {}).get('ko', '이름 없음')
                 name_en = template_data.get('name', {}).get('en', 'No name')
                 monster_type = template_data.get('monster_type', 'UNKNOWN')
-                level = template_data.get('stats', {}).get('level', 1)
 
                 template_list += f"• {template_id}\n"
                 template_list += f"  {name_ko} ({name_en})\n"
-                template_list += f"  type: {monster_type}, level: {level}\n\n"
+                template_list += f"  type: {monster_type}\n\n"
 
             template_list += f"Total: {len(templates)} templates\n"
             template_list += "\nUsage: `spawnmonster <template_id> [room_id]`"
@@ -82,5 +81,5 @@ class ListTemplatesCommand(AdminCommand):
 **별칭:** `listtemplates`, `tmpl`
 **권한:** 관리자 전용
 
-각 템플릿의 ID, 이름, 타입, 레벨 정보를 확인할 수 있습니다.
+각 템플릿의 ID, 이름, 타입 정보를 확인할 수 있습니다.
         """

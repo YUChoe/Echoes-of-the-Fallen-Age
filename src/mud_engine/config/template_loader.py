@@ -120,7 +120,6 @@ class TemplateLoader:
                 intelligence=stats_data.get('intelligence', 10),
                 wisdom=stats_data.get('wisdom', 10),
                 charisma=stats_data.get('charisma', 10),
-                level=stats_data.get('level', 1),
                 current_hp=stats_data.get('current_hp', stats_data.get('constitution', 10) * 5)
             )
 

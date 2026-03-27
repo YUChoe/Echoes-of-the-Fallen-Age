@@ -33,7 +33,6 @@ CREATE TABLE players (
     stat_wisdom INTEGER DEFAULT 10,           -- 지혜
     stat_constitution INTEGER DEFAULT 10,     -- 체력
     stat_charisma INTEGER DEFAULT 10,         -- 매력
-    stat_level INTEGER DEFAULT 1,             -- 레벨
     stat_equipment_bonuses TEXT DEFAULT '{}', -- 장비 보너스 (JSON)
     stat_temporary_effects TEXT DEFAULT '{}', -- 임시 효과 (JSON)
 
@@ -139,7 +138,6 @@ CREATE TABLE monsters (
     "intelligence": 8,
     "wisdom": 10,
     "charisma": 6,
-    "level": 1,
     "current_hp": 25
   },
   "drop_items": [
@@ -305,7 +303,6 @@ CREATE TABLE faction_relations (
   "intelligence": 8, // 지능 (1-30)
   "wisdom": 10, // 지혜 (1-30)
   "charisma": 6, // 매력 (1-30)
-  "level": 1, // 레벨
   "current_hp": 25 // 현재 HP
 }
 ```

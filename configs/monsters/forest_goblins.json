@@ -16,8 +16,7 @@
     "constitution": 10,
     "intelligence": 8,
     "wisdom": 8,
-    "charisma": 6,
-    "level": 3
+    "charisma": 6
   },
   "experience_reward": 50,
   "gold_reward": 10,

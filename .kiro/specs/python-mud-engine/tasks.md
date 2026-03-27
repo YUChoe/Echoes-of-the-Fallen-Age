@@ -179,6 +179,34 @@
 - [x] 31. 명령어 description i18n 완성
   - [x] 31.1 command.json에 누락된 18개 cmd.*.desc 키 추가 (총 59개)
 
+- [x] 32. 레벨 시스템 제거
+  - [x] 32.1 PlayerStats에서 level 제거 (stats.py)
+    - level 필드 삭제
+    - HP/MP/ATK/DEF/RES/INF 계산식에서 level_bonus 제거
+    - level 검증 로직 삭제
+    - to_dict/직렬화에서 level 제거
+  - [x] 32.2 MonsterStats에서 level 제거 (monster.py)
+    - level 필드 삭제
+    - max_hp/attack_power/attack_bonus 계산식에서 level 제거
+    - Monster._level 프로퍼티 삭제
+    - to_dict/from_dict에서 level 제거
+  - [x] 32.3 Quest 시스템에서 level_requirement 제거 (quest.py)
+    - level_requirement 필드 삭제
+    - can_start()에서 player_level 비교 삭제
+    - get_available_quests()에서 player_level 파라미터 삭제
+  - [x] 32.4 DB 스키마에서 stat_level 제거 (schema.py)
+    - stat_level 컬럼 삭제 마이그레이션 추가
+    - Player.from_dict()에 stat_level 필터링 추가
+  - [x] 32.5 UI/명령어에서 레벨 표시 제거
+    - look.py: 몬스터 레벨 표시 삭제
+    - status.py: 플레이어 레벨 표시 삭제
+    - list_templates_command.py: 템플릿 레벨 표시 삭제
+    - player_movement_manager.py: 방 정보에서 몬스터 레벨 삭제
+  - [x] 32.6 전투 시스템에서 level 참조 제거 (combat_manager.py)
+  - [x] 32.7 설정 파일에서 level 제거 (configs/monsters/*.json 7개)
+  - [x] 32.8 맵 내보내기에서 level 제거 (map_exporter.py)
+  - [ ] 32.9 design.md/requirements.md에서 레벨 관련 내용 업데이트
+
 - [ ] 29. 파일 분리 리팩토링 (한 파일 한 클래스 원칙)
   - [x] 29.1 admin_commands.py → 클래스별 파일 분리 (14 클래스)
   - [x] 29.2 combat_commands.py → 클래스별 파일 분리 (5 클래스)
