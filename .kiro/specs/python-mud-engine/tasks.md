@@ -155,7 +155,7 @@
   - [x] 25.5 npc/trade_command.py i18n 전환 (거래 메시지 약 15곳)
   - [x] 25.6 npc/shop_command.py i18n 전환 (상점 메시지 약 30곳)
   - [x] 25.7 combat_handler.py 공격 결과 메시지 i18n 전환 (명중/빗나감/데미지/사망/시체 생성 약 10곳)
-  - [ ] 25.8 telnet_session.py 방 정보 렌더링 폴백 텍스트 i18n 전환 (약 7곳)
+  - [x] 25.8 telnet_session.py 방 정보 렌더링 폴백 텍스트 i18n 전환 (약 7곳)
   - [ ] 25.9 전투 broadcast를 참가자별 locale로 개별 전송 (combat_handler._execute_attack 등)
 
 - [ ] 26. 품질 개선
