@@ -70,5 +70,135 @@
     "npc.talk.quest.equipment_error": {
         "en": "An error occurred during equipment delivery",
         "ko": "장비 지급 중 오류 발생"
+    },
+
+    "npc.trade.usage": {
+        "en": "Usage: trade <item_name> <monster_name>",
+        "ko": "사용법: trade <아이템이름> <몬스터이름>"
+    },
+    "npc.trade.no_engine": {
+        "en": "Cannot access the game engine.",
+        "ko": "게임 엔진에 접근할 수 없습니다."
+    },
+    "npc.trade.no_location": {
+        "en": "Cannot determine your current location.",
+        "ko": "현재 위치를 확인할 수 없습니다."
+    },
+    "npc.trade.no_room_coords": {
+        "en": "Cannot determine the coordinates of the current room.",
+        "ko": "현재 방의 좌표를 확인할 수 없습니다."
+    },
+    "npc.trade.not_found": {
+        "en": "Cannot find '{monster_name}'.",
+        "ko": "'{monster_name}'을(를) 찾을 수 없습니다."
+    },
+    "npc.trade.no_trade": {
+        "en": "This monster does not trade.",
+        "ko": "이 몬스터는 거래를 하지 않습니다."
+    },
+    "npc.trade.error": {
+        "en": "An error occurred during the trade.",
+        "ko": "거래 중 오류가 발생했습니다."
+    },
+    "npc.trade.monk.already_completed": {
+        "en": "You have already completed the quest. No more trades available.",
+        "ko": "이미 퀘스트를 완료하셨습니다. 더 이상 거래할 수 없습니다."
+    },
+    "npc.trade.monk.essence_only": {
+        "en": "The monk only accepts Essence of Life.",
+        "ko": "수도사는 생명의 정수만 받습니다."
+    },
+    "npc.trade.monk.no_essence": {
+        "en": "You don't have any Essence of Life.",
+        "ko": "생명의 정수를 가지고 있지 않습니다."
+    },
+    "npc.trade.monk.not_enough": {
+        "en": "Not enough Essence of Life. ({total_essence}/10)",
+        "ko": "생명의 정수가 부족합니다. ({total_essence}/10개)"
+    },
+    "npc.trade.monk.error": {
+        "en": "An error occurred during the trade.",
+        "ko": "거래 처리 중 오류가 발생했습니다."
+    },
+
+    "npc.shop.usage": {
+        "en": "Usage: shop list [merchant_name] or shop buy <item> [merchant_name]",
+        "ko": "사용법: shop list [상인이름] 또는 shop buy <아이템> [상인이름]"
+    },
+    "npc.shop.no_engine": {
+        "en": "Cannot access the game engine.",
+        "ko": "게임 엔진에 접근할 수 없습니다."
+    },
+    "npc.shop.no_location": {
+        "en": "Cannot determine your current location.",
+        "ko": "현재 위치를 확인할 수 없습니다."
+    },
+    "npc.shop.no_room_coords": {
+        "en": "Cannot determine the coordinates of the current room.",
+        "ko": "현재 방의 좌표를 확인할 수 없습니다."
+    },
+    "npc.shop.no_merchant": {
+        "en": "There are no merchants here.",
+        "ko": "이 곳에는 상인이 없습니다."
+    },
+    "npc.shop.buy_usage": {
+        "en": "Usage: shop buy <item>",
+        "ko": "사용법: shop buy <아이템>"
+    },
+    "npc.shop.invalid_action": {
+        "en": "Usage: shop list or shop buy <item>",
+        "ko": "사용법: shop list 또는 shop buy <아이템>"
+    },
+    "npc.shop.error": {
+        "en": "An error occurred whilst using the shop.",
+        "ko": "상점 이용 중 오류가 발생했습니다."
+    },
+    "npc.shop.no_items": {
+        "en": "This merchant has nothing to sell.",
+        "ko": "이 상인은 판매할 물건이 없습니다."
+    },
+    "npc.shop.list_header": {
+        "en": "📦 Items for sale:",
+        "ko": "📦 판매 상품:"
+    },
+    "npc.shop.list_hint": {
+        "en": "💡 To purchase: shop buy <item_name>",
+        "ko": "💡 구매하려면: shop buy <아이템이름>"
+    },
+    "npc.shop.price_free": {
+        "en": "Free",
+        "ko": "무료"
+    },
+    "npc.shop.list_error": {
+        "en": "Cannot load the shop list.",
+        "ko": "상점 목록을 불러올 수 없습니다."
+    },
+    "npc.shop.item_not_found": {
+        "en": "Cannot find the item '{item_name}'.",
+        "ko": "'{item_name}' 아이템을 찾을 수 없습니다."
+    },
+    "npc.shop.quest_required": {
+        "en": "You must complete the quest first to purchase this item.",
+        "ko": "이 아이템을 구매하려면 먼저 퀘스트를 완료해야 합니다."
+    },
+    "npc.shop.payment_failed": {
+        "en": "Payment failed.",
+        "ko": "결제에 실패했습니다."
+    },
+    "npc.shop.give_item_failed": {
+        "en": "Failed to deliver the item.",
+        "ko": "아이템 지급에 실패했습니다."
+    },
+    "npc.shop.purchase_quest_complete": {
+        "en": "🎉 Purchased {item_id} {price_text}!\nQuest completed!",
+        "ko": "🎉 {item_id}을(를) {price_text} 구매했습니다!\n퀘스트가 완료되었습니다!"
+    },
+    "npc.shop.purchase_success": {
+        "en": "✅ Purchased {item_id} {price_text}!",
+        "ko": "✅ {item_id}을(를) {price_text} 구매했습니다!"
+    },
+    "npc.shop.buy_error": {
+        "en": "An error occurred during the purchase.",
+        "ko": "구매 처리 중 오류가 발생했습니다."
     }
 }

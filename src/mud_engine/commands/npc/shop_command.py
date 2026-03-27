@@ -5,10 +5,13 @@ import logging
 from typing import List, Optional
 
 from ...commands.base import BaseCommand, CommandResult
+from ...core.localization import get_localization_manager
 from ...core.types import SessionType
 from ...game.monster import Monster
 
 logger = logging.getLogger(__name__)
+
+I18N = get_localization_manager()
 
 
 class ShopCommand(BaseCommand):
@@ -25,38 +28,38 @@ class ShopCommand(BaseCommand):
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """상인과 거래 실행"""
         try:
+            locale = session.player.preferred_locale if session.player else 'en'
+
             if not args:
-                return self.create_error_result("사용법: shop list [상인이름] 또는 shop buy <아이템> [상인이름]")
+                return self.create_error_result(I18N.get_message("npc.shop.usage", locale))
 
             action = args[0].lower()
 
             # GameEngine을 통해 몬스터 조회
             game_engine = getattr(session, 'game_engine', None)
             if not game_engine:
-                return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+                return self.create_error_result(I18N.get_message("npc.shop.no_engine", locale))
 
             # 플레이어 현재 좌표 가져오기
             current_room_id = getattr(session, 'current_room_id', None)
             if not current_room_id:
-                return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+                return self.create_error_result(I18N.get_message("npc.shop.no_location", locale))
 
             current_room = await game_engine.world_manager.get_room(current_room_id)
             if not current_room or current_room.x is None or current_room.y is None:
-                return self.create_error_result("현재 방의 좌표를 확인할 수 없습니다.")
+                return self.create_error_result(I18N.get_message("npc.shop.no_room_coords", locale))
 
             player_x, player_y = current_room.x, current_room.y
-
-            locale = session.player.preferred_locale if session.player else 'en'
 
             if action == "list":
                 # 상인 찾기 (상인 이름 지정 가능)
                 merchant = await self._find_merchant(game_engine, player_x, player_y, args[1:] if len(args) > 1 else [])
                 if not merchant:
-                    return self.create_error_result("이 곳에는 상인이 없습니다.")
+                    return self.create_error_result(I18N.get_message("npc.shop.no_merchant", locale))
                 return await self._show_shop_list(merchant, locale)
             elif action == "buy":
                 if len(args) < 2:
-                    return self.create_error_result("사용법: shop buy <아이템>")
+                    return self.create_error_result(I18N.get_message("npc.shop.buy_usage", locale))
 
                 # 아이템 이름만 추출 (상인 이름은 자동으로 찾기)
                 item_name = args[1]
@@ -64,15 +67,16 @@ class ShopCommand(BaseCommand):
                 # 상인 찾기 (현재 위치의 모든 상인 중에서)
                 merchant = await self._find_merchant(game_engine, player_x, player_y, [])
                 if not merchant:
-                    return self.create_error_result("이 곳에는 상인이 없습니다.")
+                    return self.create_error_result(I18N.get_message("npc.shop.no_merchant", locale))
 
                 return await self._buy_item(session, game_engine, merchant, item_name, locale)
             else:
-                return self.create_error_result("사용법: shop list 또는 shop buy <아이템>")
+                return self.create_error_result(I18N.get_message("npc.shop.invalid_action", locale))
 
         except Exception as e:
             logger.error(f"상점 명령어 실행 실패: {e}", exc_info=True)
-            return self.create_error_result("상점 이용 중 오류가 발생했습니다.")
+            locale = session.player.preferred_locale if session.player else 'en'
+            return self.create_error_result(I18N.get_message("npc.shop.error", locale))
 
     async def _find_merchant(self, game_engine, x: int, y: int, merchant_args: List[str]) -> Optional[Monster]:  # type: ignore[no-untyped-def]
         """상인 몬스터 찾기"""
@@ -133,7 +137,7 @@ class ShopCommand(BaseCommand):
             shop_items = properties.get('shop_items', [])
 
             if not shop_items:
-                return self.create_error_result("이 상인은 판매할 물건이 없습니다.")
+                return self.create_error_result(I18N.get_message("npc.shop.no_items", locale))
 
             # 상점 목록 생성
             message_lines = [
@@ -148,7 +152,7 @@ class ShopCommand(BaseCommand):
                 message_lines.append("")
 
             # 상품 목록
-            message_lines.append("📦 판매 상품:")
+            message_lines.append(I18N.get_message("npc.shop.list_header", locale))
 
             for i, item in enumerate(shop_items, 1):
                 item_id = item.get('item_id', 'unknown')
@@ -161,7 +165,7 @@ class ShopCommand(BaseCommand):
                 currency_name = "골드" if currency == "gold" else "생명의 정수" if currency == "essence_of_life" else currency
 
                 if price == 0:
-                    price_text = "무료" if locale == "ko" else "Free"
+                    price_text = I18N.get_message("npc.shop.price_free", locale)
                 else:
                     price_text = f"{price} {currency_name}"
 
@@ -169,13 +173,13 @@ class ShopCommand(BaseCommand):
                 message_lines.append(f"   {description}")
 
             message_lines.append("")
-            message_lines.append("💡 구매하려면: shop buy <아이템이름>")
+            message_lines.append(I18N.get_message("npc.shop.list_hint", locale))
 
             return self.create_success_result("\n".join(message_lines))
 
         except Exception as e:
             logger.error(f"상점 목록 표시 실패: {e}")
-            return self.create_error_result("상점 목록을 불러올 수 없습니다.")
+            return self.create_error_result(I18N.get_message("npc.shop.list_error", locale))
 
     async def _buy_item(self, session, game_engine, merchant: Monster, item_name: str, locale: str) -> CommandResult:  # type: ignore[no-untyped-def]
         """아이템 구매"""
@@ -195,7 +199,9 @@ class ShopCommand(BaseCommand):
                     break
 
             if not target_item:
-                return self.create_error_result(f"'{item_name}' 아이템을 찾을 수 없습니다.")
+                return self.create_error_result(
+                    I18N.get_message("npc.shop.item_not_found", locale, item_name=item_name)
+                )
 
             item_id = target_item.get('item_id')
             price = target_item.get('price', 0)
@@ -206,47 +212,46 @@ class ShopCommand(BaseCommand):
             if quest_completion:
                 completed_quests = getattr(session.player, 'completed_quests', [])
                 if quest_completion not in completed_quests:
-                    if locale == "ko":
-                        return self.create_error_result("이 아이템을 구매하려면 먼저 퀘스트를 완료해야 합니다.")
-                    else:
-                        return self.create_error_result("You must complete the quest first to purchase this item.")
+                    return self.create_error_result(
+                        I18N.get_message("npc.shop.quest_required", locale)
+                    )
 
             # 결제 처리
             if price > 0:
                 payment_result = await self._process_payment(session, game_engine, currency, price, locale)
                 if not payment_result:
-                    return self.create_error_result("결제에 실패했습니다.")
+                    return self.create_error_result(I18N.get_message("npc.shop.payment_failed", locale))
 
             # 아이템 지급
             success = await self._give_item_to_player(session, game_engine, item_id)
             if not success:
-                return self.create_error_result("아이템 지급에 실패했습니다.")
+                return self.create_error_result(I18N.get_message("npc.shop.give_item_failed", locale))
 
             # 성공 메시지
             currency_name = "골드" if currency == "gold" else "생명의 정수" if currency == "essence_of_life" else currency
 
             if price == 0:
-                price_text = "무료로" if locale == "ko" else "for free"
+                price_text = I18N.get_message("npc.shop.price_free", locale)
             else:
-                price_text = f"{price} {currency_name}에" if locale == "ko" else f"for {price} {currency_name}"
+                price_text = f"{price} {currency_name}"
 
             # 특별한 아이템 구매 시 퀘스트 완료 처리
             if item_id == "castle_key" and quest_completion:
                 await self._complete_quest(session, game_engine, quest_completion)
 
-                if locale == "ko":
-                    return self.create_success_result(f"🎉 {item_id}을(를) {price_text} 구매했습니다!\n퀘스트가 완료되었습니다!")
-                else:
-                    return self.create_success_result(f"🎉 Purchased {item_id} {price_text}!\nQuest completed!")
+                return self.create_success_result(
+                    I18N.get_message("npc.shop.purchase_quest_complete", locale,
+                                     item_id=item_id, price_text=price_text)
+                )
 
-            if locale == "ko":
-                return self.create_success_result(f"✅ {item_id}을(를) {price_text} 구매했습니다!")
-            else:
-                return self.create_success_result(f"✅ Purchased {item_id} {price_text}!")
+            return self.create_success_result(
+                I18N.get_message("npc.shop.purchase_success", locale,
+                                 item_id=item_id, price_text=price_text)
+            )
 
         except Exception as e:
             logger.error(f"아이템 구매 실패: {e}")
-            return self.create_error_result("구매 처리 중 오류가 발생했습니다.")
+            return self.create_error_result(I18N.get_message("npc.shop.buy_error", locale))
 
     async def _process_payment(self, session, game_engine, currency: str, amount: int, locale: str) -> bool:  # type: ignore[no-untyped-def]
         """결제 처리"""

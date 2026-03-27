@@ -5,9 +5,12 @@ import logging
 from typing import List
 
 from ...commands.base import BaseCommand, CommandResult
+from ...core.localization import get_localization_manager
 from ...core.types import SessionType
 
 logger = logging.getLogger(__name__)
+
+I18N = get_localization_manager()
 
 
 class TradeCommand(BaseCommand):
@@ -24,8 +27,10 @@ class TradeCommand(BaseCommand):
     async def execute(self, session: SessionType, args: List[str]) -> CommandResult:
         """몬스터와 거래 실행"""
         try:
+            locale = session.player.preferred_locale if session.player else "en"
+
             if len(args) < 2:
-                return self.create_error_result("사용법: trade <아이템이름> <몬스터이름>")
+                return self.create_error_result(I18N.get_message("npc.trade.usage", locale))
 
             item_name = args[0]
             monster_name = " ".join(args[1:])
@@ -33,16 +38,16 @@ class TradeCommand(BaseCommand):
             # GameEngine을 통해 몬스터 조회
             game_engine = getattr(session, 'game_engine', None)
             if not game_engine:
-                return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
+                return self.create_error_result(I18N.get_message("npc.trade.no_engine", locale))
 
             # 플레이어 현재 좌표 가져오기
             current_room_id = getattr(session, 'current_room_id', None)
             if not current_room_id:
-                return self.create_error_result("현재 위치를 확인할 수 없습니다.")
+                return self.create_error_result(I18N.get_message("npc.trade.no_location", locale))
 
             current_room = await game_engine.world_manager.get_room(current_room_id)
             if not current_room or current_room.x is None or current_room.y is None:
-                return self.create_error_result("현재 방의 좌표를 확인할 수 없습니다.")
+                return self.create_error_result(I18N.get_message("npc.trade.no_room_coords", locale))
 
             player_x, player_y = current_room.x, current_room.y
 
@@ -59,17 +64,20 @@ class TradeCommand(BaseCommand):
                     break
 
             if not target_monster:
-                return self.create_error_result(f"'{monster_name}'을(를) 찾을 수 없습니다.")
+                return self.create_error_result(
+                    I18N.get_message("npc.trade.not_found", locale, monster_name=monster_name)
+                )
 
             # 교회 수도사와의 거래 처리
             if target_monster.id == "church_monk":
                 return await self._handle_monk_trade(session, game_engine, target_monster, item_name)
 
-            return self.create_error_result("이 몬스터는 거래를 하지 않습니다.")
+            return self.create_error_result(I18N.get_message("npc.trade.no_trade", locale))
 
         except Exception as e:
             logger.error(f"거래 명령어 실행 실패: {e}", exc_info=True)
-            return self.create_error_result("거래 중 오류가 발생했습니다.")
+            locale = session.player.preferred_locale if session.player else "en"
+            return self.create_error_result(I18N.get_message("npc.trade.error", locale))
 
     async def _handle_monk_trade(self, session, game_engine, monster, item_name: str) -> CommandResult:  # type: ignore[no-untyped-def]
         """수도사와의 거래 처리"""
@@ -79,17 +87,15 @@ class TradeCommand(BaseCommand):
             # 퀘스트 완료 여부 확인
             completed_quests = getattr(session.player, 'completed_quests', [])
             if "tutorial_basic_equipment" in completed_quests:
-                if locale == "ko":
-                    return self.create_error_result("이미 퀘스트를 완료하셨습니다. 더 이상 거래할 수 없습니다.")
-                else:
-                    return self.create_error_result("You have already completed the quest. No more trades available.")
+                return self.create_error_result(
+                    I18N.get_message("npc.trade.monk.already_completed", locale)
+                )
 
             # 생명의 정수인지 확인
             if "essence" not in item_name.lower() and "정수" not in item_name:
-                if locale == "ko":
-                    return self.create_error_result("수도사는 생명의 정수만 받습니다.")
-                else:
-                    return self.create_error_result("The monk only accepts Essence of Life.")
+                return self.create_error_result(
+                    I18N.get_message("npc.trade.monk.essence_only", locale)
+                )
 
             # 플레이어가 생명의 정수를 가지고 있는지 확인
             inventory_objects = await game_engine.world_manager.get_inventory_objects(session.player.id)
@@ -103,19 +109,17 @@ class TradeCommand(BaseCommand):
                     essence_items.append(obj)
 
             if not essence_items:
-                if locale == "ko":
-                    return self.create_error_result("생명의 정수를 가지고 있지 않습니다.")
-                else:
-                    return self.create_error_result("You don't have any Essence of Life.")
+                return self.create_error_result(
+                    I18N.get_message("npc.trade.monk.no_essence", locale)
+                )
 
             # 생명의 정수 개수 확인
             total_essence = len(essence_items)
 
             if total_essence < 10:
-                if locale == "ko":
-                    return self.create_error_result(f"생명의 정수가 부족합니다. ({total_essence}/10개)")
-                else:
-                    return self.create_error_result(f"Not enough Essence of Life. ({total_essence}/10)")
+                return self.create_error_result(
+                    I18N.get_message("npc.trade.monk.not_enough", locale, total_essence=total_essence)
+                )
 
             # 퀘스트 완료 처리
             from .talk_command import TalkCommand
@@ -127,7 +131,6 @@ class TradeCommand(BaseCommand):
         except Exception as e:
             logger.error(f"수도사 거래 처리 실패: {e}")
             locale = session.player.preferred_locale if session.player else "en"
-            if locale == "ko":
-                return self.create_error_result("거래 처리 중 오류가 발생했습니다.")
-            else:
-                return self.create_error_result("An error occurred during the trade.")
+            return self.create_error_result(
+                I18N.get_message("npc.trade.monk.error", locale)
+            )
