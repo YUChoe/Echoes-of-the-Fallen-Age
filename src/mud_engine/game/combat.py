@@ -403,7 +403,7 @@ class CombatInstance:
                 f"{self.I18N.get_message('combat.action_flee', locale)}",
                 f"[4] Item  ",
                 f"[7] Spell",
-                f"[9] End Turn / 턴넘기기",
+                f"[9] {self.I18N.get_message('combat.action_endturn', locale)}",
                 self.I18N.get_message("combat.enter_command", locale),
             ]
         )

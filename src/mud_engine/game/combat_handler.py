@@ -388,8 +388,11 @@ class CombatHandler:
             logger.info(f"Corpse 생성 완료: {corpse_id} (room: {room_id}, target: {name_en})")
 
             # 전투 참가자들에게 corpse 생성 알림
-            corpse_msg = f"💀 {name_en}의 사체가 바닥에 떨어졌습니다."
-            await self.send_broadcast_combat_message(combat, corpse_msg)
+            def build_corpse_msg(loc: str) -> str:
+                c_name = dead_combatant.get_display_name(loc)
+                return I18N.get_message("combat.corpse_dropped", loc, name=c_name)
+
+            await self.send_broadcast_combat_message_localized(combat, build_corpse_msg)
 
         except Exception as e:
             logger.error(f"사망 처리(corpse 생성) 실패: {e}", exc_info=True)

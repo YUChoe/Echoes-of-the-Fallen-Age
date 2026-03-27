@@ -234,5 +234,21 @@
     "combat.corpse_desc": {
         "en": "The lifeless remains of {name}.",
         "ko": "{name}의 시체입니다."
+    },
+    "combat.action_endturn": {
+        "en": "End Turn",
+        "ko": "턴넘기기"
+    },
+    "combat.corpse_dropped": {
+        "en": "💀 The remains of {name} fall to the ground.",
+        "ko": "💀 {name}의 사체가 바닥에 떨어졌습니다."
+    },
+    "combat.ended": {
+        "en": "The combat has ended.",
+        "ko": "전투가 종료 되었습니다."
+    },
+    "combat.target_not_found_usage": {
+        "en": "Cannot find the attack target.\n{usage}",
+        "ko": "공격 대상을 찾을 수 없습니다.\n{usage}"
     }
 }

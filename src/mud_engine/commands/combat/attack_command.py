@@ -87,7 +87,7 @@ class AttackCommand(BaseCommand):
         target_monster = self.get_monster_entity_by_input_digit(session, target_input)
         if not target_input:
             logger.info(f"공격 대상을 찾을 수 없습니다.args[{args}] target_input[{target_input}]")
-            return self.create_error_result(f"공격 대상을 찾을 수 없습니다.\n{self.usage}")
+            return self.create_error_result(self.I18N.get_message("combat.target_not_found_usage", locale, usage=self.usage))
         logger.info(f"target_monster.id[{target_monster.id}]")
 
         current_room_id = getattr(session, "current_room_id", None)
@@ -167,7 +167,9 @@ class AttackCommand(BaseCommand):
 
     async def _end_combat(self, session: SessionType, combat: CombatInstance, result: dict) -> CommandResult:
         # 전투 종료 공지
-        await self.combat_handler.send_broadcast_combat_message(combat, "전투가 종료 되었습니다.")
+        await self.combat_handler.send_broadcast_combat_message_localized(
+            combat, lambda loc: self.I18N.get_message("combat.ended", loc)
+        )
 
         # 원래 방으로 복귀
         original_room_id = getattr(session, "original_room_id", None)
