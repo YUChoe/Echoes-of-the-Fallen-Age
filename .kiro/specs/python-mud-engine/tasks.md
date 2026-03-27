@@ -148,13 +148,15 @@
 ## 향후 작업
 
 - [-] 25. 다국어 시스템 고도화
-  - [x] 25.1 전투/컨테이너 locale TODO 해결 (완료: combat.py, combat_commands.py, container_commands.py)
-  - [x] 25.2 관리자 명령어 응답 다국어화
-  - [x] 25.3 object_commands.py 한국어 하드코딩 → i18n 키 전환 (create_error_result 약 20곳)
-  - [ ] 25.4 npc_commands.py 한국어 하드코딩 → i18n 키 전환 (talk/trade/shop 약 15곳)
-  - [ ] 25.5 combat_handler.py 공격 결과 메시지 i18n 키 전환 (명중/빗나감/데미지/사망)
-  - [ ] 25.6 telnet_session.py 방 정보 렌더링 메시지 i18n 키 전환
-  - [ ] 25.7 전투 broadcast를 참가자별 locale로 개별 전송 (설계 변경 필요)
+  - [x] 25.1 전투/컨테이너 locale TODO 해결 (combat.py, combat_commands.py, container_commands.py)
+  - [x] 25.2 관리자 명령어 응답 다국어화 (admin_commands.py → admin.json 70키)
+  - [x] 25.3 object_commands.py 한국어 하드코딩 → i18n 키 전환 (item.json 20키 추가)
+  - [ ] 25.4 npc/talk_command.py i18n 전환 (퀘스트 대화/안내 메시지 약 40곳)
+  - [ ] 25.5 npc/trade_command.py i18n 전환 (거래 메시지 약 15곳)
+  - [ ] 25.6 npc/shop_command.py i18n 전환 (상점 메시지 약 30곳)
+  - [ ] 25.7 combat_handler.py 공격 결과 메시지 i18n 전환 (명중/빗나감/데미지/사망/시체 생성 약 10곳)
+  - [ ] 25.8 telnet_session.py 방 정보 렌더링 폴백 텍스트 i18n 전환 (약 7곳)
+  - [ ] 25.9 전투 broadcast를 참가자별 locale로 개별 전송 (combat_handler._execute_attack 등)
 
 - [ ] 26. 품질 개선
   - [ ] 26.1 단위 테스트 작성 (PlayerStats, DnDCombatEngine, CommandProcessor)
@@ -177,4 +179,4 @@
   - [x] 29.3 interaction_commands.py → 클래스별 파일 분리 (4 클래스)
   - [x] 29.4 npc_commands.py → 클래스별 파일 분리 (3 클래스)
   - [x] 29.5 combat.py → CombatManager 분리 (enum/dataclass는 유지)
-  - [-] 29.6 repositories.py → 리포지토리별 파일 분리 (5 클래스)
+  - [x] 29.6 repositories.py → 리포지토리별 파일 분리 (5 클래스)
