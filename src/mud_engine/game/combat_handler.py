@@ -160,6 +160,15 @@ class CombatHandler:
             if session:
                 await session.send_message({"type": "combat_message", "message": message})
 
+    async def send_broadcast_combat_message_localized(self, combat: CombatInstance, build_msg) -> None:
+        """각 플레이어의 locale에 맞게 개별 메시지를 전송"""
+        for combatant in combat.get_alive_players():
+            session = self.session_manager.get_player_session(combatant.id)
+            if session:
+                player_locale = getattr(session, 'locale', 'en')
+                msg = build_msg(player_locale)
+                await session.send_message({"type": "combat_message", "message": msg})
+
     async def send_battle_command_menu(self, combat: CombatInstance):
         for combatant in combat.get_alive_players():
             if combatant.combatant_type != CombatantType.PLAYER: continue
@@ -226,17 +235,29 @@ class CombatHandler:
         # actor 방어 상태 해제
         actor.is_defending = False
 
-        locale = "en"
-        actor_name = self._get_combatant_name(actor, locale)
-        target_name = self._get_combatant_name(target, locale)
-        weapon_name = await self._get_weapon_name(actor, locale)
-
-        # 빗나감 - 즉시 전송
+        # 빗나감 - 참가자별 locale로 전송
         if not hit and not is_critical and not _actor_is_superadmin:
-            miss_msg = f"{ANSIColors.RED}{I18N.get_message('combat.attack_swing', locale, actor=actor_name, target=target_name, weapon=weapon_name)}\n"
-            miss_msg += f"{I18N.get_message('combat.roll_info', locale, roll=attack_roll, ac=target_ac)}\n"
-            miss_msg += f"{I18N.get_message('combat.miss', locale)}{ANSIColors.RESET}"
-            await self.send_broadcast_combat_message(combat, miss_msg)
+            _weapon_name_cache: Dict[str, str] = {}
+
+            async def _get_weapon_cached(loc: str) -> str:
+                if loc not in _weapon_name_cache:
+                    _weapon_name_cache[loc] = await self._get_weapon_name(actor, loc)
+                return _weapon_name_cache[loc]
+
+            # 첫 호출로 캐시 채우기
+            await _get_weapon_cached("en")
+            await _get_weapon_cached("ko")
+
+            def build_miss_msg(loc: str) -> str:
+                a_name = self._get_combatant_name(actor, loc)
+                t_name = self._get_combatant_name(target, loc)
+                w_name = _weapon_name_cache.get(loc, _weapon_name_cache.get("en", ""))
+                msg = f"{ANSIColors.RED}{I18N.get_message('combat.attack_swing', loc, actor=a_name, target=t_name, weapon=w_name)}\n"
+                msg += f"{I18N.get_message('combat.roll_info', loc, roll=attack_roll, ac=target_ac)}\n"
+                msg += f"{I18N.get_message('combat.miss', loc)}{ANSIColors.RESET}"
+                return msg
+
+            await self.send_broadcast_combat_message_localized(combat, build_miss_msg)
 
             return {
                 "success": True, "hit": False, "damage_dealt": 0,
@@ -262,22 +283,42 @@ class CombatHandler:
         target.current_hp = max(0, target.current_hp - actual_damage)
         logger.info(f"actual_damage[{actual_damage}] target.current_hp[{target.current_hp}]")
 
-        # 공격 결과 메시지 즉시 전송
-        hit_msg = f"{ANSIColors.RED}{I18N.get_message('combat.attack_swing', locale, actor=actor_name, target=target_name, weapon=weapon_name)}\n"
-        hit_msg += f"{I18N.get_message('combat.roll_info_dice', locale, dice=damage_dice, roll=attack_roll, ac=target_ac)}\n"
-        if is_critical:
-            hit_msg += I18N.get_message("combat.critical_hit", locale, target=target_name, damage=actual_damage)
-        else:
-            hit_msg += I18N.get_message("combat.hit", locale, target=target_name, damage=actual_damage)
-        if target.is_defending:
-            hit_msg += I18N.get_message("combat.defending_reduction", locale)
-        hit_msg += ANSIColors.RESET
-        await self.send_broadcast_combat_message(combat, hit_msg)
+        # 공격 결과 메시지 - 참가자별 locale로 전송
+        _is_defending = target.is_defending
+        _weapon_name_cache2: Dict[str, str] = {}
 
-        # 사망 처리 - 즉시 전송
+        async def _get_weapon_cached2(loc: str) -> str:
+            if loc not in _weapon_name_cache2:
+                _weapon_name_cache2[loc] = await self._get_weapon_name(actor, loc)
+            return _weapon_name_cache2[loc]
+
+        await _get_weapon_cached2("en")
+        await _get_weapon_cached2("ko")
+
+        def build_hit_msg(loc: str) -> str:
+            a_name = self._get_combatant_name(actor, loc)
+            t_name = self._get_combatant_name(target, loc)
+            w_name = _weapon_name_cache2.get(loc, _weapon_name_cache2.get("en", ""))
+            msg = f"{ANSIColors.RED}{I18N.get_message('combat.attack_swing', loc, actor=a_name, target=t_name, weapon=w_name)}\n"
+            msg += f"{I18N.get_message('combat.roll_info_dice', loc, dice=damage_dice, roll=attack_roll, ac=target_ac)}\n"
+            if is_critical:
+                msg += I18N.get_message("combat.critical_hit", loc, target=t_name, damage=actual_damage)
+            else:
+                msg += I18N.get_message("combat.hit", loc, target=t_name, damage=actual_damage)
+            if _is_defending:
+                msg += I18N.get_message("combat.defending_reduction", loc)
+            msg += ANSIColors.RESET
+            return msg
+
+        await self.send_broadcast_combat_message_localized(combat, build_hit_msg)
+
+        # 사망 처리 - 참가자별 locale로 전송
         if not target.is_alive():
-            death_msg = f"{ANSIColors.RED}{I18N.get_message('combat.death', locale, name=target_name)}{ANSIColors.RESET}"
-            await self.send_broadcast_combat_message(combat, death_msg)
+            def build_death_msg(loc: str) -> str:
+                t_name = self._get_combatant_name(target, loc)
+                return f"{ANSIColors.RED}{I18N.get_message('combat.death', loc, name=t_name)}{ANSIColors.RESET}"
+
+            await self.send_broadcast_combat_message_localized(combat, build_death_msg)
             await self._handle_death(combat, target)
 
         # player stat 저장
