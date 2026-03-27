@@ -17,6 +17,7 @@ from .combat_manager import CombatManager
 from .monster import Monster, MonsterType
 from .models import Player, GameObject
 from ..server.ansi_colors import ANSIColors
+from ..core.localization import get_localization_manager
 from uuid import uuid4
 
 # D&D 전투 엔진 import
@@ -190,15 +191,17 @@ class CombatHandler:
 
     async def _execute_attack(self, combat: CombatInstance, actor: Combatant, target_id: Optional[str]) -> Dict[str, Any]:
         """공격 실행 (D&D 5e 룰 적용) - 메시지는 즉시 전송"""
+        I18N = get_localization_manager()
+        locale = "en"
         if not target_id:
-            return {"success": False, "message": "공격 대상을 지정해야 합니다."}
+            return {"success": False, "message": I18N.get_message("combat.no_target_specified", locale)}
 
         target = combat.get_combatant(target_id)
         if not target:
-            return {"success": False, "message": "대상을 찾을 수 없습니다."}
+            return {"success": False, "message": I18N.get_message("combat.target_not_found", locale)}
 
         if not target.is_alive():
-            return {"success": False, "message": "이미 사망한 대상입니다."}
+            return {"success": False, "message": I18N.get_message("combat.target_already_dead", locale)}
 
         _actor_is_superadmin = False
         if actor.get_display_name() == 'SUPERADMIN':
@@ -230,9 +233,9 @@ class CombatHandler:
 
         # 빗나감 - 즉시 전송
         if not hit and not is_critical and not _actor_is_superadmin:
-            miss_msg = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
-            miss_msg += f"🎲 공격 굴림: {attack_roll} vs AC {target_ac}\n"
-            miss_msg += f"❌ 공격이 빗나갔습니다!{ANSIColors.RESET}"
+            miss_msg = f"{ANSIColors.RED}{I18N.get_message('combat.attack_swing', locale, actor=actor_name, target=target_name, weapon=weapon_name)}\n"
+            miss_msg += f"{I18N.get_message('combat.roll_info', locale, roll=attack_roll, ac=target_ac)}\n"
+            miss_msg += f"{I18N.get_message('combat.miss', locale)}{ANSIColors.RESET}"
             await self.send_broadcast_combat_message(combat, miss_msg)
 
             return {
@@ -260,20 +263,20 @@ class CombatHandler:
         logger.info(f"actual_damage[{actual_damage}] target.current_hp[{target.current_hp}]")
 
         # 공격 결과 메시지 즉시 전송
-        hit_msg = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
-        hit_msg += f"🎲 공격 굴림({damage_dice}): {attack_roll} vs AC {target_ac}\n"
+        hit_msg = f"{ANSIColors.RED}{I18N.get_message('combat.attack_swing', locale, actor=actor_name, target=target_name, weapon=weapon_name)}\n"
+        hit_msg += f"{I18N.get_message('combat.roll_info_dice', locale, dice=damage_dice, roll=attack_roll, ac=target_ac)}\n"
         if is_critical:
-            hit_msg += f"💥 크리티컬 히트! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
+            hit_msg += I18N.get_message("combat.critical_hit", locale, target=target_name, damage=actual_damage)
         else:
-            hit_msg += f"✅ 명중! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
+            hit_msg += I18N.get_message("combat.hit", locale, target=target_name, damage=actual_damage)
         if target.is_defending:
-            hit_msg += " (방어 중 - 50% 감소)"
+            hit_msg += I18N.get_message("combat.defending_reduction", locale)
         hit_msg += ANSIColors.RESET
         await self.send_broadcast_combat_message(combat, hit_msg)
 
         # 사망 처리 - 즉시 전송
         if not target.is_alive():
-            death_msg = f"{ANSIColors.RED}💀 {target_name}이(가) 죽었습니다!{ANSIColors.RESET}"
+            death_msg = f"{ANSIColors.RED}{I18N.get_message('combat.death', locale, name=target_name)}{ANSIColors.RESET}"
             await self.send_broadcast_combat_message(combat, death_msg)
             await self._handle_death(combat, target)
 
@@ -291,6 +294,7 @@ class CombatHandler:
 
     async def _handle_death(self, combat: CombatInstance, dead_combatant: Combatant) -> None:
         """사망 처리 - corpse 컨테이너를 원래 방에 생성 (전투 종료 여부와 무관)"""
+        I18N = get_localization_manager()
         try:
             if not self.world_manager:
                 logger.warning("world_manager 없음 - corpse 생성 불가")
@@ -307,8 +311,8 @@ class CombatHandler:
                     monster_obj: Monster = dead_combatant.data["monster"]
                     name_en = monster_obj.get_localized_name("en")
                     name_ko = monster_obj.get_localized_name("ko")
-                    desc_en = f"The lifeless remains of {name_en}."
-                    desc_ko = f"{name_ko}의 시체입니다."
+                    desc_en = I18N.get_message("combat.corpse_desc", "en", name=name_en)
+                    desc_ko = I18N.get_message("combat.corpse_desc", "ko", name=name_ko)
 
                     # 몬스터 DB 사망 처리
                     monster = await self.world_manager.get_monster(dead_combatant.id)
@@ -318,15 +322,15 @@ class CombatHandler:
                         logger.info(f"몬스터 {dead_combatant.id} DB 사망 처리 완료")
             else:
                 # 플레이어 사망
-                desc_en = f"The lifeless remains of {name_en}."
-                desc_ko = f"{name_ko}의 시체입니다."
+                desc_en = I18N.get_message("combat.corpse_desc", "en", name=name_en)
+                desc_ko = I18N.get_message("combat.corpse_desc", "ko", name=name_ko)
 
             # corpse 컨테이너 생성 - 원래 방(인스턴스 아님)에 배치
             room_id = combat.room_id
             corpse_id = str(uuid4())
             corpse_data = {
                 "id": corpse_id,
-                "name": {"en": f"Corpse of {name_en}", "ko": f"{name_ko}의 사체"},
+                "name": {"en": I18N.get_message("combat.corpse_name", "en", name=name_en), "ko": I18N.get_message("combat.corpse_name", "ko", name=name_ko)},
                 "description": {"en": desc_en, "ko": desc_ko},
                 "location_type": "room",
                 "location_id": room_id,

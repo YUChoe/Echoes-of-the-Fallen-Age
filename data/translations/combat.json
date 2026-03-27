@@ -182,5 +182,57 @@
     "help.tip_numbers": {
         "en": "Tip: You can just enter numbers to select actions!",
         "ko": "팁: 숫자만 입력해도 행동을 선택할 수 있습니다!"
+    },
+    "combat.attack_swing": {
+        "en": "{actor} attacks {target} with {weapon}!",
+        "ko": "{actor}이(가) {weapon}(으)로 {target}을(를) 공격합니다!"
+    },
+    "combat.roll_info": {
+        "en": "🎲 Attack roll: {roll} vs AC {ac}",
+        "ko": "🎲 공격 굴림: {roll} vs AC {ac}"
+    },
+    "combat.roll_info_dice": {
+        "en": "🎲 Attack roll({dice}): {roll} vs AC {ac}",
+        "ko": "🎲 공격 굴림({dice}): {roll} vs AC {ac}"
+    },
+    "combat.miss": {
+        "en": "❌ The attack missed!",
+        "ko": "❌ 공격이 빗나갔습니다!"
+    },
+    "combat.hit": {
+        "en": "✅ Hit! {damage} damage to {target}!",
+        "ko": "✅ 명중! {target}에게 {damage} 데미지를 입혔습니다!"
+    },
+    "combat.critical_hit": {
+        "en": "💥 Critical hit! {damage} damage to {target}!",
+        "ko": "💥 크리티컬 히트! {target}에게 {damage} 데미지를 입혔습니다!"
+    },
+    "combat.defending_reduction": {
+        "en": " (defending - 50% reduction)",
+        "ko": " (방어 중 - 50% 감소)"
+    },
+    "combat.death": {
+        "en": "💀 {name} has been slain!",
+        "ko": "💀 {name}이(가) 죽었습니다!"
+    },
+    "combat.no_target_specified": {
+        "en": "You must specify an attack target.",
+        "ko": "공격 대상을 지정해야 합니다."
+    },
+    "combat.target_not_found": {
+        "en": "Cannot find the target.",
+        "ko": "대상을 찾을 수 없습니다."
+    },
+    "combat.target_already_dead": {
+        "en": "The target is already dead.",
+        "ko": "이미 사망한 대상입니다."
+    },
+    "combat.corpse_name": {
+        "en": "Corpse of {name}",
+        "ko": "{name}의 사체"
+    },
+    "combat.corpse_desc": {
+        "en": "The lifeless remains of {name}.",
+        "ko": "{name}의 시체입니다."
     }
 }
