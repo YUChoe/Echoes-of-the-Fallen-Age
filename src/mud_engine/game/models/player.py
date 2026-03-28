@@ -152,9 +152,9 @@ class Player(BaseModel):
         """최대 소지 가능 무게 계산 (STR 기반)"""
         if hasattr(self, "stats") and self.stats:
             base_strength = self.stats.get_primary_stat(StatType.STR)
-            # 기본 공식: STR * 2 + 10 (kg)
-            return base_strength * 2.0 + 10.0
-        return 30.0  # 기본값
+            # 기본 공식: 5 + (STR * 5) (kg) — STR 1 = 10kg
+            return 5.0 + base_strength * 5.0
+        return 10.0  # 기본값
 
     def get_current_carry_weight(self, inventory_objects: List["GameObject"]) -> float:
         """현재 소지 중인 무게 계산"""

@@ -46,6 +46,9 @@ class PlayerStats:
     # current
     current_hp: int = 0
 
+    # 현재 상태값 (DB 영속화 대상) - {"hp": 45, "mp": 30, ...}
+    current_values: Dict[str, int] = field(default_factory=dict)
+
     # 장비 보너스 (착용한 장비로부터 받는 추가 능력치)
     equipment_bonuses: Dict[str, int] = field(default_factory=dict)
 
@@ -73,7 +76,11 @@ class PlayerStats:
                 raise ValueError("1차 능력치는 1-100 범위의 정수여야 합니다")
 
         if self.current_hp == 0:
-            self.current_hp = self._calculate_hp()  # 초기값
+            # current_values에서 hp 복원 시도
+            if "hp" in self.current_values and self.current_values["hp"] > 0:
+                self.current_hp = self.current_values["hp"]
+            else:
+                self.current_hp = self._calculate_hp()  # 신규 캐릭터
 
     def get_primary_stat(self, stat_type: StatType) -> int:
         """1차 능력치 조회 (장비 보너스 포함)"""
@@ -84,8 +91,9 @@ class PlayerStats:
     def get_current_hp(self) -> int:
         return self.current_hp
 
-    def set_current_hp(self, new_hp) -> None:
+    def set_current_hp(self, new_hp: int) -> None:
         self.current_hp = min(new_hp, self._calculate_hp())
+        self.current_values["hp"] = self.current_hp
 
     def get_secondary_stat(self, stat_type: StatType) -> int:
         """2차 능력치 계산 및 조회"""
@@ -177,8 +185,8 @@ class PlayerStats:
         return base_inf + cha_bonus
 
     def get_max_carry_weight(self) -> int:
-        """최대 소지 무게 계산: 기본 50 + (힘 * 5)"""
-        base_weight = 50
+        """최대 소지 무게 계산: 5 + (힘 * 5) — STR 1 = 10kg"""
+        base_weight = 5
         str_bonus = self.get_primary_stat(StatType.STR) * 5
         return base_weight + str_bonus
 
@@ -247,6 +255,8 @@ class PlayerStats:
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환 (데이터베이스 저장용)"""
+        # current_values에 최신 hp 동기화
+        self.current_values["hp"] = self.current_hp
         return {
             "strength": self.strength,
             "dexterity": self.dexterity,
@@ -256,6 +266,7 @@ class PlayerStats:
             "charisma": self.charisma,
             "equipment_bonuses": json.dumps(self.equipment_bonuses, ensure_ascii=False),
             "temporary_effects": json.dumps(self.temporary_effects, ensure_ascii=False),
+            "current": json.dumps(self.current_values, ensure_ascii=False),
         }
 
     @classmethod
@@ -284,8 +295,17 @@ class PlayerStats:
             except (json.JSONDecodeError, TypeError):
                 data_copy["temporary_effects"] = {}
 
+        if isinstance(data_copy.get("current"), str):
+            try:
+                data_copy["current_values"] = json.loads(data_copy["current"])
+            except (json.JSONDecodeError, TypeError):
+                data_copy["current_values"] = {}
+            del data_copy["current"]
+        elif isinstance(data_copy.get("current"), dict):
+            data_copy["current_values"] = data_copy.pop("current")
+
         # 기본값 설정
-        for _field in ["equipment_bonuses", "temporary_effects"]:
+        for _field in ["equipment_bonuses", "temporary_effects", "current_values"]:
             if _field not in data_copy:
                 data_copy[_field] = {}
 

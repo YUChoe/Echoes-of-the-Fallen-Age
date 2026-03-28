@@ -85,6 +85,7 @@ class StatsCommand(BaseCommand):
         cha_val = stats.get_primary_stat(StatType.CHA)
 
         hp_val = stats.get_secondary_stat(StatType.HP)
+        hp_current = stats.get_current_hp()
         mp_val = stats.get_secondary_stat(StatType.MP)
         sta_val = stats.get_secondary_stat(StatType.STA)
         atk_val = stats.get_secondary_stat(StatType.ATK)
@@ -97,7 +98,7 @@ class StatsCommand(BaseCommand):
 • WIS: {wis_val:2d}    • CON: {con_val:2d}    • CHA: {cha_val:2d}
 
 {main_stats}
-• HP: {hp_val:3d}      • MP: {mp_val:3d}      • STA: {sta_val:3d}
+• HP: {hp_current:3d}/{hp_val:3d}  • MP: {mp_val:3d}      • STA: {sta_val:3d}
 
 {combat_stats}
 • ATK: {atk_val:2d}     • DEF: {def_val:2d}     • SPD: {spd_val:2d}
@@ -155,6 +156,7 @@ class StatsCommand(BaseCommand):
         cha_total = stats.get_primary_stat(StatType.CHA)
 
         hp_val = stats.get_secondary_stat(StatType.HP)
+        hp_current = stats.get_current_hp()
         mp_val = stats.get_secondary_stat(StatType.MP)
         sta_val = stats.get_secondary_stat(StatType.STA)
         atk_val = stats.get_secondary_stat(StatType.ATK)
@@ -186,7 +188,7 @@ class StatsCommand(BaseCommand):
 • CON: {con_total:2d} ({base_text}: {stats.constitution:2d})    • CHA: {cha_total:2d} ({base_text}: {stats.charisma:2d})
 
 {secondary_stats}
-• HP: {hp_val:3d}    • MP: {mp_val:3d}    • STA: {sta_val:3d}
+• HP: {hp_current:3d}/{hp_val:3d}    • MP: {mp_val:3d}    • STA: {sta_val:3d}
 • ATK: {atk_val:2d}     • DEF: {def_val:2d}     • SPD: {spd_val:2d}
 • RES: {res_val:2d}     • LCK: {lck_val:2d}     • INF: {inf_val:2d}
 

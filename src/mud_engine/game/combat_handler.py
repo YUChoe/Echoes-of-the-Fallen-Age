@@ -321,10 +321,11 @@ class CombatHandler:
             await self.send_broadcast_combat_message_localized(combat, build_death_msg)
             await self._handle_death(combat, target)
 
-        # player stat 저장
+        # player stat 저장 (메모리 + DB)
         if target.data and "player" in target.data:
             p: Player = target.data["player"]
             p.stats.set_current_hp(target.current_hp)
+            await self._save_player_current_stats(p)
 
         return {
             "success": True, "hit": True, "damage_dealt": actual_damage,
@@ -332,6 +333,21 @@ class CombatHandler:
             "target_ac": target_ac, "target_hp": target.current_hp,
             "target_max_hp": target.max_hp,
         }
+
+    async def _save_player_current_stats(self, player: Player) -> None:
+        """플레이어의 현재 상태값(HP 등)을 DB에 저장"""
+        try:
+            from .repositories import PlayerRepository
+            from ..database import get_database_manager
+
+            db_manager = await get_database_manager()
+            player_repo = PlayerRepository(db_manager)
+            stats_dict = player.stats.to_dict()
+            await player_repo.update(player.id, {
+                "stat_current": stats_dict.get("current", "{}"),
+            })
+        except Exception as e:
+            logger.error(f"플레이어 상태 저장 실패 ({player.id}): {e}")
 
     async def _handle_death(self, combat: CombatInstance, dead_combatant: Combatant) -> None:
         """사망 처리 - corpse 컨테이너를 원래 방에 생성 (전투 종료 여부와 무관)"""

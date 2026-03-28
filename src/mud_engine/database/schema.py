@@ -22,14 +22,15 @@ DATABASE_SCHEMA: List[str] = [
         last_login TIMESTAMP,
 
         -- 능력치 시스템
-        stat_strength INTEGER DEFAULT 10,
-        stat_dexterity INTEGER DEFAULT 10,
-        stat_intelligence INTEGER DEFAULT 10,
-        stat_wisdom INTEGER DEFAULT 10,
-        stat_constitution INTEGER DEFAULT 10,
-        stat_charisma INTEGER DEFAULT 10,
+        stat_strength INTEGER DEFAULT 1,
+        stat_dexterity INTEGER DEFAULT 1,
+        stat_intelligence INTEGER DEFAULT 1,
+        stat_wisdom INTEGER DEFAULT 1,
+        stat_constitution INTEGER DEFAULT 1,
+        stat_charisma INTEGER DEFAULT 1,
         stat_equipment_bonuses TEXT DEFAULT '{}',
         stat_temporary_effects TEXT DEFAULT '{}',
+        stat_current TEXT DEFAULT '{}',
 
         -- 퀘스트 시스템
         completed_quests TEXT DEFAULT '[]', -- JSON 형태로 저장 (완료된 퀘스트 ID 목록)
@@ -165,14 +166,15 @@ async def migrate_database(db_manager) -> None:
 
         # 능력치 시스템 컬럼들 추가
         stat_columns = [
-            ('stat_strength', 'INTEGER DEFAULT 10'),
-            ('stat_dexterity', 'INTEGER DEFAULT 10'),
-            ('stat_intelligence', 'INTEGER DEFAULT 10'),
-            ('stat_wisdom', 'INTEGER DEFAULT 10'),
-            ('stat_constitution', 'INTEGER DEFAULT 10'),
-            ('stat_charisma', 'INTEGER DEFAULT 10'),
+            ('stat_strength', 'INTEGER DEFAULT 1'),
+            ('stat_dexterity', 'INTEGER DEFAULT 1'),
+            ('stat_intelligence', 'INTEGER DEFAULT 1'),
+            ('stat_wisdom', 'INTEGER DEFAULT 1'),
+            ('stat_constitution', 'INTEGER DEFAULT 1'),
+            ('stat_charisma', 'INTEGER DEFAULT 1'),
             ('stat_equipment_bonuses', "TEXT DEFAULT '{}'"),
             ('stat_temporary_effects', "TEXT DEFAULT '{}'"),
+            ('stat_current', "TEXT DEFAULT '{}'"),
         ]
 
         for column_name, column_def in stat_columns:

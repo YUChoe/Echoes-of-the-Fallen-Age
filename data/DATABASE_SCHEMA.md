@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2026-01-31
+**Last Updated**: 2026-03-28
 
 ## Overview
 
@@ -27,14 +27,15 @@ CREATE TABLE players (
     last_login TIMESTAMP,
 
     -- 능력치 (Stats)
-    stat_strength INTEGER DEFAULT 10,         -- 힘
-    stat_dexterity INTEGER DEFAULT 10,        -- 민첩
-    stat_intelligence INTEGER DEFAULT 10,     -- 지능
-    stat_wisdom INTEGER DEFAULT 10,           -- 지혜
-    stat_constitution INTEGER DEFAULT 10,     -- 체력
-    stat_charisma INTEGER DEFAULT 10,         -- 매력
+    stat_strength INTEGER DEFAULT 1,         -- 힘
+    stat_dexterity INTEGER DEFAULT 1,        -- 민첩
+    stat_intelligence INTEGER DEFAULT 1,     -- 지능
+    stat_wisdom INTEGER DEFAULT 1,           -- 지혜
+    stat_constitution INTEGER DEFAULT 1,     -- 체력
+    stat_charisma INTEGER DEFAULT 1,         -- 매력
     stat_equipment_bonuses TEXT DEFAULT '{}', -- 장비 보너스 (JSON)
     stat_temporary_effects TEXT DEFAULT '{}', -- 임시 효과 (JSON)
+    stat_current TEXT DEFAULT '{}',          -- 현재 상태값 (JSON: {"hp": 45, ...})
 
     -- 마지막 위치 (좌표 기반)
     last_room_x INTEGER DEFAULT 0,            -- 마지막 X 좌표
