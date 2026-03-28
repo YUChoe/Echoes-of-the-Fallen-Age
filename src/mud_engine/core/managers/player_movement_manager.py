@@ -832,6 +832,15 @@ class PlayerMovementManager:
 
             new_x, new_y = calculate_new_coordinates(current_room.x, current_room.y, direction_enum)
 
+            # 막힌 출구 확인
+            if hasattr(current_room, 'blocked_exits') and direction.lower() in (current_room.blocked_exits or []):
+                from ..localization import get_localization_manager
+                localization = get_localization_manager()
+                locale = session.player.preferred_locale if session.player else "en"
+                message = localization.get_message("movement.no_exit", locale, direction=direction)
+                await session.send_error(message)
+                return False
+
             # 목적지 방 확인
             target_room = await self.game_engine.world_manager.get_room_at_coordinates(new_x, new_y)
             if not target_room:

@@ -77,6 +77,7 @@ CREATE TABLE rooms (
     description_ko TEXT,              -- 한국어 설명
     x INTEGER,                        -- X 좌표
     y INTEGER,                        -- Y 좌표
+    blocked_exits TEXT DEFAULT '[]',  -- 막힌 출구 방향 (JSON 배열, 예: ["north", "west"])
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

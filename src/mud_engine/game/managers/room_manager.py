@@ -173,6 +173,7 @@ class RoomManager:
                 return {}
 
             exits = {}
+            blocked = set(room.blocked_exits) if room.blocked_exits else set()
 
             # 방향별 좌표 오프셋 (동서남북만)
             direction_offsets = {
@@ -184,6 +185,9 @@ class RoomManager:
 
             # 좌표를 기반으로 인접한 방들을 찾아 출구 생성
             for direction, (dx, dy) in direction_offsets.items():
+                if direction in blocked:
+                    continue  # 막힌 방향은 건너뜀
+
                 adj_x = room.x + dx
                 adj_y = room.y + dy
 
