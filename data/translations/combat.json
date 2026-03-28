@@ -43,10 +43,6 @@
         "en": "[1] attack  - Attack with weapon",
         "ko": "[1] attack  - 무기로 공격"
     },
-    "combat.action_defend": {
-        "en": "[2] defend  - Defensive stance (50% damage reduction next turn)",
-        "ko": "[2] defend  - 방어 자세 (다음 데미지 50% 감소)"
-    },
     "combat.action_flee": {
         "en": "[3] flee    - Flee from combat (50% chance)",
         "ko": "[3] flee    - 도망치기 (50% 확률)"
@@ -54,10 +50,6 @@
     "combat.enter_command": {
         "en": "Enter command:",
         "ko": "명령어를 입력하세요:"
-    },
-    "combat.defend_stance": {
-        "en": "{actor} takes a defensive stance. (Next damage reduced by 50%)",
-        "ko": "{actor}이(가) 방어 자세를 취했습니다. (다음 공격 데미지 50% 감소)"
     },
     "combat.fled_from_combat": {
         "en": "{actor} fled from combat!",
@@ -74,10 +66,6 @@
     "combat.help_attack": {
         "en": "[1] attack (or number 1) - Attack with weapon",
         "ko": "[1] attack (또는 숫자 1) - 무기로 공격"
-    },
-    "combat.help_defend": {
-        "en": "[2] defend (or number 2) - Defensive stance (50% damage reduction next turn)",
-        "ko": "[2] defend (또는 숫자 2) - 방어 자세 (다음 데미지 50% 감소)"
     },
     "combat.help_flee": {
         "en": "[3] flee (or number 3) - Flee from combat (50% chance)",
@@ -130,10 +118,6 @@
     "combat.critical_hit": {
         "en": "💥 Critical hit! {damage} damage to {target}!",
         "ko": "💥 크리티컬 히트! {target}에게 {damage} 데미지를 입혔습니다!"
-    },
-    "combat.defending_reduction": {
-        "en": " (defending - 50% reduction)",
-        "ko": " (방어 중 - 50% 감소)"
     },
     "combat.death": {
         "en": "💀 {name} has been slain!",

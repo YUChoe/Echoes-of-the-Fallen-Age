@@ -575,7 +575,6 @@ class PlayerMovementManager:
 {localization.get_message("combat.your_turn", locale)}
 
 1️⃣ {localization.get_message("combat.action_attack", locale)}
-2️⃣ {localization.get_message("combat.action_defend", locale)}
 3️⃣ {localization.get_message("combat.action_flee", locale)}
 
 {localization.get_message("combat.enter_command", locale)}"""

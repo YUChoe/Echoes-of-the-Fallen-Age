@@ -215,10 +215,6 @@
         "en": "Please enter a message to say.\nUsage: say <message>",
         "ko": "말할 내용을 입력해주세요.\n사용법: say <메시지>"
     },
-    "cmd.defend.desc": {
-        "en": "Take a defensive stance",
-        "ko": "방어 자세를 취합니다"
-    },
     "cmd.emote.desc": {
         "en": "Express emotions or actions",
         "ko": "감정이나 행동을 표현합니다"

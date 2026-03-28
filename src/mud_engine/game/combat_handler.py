@@ -189,8 +189,6 @@ class CombatHandler:
         logger.info(f"_execute_action invoked {action}")
         if action == CombatAction.ATTACK:
             return await self._execute_attack(combat, actor, target_id)
-        elif action == CombatAction.DEFEND:
-            return await self._execute_defend(actor)
         elif action == CombatAction.FLEE:
             return await self._execute_flee(combat, actor)
         elif action == CombatAction.ENDTURN:
@@ -480,20 +478,6 @@ class CombatHandler:
                 dice_size = 8
 
             return f"{base_dice}d{dice_size}"
-
-    async def _execute_defend(self, actor: Combatant) -> Dict[str, Any]:
-        """방어 실행 - 즉시 전송은 호출자가 처리"""
-        actor.is_defending = True
-
-        from ..core.localization import get_localization_manager
-        localization = get_localization_manager()
-        locale = "en"
-        message = localization.get_message("combat.defend_stance", locale, actor=actor.name)
-
-        return {
-            "success": True,
-            "message": f"{ANSIColors.RED}{message}{ANSIColors.RESET}",
-        }
 
     async def _execute_flee(self, combat: CombatInstance, actor: Combatant) -> Dict[str, Any]:
         """도망 실행"""

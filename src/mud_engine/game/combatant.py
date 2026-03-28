@@ -14,7 +14,6 @@ class CombatAction(Enum):
     """전투 행동 타입"""
 
     ATTACK = "attack"
-    DEFEND = "defend"
     SKILL = "skill"
     FLEE = "flee"
     ENDTURN = "endturn"

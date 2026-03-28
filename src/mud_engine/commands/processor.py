@@ -8,7 +8,7 @@ from datetime import datetime
 
 from .base import BaseCommand, CommandResult, CommandResultType
 from .utils import is_session_available, is_game_engine_available, get_user_locale, is_in_combat
-from ..commands.combat_commands import DefendCommand, FleeCommand, ItemCommand
+from ..commands.combat_commands import FleeCommand, ItemCommand
 from ..commands.combat import EndTurnCommand
 from ..core.types import SessionType
 from ..core.event_bus import EventBus, Event, EventType
@@ -132,10 +132,9 @@ class CommandProcessor:
         cmd = cmdline_list[0]
 
         # 숫자만 입력된 경우 변환
-        if cmd in ['1', '2', '3', '4', '9']:
+        if cmd in ['1', '3', '4', '9']:
             combat_actions = {
                 '1': 'attack',
-                '2': 'defend',
                 '3': 'flee',
                 '4': 'item',
                 '9': 'endturn'
@@ -163,7 +162,6 @@ class CommandProcessor:
         """
 
         # 명령어 별칭 매핑
-        defend_aliases = ['defend', 'def', 'guard', 'block']
         flee_aliases = ['flee', 'run', 'escape', 'retreat']
 
         # combat_handler 가져오기
@@ -184,10 +182,7 @@ class CommandProcessor:
         combat_handler = game_engine.combat_handler
 
         # 명령어 실행
-        if command_name in defend_aliases:
-            command = DefendCommand(combat_handler)
-            return await command.execute(session, args)
-        elif command_name in flee_aliases:
+        if command_name in flee_aliases:
             command = FleeCommand(combat_handler)
             return await command.execute(session, args)
         elif command_name == 'item':

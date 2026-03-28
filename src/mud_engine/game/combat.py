@@ -399,7 +399,6 @@ class CombatInstance:
                 self.I18N.get_message("combat.your_turn", locale),
                 "",
                 f"{self.I18N.get_message('combat.action_attack', locale)}",
-                f"{self.I18N.get_message('combat.action_defend', locale)}",
                 f"{self.I18N.get_message('combat.action_flee', locale)}",
                 f"[4] Item  ",
                 f"[7] Spell",
