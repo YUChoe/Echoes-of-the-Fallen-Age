@@ -70,11 +70,10 @@ class GlobalTickManager:
             for s in self.session_manager.get_all_sessions():
                 logger.debug(f"session_id[{s.session_id}]")
                 if not s.in_combat: continue
-                logger.info(f"몹턴 session_id[{s.session_id}] in_combat True session.combat_id[{s.combat_id}]")
+                logger.info(f"몹턴 session_id[{s.session_id[-12:]}] in_combat True session.combat_id[{s.combat_id[-12:]}]")
                 # 배틀 객체 가져오기
                 _combats = self.combat_handler.active_combats
                 for cid in _combats:  # 이 루프는 세션 갯수만큼 반복 됨.. 으음..
-                    logger.info(f"cid[{cid}]")
                     if cid == s.combat_id:
                         _combat_instancese = _combats[cid]
                         combatant = _combat_instancese.get_current_combatant()  # 현재 누구 턴
@@ -107,13 +106,12 @@ class GlobalTickManager:
                         aggressive_monsters.append(monster)
                         logger.info(f"선공형 몬스터 발견: {monster.get_localized_name(locale)}")
                 if not aggressive_monsters:
-                    logger.info(f"방 {s.current_room_id}에 선공형 몬스터 없음")
+                    logger.info(f"방 {s.current_room_id[-12:]}에 선공형 몬스터 없음")
                     return
-                logger.info(aggressive_monsters)  # TODO: aggressive_monsters[0] 만 사용?
+                logger.info(f"선공몹({len(aggressive_monsters)}개) action {aggressive_monsters[0].to_simple()}")  # TODO: aggressive_monsters[0] 만 사용?
                 # TODO: 선공형몹이 플레이어를 발견했습니다 메시지
                 # 인스턴스 확인 및 생성
                 combat = await self.combat_handler.start_combat(s.player, aggressive_monsters[0], s.current_room_id, aggresive=True)
-                logger.info(combat.to_simple())
 
                 # 인스턴스에 엔티티 기록
                 combat.set_entity_map(getattr(s, "room_entity_map", {}))
@@ -123,7 +121,7 @@ class GlobalTickManager:
                 s.original_room_id =s.current_room_id
                 s.combat_id = combat.id
                 s.current_room_id = f"combat_{combat.id}"  # 전투 인스턴스로 이동
-                logger.info(s)
+                logger.debug(s)
 
                 # 만약 몹 턴이면 공격
                 combatant = combat.get_current_combatant()  # 현재 누구 턴
@@ -142,5 +140,4 @@ class GlobalTickManager:
 
     async def _process_monster_turn(self, combat_id):
         await self.combat_handler.process_monster_turn(combat_id)
-        logger.info("process_monster_turn finished")
-# 아 깔끔하다 역시 내 코드
+        logger.debug("process_monster_turn finished")

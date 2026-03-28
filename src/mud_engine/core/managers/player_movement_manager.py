@@ -208,7 +208,7 @@ class PlayerMovementManager:
                 # 디버깅: entity_map 로깅
                 logger.debug(f"entity_map created: {entity_map}")
                 for num, info in entity_map.items():
-                    logger.info(f"entity_map {num}: {info['type']} - {info['name']} (ID: {info['id']})")
+                    logger.info(f"entity_map {num}: {info['type']} - {info['name']} (ID: {info['id'][-12:]})")
 
                 room_data = {
                     "id": room_info['room'].id,

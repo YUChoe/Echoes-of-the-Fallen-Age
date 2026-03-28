@@ -69,6 +69,7 @@ Thumbs.db
 *_original.py
 test_*.py
 *_test.py
+scripts/*.py
 
 # db 백업
 *.tar.gz
