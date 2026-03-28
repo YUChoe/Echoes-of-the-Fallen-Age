@@ -15,10 +15,6 @@
         "en": "🎯 Your turn! Choose your action:",
         "ko": "🎯 당신의 턴입니다! 행동을 선택하세요:"
     },
-    "combat.monster_turn": {
-        "en": "⏳ {monster}'s turn...",
-        "ko": "⏳ {monster}의 턴입니다..."
-    },
     "combat.whos_turn": {
         "en": "⏳ {name}'s turn...",
         "ko": "⏳ {name}의 턴입니다..."
@@ -31,18 +27,6 @@
         "en": "Please specify a target.\nUsage: attack <target_num>",
         "ko": "공격할 대상을 지정해주세요.\n사용법: attack <몹num>"
     },
-    "combat.attack_hit": {
-        "en": "✅ Hit! {damage} damage to {target}!",
-        "ko": "✅ 명중! {target}에게 {damage} 데미지!"
-    },
-    "combat.attack_miss": {
-        "en": "❌ Missed {target}!",
-        "ko": "❌ {target}을(를) 빗나갔습니다!"
-    },
-    "combat.defend": {
-        "en": "{actor} takes a defensive stance. (Next damage reduced by 50%)",
-        "ko": "{actor}이(가) 방어 자세를 취했습니다. (다음 공격 데미지 50% 감소)"
-    },
     "combat.flee_success": {
         "en": "💨 You fled from combat!",
         "ko": "💨 전투에서 도망쳤습니다!"
@@ -54,22 +38,6 @@
     "combat.round": {
         "en": "⚔️ Turn {round}",
         "ko": "⚔️ 턴 {round}"
-    },
-    "combat.player_hp": {
-        "en": "👤 {name}",
-        "ko": "👤 {name}"
-    },
-    "combat.monsters": {
-        "en": "👹 Monsters:",
-        "ko": "👹 몬스터:"
-    },
-    "combat.monster_entry": {
-        "en": "   • {name}",
-        "ko": "   • {name}"
-    },
-    "combat.hp_display": {
-        "en": "     HP: {hp_bar} {current}/{max}",
-        "ko": "     HP: {hp_bar} {current}/{max}"
     },
     "combat.action_attack": {
         "en": "[1] attack  - Attack with weapon",
@@ -119,53 +87,9 @@
         "en": "📋 Other Commands:",
         "ko": "📋 기타 명령어:"
     },
-    "combat.rewards": {
-        "en": "💰 Rewards:",
-        "ko": "💰 보상:"
-    },
-    "combat.exp_gained": {
-        "en": "  - Experience: {exp}",
-        "ko": "  - 경험치: {exp}"
-    },
-    "combat.gold_gained": {
-        "en": "  - Gold: {gold}",
-        "ko": "  - 골드: {gold}"
-    },
     "combat.return_location": {
         "en": "Returning to original location...",
         "ko": "원래 위치로 돌아왔습니다."
-    },
-    "combat.victory_message": {
-        "en": "🎉 Victory in combat!",
-        "ko": "🎉 전투에서 승리했습니다!"
-    },
-    "combat.defeat_message": {
-        "en": "💀 Defeated in combat...",
-        "ko": "💀 전투에서 패배했습니다..."
-    },
-    "combat.rewards_header": {
-        "en": "💰 Rewards:",
-        "ko": "💰 보상:"
-    },
-    "combat.gold_reward": {
-        "en": "  - Gold: {gold}",
-        "ko": "  - 골드: {gold}"
-    },
-    "combat.items_obtained": {
-        "en": "📦 Items obtained:",
-        "ko": "📦 획득한 아이템:"
-    },
-    "combat.item_ground": {
-        "en": "  - {name} x{quantity} (dropped on ground)",
-        "ko": "  - {name} x{quantity} (땅에 떨어짐)"
-    },
-    "combat.item_inventory": {
-        "en": "- {name} x{quantity} goes into your pocket.",
-        "ko": "- {name} x{quantity}개가 주머니속으로 들어갑니다."
-    },
-    "combat.returning_location": {
-        "en": "Returning to original location...",
-        "ko": "원래 위치로 돌아갑니다..."
     },
     "help.look_combat": {
         "en": "Check combat status",

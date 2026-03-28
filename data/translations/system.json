@@ -7,29 +7,13 @@
         "en": "Type 'help' to see available commands.",
         "ko": "'help'를 입력해서 사용 가능한 명령어를 확인하세요."
     },
-    "command.invalid_args": {
-        "en": "❌ Invalid arguments. Usage: {usage}",
-        "ko": "❌ 잘못된 인자입니다. 사용법: {usage}"
-    },
     "command.admin_only": {
         "en": "❌ This command is for administrators only.",
         "ko": "❌ 이 명령어는 관리자만 사용할 수 있습니다."
     },
-    "system.server_shutdown": {
-        "en": "🔧 Server is shutting down...",
-        "ko": "🔧 서버가 종료됩니다..."
-    },
-    "system.maintenance": {
-        "en": "🔧 Server maintenance in progress.",
-        "ko": "🔧 서버 점검 중입니다."
-    },
     "system.input_timeout": {
         "en": "❌ Input timeout exceeded.",
         "ko": "❌ 입력 시간이 초과되었습니다."
-    },
-    "system.connection_closed": {
-        "en": "Connection closed",
-        "ko": "연결 종료"
     },
     "system.max_attempts_exceeded": {
         "en": "❌ Maximum attempts exceeded.",
@@ -42,14 +26,6 @@
     "error.generic": {
         "en": "❌ An error occurred.",
         "ko": "❌ 오류가 발생했습니다."
-    },
-    "error.database": {
-        "en": "❌ Database error occurred.",
-        "ko": "❌ 데이터베이스 오류가 발생했습니다."
-    },
-    "error.network": {
-        "en": "❌ Network error occurred.",
-        "ko": "❌ 네트워크 오류가 발생했습니다."
     },
     "time.dawn": {
         "en": "🌅 The eastern sky brightens. Day has come.",
@@ -78,10 +54,6 @@
     "language.changed": {
         "en": "✅ Language changed to English.",
         "ko": "✅ 언어가 한국어로 변경되었습니다."
-    },
-    "language.invalid": {
-        "en": "❌ Invalid language. Supported: {languages}",
-        "ko": "❌ 지원되지 않는 언어입니다. 지원 언어: {languages}"
     },
     "help.header": {
         "en": "📖 Available Commands:",
