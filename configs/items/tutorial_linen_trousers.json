@@ -1,0 +1,17 @@
+{
+  "template_id": "tutorial_linen_trousers",
+  "name_en": "Linen Trousers",
+  "name_ko": "리넨 하의",
+  "description_en": "Simple linen trousers. Barely any protection.",
+  "description_ko": "단순한 리넨 하의입니다. 보호 기능은 거의 없습니다.",
+  "object_type": "item",
+  "category": "armor",
+  "weight": 0.3,
+  "equipment_slot": "legs",
+  "properties": {
+    "stats_bonus": {
+      "DEF": 0
+    }
+  },
+  "max_stack": 1
+}

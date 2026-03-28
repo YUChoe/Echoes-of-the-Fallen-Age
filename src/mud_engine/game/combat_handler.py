@@ -221,12 +221,18 @@ class CombatHandler:
         attack_roll, is_critical = self.dnd_engine.make_attack_roll(attack_bonus)
         logger.info(f"attack_bonus[{attack_bonus}] attack_roll[{attack_roll}] is_critical[{is_critical}]")
 
-        # 대상 AC 계산
+        # 대상 AC 계산 (D&D 5e: 10 + DEX modifier + armor bonus)
         if target.data and "armor_class" in target.data:
             target_ac = target.data["armor_class"]
         else:
-            target_ac = 10 + target.defense
-        logger.info(f"target_ac[{target_ac}] target.defense[{target.defense}]")
+            # DEX modifier = (DEX - 10) // 2, 최소 -5
+            dex_mod = (target.agility - 10) // 2
+            # armor bonus = defense에서 base DEF(장비 없는 기본값)를 뺀 값
+            # base DEF = 2 + int(CON * 0.3) 이므로, 장비 보너스만 armor로 취급
+            armor_bonus = max(0, target.defense - 2)  # 기본 DEF 2를 빼고 장비분만
+            target_ac = 10 + dex_mod + armor_bonus
+            target_ac = max(1, target_ac)  # 최소 AC 1
+        logger.info(f"target_ac[{target_ac}] target.defense[{target.defense}] target.agility[{target.agility}]")
 
         # 명중 판정
         hit = self.dnd_engine.check_hit(attack_roll, target_ac)

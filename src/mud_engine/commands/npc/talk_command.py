@@ -334,15 +334,15 @@ class TalkCommand(BaseCommand):
             ]
 
             given_items = []
+            template_loader = game_engine.world_manager._monster_manager._template_loader
 
             for item_id in equipment_items:
-                # 템플릿에서 아이템 복사하여 생성
                 success = await self._create_item_from_template(session, game_engine, item_id)
                 if success:
-                    # 아이템 이름 가져오기
-                    template = await game_engine.world_manager.get_game_object(item_id)
+                    template = template_loader.get_item_template(item_id)
                     if template:
-                        item_name = template.get_localized_name(locale)
+                        name_key = "name_ko" if locale == "ko" else "name_en"
+                        item_name = template.get(name_key, item_id)
                         given_items.append(f"• {item_name}")
 
             if given_items:
@@ -359,19 +359,21 @@ class TalkCommand(BaseCommand):
         try:
             from uuid import uuid4
 
-            # 템플릿 아이템 조회
-            template = await game_engine.world_manager.get_game_object(template_id)
-            if not template:
+            # template_loader에서 아이템 생성
+            template_loader = game_engine.world_manager._monster_manager._template_loader
+            item_id = str(uuid4())
+            item = template_loader.create_item_from_template(
+                template_id, item_id,
+                location_type="inventory",
+                location_id=session.player.id
+            )
+            if not item:
+                logger.warning(f"템플릿 {template_id}에서 아이템 생성 실패")
                 return False
 
-            # 새 아이템 생성 (템플릿 복사)
-            new_item_data = template.to_dict()
-            new_item_data['id'] = str(uuid4())
-            new_item_data['location_type'] = 'inventory'
-            new_item_data['location_id'] = session.player.id
-
             # 데이터베이스에 저장
-            await game_engine.model_manager.game_objects.create(new_item_data)
+            item_data = item.to_dict()
+            await game_engine.model_manager.game_objects.create(item_data)
             logger.info(f"플레이어 {session.player.username}에게 아이템 {template_id} 지급")
 
             return True
