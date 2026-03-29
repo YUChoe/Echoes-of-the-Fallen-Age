@@ -805,6 +805,14 @@ class PlayerMovementManager:
         if not session.is_authenticated or not session.player:
             return False
 
+        # 스태미나 체크 (전투 밖 액션)
+        if getattr(session, 'stamina', 5.0) < 1.0:
+            from ..localization import get_localization_manager
+            localization = get_localization_manager()
+            locale = session.player.preferred_locale if session.player else "en"
+            await session.send_error(localization.get_message("system.stamina_exhausted", locale))
+            return False
+
         try:
             # 현재 위치 확인
             current_room_id = getattr(session, 'current_room_id', None)
@@ -856,6 +864,9 @@ class PlayerMovementManager:
             locale = session.player.preferred_locale if session.player else "en"
             move_message = localization.get_message("movement.success", locale, direction=direction)
             await session.send_success(move_message)
+
+            # 스태미나 소모
+            session.stamina = max(0.0, session.stamina - 1.0)
 
             # 기존 이동 메서드 사용
             return await self.move_player_to_room(session, target_room.id, skip_followers)

@@ -1,4 +1,8 @@
 {
+    "system.stamina_exhausted": {
+        "en": "⚡ You are too exhausted. Wait a moment to recover.",
+        "ko": "⚡ 스태미나가 부족합니다. 잠시 기다려주세요."
+    },
     "command.unknown": {
         "en": "❌ Unknown command: {command}",
         "ko": "❌ 알 수 없는 명령어: {command}"

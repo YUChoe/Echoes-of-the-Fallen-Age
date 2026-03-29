@@ -66,6 +66,12 @@ class GlobalTickManager:
         logger.info("글로벌 Tick 매니저 중지 완료")
 
     async def _worker(self):
+        # 스태미나 회복 (모든 세션, 3초마다 +0.5)
+        for s in self.session_manager.get_all_sessions():
+            if hasattr(s, 'stamina') and hasattr(s, 'max_stamina'):
+                if s.stamina < s.max_stamina:
+                    s.stamina = min(s.stamina + 0.5, s.max_stamina)
+
         try:
             for s in self.session_manager.get_all_sessions():
                 logger.debug(f"session_id[{s.session_id}]")

@@ -33,6 +33,10 @@ class UseCommand(BaseCommand):
         if not session.is_authenticated or not session.player:
             return self.create_error_result(I18N.get_message("obj.unauthenticated", get_user_locale(session)))
 
+        # 스태미나 체크 (전투 밖 액션)
+        if not getattr(session, 'in_combat', False) and getattr(session, 'stamina', 5.0) < 1.0:
+            return self.create_error_result(I18N.get_message("system.stamina_exhausted", get_user_locale(session)))
+
         game_engine = getattr(session, 'game_engine', None)
         if not game_engine:
             return self.create_error_result(I18N.get_message("obj.no_engine", get_user_locale(session)))
@@ -69,6 +73,10 @@ class UseCommand(BaseCommand):
                 effect_message = f"{item_name_display}을(를) 사용했습니다."
 
             await game_engine.world_manager.remove_object(target_item.id)
+
+            # 스태미나 소모 (전투 밖일 때만)
+            if not getattr(session, 'in_combat', False):
+                session.stamina = max(0.0, session.stamina - 1.0)
 
             message = f"💊 {item_name_display}을(를) 사용했습니다.\n{effect_message}"
 

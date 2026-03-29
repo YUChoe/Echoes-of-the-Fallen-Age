@@ -50,6 +50,10 @@ class TelnetSession:
         self.original_room_id: Optional[str] = None  # 전투 전 원래 방 ID
         self.combat_id: Optional[str] = None  # 참여 중인 전투 ID
 
+        # 스태미나 (메모리 only, 로그인 시 초기화)
+        self.stamina: float = 5.0
+        self.max_stamina: float = 5.0
+
         # Telnet 관련 속성
         self.use_ansi_colors: bool = True  # ANSI 색상 코드 사용 여부
         self.terminal_width: int = 80  # 터미널 너비

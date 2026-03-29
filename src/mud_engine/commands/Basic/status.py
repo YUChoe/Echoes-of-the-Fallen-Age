@@ -87,7 +87,8 @@ class StatsCommand(BaseCommand):
         hp_val = stats.get_secondary_stat(StatType.HP)
         hp_current = stats.get_current_hp()
         mp_val = stats.get_secondary_stat(StatType.MP)
-        sta_val = stats.get_secondary_stat(StatType.STA)
+        sta_current = getattr(session, 'stamina', 5.0)
+        sta_max = getattr(session, 'max_stamina', 5.0)
         atk_val = stats.get_secondary_stat(StatType.ATK)
         def_val = stats.get_secondary_stat(StatType.DEF)
         spd_val = stats.get_secondary_stat(StatType.SPD)
@@ -98,7 +99,7 @@ class StatsCommand(BaseCommand):
 • WIS: {wis_val:2d}    • CON: {con_val:2d}    • CHA: {cha_val:2d}
 
 {main_stats}
-• HP: {hp_current:3d}/{hp_val:3d}  • MP: {mp_val:3d}      • STA: {sta_val:3d}
+• HP: {hp_current:3d}/{hp_val:3d}  • MP: {mp_val:3d}      • STA: {sta_current:.1f}/{sta_max:.1f}
 
 {combat_stats}
 • ATK: {atk_val:2d}     • DEF: {def_val:2d}     • SPD: {spd_val:2d}
@@ -158,7 +159,8 @@ class StatsCommand(BaseCommand):
         hp_val = stats.get_secondary_stat(StatType.HP)
         hp_current = stats.get_current_hp()
         mp_val = stats.get_secondary_stat(StatType.MP)
-        sta_val = stats.get_secondary_stat(StatType.STA)
+        sta_current = getattr(session, 'stamina', 5.0)
+        sta_max = getattr(session, 'max_stamina', 5.0)
         atk_val = stats.get_secondary_stat(StatType.ATK)
         def_val = stats.get_secondary_stat(StatType.DEF)
         spd_val = stats.get_secondary_stat(StatType.SPD)
@@ -188,7 +190,7 @@ class StatsCommand(BaseCommand):
 • CON: {con_total:2d} ({base_text}: {stats.constitution:2d})    • CHA: {cha_total:2d} ({base_text}: {stats.charisma:2d})
 
 {secondary_stats}
-• HP: {hp_current:3d}/{hp_val:3d}    • MP: {mp_val:3d}    • STA: {sta_val:3d}
+• HP: {hp_current:3d}/{hp_val:3d}    • MP: {mp_val:3d}    • STA: {sta_current:.1f}/{sta_max:.1f}
 • ATK: {atk_val:2d}     • DEF: {def_val:2d}     • SPD: {spd_val:2d}
 • RES: {res_val:2d}     • LCK: {lck_val:2d}     • INF: {inf_val:2d}
 
