@@ -215,7 +215,7 @@
   - [x] 29.5 combat.py → CombatManager 분리 (enum/dataclass는 유지)
   - [x] 29.6 repositories.py → 리포지토리별 파일 분리 (5 클래스)
 
-- [ ] 33. 몬스터/NPC 무기 아이템화 (game_objects 기반)
+- [x] 33. 몬스터/NPC 무기 아이템화 (game_objects 기반)
   - [x] 33.1 맨손 공격 데이터 내장
     - PlayerStats에 unarmed_attack 필드 추가 (name, verbs, dice)
     - Monster 모델에 unarmed_attack 필드 추가
@@ -235,4 +235,4 @@
   - [x] 33.6 사망 시 인벤토리 아이템을 corpse 컨테이너에 이동
     - _handle_death에서 사망자 인벤토리 → corpse location_id로 이동
     - location_type=container, is_equipped=false
-  - [ ] 33.7 기존 DB 몬스터에 무기 아이템 생성 (마이그레이션)
+  - [x] 33.7 기존 DB 몬스터에 무기 아이템 생성 (마이그레이션)
