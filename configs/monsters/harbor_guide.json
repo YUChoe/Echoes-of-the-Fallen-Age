@@ -30,6 +30,9 @@
     "verbs": {"attack": {"en": "strikes with", "ko": "내리칩니다"}},
     "dice": "1d2"
   },
+  "equipment": [
+    {"template_id": "guide_walking_stick", "slot": "right_hand"}
+  ],
   "spawn_config": {
     "count": 1,
     "global_max_count": 1,

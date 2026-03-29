@@ -216,14 +216,14 @@
   - [x] 29.6 repositories.py → 리포지토리별 파일 분리 (5 클래스)
 
 - [ ] 33. 몬스터/NPC 무기 아이템화 (game_objects 기반)
-  - [ ] 33.1 맨손 공격 데이터 내장
+  - [x] 33.1 맨손 공격 데이터 내장
     - PlayerStats에 unarmed_attack 필드 추가 (name, verbs, dice)
     - Monster 모델에 unarmed_attack 필드 추가
     - 몬스터 템플릿에서 weapon → unarmed_attack으로 변경
-  - [ ] 33.2 몬스터 무기 아이템 템플릿 생성
+  - [x] 33.2 몬스터 무기 아이템 템플릿 생성
     - rusty_dagger, guard_sword, guard_spear 등 6개 템플릿
     - 각 템플릿에 verbs.attack 동사 포함
-  - [ ] 33.3 몬스터 템플릿에 equipment 배열 추가
+  - [x] 33.3 몬스터 템플릿에 equipment 배열 추가
     - equipment: [{"template_id": "rusty_dagger", "slot": "right_hand"}]
     - 무기 없는 몬스터(쥐)는 equipment: []
   - [ ] 33.4 template_loader + monster_manager 수정

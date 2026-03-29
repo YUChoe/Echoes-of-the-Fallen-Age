@@ -34,6 +34,9 @@
     "verbs": {"attack": {"en": "claws", "ko": "할퀴어냅니다"}},
     "dice": "1d4"
   },
+  "equipment": [
+    {"template_id": "rusty_dagger", "slot": "right_hand"}
+  ],
   "spawn_config": {
     "count": 10,
     "global_max_count": 10,

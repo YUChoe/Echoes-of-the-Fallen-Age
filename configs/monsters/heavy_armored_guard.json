@@ -30,6 +30,9 @@
     "verbs": {"attack": {"en": "punches", "ko": "주먹으로 칩니다"}},
     "dice": "1d4"
   },
+  "equipment": [
+    {"template_id": "guard_heavy_sword", "slot": "right_hand"}
+  ],
   "spawn_config": {
     "count": 1,
     "global_max_count": 1,

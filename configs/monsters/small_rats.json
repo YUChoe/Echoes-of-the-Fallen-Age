@@ -30,6 +30,7 @@
     "verbs": {"attack": {"en": "bites", "ko": "물어뜯습니다"}},
     "dice": "1d2"
   },
+  "equipment": [],
   "spawn_config": {
     "count": 20,
     "global_max_count": 20,
