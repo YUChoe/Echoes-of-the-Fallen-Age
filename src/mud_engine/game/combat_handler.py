@@ -78,6 +78,13 @@ class CombatHandler:
         elif combatant.combatant_type.value == "monster":
             if combatant.data and "monster" in combatant.data:
                 monster_obj = combatant.data["monster"]
+                # 1. 인벤토리에서 장착 무기 확인 (TODO: 33.5에서 구현)
+                # 2. 장착 무기 없으면 unarmed_attack 사용
+                unarmed = getattr(monster_obj, 'unarmed_attack', None)
+                if unarmed:
+                    name_dict = unarmed.get("name", {})
+                    return name_dict.get(locale, name_dict.get("en", "claws"))
+                # 3. fallback: properties.weapon (하위 호환성)
                 weapon_data = monster_obj.properties.get("weapon", {})
                 if weapon_data:
                     name_dict = weapon_data.get("name", {})

@@ -141,7 +141,12 @@ class TemplateLoader:
                 properties={'template_id': template_id, 'is_template': False}
             )
 
-            # weapon 정보를 properties에 추가
+            # unarmed_attack 정보 설정
+            unarmed_data = template.get('unarmed_attack')
+            if unarmed_data:
+                monster.unarmed_attack = unarmed_data
+
+            # weapon 정보를 properties에 추가 (하위 호환성)
             weapon_data = template.get('weapon')
             if weapon_data:
                 monster.properties['weapon'] = weapon_data

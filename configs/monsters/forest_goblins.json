@@ -29,9 +29,10 @@
   "respawn_time": 600,
   "aggro_range": 2,
   "roaming_range": 3,
-  "weapon": {
-    "name": {"en": "rusty dagger", "ko": "녹슨 단검"},
-    "verbs": {"attack": {"en": "slashes", "ko": "베어냅니다"}}
+  "unarmed_attack": {
+    "name": {"en": "claws", "ko": "발톱"},
+    "verbs": {"attack": {"en": "claws", "ko": "할퀴어냅니다"}},
+    "dice": "1d4"
   },
   "spawn_config": {
     "count": 10,

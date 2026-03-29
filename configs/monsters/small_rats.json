@@ -25,9 +25,10 @@
   "respawn_time": 300,
   "aggro_range": 0,
   "roaming_range": 2,
-  "weapon": {
+  "unarmed_attack": {
     "name": {"en": "sharp teeth", "ko": "날카로운 이빨"},
-    "verbs": {"attack": {"en": "bites", "ko": "물어뜯습니다"}}
+    "verbs": {"attack": {"en": "bites", "ko": "물어뜯습니다"}},
+    "dice": "1d2"
   },
   "spawn_config": {
     "count": 20,

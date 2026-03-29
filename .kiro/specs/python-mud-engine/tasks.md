@@ -214,3 +214,25 @@
   - [x] 29.4 npc_commands.py → 클래스별 파일 분리 (3 클래스)
   - [x] 29.5 combat.py → CombatManager 분리 (enum/dataclass는 유지)
   - [x] 29.6 repositories.py → 리포지토리별 파일 분리 (5 클래스)
+
+- [ ] 33. 몬스터/NPC 무기 아이템화 (game_objects 기반)
+  - [ ] 33.1 맨손 공격 데이터 내장
+    - PlayerStats에 unarmed_attack 필드 추가 (name, verbs, dice)
+    - Monster 모델에 unarmed_attack 필드 추가
+    - 몬스터 템플릿에서 weapon → unarmed_attack으로 변경
+  - [ ] 33.2 몬스터 무기 아이템 템플릿 생성
+    - rusty_dagger, guard_sword, guard_spear 등 6개 템플릿
+    - 각 템플릿에 verbs.attack 동사 포함
+  - [ ] 33.3 몬스터 템플릿에 equipment 배열 추가
+    - equipment: [{"template_id": "rusty_dagger", "slot": "right_hand"}]
+    - 무기 없는 몬스터(쥐)는 equipment: []
+  - [ ] 33.4 template_loader + monster_manager 수정
+    - 몬스터 스폰 시 equipment 아이템을 game_objects에 생성
+    - location_type=inventory, location_id=monster_id, is_equipped=true
+  - [ ] 33.5 combat_handler._get_weapon_name 통합
+    - 플레이어/몬스터 동일 로직: 인벤토리 장착 무기 조회
+    - 장착 무기 없으면 unarmed_attack 데이터 사용
+  - [ ] 33.6 사망 시 인벤토리 아이템을 corpse 컨테이너에 이동
+    - _handle_death에서 사망자 인벤토리 → corpse location_id로 이동
+    - location_type=container, is_equipped=false
+  - [ ] 33.7 기존 DB 몬스터에 무기 아이템 생성 (마이그레이션)

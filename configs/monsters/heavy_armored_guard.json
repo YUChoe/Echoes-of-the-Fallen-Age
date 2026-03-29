@@ -25,9 +25,10 @@
   "respawn_time": 0,
   "aggro_range": 0,
   "roaming_range": 1,
-  "weapon": {
-    "name": {"en": "heavy sword", "ko": "중검"},
-    "verbs": {"attack": {"en": "cleaves with", "ko": "내려칩니다"}}
+  "unarmed_attack": {
+    "name": {"en": "fists", "ko": "맨손"},
+    "verbs": {"attack": {"en": "punches", "ko": "주먹으로 칩니다"}},
+    "dice": "1d4"
   },
   "spawn_config": {
     "count": 1,
