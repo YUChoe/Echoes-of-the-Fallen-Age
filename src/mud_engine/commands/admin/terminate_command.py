@@ -126,8 +126,6 @@ class TerminateCommand(AdminCommand):
                     exclude_session=session.session_id
                 )
 
-                await game_engine.movement_manager.send_room_info_to_player(session, current_room_id)
-
                 logger.info(f"관리자 {session.player.username}이 {target_type} {target_id}를 삭제함 (사유: {reason})")
 
                 return CommandResult(
