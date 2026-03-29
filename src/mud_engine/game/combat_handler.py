@@ -61,37 +61,46 @@ class CombatHandler:
             return combatant.name
 
     async def _get_weapon_name(self, combatant, locale: str = "en") -> str:  # type: ignore[no-untyped-def]
-        """전투 참가자의 무기 이름 반환 (properties.verbs 기반)"""
-        if combatant.combatant_type.value == "player":
-            if combatant.data and self.world_manager:
+        """전투 참가자의 무기 이름 반환 (인벤토리 장착 무기 → unarmed_attack fallback)"""
+        try:
+            # 플레이어/몬스터 공통: 인벤토리에서 장착 무기 조회
+            entity_id = None
+            if combatant.combatant_type.value == "player" and combatant.data:
                 player_obj = combatant.data.get("player")
                 if player_obj:
-                    try:
-                        inventory_objects = await self.world_manager.get_inventory_objects(player_obj.id)
-                        for obj in inventory_objects:
-                            if obj.is_equipped and obj.equipment_slot == "right_hand":
-                                return obj.get_localized_name(locale)
-                    except Exception as e:
-                        logger.warning(f"무기 이름 가져오기 실패: {e}")
-            return "bare hands" if locale == "en" else "맨손"
+                    entity_id = player_obj.id
+            elif combatant.combatant_type.value == "monster":
+                entity_id = combatant.id
 
-        elif combatant.combatant_type.value == "monster":
-            if combatant.data and "monster" in combatant.data:
-                monster_obj = combatant.data["monster"]
-                # 1. 인벤토리에서 장착 무기 확인 (TODO: 33.5에서 구현)
-                # 2. 장착 무기 없으면 unarmed_attack 사용
-                unarmed = getattr(monster_obj, 'unarmed_attack', None)
-                if unarmed:
-                    name_dict = unarmed.get("name", {})
-                    return name_dict.get(locale, name_dict.get("en", "claws"))
-                # 3. fallback: properties.weapon (하위 호환성)
-                weapon_data = monster_obj.properties.get("weapon", {})
-                if weapon_data:
-                    name_dict = weapon_data.get("name", {})
-                    return name_dict.get(locale, name_dict.get("en", "claws"))
-            return "claws" if locale == "en" else "발톱"
-        else:
-            return "weapon" if locale == "en" else "무기"
+            if entity_id and self.world_manager:
+                inventory_objects = await self.world_manager.get_inventory_objects(entity_id)
+                for obj in inventory_objects:
+                    if obj.is_equipped and obj.equipment_slot == "right_hand":
+                        return obj.get_localized_name(locale)
+
+            # 장착 무기 없으면 unarmed_attack 사용
+            if combatant.combatant_type.value == "player" and combatant.data:
+                player_obj = combatant.data.get("player")
+                if player_obj and hasattr(player_obj, 'stats'):
+                    unarmed = getattr(player_obj.stats, 'unarmed_attack', None)
+                    if unarmed:
+                        name_dict = unarmed.get("name", {})
+                        return name_dict.get(locale, name_dict.get("en", "fists"))
+            elif combatant.combatant_type.value == "monster" and combatant.data:
+                monster_obj = combatant.data.get("monster")
+                if monster_obj:
+                    unarmed = getattr(monster_obj, 'unarmed_attack', None)
+                    if unarmed:
+                        name_dict = unarmed.get("name", {})
+                        return name_dict.get(locale, name_dict.get("en", "claws"))
+
+        except Exception as e:
+            logger.warning(f"무기 이름 가져오기 실패: {e}")
+
+        # 최종 fallback
+        if combatant.combatant_type.value == "player":
+            return "bare hands" if locale == "en" else "맨손"
+        return "claws" if locale == "en" else "발톱"
 
     def is_monster_in_combat(self, monster_id: str) -> bool:
         """
@@ -335,6 +344,26 @@ class CombatHandler:
             "target_max_hp": target.max_hp,
         }
 
+    async def _move_inventory_to_corpse(self, entity_id: str, corpse_id: str) -> None:
+        """사망자의 인벤토리 아이템을 corpse 컨테이너로 이동"""
+        try:
+            if not self.world_manager:
+                return
+            inventory = await self.world_manager.get_inventory_objects(entity_id)
+            for obj in inventory:
+                obj.location_type = "container"
+                obj.location_id = corpse_id
+                obj.is_equipped = False
+                await self.world_manager._object_manager.update_game_object(obj.id, {
+                    "location_type": "container",
+                    "location_id": corpse_id,
+                    "is_equipped": False,
+                })
+            if inventory:
+                logger.info(f"사망자 {entity_id[-12:]}의 아이템 {len(inventory)}개를 corpse {corpse_id[-12:]}로 이동")
+        except Exception as e:
+            logger.error(f"인벤토리 → corpse 이동 실패 ({entity_id}): {e}")
+
     async def _save_player_current_stats(self, player: Player) -> None:
         """플레이어의 현재 상태값(HP 등)을 DB에 저장"""
         try:
@@ -403,6 +432,9 @@ class CombatHandler:
             }
             await self.world_manager.create_game_object(corpse_data)
             logger.info(f"Corpse 생성 완료: {corpse_id} (room: {room_id}, target: {name_en})")
+
+            # 사망자의 인벤토리 아이템을 corpse 컨테이너로 이동
+            await self._move_inventory_to_corpse(dead_combatant.id, corpse_id)
 
             # 전투 참가자들에게 corpse 생성 알림
             def build_corpse_msg(loc: str) -> str:

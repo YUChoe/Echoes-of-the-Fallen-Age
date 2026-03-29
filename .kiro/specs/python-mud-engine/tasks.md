@@ -226,13 +226,13 @@
   - [x] 33.3 몬스터 템플릿에 equipment 배열 추가
     - equipment: [{"template_id": "rusty_dagger", "slot": "right_hand"}]
     - 무기 없는 몬스터(쥐)는 equipment: []
-  - [ ] 33.4 template_loader + monster_manager 수정
+  - [x] 33.4 template_loader + monster_manager 수정
     - 몬스터 스폰 시 equipment 아이템을 game_objects에 생성
     - location_type=inventory, location_id=monster_id, is_equipped=true
-  - [ ] 33.5 combat_handler._get_weapon_name 통합
+  - [x] 33.5 combat_handler._get_weapon_name 통합
     - 플레이어/몬스터 동일 로직: 인벤토리 장착 무기 조회
     - 장착 무기 없으면 unarmed_attack 데이터 사용
-  - [ ] 33.6 사망 시 인벤토리 아이템을 corpse 컨테이너에 이동
+  - [x] 33.6 사망 시 인벤토리 아이템을 corpse 컨테이너에 이동
     - _handle_death에서 사망자 인벤토리 → corpse location_id로 이동
     - location_type=container, is_equipped=false
   - [ ] 33.7 기존 DB 몬스터에 무기 아이템 생성 (마이그레이션)

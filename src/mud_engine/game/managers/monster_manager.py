@@ -159,10 +159,50 @@ class MonsterManager:
             created_monster = await self._monster_repo.create(new_monster.to_dict())
             if created_monster:
                 logger.info(f"몬스터 스폰됨: {created_monster.get_localized_name()} (방: {room_id})")
+
+                # equipment 아이템 생성 (game_objects에 저장)
+                await self._create_monster_equipment(created_monster.id, template_id)
+
                 return created_monster
         except Exception as e:
             logger.error(f"몬스터 스폰 실패 ({template_id} -> {room_id}): {e}")
         return None
+
+    async def _create_monster_equipment(self, monster_id: str, template_id: str) -> None:
+        """몬스터 스폰 시 equipment 배열의 아이템을 game_objects에 생성"""
+        try:
+            template = self._template_loader.get_monster_template(template_id)
+            if not template:
+                return
+
+            equipment_list = template.get('equipment', [])
+            if not equipment_list:
+                return
+
+            if not self._game_engine:
+                logger.warning("game_engine 없음 - 몬스터 장비 생성 불가")
+                return
+
+            for equip in equipment_list:
+                item_template_id = equip.get('template_id')
+                slot = equip.get('slot')
+                if not item_template_id:
+                    continue
+
+                item = self._template_loader.create_item_from_template(
+                    item_template_id, str(uuid4()),
+                    location_type="inventory",
+                    location_id=monster_id
+                )
+                if item:
+                    item.is_equipped = True
+                    if slot:
+                        item.equipment_slot = slot
+                    await self._game_engine.world_manager._object_manager.create_game_object(item.to_dict())
+                    logger.debug(f"몬스터 {monster_id[-12:]}에 장비 생성: {item_template_id}")
+
+        except Exception as e:
+            logger.error(f"몬스터 장비 생성 실패 ({monster_id}, {template_id}): {e}")
 
     async def _respawn_monster(self, monster: Monster) -> bool:
         """몬스터를 리스폰합니다."""
@@ -170,6 +210,10 @@ class MonsterManager:
             success = await self._monster_repo.respawn_monster(monster.id)
             if success:
                 logger.info(f"몬스터 리스폰됨: {monster.get_localized_name()} (좌표: {monster.x}, {monster.y})")
+                # 리스폰 시 장비 재생성
+                template_id = monster.properties.get('template_id')
+                if template_id:
+                    await self._create_monster_equipment(monster.id, template_id)
             return success
         except Exception as e:
             logger.error(f"몬스터 리스폰 실패 ({monster.id}): {e}")
