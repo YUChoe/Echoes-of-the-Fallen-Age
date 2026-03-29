@@ -42,6 +42,13 @@ class FleeCommand(BaseCommand):
         if not current_combatant or current_combatant.id != session.player.id:
             return self.create_error_result("당신의 턴이 아닙니다.")
 
+        # 스태미나 체크 (3 필요)
+        stamina = getattr(session, 'stamina', 5.0)
+        is_superadmin = getattr(session.player, 'is_admin', False) and session.player.get_display_name() == "SUPERADMIN"
+        if stamina < 3.0 and not is_superadmin:
+            locale = get_user_locale(session)
+            return self.create_error_result(self.I18N.get_message("system.stamina_exhausted", locale))
+
         # 도망 실행
         result = await self.combat_handler.process_player_action(combat_id, session.player.id, CombatAction.FLEE, None)
 
@@ -57,7 +64,6 @@ class FleeCommand(BaseCommand):
         # 도망 성공 여부 확인
         if result.get("fled"):
             logger.info("도망 성공")
-            # 원래 방 정보 가져오기
             original_room_id = getattr(session, "original_room_id", None)
             if not original_room_id:
                 return self.create_error_result("원래 위치를 찾을 수 없습니다.")
@@ -67,49 +73,51 @@ class FleeCommand(BaseCommand):
                 if not game_engine:
                     return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
-                # 원래 방의 출구 정보 가져오기
+                # 스태미나 소모
+                session.stamina = max(0.0, getattr(session, 'stamina', 5.0) - 3.0)
+
+                # 전투 상태 초기화 (이동 전에 해야 move_player_to_room이 정상 동작)
+                session.in_combat = False
+                session.combat_id = None
+                session.original_room_id = None
+                self.combat_handler.combat_manager.end_combat(combat_id)
+
+                # 원래 방의 출구에서 랜덤 방향 선택
                 original_room = await game_engine.world_manager.get_room(original_room_id)
                 if not original_room:
-                    return self.create_error_result("원래 방을 찾을 수 없습니다.")
-
-                # 출구가 있는지 확인
-                logger.info(f"현재 방 출구 확인 시작 {original_room.id} {original_room.x}/{original_room.y}")
-                exit_directions = await coordinate_utils.get_exits(game_engine, original_room_id, original_room.x, original_room.y)
-                logger.info(exit_directions)
-
-                if not exit_directions or len(exit_directions) == 0:
-                    # 출구가 없으면 원래 방으로 복귀
                     session.current_room_id = original_room_id
-                    flee_message = f"{self.I18N.get_message('combat.flee_success', locale)}\n\n{self.I18N.get_message('combat.return_location', locale)}"
-                else:
-                    # 랜덤 출구 선택
-                    import random
+                    return self.create_success_result(
+                        message=f"{self.I18N.get_message('combat.flee_success', locale)}",
+                        data={"action": "flee_success"},
+                    )
 
+                exit_directions = await coordinate_utils.get_exits(game_engine, original_room_id, original_room.x, original_room.y)
+
+                if exit_directions:
+                    import random
                     random_direction = random.choice(exit_directions)
                     target_room = await game_engine.world_manager.get_room(random_direction.id)
-                    session.current_room_id = target_room.id
-                    flee_message = f"{self.I18N.get_message('combat.flee_success', locale)}\n\n{random_direction.direction} 방향으로 도망쳐 {target_room.get_localized_description(locale)}에 도착했습니다."
 
-                # 전투 상태 초기화
-                session.in_combat = False
-                session.original_room_id = None
-                session.combat_id = None
+                    # move_player_to_room으로 정상 이동 (좌표 업데이트, 이벤트, 알림 포함)
+                    session.current_room_id = original_room_id  # 먼저 원래 방으로 복귀
+                    await game_engine.movement_manager.move_player_to_room(session, target_room.id)
 
-                # 전투 인스턴스 종료
-                self.combat_handler.combat_manager.end_combat(combat_id)
+                    flee_message = f"{self.I18N.get_message('combat.flee_success', locale)}\n{random_direction.direction} 방향으로 도망쳤습니다."
+                else:
+                    # 출구 없으면 원래 방으로 복귀
+                    session.current_room_id = original_room_id
+                    await game_engine.movement_manager.send_room_info_to_player(session, original_room_id)
+                    flee_message = f"{self.I18N.get_message('combat.flee_success', locale)}"
+
                 logger.info(f"플레이어 {session.player.username} 도망 성공 - 전투 {combat_id} 종료, 이동: {session.current_room_id}")
 
                 return self.create_success_result(
                     message=flee_message,
-                    data={
-                        "action": "flee_success",
-                        "new_room_id": session.current_room_id,
-                    },
+                    data={"action": "flee_success", "new_room_id": session.current_room_id},
                 )
 
             except Exception as e:
                 logger.error(f"도망 처리 중 오류: {e}", exc_info=True)
-                # 오류 발생 시 원래 방으로 복귀
                 session.current_room_id = original_room_id
                 session.in_combat = False
                 session.original_room_id = None
@@ -117,7 +125,7 @@ class FleeCommand(BaseCommand):
                 self.combat_handler.combat_manager.end_combat(combat_id)
 
                 return self.create_success_result(
-                    message=f"{self.I18N.get_message('combat.flee_success', locale)}\n\n{self.I18N.get_message('combat.return_location', locale)}",
+                    message=f"{self.I18N.get_message('combat.flee_success', locale)}",
                     data={"action": "flee_success"},
                 )
 
