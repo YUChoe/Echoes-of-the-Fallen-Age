@@ -104,10 +104,28 @@ class GetCommand(BaseCommand):
                         'display_name_ko': target_object.get_localized_name('ko'),
                         'id': target_object.id
                     }
+                elif item_num in entity_map and entity_map[item_num]['type'] == 'monster':
+                    locale = get_user_locale(session)
+                    if locale == "ko":
+                        return self.create_error_result(
+                            f"[{item_num}]은(는) 몬스터입니다. 아이템을 가져올 수 없습니다."
+                        )
+                    else:
+                        return self.create_error_result(
+                            f"[{item_num}] is a monster, not an item you can pick up."
+                        )
                 else:
-                    return self.create_error_result(
-                        f"번호 [{item_num}]에 해당하는 아이템을 찾을 수 없습니다."
-                    )
+                    locale = get_user_locale(session)
+                    if locale == "ko":
+                        return self.create_error_result(
+                            f"번호 [{item_num}]에 해당하는 아이템을 찾을 수 없습니다.\n"
+                            f"컨테이너 안의 아이템을 가져오려면: get <아이템번호> from <컨테이너번호>"
+                        )
+                    else:
+                        return self.create_error_result(
+                            f"No item found for number [{item_num}].\n"
+                            f"To take from a container: get <item_num> from <container_num>"
+                        )
             else:
                 room_objects = await game_engine.world_manager.get_room_objects(current_room_id)
                 grouped_objects = game_engine.world_manager._group_stackable_objects(room_objects)
