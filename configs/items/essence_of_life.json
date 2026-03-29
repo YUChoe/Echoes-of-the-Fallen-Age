@@ -7,7 +7,13 @@
   "weight": 0.7,
   "properties": {
     "currency_type": "essence",
-    "value": 1
+    "value": 1,
+    "verbs": {
+      "use": {
+        "en": "absorbs",
+        "ko": "흡수합니다"
+      }
+    }
   },
   "max_stack": 999
 }

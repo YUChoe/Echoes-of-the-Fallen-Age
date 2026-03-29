@@ -6,7 +6,13 @@
   "description_ko": "빛을 제공하는 나무 횃불입니다.",
   "weight": 0.5,
   "properties": {
-    "light_duration": 3600
+    "light_duration": 3600,
+    "verbs": {
+      "use": {
+        "en": "lights",
+        "ko": "켭니다"
+      }
+    }
   },
   "max_stack": 1
 }

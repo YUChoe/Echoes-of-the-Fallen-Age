@@ -25,6 +25,10 @@
   "respawn_time": 0,
   "aggro_range": 0,
   "roaming_range": 0,
+  "weapon": {
+    "name": {"en": "walking stick", "ko": "지팡이"},
+    "verbs": {"attack": {"en": "strikes with", "ko": "내리칩니다"}}
+  },
   "spawn_config": {
     "count": 1,
     "global_max_count": 1,

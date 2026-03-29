@@ -8,7 +8,13 @@
   "properties": {
     "material": "wood_bristle",
     "grooming_bonus": 3,
-    "durability": 80
+    "durability": 80,
+    "verbs": {
+      "use": {
+        "en": "brushes with",
+        "ko": "빗질합니다"
+      }
+    }
   },
   "max_stack": 1
 }

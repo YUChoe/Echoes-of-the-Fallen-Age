@@ -6,7 +6,13 @@
   "description_ko": "갓 구운 빵 한 덩어리입니다.",
   "weight": 0.3,
   "properties": {
-    "hunger_restore": 20
+    "hunger_restore": 20,
+    "verbs": {
+      "use": {
+        "en": "eats",
+        "ko": "먹습니다"
+      }
+    }
   },
   "max_stack": 10
 }

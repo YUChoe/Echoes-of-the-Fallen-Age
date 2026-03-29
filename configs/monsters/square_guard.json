@@ -25,6 +25,10 @@
   "respawn_time": 0,
   "aggro_range": 0,
   "roaming_range": 0,
+  "weapon": {
+    "name": {"en": "halberd", "ko": "미늘창"},
+    "verbs": {"attack": {"en": "swings", "ko": "휘두릅니다"}}
+  },
   "spawn_config": {
     "count": 3,
     "global_max_count": 3,

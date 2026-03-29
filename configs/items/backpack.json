@@ -6,7 +6,13 @@
   "description_ko": "물건을 운반하기 위한 튼튼한 배낭입니다.",
   "weight": 1.0,
   "properties": {
-    "storage_slots": 20
+    "storage_slots": 20,
+    "verbs": {
+      "use": {
+        "en": "opens",
+        "ko": "엽니다"
+      }
+    }
   },
   "max_stack": 1
 }

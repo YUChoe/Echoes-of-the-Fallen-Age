@@ -25,6 +25,10 @@
   "respawn_time": 300,
   "aggro_range": 0,
   "roaming_range": 2,
+  "weapon": {
+    "name": {"en": "sharp teeth", "ko": "날카로운 이빨"},
+    "verbs": {"attack": {"en": "bites", "ko": "물어뜯습니다"}}
+  },
   "spawn_config": {
     "count": 20,
     "global_max_count": 20,

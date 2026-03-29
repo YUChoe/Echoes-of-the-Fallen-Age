@@ -141,6 +141,11 @@ class TemplateLoader:
                 properties={'template_id': template_id, 'is_template': False}
             )
 
+            # weapon 정보를 properties에 추가
+            weapon_data = template.get('weapon')
+            if weapon_data:
+                monster.properties['weapon'] = weapon_data
+
             logger.debug(f"템플릿에서 몬스터 생성: {monster_id} (템플릿: {template_id})")
             return monster
         except Exception as e:

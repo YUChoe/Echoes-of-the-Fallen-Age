@@ -6,7 +6,13 @@
   "description_ko": "등반용 튼튼한 밧줄입니다.",
   "weight": 1.5,
   "properties": {
-    "length": 10
+    "length": 10,
+    "verbs": {
+      "use": {
+        "en": "ties",
+        "ko": "묶습니다"
+      }
+    }
   },
   "max_stack": 1
 }

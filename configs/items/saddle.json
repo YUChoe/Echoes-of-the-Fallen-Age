@@ -9,7 +9,13 @@
     "material": "leather",
     "comfort": 8,
     "durability": 150,
-    "riding_bonus": 10
+    "riding_bonus": 10,
+    "verbs": {
+      "use": {
+        "en": "mounts",
+        "ko": "올립니다"
+      }
+    }
   },
   "equipment_slot": "accessory",
   "max_stack": 1

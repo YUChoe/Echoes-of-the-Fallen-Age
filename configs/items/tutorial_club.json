@@ -17,6 +17,9 @@
     "dice": "1d4",
     "stats_bonus": {
       "ATK": 3
+    },
+    "verbs": {
+      "attack": {"en": "swings", "ko": "휘두릅니다"}
     }
   },
   "max_stack": 1

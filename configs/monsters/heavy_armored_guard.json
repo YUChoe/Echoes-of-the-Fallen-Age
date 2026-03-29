@@ -25,6 +25,10 @@
   "respawn_time": 0,
   "aggro_range": 0,
   "roaming_range": 1,
+  "weapon": {
+    "name": {"en": "heavy sword", "ko": "중검"},
+    "verbs": {"attack": {"en": "cleaves with", "ko": "내려칩니다"}}
+  },
   "spawn_config": {
     "count": 1,
     "global_max_count": 1,

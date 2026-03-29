@@ -8,7 +8,13 @@
   "properties": {
     "feed_value": 15,
     "energy_boost": 5,
-    "material": "grain"
+    "material": "grain",
+    "verbs": {
+      "use": {
+        "en": "feeds",
+        "ko": "먹입니다"
+      }
+    }
   },
   "max_stack": 10
 }

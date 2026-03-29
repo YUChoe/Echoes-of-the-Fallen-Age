@@ -29,6 +29,10 @@
   "respawn_time": 600,
   "aggro_range": 2,
   "roaming_range": 3,
+  "weapon": {
+    "name": {"en": "rusty dagger", "ko": "녹슨 단검"},
+    "verbs": {"attack": {"en": "slashes", "ko": "베어냅니다"}}
+  },
   "spawn_config": {
     "count": 10,
     "global_max_count": 10,

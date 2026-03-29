@@ -6,7 +6,13 @@
   "description_ko": "반짝이는 금화입니다.",
   "weight": 0.005,
   "properties": {
-    "value": 1
+    "value": 1,
+    "verbs": {
+      "use": {
+        "en": "flips",
+        "ko": "던집니다"
+      }
+    }
   },
   "max_stack": 9999
 }

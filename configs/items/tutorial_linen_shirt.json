@@ -11,6 +11,9 @@
   "properties": {
     "stats_bonus": {
       "DEF": 1
+    },
+    "verbs": {
+      "use": {"en": "puts on", "ko": "입습니다"}
     }
   },
   "max_stack": 1

@@ -60,10 +60,9 @@ class CombatHandler:
         else:
             return combatant.name
 
-    async def _get_weapon_name(self, combatant, locale: str = "en") -> str:
-        """전투 참가자의 무기 이름 반환"""
+    async def _get_weapon_name(self, combatant, locale: str = "en") -> str:  # type: ignore[no-untyped-def]
+        """전투 참가자의 무기 이름 반환 (properties.verbs 기반)"""
         if combatant.combatant_type.value == "player":
-            # 플레이어의 경우 장착된 무기 확인
             if combatant.data and self.world_manager:
                 player_obj = combatant.data.get("player")
                 if player_obj:
@@ -74,27 +73,18 @@ class CombatHandler:
                                 return obj.get_localized_name(locale)
                     except Exception as e:
                         logger.warning(f"무기 이름 가져오기 실패: {e}")
+            return "bare hands" if locale == "en" else "맨손"
 
-            # 장착된 무기가 없으면 맨손
-            return "맨손" if locale == "ko" else "bare hands"
         elif combatant.combatant_type.value == "monster":
-            # 몬스터의 경우 종류에 따라 다른 무기
             if combatant.data and "monster" in combatant.data:
                 monster_obj = combatant.data["monster"]
-                monster_name = monster_obj.get_localized_name(locale).lower()
-
-                # 몬스터 종류별 무기 설정
-                if "쥐" in monster_name or "rat" in monster_name:
-                    return "날카로운 이빨" if locale == "ko" else "sharp teeth"
-                elif "고블린" in monster_name or "goblin" in monster_name:
-                    return "곤봉" if locale == "ko" else "club"
-                elif "경비병" in monster_name or "guard" in monster_name:
-                    return "검" if locale == "ko" else "sword"
-                else:
-                    return "발톱" if locale == "ko" else "claws"
-            return "발톱" if locale == "ko" else "claws"
+                weapon_data = monster_obj.properties.get("weapon", {})
+                if weapon_data:
+                    name_dict = weapon_data.get("name", {})
+                    return name_dict.get(locale, name_dict.get("en", "claws"))
+            return "claws" if locale == "en" else "발톱"
         else:
-            return "무기" if locale == "ko" else "weapon"
+            return "weapon" if locale == "en" else "무기"
 
     def is_monster_in_combat(self, monster_id: str) -> bool:
         """
