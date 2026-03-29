@@ -5,6 +5,13 @@
   "description_en": "A perfectly smooth stone.",
   "description_ko": "완벽하게 매끄러운 돌입니다.",
   "weight": 0.5,
-  "properties": {},
+  "properties": {
+    "verbs": {
+      "use": {
+        "en": "throws",
+        "ko": "던집니다"
+      }
+    }
+  },
   "max_stack": 99
 }

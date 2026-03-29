@@ -1,0 +1,298 @@
+{
+    "admin.permission_denied": {
+        "en": "❌ This command requires administrator privileges.",
+        "ko": "❌ 관리자 권한이 필요한 명령어입니다."
+    },
+    "admin.no_game_engine": {
+        "en": "❌ Cannot access the game engine.",
+        "ko": "❌ 게임 엔진에 접근할 수 없습니다."
+    },
+    "admin.no_current_room": {
+        "en": "❌ Cannot determine your current location.",
+        "ko": "❌ 현재 위치를 확인할 수 없습니다."
+    },
+    "admin.in_combat": {
+        "en": "❌ You cannot move during combat. Flee or win first.",
+        "ko": "❌ 전투 중에는 이동할 수 없습니다. 먼저 전투에서 도망치거나 승리하세요."
+    },
+    "admin.createroom.usage": {
+        "en": "Usage: createroom <room_id> [description]",
+        "ko": "사용법: createroom <방ID> [설명]"
+    },
+    "admin.createroom.success": {
+        "en": "✅ Room (ID: {room_id}) has been successfully created.",
+        "ko": "✅ 방 (ID: {room_id})이 성공적으로 생성되었습니다."
+    },
+    "admin.createroom.broadcast": {
+        "en": "🏗️ An administrator has created a new room.",
+        "ko": "🏗️ 관리자가 새로운 방을 생성했습니다."
+    },
+    "admin.createroom.failed": {
+        "en": "❌ Failed to create the room.",
+        "ko": "❌ 방 생성에 실패했습니다."
+    },
+    "admin.createroom.error": {
+        "en": "❌ An error occurred whilst creating the room: {error}",
+        "ko": "❌ 방 생성 중 오류가 발생했습니다: {error}"
+    },
+    "admin.createroom.default_desc": {
+        "en": "A newly created room.",
+        "ko": "새로 생성된 방입니다."
+    },
+    "admin.editroom.usage": {
+        "en": "Usage: editroom <room_id> <description>",
+        "ko": "사용법: editroom <방ID> <설명>"
+    },
+    "admin.editroom.success": {
+        "en": "✅ Room {room_id} description has been updated.",
+        "ko": "✅ 방 {room_id}의 설명이 변경되었습니다."
+    },
+    "admin.editroom.broadcast": {
+        "en": "🔧 An administrator has modified room {room_id}.",
+        "ko": "🔧 관리자가 방 {room_id}을 수정했습니다."
+    },
+    "admin.editroom.failed": {
+        "en": "❌ Failed to edit the room.",
+        "ko": "❌ 방 편집에 실패했습니다."
+    },
+    "admin.editroom.error": {
+        "en": "❌ An error occurred whilst editing the room: {error}",
+        "ko": "❌ 방 편집 중 오류가 발생했습니다: {error}"
+    },
+    "admin.createexit.usage": {
+        "en": "Usage: createexit <from_room_id> <direction> <to_room_id>",
+        "ko": "사용법: createexit <출발방ID> <방향> <도착방ID>"
+    },
+    "admin.createexit.invalid_direction": {
+        "en": "Invalid direction. Available directions: {directions}",
+        "ko": "유효하지 않은 방향입니다. 사용 가능한 방향: {directions}"
+    },
+    "admin.createexit.success": {
+        "en": "✅ A {direction} exit from {from_room} to {to_room} has been created.",
+        "ko": "✅ {from_room}에서 {to_room}으로 가는 {direction} 출구가 생성되었습니다."
+    },
+    "admin.createexit.broadcast": {
+        "en": "🚪 An administrator has created a new exit.",
+        "ko": "🚪 관리자가 새로운 출구를 생성했습니다."
+    },
+    "admin.createexit.failed": {
+        "en": "❌ Failed to create the exit.",
+        "ko": "❌ 출구 생성에 실패했습니다."
+    },
+    "admin.createexit.error": {
+        "en": "❌ An error occurred whilst creating the exit: {error}",
+        "ko": "❌ 출구 생성 중 오류가 발생했습니다: {error}"
+    },
+    "admin.createobject.usage": {
+        "en": "Usage: createobject <object_id> <object_name> <type> [location_id]",
+        "ko": "사용법: createobject <객체ID> <객체이름> <타입> [위치ID]"
+    },
+    "admin.createobject.invalid_type": {
+        "en": "Invalid object type. Available types: {types}",
+        "ko": "유효하지 않은 객체 타입입니다. 사용 가능한 타입: {types}"
+    },
+    "admin.createobject.success": {
+        "en": "✅ Object '{obj_name}' (ID: {obj_id}) has been created at {location_id}.",
+        "ko": "✅ 객체 '{obj_name}' (ID: {obj_id})이 {location_id}에 생성되었습니다."
+    },
+    "admin.createobject.broadcast": {
+        "en": "✨ An administrator has created a new object '{obj_name}'.",
+        "ko": "✨ 관리자가 새로운 객체 '{obj_name}'을 생성했습니다."
+    },
+    "admin.createobject.failed": {
+        "en": "❌ Failed to create the object.",
+        "ko": "❌ 객체 생성에 실패했습니다."
+    },
+    "admin.createobject.error": {
+        "en": "❌ An error occurred whilst creating the object: {error}",
+        "ko": "❌ 객체 생성 중 오류가 발생했습니다: {error}"
+    },
+    "admin.kick.usage": {
+        "en": "Usage: kick <player_name> [reason]",
+        "ko": "사용법: kick <플레이어명> [사유]"
+    },
+    "admin.kick.default_reason": {
+        "en": "Kicked by administrator",
+        "ko": "관리자에 의한 추방"
+    },
+    "admin.kick.self": {
+        "en": "❌ You cannot kick yourself.",
+        "ko": "❌ 자기 자신을 추방할 수 없습니다."
+    },
+    "admin.kick.not_found": {
+        "en": "❌ Player '{username}' not found.",
+        "ko": "❌ 플레이어 '{username}'을 찾을 수 없습니다."
+    },
+    "admin.kick.is_admin": {
+        "en": "❌ You cannot kick another administrator.",
+        "ko": "❌ 다른 관리자를 추방할 수 없습니다."
+    },
+    "admin.kick.target_msg": {
+        "en": "🚫 You have been kicked by an administrator. Reason: {reason}",
+        "ko": "🚫 관리자에 의해 추방되었습니다. 사유: {reason}"
+    },
+    "admin.kick.success": {
+        "en": "✅ Player '{username}' has been kicked. Reason: {reason}",
+        "ko": "✅ 플레이어 '{username}'을 추방했습니다. 사유: {reason}"
+    },
+    "admin.kick.broadcast": {
+        "en": "🚫 Player '{username}' has been kicked by an administrator.",
+        "ko": "🚫 플레이어 '{username}'이 관리자에 의해 추방되었습니다."
+    },
+    "admin.kick.error": {
+        "en": "❌ An error occurred whilst kicking the player: {error}",
+        "ko": "❌ 플레이어 추방 중 오류가 발생했습니다: {error}"
+    },
+    "admin.goto.usage": {
+        "en": "Usage: goto <x> <y>",
+        "ko": "사용법: goto <x좌표> <y좌표>"
+    },
+    "admin.goto.invalid_coords": {
+        "en": "❌ Coordinates must be numbers. Example: goto 5 7",
+        "ko": "❌ 좌표는 숫자로 입력해야 합니다. 예: goto 5 7"
+    },
+    "admin.goto.room_not_found": {
+        "en": "❌ No room found at coordinates ({x}, {y}).",
+        "ko": "❌ 좌표 ({x}, {y})에 해당하는 방을 찾을 수 없습니다."
+    },
+    "admin.goto.move_failed": {
+        "en": "❌ Cannot move to coordinates ({x}, {y}).",
+        "ko": "❌ 좌표 ({x}, {y})로 이동할 수 없습니다."
+    },
+    "admin.goto.leave_msg": {
+        "en": "✨ {username} vanished with a teleport.",
+        "ko": "✨ {username}이(가) 순간이동으로 사라졌습니다."
+    },
+    "admin.goto.arrive_msg": {
+        "en": "✨ {username} appeared with a teleport.",
+        "ko": "✨ {username}님이 순간이동으로 나타났습니다."
+    },
+    "admin.goto.success": {
+        "en": "✅ Moved to coordinates ({x}, {y}).",
+        "ko": "✅ 좌표 ({x}, {y})로 이동했습니다."
+    },
+    "admin.goto.error": {
+        "en": "❌ An error occurred whilst moving: {error}",
+        "ko": "❌ 방 이동 중 오류가 발생했습니다: {error}"
+    },
+    "admin.roominfo.no_room": {
+        "en": "❌ Cannot find current room information.",
+        "ko": "❌ 현재 방 정보를 찾을 수 없습니다."
+    },
+    "admin.roominfo.not_in_db": {
+        "en": "❌ Room ID '{room_id}' not found in database.",
+        "ko": "❌ 방 ID '{room_id}'를 데이터베이스에서 찾을 수 없습니다."
+    },
+    "admin.roominfo.error": {
+        "en": "❌ An error occurred whilst retrieving room info: {error}",
+        "ko": "❌ 방 정보 조회 중 오류가 발생했습니다: {error}"
+    },
+    "admin.spawn.usage": {
+        "en": "❌ Usage: spawnmonster <template_id> [room_id]",
+        "ko": "❌ 사용법: spawnmonster <template_id> [room_id]"
+    },
+    "admin.spawn.no_room": {
+        "en": "❌ Please specify a room ID or be in a room.",
+        "ko": "❌ 방 ID를 지정하거나 방에 있어야 합니다."
+    },
+    "admin.spawn.room_not_found": {
+        "en": "❌ Room not found: {room_id}",
+        "ko": "❌ 방을 찾을 수 없습니다: {room_id}"
+    },
+    "admin.spawn.template_failed": {
+        "en": "❌ Failed to create monster from template: {template_id}",
+        "ko": "❌ 템플릿에서 몬스터 생성 실패: {template_id}"
+    },
+    "admin.spawn.success": {
+        "en": "✅ Monster spawned: {name} (location: {coord})",
+        "ko": "✅ 몬스터 생성 완료: {name} (위치: {coord})"
+    },
+    "admin.spawn.error": {
+        "en": "❌ An error occurred whilst spawning monster: {error}",
+        "ko": "❌ 몬스터 생성 중 오류 발생: {error}"
+    },
+    "admin.templates.empty": {
+        "en": "📋 No monster templates loaded.",
+        "ko": "📋 로드된 몬스터 템플릿이 없습니다."
+    },
+    "admin.templates.error": {
+        "en": "❌ An error occurred whilst listing templates: {error}",
+        "ko": "❌ 템플릿 목록 조회 중 오류 발생: {error}"
+    },
+    "admin.spawnitem.usage": {
+        "en": "❌ Usage: spawnitem <template_id> [room_id]",
+        "ko": "❌ 사용법: spawnitem <template_id> [room_id]"
+    },
+    "admin.spawnitem.no_room": {
+        "en": "❌ Please specify a room ID or be in a room.",
+        "ko": "❌ 방 ID를 지정하거나 방에 있어야 합니다."
+    },
+    "admin.spawnitem.room_not_found": {
+        "en": "❌ Room not found: {room_id}",
+        "ko": "❌ 방을 찾을 수 없습니다: {room_id}"
+    },
+    "admin.spawnitem.template_failed": {
+        "en": "❌ Failed to create item from template: {template_id}",
+        "ko": "❌ 템플릿에서 아이템 생성 실패: {template_id}"
+    },
+    "admin.spawnitem.save_failed": {
+        "en": "❌ Failed to save item to database.",
+        "ko": "❌ 아이템을 데이터베이스에 저장하지 못했습니다."
+    },
+    "admin.spawnitem.success": {
+        "en": "✅ Item spawned: {name} (location: {coord})",
+        "ko": "✅ 아이템 생성 완료: {name} (위치: {coord})"
+    },
+    "admin.spawnitem.error": {
+        "en": "❌ An error occurred whilst spawning item: {error}",
+        "ko": "❌ 아이템 생성 중 오류 발생: {error}"
+    },
+    "admin.itemtemplates.empty": {
+        "en": "📦 No item templates loaded.",
+        "ko": "📦 로드된 아이템 템플릿이 없습니다."
+    },
+    "admin.itemtemplates.error": {
+        "en": "❌ An error occurred whilst listing item templates: {error}",
+        "ko": "❌ 아이템 템플릿 목록 조회 중 오류 발생: {error}"
+    },
+    "admin.terminate.usage": {
+        "en": "❌ Please specify a target.\nUsage: terminate <target_id_or_number> [reason]",
+        "ko": "❌ 삭제할 대상을 지정해주세요.\n사용법: terminate <대상_ID_또는_번호> [reason]"
+    },
+    "admin.terminate.default_reason": {
+        "en": "Deleted by administrator",
+        "ko": "관리자에 의한 삭제"
+    },
+    "admin.terminate.entity_not_found": {
+        "en": "❌ No target found for number {num}.",
+        "ko": "❌ 번호 {num}에 해당하는 대상을 찾을 수 없습니다."
+    },
+    "admin.terminate.target_not_found": {
+        "en": "❌ Target '{identifier}' not found.",
+        "ko": "❌ '{identifier}' 대상을 찾을 수 없습니다."
+    },
+    "admin.terminate.success": {
+        "en": "🗑️ {name} (ID: {id}) has been permanently deleted.",
+        "ko": "🗑️ {name} (ID: {id})이(가) 완전히 삭제되었습니다."
+    },
+    "admin.terminate.spawn_removed": {
+        "en": "📍 Spawn point removed; it will no longer respawn.",
+        "ko": "📍 스폰 포인트도 제거되어 더 이상 respawn되지 않습니다."
+    },
+    "admin.terminate.reason_note": {
+        "en": "📝 Reason: {reason}",
+        "ko": "📝 사유: {reason}"
+    },
+    "admin.terminate.broadcast": {
+        "en": "🗑️ An administrator has deleted {name}.",
+        "ko": "🗑️ 관리자가 {name}을(를) 삭제했습니다."
+    },
+    "admin.terminate.failed": {
+        "en": "❌ Failed to delete {name}.",
+        "ko": "❌ {name} 삭제에 실패했습니다."
+    },
+    "admin.terminate.error": {
+        "en": "❌ An error occurred whilst deleting: {error}",
+        "ko": "❌ 삭제 중 오류가 발생했습니다: {error}"
+    }
+}

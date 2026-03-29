@@ -1,0 +1,20 @@
+{
+  "template_id": "guard_spear",
+  "name_en": "Guard's Spear",
+  "name_ko": "경비병의 창",
+  "description_en": "A long spear used by light-armoured guards for patrol.",
+  "description_ko": "경장갑 경비병이 순찰에 사용하는 긴 창입니다.",
+  "object_type": "item",
+  "category": "weapon",
+  "weight": 2.0,
+  "equipment_slot": "right_hand",
+  "properties": {
+    "dice": "1d8",
+    "weapon_type": "melee",
+    "material": "steel",
+    "verbs": {
+      "attack": {"en": "thrusts", "ko": "찌릅니다"}
+    }
+  },
+  "max_stack": 1
+}

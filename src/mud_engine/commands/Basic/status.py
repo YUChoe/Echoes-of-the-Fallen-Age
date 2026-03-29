@@ -63,23 +63,17 @@ class StatsCommand(BaseCommand):
         # 다국어 텍스트
         if locale == 'ko':
             title = f"📊 {player.username}의 능력치"
-            basic_info = "🎯 기본 정보:"
-            primary_stats = "💪 1차 능력치:"
             main_stats = "❤️ 주요 스탯:"
             combat_stats = "⚔️ 전투 능력:"
             misc_info = "💼 기타:"
             detail_tip = "💡 상세한 정보를 보려면 'stats 상세'를 입력하세요."
-            level_text = "레벨"
             max_weight_text = "최대 소지무게"
         else:
             title = f"📊 {player.username}'s Stats"
-            basic_info = "🎯 Basic Info:"
-            primary_stats = "💪 Primary Stats:"
             main_stats = "❤️ Main Stats:"
             combat_stats = "⚔️ Combat Stats:"
             misc_info = "💼 Misc:"
             detail_tip = "💡 Type 'stats detail' for more information."
-            level_text = "Level"
             max_weight_text = "Max Carry Weight"
 
         # 80칼럼 활용한 2열 배치
@@ -91,21 +85,21 @@ class StatsCommand(BaseCommand):
         cha_val = stats.get_primary_stat(StatType.CHA)
 
         hp_val = stats.get_secondary_stat(StatType.HP)
+        hp_current = stats.get_current_hp()
         mp_val = stats.get_secondary_stat(StatType.MP)
-        sta_val = stats.get_secondary_stat(StatType.STA)
+        sta_current = getattr(session, 'stamina', 5.0)
+        sta_max = getattr(session, 'max_stamina', 5.0)
         atk_val = stats.get_secondary_stat(StatType.ATK)
         def_val = stats.get_secondary_stat(StatType.DEF)
         spd_val = stats.get_secondary_stat(StatType.SPD)
 
         response = f"""{title}
 
-{basic_info} {level_text}: {stats.level}
-
 • STR: {str_val:2d}    • DEX: {dex_val:2d}    • INT: {int_val:2d}
 • WIS: {wis_val:2d}    • CON: {con_val:2d}    • CHA: {cha_val:2d}
 
 {main_stats}
-• HP: {hp_val:3d}      • MP: {mp_val:3d}      • STA: {sta_val:3d}
+• HP: {hp_current:3d}/{hp_val:3d}  • MP: {mp_val:3d}      • STA: {sta_current:.1f}/{sta_max:.1f}
 
 {combat_stats}
 • ATK: {atk_val:2d}     • DEF: {def_val:2d}     • SPD: {spd_val:2d}
@@ -139,22 +133,18 @@ class StatsCommand(BaseCommand):
         # 다국어 텍스트
         if locale == 'ko':
             title = f"📊 {player.username}의 상세 능력치"
-            basic_info = "🎯 기본 정보:"
             primary_stats = "💪 1차 능력치 (기본 스탯):"
             secondary_stats = "❤️ 2차 능력치 (파생 스탯):"
             misc_info = "💼 기타 정보:"
             formulas = "📈 능력치 계산 공식:"
-            level_text = "레벨"
             base_text = "기본"
             max_weight_text = "최대 소지무게"
         else:
             title = f"📊 {player.username}'s Detailed Stats"
-            basic_info = "🎯 Basic Info:"
             primary_stats = "💪 Primary Stats (Base):"
             secondary_stats = "❤️ Secondary Stats (Derived):"
             misc_info = "💼 Misc Info:"
             formulas = "📈 Stat Calculation Formulas:"
-            level_text = "Level"
             base_text = "base"
             max_weight_text = "Max Carry Weight"
 
@@ -167,8 +157,10 @@ class StatsCommand(BaseCommand):
         cha_total = stats.get_primary_stat(StatType.CHA)
 
         hp_val = stats.get_secondary_stat(StatType.HP)
+        hp_current = stats.get_current_hp()
         mp_val = stats.get_secondary_stat(StatType.MP)
-        sta_val = stats.get_secondary_stat(StatType.STA)
+        sta_current = getattr(session, 'stamina', 5.0)
+        sta_max = getattr(session, 'max_stamina', 5.0)
         atk_val = stats.get_secondary_stat(StatType.ATK)
         def_val = stats.get_secondary_stat(StatType.DEF)
         spd_val = stats.get_secondary_stat(StatType.SPD)
@@ -178,22 +170,19 @@ class StatsCommand(BaseCommand):
 
         # 공식 텍스트
         if locale == 'ko':
-            formula_text = """• HP = 100 + (체력 × 5) + (레벨 × 10)
-• MP = 50 + (지능 × 3) + (지혜 × 2) + (레벨 × 5)
-• ATK = 10 + (힘 × 2) + 레벨
-• DEF = 5 + (체력 × 1.5) + (레벨 × 0.5)
+            formula_text = """• HP = 10 + (체력 × 5)
+• MP = 50 + (지능 × 3) + (지혜 × 2)
+• ATK = 10 + (힘 × 2)
+• DEF = 2 + (체력 × 0.3)
 • SPD = 10 + (민첩 × 1.5)"""
         else:
-            formula_text = """• HP = 100 + (CON × 5) + (Level × 10)
-• MP = 50 + (INT × 3) + (WIS × 2) + (Level × 5)
-• ATK = 10 + (STR × 2) + Level
-• DEF = 5 + (CON × 1.5) + (Level × 0.5)
+            formula_text = """• HP = 10 + (CON × 5)
+• MP = 50 + (INT × 3) + (WIS × 2)
+• ATK = 10 + (STR × 2)
+• DEF = 2 + (CON × 0.3)
 • SPD = 10 + (DEX × 1.5)"""
 
         response = f"""{title}
-
-{basic_info}
-• {level_text}: {stats.level}
 
 {primary_stats}
 • STR: {str_total:2d} ({base_text}: {stats.strength:2d})    • DEX: {dex_total:2d} ({base_text}: {stats.dexterity:2d})
@@ -201,7 +190,7 @@ class StatsCommand(BaseCommand):
 • CON: {con_total:2d} ({base_text}: {stats.constitution:2d})    • CHA: {cha_total:2d} ({base_text}: {stats.charisma:2d})
 
 {secondary_stats}
-• HP: {hp_val:3d}    • MP: {mp_val:3d}    • STA: {sta_val:3d}
+• HP: {hp_current:3d}/{hp_val:3d}    • MP: {mp_val:3d}    • STA: {sta_current:.1f}/{sta_max:.1f}
 • ATK: {atk_val:2d}     • DEF: {def_val:2d}     • SPD: {spd_val:2d}
 • RES: {res_val:2d}     • LCK: {lck_val:2d}     • INF: {inf_val:2d}
 
@@ -308,7 +297,7 @@ class StatsCommand(BaseCommand):
             else:
                 return "⚔️ Equipment: Unable to load information."
 
-    def _get_equipment_slots_display(self, locale: str = 'ko') -> dict:
+    def _get_equipment_slots_display(self, locale: str = 'en') -> dict:
         """부위별 장비 슬롯 표시 정보"""
         if locale == 'ko':
             return {

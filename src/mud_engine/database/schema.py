@@ -22,15 +22,15 @@ DATABASE_SCHEMA: List[str] = [
         last_login TIMESTAMP,
 
         -- 능력치 시스템
-        stat_strength INTEGER DEFAULT 10,
-        stat_dexterity INTEGER DEFAULT 10,
-        stat_intelligence INTEGER DEFAULT 10,
-        stat_wisdom INTEGER DEFAULT 10,
-        stat_constitution INTEGER DEFAULT 10,
-        stat_charisma INTEGER DEFAULT 10,
-        stat_level INTEGER DEFAULT 1,
+        stat_strength INTEGER DEFAULT 1,
+        stat_dexterity INTEGER DEFAULT 1,
+        stat_intelligence INTEGER DEFAULT 1,
+        stat_wisdom INTEGER DEFAULT 1,
+        stat_constitution INTEGER DEFAULT 1,
+        stat_charisma INTEGER DEFAULT 1,
         stat_equipment_bonuses TEXT DEFAULT '{}',
         stat_temporary_effects TEXT DEFAULT '{}',
+        stat_current TEXT DEFAULT '{}',
 
         -- 퀘스트 시스템
         completed_quests TEXT DEFAULT '[]', -- JSON 형태로 저장 (완료된 퀘스트 ID 목록)
@@ -47,6 +47,7 @@ DATABASE_SCHEMA: List[str] = [
         exits TEXT DEFAULT '{}', -- JSON 형태로 저장 (방향: 목적지_방_ID)
         x INTEGER, -- X 좌표
         y INTEGER, -- Y 좌표
+        blocked_exits TEXT DEFAULT '[]', -- 막힌 출구 방향 (JSON 배열, 예: ["north", "west"])
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -166,15 +167,15 @@ async def migrate_database(db_manager) -> None:
 
         # 능력치 시스템 컬럼들 추가
         stat_columns = [
-            ('stat_strength', 'INTEGER DEFAULT 10'),
-            ('stat_dexterity', 'INTEGER DEFAULT 10'),
-            ('stat_intelligence', 'INTEGER DEFAULT 10'),
-            ('stat_wisdom', 'INTEGER DEFAULT 10'),
-            ('stat_constitution', 'INTEGER DEFAULT 10'),
-            ('stat_charisma', 'INTEGER DEFAULT 10'),
-            ('stat_level', 'INTEGER DEFAULT 1'),
+            ('stat_strength', 'INTEGER DEFAULT 1'),
+            ('stat_dexterity', 'INTEGER DEFAULT 1'),
+            ('stat_intelligence', 'INTEGER DEFAULT 1'),
+            ('stat_wisdom', 'INTEGER DEFAULT 1'),
+            ('stat_constitution', 'INTEGER DEFAULT 1'),
+            ('stat_charisma', 'INTEGER DEFAULT 1'),
             ('stat_equipment_bonuses', "TEXT DEFAULT '{}'"),
             ('stat_temporary_effects', "TEXT DEFAULT '{}'"),
+            ('stat_current', "TEXT DEFAULT '{}'"),
         ]
 
         for column_name, column_def in stat_columns:
@@ -302,6 +303,25 @@ async def migrate_database(db_manager) -> None:
         await db_manager.execute("CREATE INDEX IF NOT EXISTS idx_rooms_coordinates ON rooms(x, y)")
         await db_manager.commit()
         logger.info("rooms 좌표 인덱스 생성 완료")
+
+        # rooms 테이블에 blocked_exits 컬럼 추가
+        if 'blocked_exits' not in rooms_column_names:
+            logger.info("rooms 테이블에 blocked_exits 컬럼 추가 중...")
+            await db_manager.execute(
+                "ALTER TABLE rooms ADD COLUMN blocked_exits TEXT DEFAULT '[]'"
+            )
+            await db_manager.commit()
+            logger.info("rooms 테이블에 blocked_exits 컬럼 추가 완료")
+
+        # stat_level 컬럼 삭제 (레벨 시스템 제거)
+        cursor = await db_manager.execute("PRAGMA table_info(players)")
+        columns = await cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        if 'stat_level' in column_names:
+            logger.info("stat_level 컬럼 삭제 중...")
+            await db_manager.execute("ALTER TABLE players DROP COLUMN stat_level")
+            await db_manager.commit()
+            logger.info("stat_level 컬럼 삭제 완료")
 
         logger.info("데이터베이스 마이그레이션 완료")
 

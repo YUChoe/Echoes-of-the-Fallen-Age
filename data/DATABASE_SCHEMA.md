@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2026-01-31
+**Last Updated**: 2026-03-29
 
 ## Overview
 
@@ -27,15 +27,15 @@ CREATE TABLE players (
     last_login TIMESTAMP,
 
     -- 능력치 (Stats)
-    stat_strength INTEGER DEFAULT 10,         -- 힘
-    stat_dexterity INTEGER DEFAULT 10,        -- 민첩
-    stat_intelligence INTEGER DEFAULT 10,     -- 지능
-    stat_wisdom INTEGER DEFAULT 10,           -- 지혜
-    stat_constitution INTEGER DEFAULT 10,     -- 체력
-    stat_charisma INTEGER DEFAULT 10,         -- 매력
-    stat_level INTEGER DEFAULT 1,             -- 레벨
+    stat_strength INTEGER DEFAULT 1,         -- 힘
+    stat_dexterity INTEGER DEFAULT 1,        -- 민첩
+    stat_intelligence INTEGER DEFAULT 1,     -- 지능
+    stat_wisdom INTEGER DEFAULT 1,           -- 지혜
+    stat_constitution INTEGER DEFAULT 1,     -- 체력
+    stat_charisma INTEGER DEFAULT 1,         -- 매력
     stat_equipment_bonuses TEXT DEFAULT '{}', -- 장비 보너스 (JSON)
     stat_temporary_effects TEXT DEFAULT '{}', -- 임시 효과 (JSON)
+    stat_current TEXT DEFAULT '{}',          -- 현재 상태값 (JSON: {"hp": 45, ...})
 
     -- 마지막 위치 (좌표 기반)
     last_room_x INTEGER DEFAULT 0,            -- 마지막 X 좌표
@@ -77,6 +77,7 @@ CREATE TABLE rooms (
     description_ko TEXT,              -- 한국어 설명
     x INTEGER,                        -- X 좌표
     y INTEGER,                        -- Y 좌표
+    blocked_exits TEXT DEFAULT '[]',  -- 막힌 출구 방향 (JSON 배열, 예: ["north", "west"])
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -139,7 +140,6 @@ CREATE TABLE monsters (
     "intelligence": 8,
     "wisdom": 10,
     "charisma": 6,
-    "level": 1,
     "current_hp": 25
   },
   "drop_items": [
@@ -173,11 +173,13 @@ CREATE TABLE game_objects (
     name_ko TEXT NOT NULL,            -- 한국어 이름
     description_en TEXT,              -- 영어 설명
     description_ko TEXT,              -- 한국어 설명
-    location_type TEXT NOT NULL,      -- 위치 타입 (ROOM, INVENTORY, EQUIPPED)
-    location_id TEXT,                 -- 위치 ID (room_id or player_id)
+    object_type TEXT NOT NULL,        -- 오브젝트 타입 (item, npc, furniture 등)
+    location_type TEXT NOT NULL,      -- 위치 타입 (ROOM, INVENTORY, EQUIPPED, CONTAINER)
+    location_id TEXT,                 -- 위치 ID (room_id or player_id or container_id)
     properties TEXT DEFAULT '{}',     -- 속성 (JSON)
     weight REAL DEFAULT 1.0,          -- 무게
     max_stack INTEGER DEFAULT 1,      -- 최대 스택 개수 (1이면 스택 불가)
+    category TEXT DEFAULT 'misc',     -- 카테고리 (weapon, armor, consumable, misc)
     equipment_slot TEXT,              -- 장비 슬롯 (HEAD, BODY, WEAPON, etc.)
     is_equipped BOOLEAN DEFAULT FALSE, -- 장착 여부
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -305,7 +307,6 @@ CREATE TABLE faction_relations (
   "intelligence": 8, // 지능 (1-30)
   "wisdom": 10, // 지혜 (1-30)
   "charisma": 6, // 매력 (1-30)
-  "level": 1, // 레벨
   "current_hp": 25 // 현재 HP
 }
 ```
@@ -415,4 +416,4 @@ cp data/mud_engine.db.backup_YYYYMMDD_HHMMSS data/mud_engine.db
 ---
 
 **작성자**: Kiro AI
-**최종 수정**: 2025-12-20
+**최종 수정**: 2026-03-29

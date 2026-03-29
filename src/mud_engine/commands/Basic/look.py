@@ -29,8 +29,7 @@ class LookCommand(BaseCommand):
         else:
             # 특정 대상 살펴보기
             target = " ".join(args)
-            return await self._look_at(session, target)  # target 은 idx 여야 함
-            # TODO: 아이템도 볼 수 있어야 함
+            return await self._look_at(session, target)
 
     async def _look_around(self, session: SessionType) -> CommandResult:
         """방 전체 둘러보기 - 방 정보를 다시 전송"""
@@ -75,8 +74,10 @@ class LookCommand(BaseCommand):
 #                         )
         # ===== TODO: 위의 내용은 위치 이동 - 재활용
 
-        # 현재 방 ID 가져오기
+        # 현재 방 ID 가져오기 (전투 중이면 원래 방 사용)
         current_room_id = getattr(session, 'current_room_id', None)
+        if getattr(session, 'in_combat', False):
+            current_room_id = getattr(session, 'original_room_id', current_room_id)
         if not current_room_id:
             return self.create_error_result("현재 위치를 확인할 수 없습니다.")
 
@@ -139,66 +140,87 @@ class LookCommand(BaseCommand):
 
             locale = session.player.preferred_locale if session.player else "en"
 
-            # 몬스터 정보 조회
-            monster = await game_engine.world_manager.get_monster(entity_id)
-
-            if not monster:
-                return self.create_error_result(f"몬스터 정보를 찾을 수 없습니다.")
-
-            # 몬스터 설명 가져오기
-            description = monster.get_localized_description(locale)
-            if not description:
-                description = "특별한 설명이 없습니다."
-
-            # 몬스터 상태 정보
-            hp_info = f"HP: {monster.current_hp}/{monster.max_hp}"
-            level_info = f"레벨: {monster.level}"
-
-            # 몬스터 태도 정보
-            attitude_info = ""
-            if monster.is_aggressive():
-                attitude_info = "\n⚔️ 공격형입니다."
-            elif monster.is_passive():
-                attitude_info = "\n🕊️ 수동형입니다."
-            elif monster.is_neutral():
-                attitude_info = "\n😐 중립적입니다."
-
-            response = "\n".join([
-                entity_name,
-                "=" * 40,
-                description,
-                f"{hp_info} | {level_info}{attitude_info}",
-                "📊 능력치:",
-                f"  • 힘 (STR): {monster.stats.strength}",
-                f"  • 민첩 (DEX): {monster.stats.dexterity}",
-                f"  • 체력 (CON): {monster.stats.constitution}",
-                f"  • 지능 (INT): {monster.stats.intelligence}",
-                f"  • 지혜 (WIS): {monster.stats.wisdom}",
-                f"  • 매력 (CHA): {monster.stats.charisma}",
-                monster.faction_id,
-            ])
-
-        # 종족 정보
-        # if monster.faction_id:
-        #     lines.append("")
-        #     lines.append(f"🏴 종족: {monster.faction_id}")
-
-        # 행동 패턴
-        # if hasattr(monster, 'monster_type'):
-        #     lines.append("")
-        #     monster_type_str = monster.monster_type.value if hasattr(monster.monster_type, 'value') else str(monster.monster_type)
-        #     lines.append(f"⚔️ 성향: {monster_type_str}")
-
-            return self.create_success_result(
-                message=response,
-                data={
-                    "action": "look_at",
-                    "target": entity_name,
-                    "target_type": "monster",
-                    "entity_id": entity_id
-                }
-            )
+            if entity_type == 'object':
+                return await self._look_at_object(entity_info, entity_name, locale)
+            else:
+                return await self._look_at_monster(game_engine, entity_id, entity_name, locale)
 
         except Exception as e:
             logger.error(f"엔티티 조회 중 오류: {e}")
             return self.create_error_result("대상을 조회하는 중 오류가 발생했습니다.")
+
+    async def _look_at_object(self, entity_info: dict, entity_name: str, locale: str) -> CommandResult:
+        """오브젝트(아이템) 살펴보기"""
+        entity = entity_info.get('entity')
+        if not entity:
+            return self.create_error_result("객체 정보를 찾을 수 없습니다.")
+
+        description = entity.get_localized_description(locale)
+        if not description:
+            description = "Nothing special." if locale == "en" else "특별한 것은 없습니다."
+
+        lines = [
+            entity_name,
+            "=" * 40,
+            description,
+        ]
+
+        # 컨테이너인 경우 표시
+        if getattr(entity, 'is_container', False):
+            container_label = "📦 Container" if locale == "en" else "📦 컨테이너"
+            lines.append(f"\n{container_label}")
+
+        return self.create_success_result(
+            message="\n".join(lines),
+            data={
+                "action": "look_at",
+                "target": entity_name,
+                "target_type": "object",
+                "entity_id": entity_info.get('id'),
+            }
+        )
+
+    async def _look_at_monster(self, game_engine, entity_id: str, entity_name: str, locale: str) -> CommandResult:  # type: ignore[no-untyped-def]
+        """몬스터 살펴보기"""
+        monster = await game_engine.world_manager.get_monster(entity_id)
+        if not monster:
+            return self.create_error_result("몬스터 정보를 찾을 수 없습니다.")
+
+        description = monster.get_localized_description(locale)
+        if not description:
+            description = "Nothing special." if locale == "en" else "특별한 것은 없습니다."
+
+        hp_info = f"HP: {monster.current_hp}/{monster.max_hp}"
+
+        attitude_info = ""
+        if monster.is_aggressive():
+            attitude_info = "\n⚔️ Aggressive" if locale == "en" else "\n⚔️ 공격형"
+        elif monster.is_passive():
+            attitude_info = "\n🕊️ Passive" if locale == "en" else "\n🕊️ 수동형"
+        elif monster.is_neutral():
+            attitude_info = "\n😐 Neutral" if locale == "en" else "\n😐 중립"
+
+        response = "\n".join([
+            entity_name,
+            "=" * 40,
+            description,
+            f"{hp_info}{attitude_info}",
+            "📊 Stats:" if locale == "en" else "📊 능력치:",
+            f"  • STR: {monster.stats.strength}",
+            f"  • DEX: {monster.stats.dexterity}",
+            f"  • CON: {monster.stats.constitution}",
+            f"  • INT: {monster.stats.intelligence}",
+            f"  • WIS: {monster.stats.wisdom}",
+            f"  • CHA: {monster.stats.charisma}",
+            f"🏴 {monster.faction_id}" if monster.faction_id else "",
+        ])
+
+        return self.create_success_result(
+            message=response,
+            data={
+                "action": "look_at",
+                "target": entity_name,
+                "target_type": "monster",
+                "entity_id": entity_id,
+            }
+        )

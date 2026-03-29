@@ -68,7 +68,6 @@ class Quest:
     name: Dict[str, str]  # 언어별 이름
     description: Dict[str, str]  # 언어별 설명
     quest_type: QuestType
-    level_requirement: int = 1
     prerequisites: List[str] = field(default_factory=list)  # 선행 퀘스트 ID
     objectives: List[QuestObjective] = field(default_factory=list)
     rewards: QuestReward = field(default_factory=QuestReward)
@@ -83,12 +82,8 @@ class Quest:
         """로케일에 맞는 설명 반환"""
         return self.description.get(locale, self.description.get("en", ""))
 
-    def can_start(self, player_level: int, completed_quests: List[str]) -> bool:
+    def can_start(self, completed_quests: List[str]) -> bool:
         """퀘스트 시작 가능 여부 확인"""
-        # 레벨 요구사항 확인
-        if player_level < self.level_requirement:
-            return False
-
         # 선행 퀘스트 완료 확인
         for prereq in self.prerequisites:
             if prereq not in completed_quests:
@@ -139,7 +134,6 @@ class QuestManager:
                 "ko": "교회를 방문하여 수도사로부터 기본 장비를 받으세요."
             },
             quest_type=QuestType.TUTORIAL,
-            level_requirement=1,
             objectives=[
                 QuestObjective(
                     id="talk_to_monk",
@@ -177,11 +171,11 @@ class QuestManager:
         """퀘스트 조회"""
         return self.quests.get(quest_id)
 
-    def get_available_quests(self, player_level: int, completed_quests: List[str]) -> List[Quest]:
+    def get_available_quests(self, completed_quests: List[str]) -> List[Quest]:
         """플레이어가 시작할 수 있는 퀘스트 목록"""
         available = []
         for quest in self.quests.values():
-            if quest.can_start(player_level, completed_quests):
+            if quest.can_start(completed_quests):
                 available.append(quest)
         return available
 

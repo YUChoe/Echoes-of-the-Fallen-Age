@@ -17,8 +17,7 @@
     "constitution": 18,
     "intelligence": 10,
     "wisdom": 13,
-    "charisma": 11,
-    "level": 8
+    "charisma": 11
   },
   "experience_reward": 0,
   "gold_reward": 0,
@@ -26,6 +25,14 @@
   "respawn_time": 0,
   "aggro_range": 0,
   "roaming_range": 1,
+  "unarmed_attack": {
+    "name": {"en": "fists", "ko": "맨손"},
+    "verbs": {"attack": {"en": "punches", "ko": "주먹으로 칩니다"}},
+    "dice": "1d4"
+  },
+  "equipment": [
+    {"template_id": "guard_heavy_sword", "slot": "right_hand"}
+  ],
   "spawn_config": {
     "count": 1,
     "global_max_count": 1,

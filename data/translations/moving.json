@@ -3,14 +3,6 @@
         "en": "❌ You cannot go {direction}.",
         "ko": "❌ {direction} 방향으로는 갈 수 없습니다."
     },
-    "movement.room_not_found": {
-        "en": "❌ Room not found.",
-        "ko": "❌ 방을 찾을 수 없습니다."
-    },
-    "movement.moved": {
-        "en": "{username} moved {direction}.",
-        "ko": "{username}님이 {direction}(으)로 이동했습니다."
-    },
     "movement.error": {
         "en": "❌ An error occurred during movement.",
         "ko": "❌ 이동 중 오류가 발생했습니다."
@@ -23,25 +15,9 @@
         "en": "❌ Cannot determine current location.",
         "ko": "❌ 현재 위치를 확인할 수 없습니다."
     },
-    "go.usage_error": {
-        "en": "Please specify a direction to move.\nUsage: go <direction>\nAvailable directions: north, south, east, west",
-        "ko": "이동할 방향을 지정해주세요.\n사용법: go <방향>\n사용 가능한 방향: north, south, east, west"
-    },
     "go.invalid_direction": {
         "en": "'{direction}' is not a valid direction.\nAvailable directions: north, south, east, west",
         "ko": "'{direction}'은(는) 올바른 방향이 아닙니다.\n사용 가능한 방향: north, south, east, west"
-    },
-    "exits.no_exits": {
-        "en": "🚪 There are no exits from this room.",
-        "ko": "🚪 이 방에는 출구가 없습니다."
-    },
-    "exits.available": {
-        "en": "🚪 Available exits: {exits}",
-        "ko": "🚪 사용 가능한 출구: {exits}"
-    },
-    "exits.error": {
-        "en": "❌ Failed to check exits.",
-        "ko": "❌ 출구 정보를 확인하는 중 오류가 발생했습니다."
     },
     "monster.appears": {
         "en": "🐾 {monster_name} appears.",
@@ -102,17 +78,5 @@
     "movement.success": {
         "en": "✅ 🚶 You moved {direction}.",
         "ko": "✅ 🚶 {direction} 방향으로 이동했습니다."
-    },
-    "movement.failed": {
-        "en": "❌ Failed to move.",
-        "ko": "❌ 이동에 실패했습니다."
-    },
-    "movement.player_left": {
-        "en": "🚶 {username} left to the {direction}.",
-        "ko": "🚶 {username}님이 {direction} 방향으로 떠났습니다."
-    },
-    "movement.player_arrived": {
-        "en": "🚶 {username} arrived.",
-        "ko": "🚶 {username}님이 도착했습니다."
     }
 }

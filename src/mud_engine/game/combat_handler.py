@@ -7,16 +7,17 @@ import random
 from typing import Optional, List, Dict, Any
 
 from .combat import (
-    CombatManager,
     CombatInstance,
     CombatAction,
     CombatTurn,
     Combatant,
     CombatantType,
 )
+from .combat_manager import CombatManager
 from .monster import Monster, MonsterType
 from .models import Player, GameObject
 from ..server.ansi_colors import ANSIColors
+from ..core.localization import get_localization_manager
 from uuid import uuid4
 
 # D&D 전투 엔진 import
@@ -59,93 +60,47 @@ class CombatHandler:
         else:
             return combatant.name
 
-    async def _get_weapon_name(self, combatant, locale: str = "ko") -> str:
-        """전투 참가자의 무기 이름 반환"""
-        if combatant.combatant_type.value == "player":
-            # 플레이어의 경우 장착된 무기 확인
-            if combatant.data and self.world_manager:
+    async def _get_weapon_name(self, combatant, locale: str = "en") -> str:  # type: ignore[no-untyped-def]
+        """전투 참가자의 무기 이름 반환 (인벤토리 장착 무기 → unarmed_attack fallback)"""
+        try:
+            # 플레이어/몬스터 공통: 인벤토리에서 장착 무기 조회
+            entity_id = None
+            if combatant.combatant_type.value == "player" and combatant.data:
                 player_obj = combatant.data.get("player")
                 if player_obj:
-                    try:
-                        inventory_objects = await self.world_manager.get_inventory_objects(player_obj.id)
-                        for obj in inventory_objects:
-                            if obj.is_equipped and obj.equipment_slot == "right_hand":
-                                return obj.get_localized_name(locale)
-                    except Exception as e:
-                        logger.warning(f"무기 이름 가져오기 실패: {e}")
+                    entity_id = player_obj.id
+            elif combatant.combatant_type.value == "monster":
+                entity_id = combatant.id
 
-            # 장착된 무기가 없으면 맨손
-            return "맨손" if locale == "ko" else "bare hands"
-        elif combatant.combatant_type.value == "monster":
-            # 몬스터의 경우 종류에 따라 다른 무기
-            if combatant.data and "monster" in combatant.data:
-                monster_obj = combatant.data["monster"]
-                monster_name = monster_obj.get_localized_name(locale).lower()
+            if entity_id and self.world_manager:
+                inventory_objects = await self.world_manager.get_inventory_objects(entity_id)
+                for obj in inventory_objects:
+                    if obj.is_equipped and obj.equipment_slot == "right_hand":
+                        return obj.get_localized_name(locale)
 
-                # 몬스터 종류별 무기 설정
-                if "쥐" in monster_name or "rat" in monster_name:
-                    return "날카로운 이빨" if locale == "ko" else "sharp teeth"
-                elif "고블린" in monster_name or "goblin" in monster_name:
-                    return "곤봉" if locale == "ko" else "club"
-                elif "경비병" in monster_name or "guard" in monster_name:
-                    return "검" if locale == "ko" else "sword"
-                else:
-                    return "발톱" if locale == "ko" else "claws"
-            return "발톱" if locale == "ko" else "claws"
-        else:
-            return "무기" if locale == "ko" else "weapon"
+            # 장착 무기 없으면 unarmed_attack 사용
+            if combatant.combatant_type.value == "player" and combatant.data:
+                player_obj = combatant.data.get("player")
+                if player_obj and hasattr(player_obj, 'stats'):
+                    # 플레이어 기본 맨손 공격
+                    unarmed = {"name": {"en": "fists", "ko": "맨손"}}
+                    name_dict = unarmed.get("name", {})
+                    return name_dict.get(locale, name_dict.get("en", "fists"))
+            elif combatant.combatant_type.value == "monster" and combatant.data:
+                monster_obj = combatant.data.get("monster")
+                if monster_obj:
+                    unarmed = monster_obj.properties.get('unarmed_attack')
+                    if unarmed:
+                        name_dict = unarmed.get("name", {})
+                        return name_dict.get(locale, name_dict.get("en", "claws"))
 
-    async def check_and_start_combat(
-        self, room_id: str, player: Player, player_id: str, monsters: List[Monster]
-    ) -> Optional[CombatInstance]:
-        """
-        방에 공격적인 몬스터가 있으면 전투 시작
+        except Exception as e:
+            logger.warning(f"무기 이름 가져오기 실패: {e}")
 
-        Args:
-            room_id: 방 ID
-            player: 플레이어 객체
-            player_id: 플레이어 ID
-            monsters: 방에 있는 몬스터 목록
-
-        Returns:
-            CombatInstance: 생성된 전투 인스턴스 (전투가 시작되지 않으면 None)
-        """
-        # 이미 전투 중인지 확인
-        if self.combat_manager.is_player_in_combat(player_id):
-            logger.info(f"플레이어 {player_id}는 이미 전투 중")
-            return None
-
-        # 공격적인 몬스터 찾기 (전투 중이 아닌 몬스터만)
-        aggressive_monsters = [m for m in monsters if m.is_aggressive() and m.is_alive and not self.is_monster_in_combat(m.id)]
-
-        if not aggressive_monsters:
-            logger.debug(f"방 {room_id}에 공격 가능한 선공형 몬스터 없음")
-            return None
-
-        # 이미 방에 전투가 있는지 확인
-        existing_combat = self.combat_manager.get_combat_by_room(room_id)
-
-        if existing_combat and existing_combat.is_active:
-            # 기존 전투에 플레이어 추가
-            success = self.combat_manager.add_player_to_combat(existing_combat.id, player, player_id)
-            if success:
-                logger.info(f"플레이어 {player_id}를 기존 전투 {existing_combat.id}에 추가")
-                return existing_combat
-            return None
-
-        # 새로운 전투 인스턴스 생성
-        combat = self.combat_manager.create_combat(room_id)
-
-        # 플레이어 추가
-        self.combat_manager.add_player_to_combat(combat.id, player, player_id)
-
-        # 공격적인 몬스터들 추가
-        for monster in aggressive_monsters:
-            self.combat_manager.add_monster_to_combat(combat.id, monster)
-
-        logger.info(f"전투 시작: 방 {room_id}, 플레이어 {player_id}, 몬스터 {len(aggressive_monsters)}마리")
-
-        return combat
+        # 최종 fallback
+        if combatant.combatant_type.value == "player":
+            return "bare hands" if locale == "en" else "맨손"
+        return "claws" if locale == "en" else "발톱"
 
     def is_monster_in_combat(self, monster_id: str) -> bool:
         """
@@ -202,24 +157,6 @@ class CombatHandler:
         # 행동 처리
         result = await self._execute_action(combat, current_combatant, action, target_id)
 
-        # 턴 로그 추가
-        # turn = CombatTurn(
-        #     turn_number=combat.turn_number,
-        #     combatant_id=player_id,
-        #     action=action,
-        #     target_id=target_id,
-        #     damage_dealt=result.get("damage_dealt", 0),
-        #     damage_received=result.get("damage_received", 0),
-        #     message=result.get("message", ""),
-        # )
-        # combat.add_combat_log(turn)
-
-        # # 다음 턴으로 진행
-        # combat.advance_turn()
-
-        # 전투 종료 확인은 combat_commands.py에서만 처리
-        # 여기서는 공격 결과만 반환
-
         return result
 
     # 전투 참가자들에게 브로드캐스트
@@ -228,6 +165,15 @@ class CombatHandler:
             session = self.session_manager.get_player_session(combatant.id)
             if session:
                 await session.send_message({"type": "combat_message", "message": message})
+
+    async def send_broadcast_combat_message_localized(self, combat: CombatInstance, build_msg) -> None:
+        """각 플레이어의 locale에 맞게 개별 메시지를 전송"""
+        for combatant in combat.get_alive_players():
+            session = self.session_manager.get_player_session(combatant.id)
+            if session:
+                player_locale = getattr(session, 'locale', 'en')
+                msg = build_msg(player_locale)
+                await session.send_message({"type": "combat_message", "message": msg})
 
     async def send_battle_command_menu(self, combat: CombatInstance):
         for combatant in combat.get_alive_players():
@@ -246,146 +192,196 @@ class CombatHandler:
         target_id: Optional[str],
     ) -> Dict[str, Any]:
         """행동 실행"""
+        logger.info(f"_execute_action invoked {action}")
         if action == CombatAction.ATTACK:
             return await self._execute_attack(combat, actor, target_id)
-        elif action == CombatAction.DEFEND:
-            return await self._execute_defend(actor)
         elif action == CombatAction.FLEE:
             return await self._execute_flee(combat, actor)
-        elif action == CombatAction.WAIT:
-            return await self._execute_wait(actor)
+        elif action == CombatAction.ENDTURN:
+            return await self._execute_endturn(combat, actor)
         else:
             return {"success": False, "message": "알 수 없는 행동입니다."}
 
     async def _execute_attack(self, combat: CombatInstance, actor: Combatant, target_id: Optional[str]) -> Dict[str, Any]:
-        """공격 실행 (D&D 5e 룰 적용)"""
+        """공격 실행 (D&D 5e 룰 적용) - 메시지는 즉시 전송"""
+        I18N = get_localization_manager()
+        locale = "en"
         if not target_id:
-            return {"success": False, "message": "공격 대상을 지정해야 합니다."}
+            return {"success": False, "message": I18N.get_message("combat.no_target_specified", locale)}
 
         target = combat.get_combatant(target_id)
         if not target:
-            return {"success": False, "message": "대상을 찾을 수 없습니다."}
+            return {"success": False, "message": I18N.get_message("combat.target_not_found", locale)}
 
         if not target.is_alive():
-            # TODO: 사망 한 대상이라도 공격은 받을 수 있어야? 예를 들어 부활 시키지 못하게 한다던지
-            return {"success": False, "message": "이미 사망한 대상입니다."}
+            return {"success": False, "message": I18N.get_message("combat.target_already_dead", locale)}
 
         _actor_is_superadmin = False
-        if actor.get_display_name() == 'SUPERADMIN':  # TODO: 방법을 바꿔야 함
-            _actor_is_superadmin = True  # NOTE: test 로직 시험 할 때
+        if actor.get_display_name() == 'SUPERADMIN':
+            _actor_is_superadmin = True
 
         # D&D 5e 룰 적용
-        # 1. 공격 굴림 (d20 + 공격 보너스)
         attack_bonus = self._calculate_attack_bonus(actor)
         attack_roll, is_critical = self.dnd_engine.make_attack_roll(attack_bonus)
         logger.info(f"attack_bonus[{attack_bonus}] attack_roll[{attack_roll}] is_critical[{is_critical}]")
 
-        # 2. 대상 AC (방어도) 계산
-        # target.data에서 armor_class 가져오기
+        # 대상 AC 계산 (D&D 5e: 10 + DEX modifier + armor bonus)
         if target.data and "armor_class" in target.data:
             target_ac = target.data["armor_class"]
         else:
-            target_ac = 10 + target.defense  # 기본 AC 10 + 방어력
-        logger.info(f"target_ac[{target_ac}] target.defense[{target.defense}]")
+            # DEX modifier = (DEX - 10) // 2, 최소 -5
+            dex_mod = (target.agility - 10) // 2
+            # armor bonus = defense에서 base DEF(장비 없는 기본값)를 뺀 값
+            # base DEF = 2 + int(CON * 0.3) 이므로, 장비 보너스만 armor로 취급
+            armor_bonus = max(0, target.defense - 2)  # 기본 DEF 2를 빼고 장비분만
+            target_ac = 10 + dex_mod + armor_bonus
+            target_ac = max(1, target_ac)  # 최소 AC 1
+        logger.info(f"target_ac[{target_ac}] target.defense[{target.defense}] target.agility[{target.agility}]")
 
-        # 3. 명중 판정
+        # 명중 판정
         hit = self.dnd_engine.check_hit(attack_roll, target_ac)
         logger.info(f"hit[{hit}]")
 
-        # actor 방어 상태 해제 (왜냐면 지금 공격 하니까)
+        # actor 방어 상태 해제
         actor.is_defending = False
 
-        # 빗나감
+        # 빗나감 - 참가자별 locale로 전송
         if not hit and not is_critical and not _actor_is_superadmin:
-            # 기본 언어는 영어로 설정 (추후 세션 정보에서 가져올 수 있도록 개선 필요)
-            locale = "en"
-            actor_name = self._get_combatant_name(actor, locale)
-            target_name = self._get_combatant_name(target, locale)
+            _weapon_name_cache: Dict[str, str] = {}
 
-            # 무기 정보 가져오기
-            weapon_name = await self._get_weapon_name(actor, locale)
+            async def _get_weapon_cached(loc: str) -> str:
+                if loc not in _weapon_name_cache:
+                    _weapon_name_cache[loc] = await self._get_weapon_name(actor, loc)
+                return _weapon_name_cache[loc]
 
-            message = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
-            message += f"🎲 공격 굴림: {attack_roll} vs AC {target_ac}\n"
-            message += f"❌ 공격이 빗나갔습니다!{ANSIColors.RESET}"
+            # 첫 호출로 캐시 채우기
+            await _get_weapon_cached("en")
+            await _get_weapon_cached("ko")
+
+            def build_miss_msg(loc: str) -> str:
+                a_name = self._get_combatant_name(actor, loc)
+                t_name = self._get_combatant_name(target, loc)
+                w_name = _weapon_name_cache.get(loc, _weapon_name_cache.get("en", ""))
+                msg = f"{ANSIColors.RED}{I18N.get_message('combat.attack_swing', loc, actor=a_name, target=t_name, weapon=w_name)}\n"
+                msg += f"{I18N.get_message('combat.roll_info', loc, roll=attack_roll, ac=target_ac)}\n"
+                msg += f"{I18N.get_message('combat.miss', loc)}{ANSIColors.RESET}"
+                return msg
+
+            await self.send_broadcast_combat_message_localized(combat, build_miss_msg)
 
             return {
-                "success": True,
-                "message": message,
-                "damage_dealt": 0,
-                "is_critical": False,
-                "hit": False,
-                "attack_roll": attack_roll,
-                "target_ac": target_ac,
-                "target_hp": target.current_hp,
+                "success": True, "hit": False, "damage_dealt": 0,
+                "is_critical": False, "attack_roll": attack_roll,
+                "target_ac": target_ac, "target_hp": target.current_hp,
                 "target_max_hp": target.max_hp,
             }
 
-        # 4. 데미지 계산
-        # 데미지 주사위 표기법 생성 (예: "1d8+2")
+        # 데미지 계산
         damage_dice = await self._get_damage_dice(actor)
-        logger.info(f"damage_dice[{damage_dice}]")  # 어 난 이게 좋은데...
+        logger.info(f"damage_dice[{damage_dice}]")
         damage = self.dnd_engine.calculate_damage(damage_dice, is_critical)
         logger.info(f"damage[{damage}]")
 
-        # 5. 방어 중이면 데미지 50% 감소
         if target.is_defending:
             damage = damage // 2
             logger.info(f"{target.name} 방어 중 - 데미지 50% 감소")
 
-        # 6. 대상에게 데미지 적용 (방어력 적용)
         actual_damage = max(1, damage - target.defense)
         if _actor_is_superadmin:
-            logger.warn(f"_actor_is_superadmin actual_damage[{actual_damage}] -> [{(actual_damage + 10) * 5}]")
+            logger.warning(f"_actor_is_superadmin actual_damage[{actual_damage}] -> [{(actual_damage + 10) * 5}]")
             actual_damage = (actual_damage + 10) * 5
         target.current_hp = max(0, target.current_hp - actual_damage)
-        logger.info(f"actual_damage[{actual_damage}] target.current_hp[{target.current_hp}]")  # 죽었으면 0 됐겠지
+        logger.info(f"actual_damage[{actual_damage}] target.current_hp[{target.current_hp}]")
 
-        # 메시지 생성
-        locale = "en"
-        actor_name = self._get_combatant_name(actor, locale)
-        target_name = self._get_combatant_name(target, locale)
+        # 공격 결과 메시지 - 참가자별 locale로 전송
+        _is_defending = target.is_defending
+        _weapon_name_cache2: Dict[str, str] = {}
 
-        # 무기 정보 가져오기
-        weapon_name = await self._get_weapon_name(actor, locale)
+        async def _get_weapon_cached2(loc: str) -> str:
+            if loc not in _weapon_name_cache2:
+                _weapon_name_cache2[loc] = await self._get_weapon_name(actor, loc)
+            return _weapon_name_cache2[loc]
 
-        message = f"{ANSIColors.RED}{actor_name}이(가) {weapon_name}(으)로 {target_name}을(를) 공격합니다!\n"
-        message += f"🎲 공격 굴림({damage_dice}): {attack_roll} vs AC {target_ac}\n"
+        await _get_weapon_cached2("en")
+        await _get_weapon_cached2("ko")
 
-        if is_critical:
-            message += f"💥 크리티컬 히트! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
-        else:
-            message += f"✅ 명중! {target_name}에게 {actual_damage} 데미지를 입혔습니다!"
+        def build_hit_msg(loc: str) -> str:
+            a_name = self._get_combatant_name(actor, loc)
+            t_name = self._get_combatant_name(target, loc)
+            w_name = _weapon_name_cache2.get(loc, _weapon_name_cache2.get("en", ""))
+            msg = f"{ANSIColors.RED}{I18N.get_message('combat.attack_swing', loc, actor=a_name, target=t_name, weapon=w_name)}\n"
+            msg += f"{I18N.get_message('combat.roll_info_dice', loc, dice=damage_dice, roll=attack_roll, ac=target_ac)}\n"
+            if is_critical:
+                msg += I18N.get_message("combat.critical_hit", loc, target=t_name, damage=actual_damage)
+            else:
+                msg += I18N.get_message("combat.hit", loc, target=t_name, damage=actual_damage)
+            if _is_defending:
+                msg += I18N.get_message("combat.defending_reduction", loc)
+            msg += ANSIColors.RESET
+            return msg
 
-        if target.is_defending:
-            message += " (방어 중 - 50% 감소)"
+        await self.send_broadcast_combat_message_localized(combat, build_hit_msg)
 
+        # 사망 처리 - 참가자별 locale로 전송
         if not target.is_alive():
-            message += f"\n💀 {target_name}이(가) 죽었습니다!"
-            # 사망 처리 - corpse 생성 (전투 종료 여부와 무관)
+            def build_death_msg(loc: str) -> str:
+                t_name = self._get_combatant_name(target, loc)
+                return f"{ANSIColors.RED}{I18N.get_message('combat.death', loc, name=t_name)}{ANSIColors.RESET}"
+
+            await self.send_broadcast_combat_message_localized(combat, build_death_msg)
             await self._handle_death(combat, target)
 
-        message += ANSIColors.RESET
-
-        # TODO: 실제 player stat 에 저장 되어야 함
+        # player stat 저장 (메모리 + DB)
         if target.data and "player" in target.data:
             p: Player = target.data["player"]
             p.stats.set_current_hp(target.current_hp)
-        # ===== ===== ===== =====
+            await self._save_player_current_stats(p)
+
         return {
-            "success": True,
-            "message": message,
-            "damage_dealt": actual_damage,
-            "is_critical": is_critical,
-            "hit": True,
-            "attack_roll": attack_roll,
-            "target_ac": target_ac,
-            "target_hp": target.current_hp,
+            "success": True, "hit": True, "damage_dealt": actual_damage,
+            "is_critical": is_critical, "attack_roll": attack_roll,
+            "target_ac": target_ac, "target_hp": target.current_hp,
             "target_max_hp": target.max_hp,
         }
 
+    async def _move_inventory_to_corpse(self, entity_id: str, corpse_id: str) -> None:
+        """사망자의 인벤토리 아이템을 corpse 컨테이너로 이동"""
+        try:
+            if not self.world_manager:
+                return
+            inventory = await self.world_manager.get_inventory_objects(entity_id)
+            for obj in inventory:
+                obj.location_type = "container"
+                obj.location_id = corpse_id
+                obj.is_equipped = False
+                await self.world_manager._object_manager.update_game_object(obj.id, {
+                    "location_type": "container",
+                    "location_id": corpse_id,
+                    "is_equipped": False,
+                })
+            if inventory:
+                logger.info(f"사망자 {entity_id[-12:]}의 아이템 {len(inventory)}개를 corpse {corpse_id[-12:]}로 이동")
+        except Exception as e:
+            logger.error(f"인벤토리 → corpse 이동 실패 ({entity_id}): {e}")
+
+    async def _save_player_current_stats(self, player: Player) -> None:
+        """플레이어의 현재 상태값(HP 등)을 DB에 저장"""
+        try:
+            from .repositories import PlayerRepository
+            from ..database import get_database_manager
+
+            db_manager = await get_database_manager()
+            player_repo = PlayerRepository(db_manager)
+            stats_dict = player.stats.to_dict()
+            await player_repo.update(player.id, {
+                "stat_current": stats_dict.get("current", "{}"),
+            })
+        except Exception as e:
+            logger.error(f"플레이어 상태 저장 실패 ({player.id}): {e}")
+
     async def _handle_death(self, combat: CombatInstance, dead_combatant: Combatant) -> None:
         """사망 처리 - corpse 컨테이너를 원래 방에 생성 (전투 종료 여부와 무관)"""
+        I18N = get_localization_manager()
         try:
             if not self.world_manager:
                 logger.warning("world_manager 없음 - corpse 생성 불가")
@@ -402,8 +398,8 @@ class CombatHandler:
                     monster_obj: Monster = dead_combatant.data["monster"]
                     name_en = monster_obj.get_localized_name("en")
                     name_ko = monster_obj.get_localized_name("ko")
-                    desc_en = f"The lifeless remains of {name_en}."
-                    desc_ko = f"{name_ko}의 시체입니다."
+                    desc_en = I18N.get_message("combat.corpse_desc", "en", name=name_en)
+                    desc_ko = I18N.get_message("combat.corpse_desc", "ko", name=name_ko)
 
                     # 몬스터 DB 사망 처리
                     monster = await self.world_manager.get_monster(dead_combatant.id)
@@ -413,15 +409,15 @@ class CombatHandler:
                         logger.info(f"몬스터 {dead_combatant.id} DB 사망 처리 완료")
             else:
                 # 플레이어 사망
-                desc_en = f"The lifeless remains of {name_en}."
-                desc_ko = f"{name_ko}의 시체입니다."
+                desc_en = I18N.get_message("combat.corpse_desc", "en", name=name_en)
+                desc_ko = I18N.get_message("combat.corpse_desc", "ko", name=name_ko)
 
             # corpse 컨테이너 생성 - 원래 방(인스턴스 아님)에 배치
             room_id = combat.room_id
             corpse_id = str(uuid4())
             corpse_data = {
                 "id": corpse_id,
-                "name": {"en": f"Corpse of {name_en}", "ko": f"{name_ko}의 사체"},
+                "name": {"en": I18N.get_message("combat.corpse_name", "en", name=name_en), "ko": I18N.get_message("combat.corpse_name", "ko", name=name_ko)},
                 "description": {"en": desc_en, "ko": desc_ko},
                 "location_type": "room",
                 "location_id": room_id,
@@ -437,9 +433,15 @@ class CombatHandler:
             await self.world_manager.create_game_object(corpse_data)
             logger.info(f"Corpse 생성 완료: {corpse_id} (room: {room_id}, target: {name_en})")
 
+            # 사망자의 인벤토리 아이템을 corpse 컨테이너로 이동
+            await self._move_inventory_to_corpse(dead_combatant.id, corpse_id)
+
             # 전투 참가자들에게 corpse 생성 알림
-            corpse_msg = f"💀 {name_en}의 사체가 바닥에 떨어졌습니다."
-            await self.send_broadcast_combat_message(combat, corpse_msg)
+            def build_corpse_msg(loc: str) -> str:
+                c_name = dead_combatant.get_display_name(loc)
+                return I18N.get_message("combat.corpse_dropped", loc, name=c_name)
+
+            await self.send_broadcast_combat_message_localized(combat, build_corpse_msg)
 
         except Exception as e:
             logger.error(f"사망 처리(corpse 생성) 실패: {e}", exc_info=True)
@@ -506,24 +508,6 @@ class CombatHandler:
 
             return f"{base_dice}d{dice_size}"
 
-    async def _execute_defend(self, actor: Combatant) -> Dict[str, Any]:
-        """방어 실행"""
-        actor.is_defending = True
-
-        from ..core.localization import get_localization_manager
-
-        localization = get_localization_manager()
-
-        # 기본 언어는 영어로 설정 (세션 정보가 없는 경우)
-        locale = "en"
-
-        message = localization.get_message("combat.defend_stance", locale, actor=actor.name)
-
-        return {
-            "success": True,
-            "message": f"{ANSIColors.RED}{message}{ANSIColors.RESET}",
-        }
-
     async def _execute_flee(self, combat: CombatInstance, actor: Combatant) -> Dict[str, Any]:
         """도망 실행"""
         # 도망 성공 확률 (50%)
@@ -562,23 +546,33 @@ class CombatHandler:
                 "fled": False,
             }
 
-    async def _execute_wait(self, actor: Combatant) -> Dict[str, Any]:
-        """대기 실행"""
+    async def _execute_endturn(self, combat:CombatInstance, actor: Combatant) -> Dict[str, Any]:
+        """턴넘김"""
         # 방어 상태 해제
-        actor.is_defending = False
+        actor.is_defending = False  # TODO: 방어 하고 턴넘김이 될 수 있게 되어야 함
 
-        from ..core.localization import get_localization_manager
+        # from ..core.localization import get_localization_manager
 
-        localization = get_localization_manager()
+        # localization = get_localization_manager()
 
         # 기본 언어는 영어로 설정 (세션 정보가 없는 경우)
-        locale = "en"
+        # locale = "en"
 
-        message = localization.get_message("combat.wait_action", locale, actor=actor.name)
+        # message = "" # localization.get_message("combat.wait_action", locale, actor=actor.name)
+
+        # 턴을 종료 합니다.
+        await self.send_broadcast_combat_message(combat, f"{actor.name} passed the turn.")
+        combat.advance_turn()
+
+        # 전투 참가자들에게 다음 턴 브로드캐스트
+        logger.info("get_combat_status_message by process_monster_turn# 전투 참가자들에게 다음 턴 브로드캐스트")
+        msg = combat.get_combat_status_message(locale="en")
+        await self.send_broadcast_combat_message(combat, msg)
 
         return {
             "success": True,
-            "message": f"{ANSIColors.RED}{message}{ANSIColors.RESET}",
+            # "message": f"{ANSIColors.RED}{message}{ANSIColors.RESET}",
+            "message": ""
         }
 
     async def process_monster_turn(self, combat_id: str) -> Dict[str, Any]:
@@ -613,18 +607,9 @@ class CombatHandler:
         target = random.choice(alive_players)
         logger.info(f"몬스터 {current_combatant.name}이(가) {target.name}을(를) 공격 시도")
 
-        # 공격 실행
+        # 공격 실행 (_execute_attack 내부에서 즉시 broadcast됨)
         result = await self._execute_attack(combat, current_combatant, target.id)
-        msg = f"{result.get('message', 'N/A')}"
-        logger.info(f"몬스터 공격 결과: {result.get('success', False)}, 메시지: {msg}")
-
-        # 전투 참가자들에게 몬스터 공격 결과 브로드캐스트
-        # for combatant in combat.combatants:
-        #     if combatant.combatant_type == CombatantType.PLAYER:
-        #         session = self.session_manager.get_player_session(combatant.id)
-        #         if session:
-        #             await session.send_message({ "type": "combat_message", "message": msg })
-        await self.send_broadcast_combat_message(combat, msg)
+        logger.info(f"몬스터 공격 결과: {result.get('success', False)}")
 
         # 다음 턴으로 진행
         combat.advance_turn()
@@ -751,7 +736,7 @@ class CombatHandler:
         """활성 전투 목록 (호환성을 위한 속성)"""
         return {combat_id: combat for combat_id, combat in self.combat_manager.combat_instances.items() if combat.is_active}
 
-    async def start_combat(self, player: Player, monster: Monster, room_id: str, broadcast_callback=None) -> CombatInstance:
+    async def start_combat(self, player: Player, monster: Monster, room_id: str, broadcast_callback=None, aggresive=False) -> CombatInstance:
         """
         새로운 전투 시작 + 이미 전투 중인 경우 기존 CombatInstance 리턴
 
@@ -760,6 +745,7 @@ class CombatHandler:
             monster: 몬스터 객체
             room_id: 방 ID
             broadcast_callback: 브로드캐스트 콜백 함수
+            aggresive: 선공 몹이 시작 한 경우
 
         Returns:
             CombatInstance: 생성된 전투 인스턴스
@@ -799,7 +785,13 @@ class CombatHandler:
         logger.info("몬스터 추가")
         self.combat_manager.add_monster_to_combat(combat.id, monster)
 
-        await self.combat_manager.create_turn_for_new_instance(combat)  # 턴 결정
+        logger.info(f"aggresive[{aggresive}]")
+        if not aggresive:
+            # 일반 턴 결정
+            await self.combat_manager.turn_boardcast_for_new_instance(combat)
+        else:
+            # 선공 몹 턴 결정
+            await self.combat_manager.turn_boardcast_for_new_instance_with_aggresive_mob(combat, monster)
 
         logger.info(f"전투 시작[{combat.id}] {player.username} vs {monster.get_localized_name('ko')}")
 

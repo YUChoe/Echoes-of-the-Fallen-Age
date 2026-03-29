@@ -17,7 +17,7 @@ async def main():
 
         # 모든 사용자 목록 조회 (좌표 기반)
         cursor = await db_manager.execute("""
-            SELECT p.id, p.username, p.display_name, p.is_admin, p.stat_level,
+            SELECT p.id, p.username, p.display_name, p.is_admin,
                    p.last_login, p.created_at,
                    p.last_room_x, p.last_room_y,
                    (SELECT COUNT(*) FROM game_objects WHERE location_type = 'player' AND location_id = p.id) as inventory_count,
@@ -36,10 +36,10 @@ async def main():
         print("=" * 80)
 
         # 헤더 출력
-        print(f"{'No':<3} {'사용자명':<12} {'표시명':<12} {'관리자':<4} {'Lv':<3} {'위치':<8} {'아이템':<8} {'로그인':<10}")
+        print(f"{'No':<3} {'사용자명':<12} {'표시명':<12} {'관리자':<4} {'위치':<8} {'아이템':<8} {'로그인':<10}")
         print("-" * 80)
 
-        for i, (user_id, username, display_name, is_admin, level, last_login, created_at, x, y, inv_count, eq_count) in enumerate(users, 1):
+        for i, (user_id, username, display_name, is_admin, last_login, created_at, x, y, inv_count, eq_count) in enumerate(users, 1):
             # 데이터 포맷팅
             username_short = username[:11] if len(username) > 11 else username
             display_short = (display_name[:11] if display_name and len(display_name) > 11 else display_name) or "없음"
@@ -56,13 +56,13 @@ async def main():
             else:
                 login_date = "없음"
 
-            print(f"{i:<3} {username_short:<12} {display_short:<12} {admin_mark:<4} {level:<3} {location:<8} {items:<8} {login_date:<10}")
+            print(f"{i:<3} {username_short:<12} {display_short:<12} {admin_mark:<4} {location:<8} {items:<8} {login_date:<10}")
 
         print("-" * 80)
 
         # 상세 정보 (선택적으로 표시)
         print("\n상세 정보:")
-        for i, (user_id, username, display_name, is_admin, level, last_login, created_at, x, y, inv_count, eq_count) in enumerate(users[:3], 1):  # 처음 3명만
+        for i, (user_id, username, display_name, is_admin, last_login, created_at, x, y, inv_count, eq_count) in enumerate(users[:3], 1):  # 처음 3명만
             print(f"{i}. {username} (ID: {user_id[:8]}...)")
             print(f"   위치: ({x or 0}, {y or 0}), 아이템: 인벤토리 {inv_count}개 + 장착 {eq_count}개")
             print(f"   가입: {created_at.split('T')[0]}, 로그인: {last_login.split('T')[0] if last_login and 'T' in last_login else (last_login or '없음')}")

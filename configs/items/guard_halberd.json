@@ -1,0 +1,20 @@
+{
+  "template_id": "guard_halberd",
+  "name_en": "Guard's Halberd",
+  "name_ko": "경비병의 미늘창",
+  "description_en": "A heavy halberd wielded by square guards. Imposing and effective.",
+  "description_ko": "광장 경비병이 사용하는 무거운 미늘창입니다. 위압적이고 효과적입니다.",
+  "object_type": "item",
+  "category": "weapon",
+  "weight": 3.0,
+  "equipment_slot": "right_hand",
+  "properties": {
+    "dice": "1d10",
+    "weapon_type": "melee",
+    "material": "steel",
+    "verbs": {
+      "attack": {"en": "swings", "ko": "휘두릅니다"}
+    }
+  },
+  "max_stack": 1
+}

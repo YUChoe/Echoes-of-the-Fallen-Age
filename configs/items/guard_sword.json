@@ -1,0 +1,20 @@
+{
+  "template_id": "guard_sword",
+  "name_en": "Guard's Sword",
+  "name_ko": "경비병의 검",
+  "description_en": "A standard-issue sword carried by town guards.",
+  "description_ko": "마을 경비병이 지급받는 표준 검입니다.",
+  "object_type": "item",
+  "category": "weapon",
+  "weight": 1.5,
+  "equipment_slot": "right_hand",
+  "properties": {
+    "dice": "1d6",
+    "weapon_type": "melee",
+    "material": "steel",
+    "verbs": {
+      "attack": {"en": "slashes", "ko": "베어냅니다"}
+    }
+  },
+  "max_stack": 1
+}

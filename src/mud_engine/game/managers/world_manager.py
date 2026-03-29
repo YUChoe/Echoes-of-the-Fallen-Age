@@ -158,7 +158,7 @@ class WorldManager:
     async def move_monster_to_room(self, monster_id: str, room_id: str, game_engine=None) -> bool:
         return await self._monster_manager.move_monster_to_room(monster_id, room_id, self._room_manager, game_engine)
 
-    async def find_monsters_by_name(self, name_pattern: str, locale: str = 'ko') -> List[Monster]:
+    async def find_monsters_by_name(self, name_pattern: str, locale: str = 'en') -> List[Monster]:
         return await self._monster_manager.find_monsters_by_name(name_pattern, locale)
 
     # === 스폰 시스템 위임 ===
@@ -246,9 +246,9 @@ class WorldManager:
                 return {}
 
             objects = await self._object_manager.get_room_objects(room_id)
-            logger.info(f"방 {room_id}의 객체 개수: {len(objects)}")
+            logger.info(f"방 {room_id[-12:]}({room.x},{room.y})의 객체 개수: {len(objects)}")
             for obj in objects:
-                logger.info(f"  - 객체: {obj.get_localized_name('ko')} (ID: {obj.id})")
+                logger.debug(f"  - 객체: {obj.get_localized_name('ko')} (ID: {obj.id})")
 
             # stackable 오브젝트 그룹화
             grouped_objects = self._group_stackable_objects(objects)
@@ -277,7 +277,7 @@ class WorldManager:
 
     def _group_stackable_objects(self, objects: List[GameObject]) -> List[Dict[str, Any]]:
         """stackable 오브젝트들을 그룹화합니다."""
-        logger.info("_group_stackable_objects invoked")
+        logger.debug("_group_stackable_objects invoked")
         return []  # WIP TODO: 바닥에 떨어진건 그룹 하지 말자?
         try:
             # 오브젝트를 이름별로 그룹화

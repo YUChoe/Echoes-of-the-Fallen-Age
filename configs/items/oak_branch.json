@@ -6,7 +6,13 @@
   "description_ko": "참나무에서 떨어진 튼튼한 가지입니다.",
   "weight": 1.0,
   "properties": {
-    "durability": 100
+    "durability": 100,
+    "verbs": {
+      "attack": {
+        "en": "swings",
+        "ko": "휘두릅니다"
+      }
+    }
   },
   "max_stack": 20
 }

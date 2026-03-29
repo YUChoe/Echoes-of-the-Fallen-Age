@@ -16,8 +16,7 @@
     "constitution": 10,
     "intelligence": 8,
     "wisdom": 8,
-    "charisma": 6,
-    "level": 3
+    "charisma": 6
   },
   "experience_reward": 50,
   "gold_reward": 10,
@@ -30,6 +29,14 @@
   "respawn_time": 600,
   "aggro_range": 2,
   "roaming_range": 3,
+  "unarmed_attack": {
+    "name": {"en": "claws", "ko": "발톱"},
+    "verbs": {"attack": {"en": "claws", "ko": "할퀴어냅니다"}},
+    "dice": "1d4"
+  },
+  "equipment": [
+    {"template_id": "rusty_dagger", "slot": "right_hand"}
+  ],
   "spawn_config": {
     "count": 10,
     "global_max_count": 10,

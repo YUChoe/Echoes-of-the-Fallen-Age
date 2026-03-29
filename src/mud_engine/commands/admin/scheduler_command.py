@@ -4,7 +4,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from ..admin_commands import AdminCommand
+from .base import AdminCommand
 from ..base import CommandResult, CommandResultType
 
 if TYPE_CHECKING:

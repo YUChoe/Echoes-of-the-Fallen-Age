@@ -17,6 +17,7 @@ class Room(BaseModel):
     description: Dict[str, str] = field(default_factory=dict)
     x: Optional[int] = None  # X 좌표
     y: Optional[int] = None  # Y 좌표
+    blocked_exits: List[str] = field(default_factory=list)  # 막힌 출구 방향 (예: ["north", "west"])
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 
@@ -106,7 +107,6 @@ class Room(BaseModel):
         # description을 개별 컬럼으로 분리
         if "description" in data:
             desc_dict = data.pop("description")
-            # BaseModel에서 이미 JSON 문자열로 변환된 경우 다시 파싱
             if isinstance(desc_dict, str):
                 try:
                     desc_dict = json.loads(desc_dict)
@@ -118,6 +118,10 @@ class Room(BaseModel):
             data["description_ko"] = (
                 desc_dict.get("ko", "") if isinstance(desc_dict, dict) else ""
             )
+
+        # blocked_exits를 JSON 문자열로 변환
+        if "blocked_exits" in data and isinstance(data["blocked_exits"], list):
+            data["blocked_exits"] = json.dumps(data["blocked_exits"], ensure_ascii=False)
 
         return data
 
@@ -147,7 +151,21 @@ class Room(BaseModel):
                         converted_data[date_field].replace("Z", "+00:00")
                     )
                 except (ValueError, AttributeError):
-                    # 파싱 실패 시 현재 시간으로 설정
                     converted_data[date_field] = datetime.now()
+
+        # blocked_exits JSON 파싱
+        if "blocked_exits" in converted_data:
+            if isinstance(converted_data["blocked_exits"], str):
+                try:
+                    converted_data["blocked_exits"] = json.loads(converted_data["blocked_exits"])
+                except (json.JSONDecodeError, TypeError):
+                    converted_data["blocked_exits"] = []
+            elif not isinstance(converted_data["blocked_exits"], list):
+                converted_data["blocked_exits"] = []
+        else:
+            converted_data["blocked_exits"] = []
+
+        # exits 필드 제거 (더 이상 사용하지 않음)
+        converted_data.pop("exits", None)
 
         return cls(**converted_data)

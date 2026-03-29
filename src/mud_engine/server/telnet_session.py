@@ -50,6 +50,10 @@ class TelnetSession:
         self.original_room_id: Optional[str] = None  # 전투 전 원래 방 ID
         self.combat_id: Optional[str] = None  # 참여 중인 전투 ID
 
+        # 스태미나 (메모리 only, 로그인 시 초기화)
+        self.stamina: float = 5.0
+        self.max_stamina: float = 5.0
+
         # Telnet 관련 속성
         self.use_ansi_colors: bool = True  # ANSI 색상 코드 사용 여부
         self.terminal_width: int = 80  # 터미널 너비
@@ -276,7 +280,7 @@ class TelnetSession:
             lines.append("")
             lines.append(localization.get_message("room.players_here", self.locale))
             for player in players:
-                player_name = player.get("username", "알 수 없음")
+                player_name = player.get("username", "Unknown" if self.locale == "en" else "알 수 없음")
                 lines.append(f"  • {ANSIColors.player_name(player_name)}")
 
         # 디버깅: entity_map 로깅
@@ -314,7 +318,7 @@ class TelnetSession:
                 for group in grouped_objects:
                     if self.locale == "ko":
                         display_name = group.get(
-                            "display_name_ko", group.get("name_ko", "알 수 없음")
+                            "display_name_ko", group.get("name_ko", "Unknown" if self.locale == "en" else "알 수 없음")
                         )
                     else:
                         display_name = group.get(
@@ -342,7 +346,7 @@ class TelnetSession:
             else:
                 # 기존 방식 (fallback) - 개별 객체들을 번호와 함께 표시
                 for obj in objects:
-                    obj_name = obj.get("name", "알 수 없음")
+                    obj_name = obj.get("name", "Unknown" if self.locale == "en" else "알 수 없음")
                     obj_id = obj.get("id", "")
 
                     # id_to_number 딕셔너리 사용 (NPC와 동일한 방식)
@@ -392,7 +396,7 @@ class TelnetSession:
             lines.append("")
             lines.append(localization.get_message("room.npcs_here", self.locale))
             for npc in all_npcs:
-                npc_name = npc.get("name", "알 수 없음")
+                npc_name = npc.get("name", "Unknown" if self.locale == "en" else "알 수 없음")
                 npc_id = npc.get("id", "")
                 entity_num = id_to_number.get(npc_id, "?")
 
@@ -408,7 +412,7 @@ class TelnetSession:
             lines.append("")
             lines.append(localization.get_message("room.animals_here", self.locale))
             for monster in neutral_monsters:
-                monster_name = monster.get("name", "알 수 없음")
+                monster_name = monster.get("name", "Unknown" if self.locale == "en" else "알 수 없음")
                 monster_id = monster.get("id", "")
                 entity_num = id_to_number.get(monster_id, "?")
                 lines.append(
@@ -424,7 +428,7 @@ class TelnetSession:
             lines.append("")
             lines.append(localization.get_message("room.monsters_here", self.locale))
             for monster in hostile_monsters:
-                monster_name = monster.get("name", "알 수 없음")
+                monster_name = monster.get("name", "Unknown" if self.locale == "en" else "알 수 없음")
                 monster_id = monster.get("id", "")
                 entity_num = id_to_number.get(monster_id, "?")
                 lines.append(

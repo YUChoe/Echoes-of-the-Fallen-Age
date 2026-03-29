@@ -98,9 +98,9 @@ class PlayerMovementManager:
             }
             await self.game_engine.broadcast_to_room(room_id, enter_message, exclude_session=session.session_id)
 
-            # 따라가는 플레이어들도 함께 이동 - skip_followers가 False인 경우에만
-            if not skip_followers:
-                await self.handle_player_movement_with_followers(session, room_id, old_room_id)
+            # 따라가는 플레이어들도 함께 이동 - 현재 미구현
+            # if not skip_followers:
+            #     await self.handle_player_movement_with_followers(session, room_id, old_room_id)
 
             # 방 플레이어 목록 업데이트 (이전 방과 새 방 모두)
             if old_room_id:
@@ -109,9 +109,6 @@ class PlayerMovementManager:
 
             # 방 정보를 플레이어에게 전송 (follower든 아니든 항상 전송)
             await self.send_room_info_to_player(session, room_id)
-
-            # 선공형 몬스터 체크 및 즉시 공격 처리
-            await self._check_aggressive_monsters_on_entry(session, room_id)
 
             # 플레이어 좌표 업데이트
             await self._update_player_coordinates(session, room_id)
@@ -126,6 +123,9 @@ class PlayerMovementManager:
             except Exception:
                 logger.info(f"플레이어 {session.player.username}이 방 {room_id}로 이동")
             return True
+
+            # 선공형 몬스터 체크 및 즉시 공격 처리
+            # await self._check_aggressive_monsters_on_entry(session, room_id)
 
         except Exception as e:
             logger.error(f"플레이어 방 이동 실패 ({session.player.username} -> {room_id}): {e}")
@@ -208,7 +208,7 @@ class PlayerMovementManager:
                 # 디버깅: entity_map 로깅
                 logger.debug(f"entity_map created: {entity_map}")
                 for num, info in entity_map.items():
-                    logger.info(f"entity_map {num}: {info['type']} - {info['name']} (ID: {info['id']})")
+                    logger.info(f"entity_map {num}: {info['type']} - {info['name']} (ID: {info['id'][-12:]})")
 
                 room_data = {
                     "id": room_info['room'].id,
@@ -227,7 +227,6 @@ class PlayerMovementManager:
                         {
                             "id": monster.id,
                             "name": monster.get_localized_name(locale),
-                            "level": monster.level,
                             "current_hp": monster.current_hp,
                             "max_hp": monster.max_hp,
                             "faction_id": monster.faction_id,
@@ -264,68 +263,6 @@ class PlayerMovementManager:
 
         except Exception as e:
             logger.error(f"방 정보 전송 실패 ({session.player.username}, {room_id}): {e}")
-
-    async def handle_player_movement_with_followers(self, session: SessionType, new_room_id: str, old_room_id: Optional[str] = None) -> None:
-        """
-        플레이어 이동 시 따라가는 플레이어들도 함께 이동시킵니다.
-
-        Args:
-            session: 이동하는 플레이어의 세션
-            new_room_id: 새로운 방 ID
-            old_room_id: 이전 방 ID (따라가는 플레이어들을 찾기 위해 필요)
-        """
-        if not session.player or not old_room_id:
-            return
-
-        # 이 플레이어를 따라가는 다른 플레이어들 찾기 (이전 방에서)
-        followers = []
-
-        for other_session in self.game_engine.session_manager.get_authenticated_sessions():
-            if (other_session.player and
-                other_session.session_id != session.session_id and
-                getattr(other_session, 'current_room_id', None) == old_room_id and
-                getattr(other_session, 'following_player', None) == session.player.username):
-                followers.append(other_session)
-
-        if followers:
-            logger.info(f"따라가는 플레이어 {len(followers)}명 발견: {[f.player.username for f in followers]}")
-        else:
-            logger.debug(f"따라가는 플레이어 없음 (리더: {session.player.username}, 이전 방: {old_room_id})")
-
-        # 따라가는 플레이어들을 함께 이동
-        for follower_session in followers:
-            try:
-                # 따라가는 플레이어에게 알림
-                await follower_session.send_message({
-                    "type": "following_movement",
-                    "message": f"👥 {session.player.username}님을 따라 이동합니다..."
-                })
-
-                # 실제 이동 수행 (무한 재귀 방지를 위해 skip_followers=True)
-                success = await self.move_player_to_room(follower_session, new_room_id, skip_followers=True)
-
-                if success:
-                    # 이동 성공 시 follower에게 이동 완료 메시지 전송
-                    await follower_session.send_message({
-                        "type": "following_movement_complete",
-                        "message": f"👥 {session.player.username}님을 따라 이동했습니다."
-                    })
-
-                    logger.info(f"따라가기 이동 완료: {follower_session.player.username} -> 방 {new_room_id}")
-                else:
-                    # 이동 실패 시 따라가기 중지
-                    if hasattr(follower_session, 'following_player'):
-                        delattr(follower_session, 'following_player')
-
-                    await follower_session.send_error(
-                        f"{session.player.username}님을 따라가지 못했습니다. 따라가기가 중지됩니다."
-                    )
-
-            except Exception as e:
-                logger.error(f"따라가기 이동 실패 ({follower_session.player.username}): {e}")
-                # 오류 시 따라가기 중지
-                if hasattr(follower_session, 'following_player'):
-                    delattr(follower_session, 'following_player')
 
     async def update_room_player_list(self, room_id: str) -> None:
         """
@@ -411,387 +348,33 @@ class PlayerMovementManager:
         except Exception as e:
             logger.error(f"플레이어 연결 해제 정리 실패: {e}")
 
-    async def notify_player_status_change(self, player_id: str, status: str, data: dict = None) -> None:
-        """
-        플레이어 상태 변경을 다른 플레이어들에게 알립니다.
-
-        Args:
-            player_id: 상태가 변경된 플레이어 ID
-            status: 상태 ('online', 'offline', 'busy', 'away' 등)
-            data: 추가 데이터
-        """
-        try:
-            # 상태 변경 이벤트 발행
-            await self.game_engine.event_bus.publish(Event(
-                event_type=EventType.PLAYER_STATUS_CHANGED,
-                source=player_id,
-                data={
-                    "player_id": player_id,
-                    "status": status,
-                    "timestamp": datetime.now().isoformat(),
-                    **(data or {})
-                }
-            ))
-
-            # 전체 플레이어들에게 상태 변경 알림 (선택적)
-            if status in ['online', 'offline']:
-                player_session = None
-                for session in self.game_engine.session_manager.get_authenticated_sessions():
-                    if session.player and session.player.id == player_id:
-                        player_session = session
-                        break
-
-                if player_session:
-                    status_message = {
-                        "type": "player_status_change",
-                        "message": f"🔄 {player_session.player.username}님이 {status} 상태가 되었습니다.",
-                        "player_name": player_session.player.username,
-                        "status": status,
-                        "timestamp": datetime.now().isoformat()
-                    }
-
-                    await self.game_engine.broadcast_to_all(status_message)
-
-        except Exception as e:
-            logger.error(f"플레이어 상태 변경 알림 실패 ({player_id}, {status}): {e}")
-
-    async def _check_aggressive_monsters_on_entry(self, session: SessionType, room_id: str) -> None:
-        """
-        플레이어가 방에 입장할 때 선공형 몬스터 체크 및 즉시 공격 처리
-
-        Args:
-            session: 플레이어 세션
-            room_id: 입장한 방 ID
-        """
-        try:
-            logger.debug(f"선공형 몬스터 체크 시작: 플레이어 {session.player.username}, 방 {room_id}")
-
-            # 플레이어가 이미 전투 중인지 확인
-            if self.game_engine.combat_manager.is_player_in_combat(session.player.id):
-                logger.info(f"플레이어 {session.player.username}이 이미 전투 중이므로 선공 체크 생략")
-                return
-
-            # 방의 선공형 몬스터들 조회
-            locale = session.player.preferred_locale if session.player else "en"
-            room_info = await self.game_engine.get_room_info(room_id, locale)
-            if not room_info or not room_info.get('monsters'):
-                return
-
-            aggressive_monsters = []
-            for monster in room_info['monsters']:
-                logger.debug(f"몬스터 체크: {monster.get_localized_name(locale)}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
-                # 선공형이고 살아있는 몬스터만
-                if monster.is_aggressive() and monster.is_alive:
-                    aggressive_monsters.append(monster)
-                    logger.info(f"선공형 몬스터 발견: {monster.get_localized_name(locale)}")
-
-            if not aggressive_monsters:
-                logger.debug(f"방 {room_id}에 선공형 몬스터 없음")
-                return
-
-            # 첫 번째 선공형 몬스터가 공격 (우선순위: 레벨 높은 순)
-            aggressive_monsters.sort(key=lambda m: m.level, reverse=True)
-            attacking_monster = aggressive_monsters[0]
-
-            logger.info(f"선공형 몬스터 {attacking_monster.get_localized_name(locale)}이 플레이어 {session.player.username}을 공격!")
-
-            # 선공 메시지 브로드캐스트
-            monster_name = attacking_monster.get_localized_name(locale)
-            aggro_message = f"🔥 {monster_name}이(가) {session.player.username}을(를) 발견하고 공격합니다!"
-
-            # 방에 있는 모든 플레이어에게 선공 메시지 전송
-            await self.game_engine.broadcast_to_room(room_id, {
-                'type': 'monster_aggro',
-                'message': aggro_message,
-                'monster_id': attacking_monster.id,
-                'player_id': session.player.id,
-                'timestamp': datetime.now().isoformat()
-            })
-
-            # 전투 시작
-            combat = await self.game_engine.combat_handler.check_and_start_combat(
-                room_id, session.player, session.player.id, aggressive_monsters
-            )
-
-            if combat:
-                # 세션 전투 상태 업데이트
-                session.in_combat = True
-                session.combat_id = combat.id
-                session.original_room_id = room_id
-                session.current_room_id = f"combat_{combat.id}"
-
-                logger.info(f"세션 전투 상태 업데이트: combat_id={combat.id}, in_combat={session.in_combat}")
-
-                # 전투 시작 간단 알림 (전투 상태는 몬스터 턴 후 표시)
-                from ..localization import get_localization_manager
-                localization = get_localization_manager()
-                locale = session.player.preferred_locale if session.player else "ko"
-
-                combat_start_msg = localization.get_message("combat.start", locale, monster=monster_name)
-                await session.send_message({
-                    'type': 'combat_start',
-                    'message': f"⚔️ {combat_start_msg}"
-                })
-
-                # 몬스터 턴들을 자동으로 처리 (플레이어 턴까지)
-                await self._process_monster_turns_until_player(combat, session)
-
-            logger.info(f"선공형 몬스터 전투 시작: {monster_name} vs {session.player.username}")
-
-        except Exception as e:
-            logger.error(f"선공형 몬스터 체크 중 오류: {e}")
-
-    async def _process_monster_turns_until_player(self, combat: Any, session: SessionType) -> None:
-        """
-        몬스터 턴들을 자동으로 처리하여 플레이어 턴까지 진행
-
-        Args:
-            combat: 전투 인스턴스
-            session: 플레이어 세션
-        """
-        from ...game.combat import CombatantType
-
-        try:
-            max_iterations = 20  # 무한 루프 방지
-            iterations = 0
-
-            while combat.is_active and not combat.is_combat_over() and iterations < max_iterations:
-                iterations += 1
-                current = combat.get_current_combatant()
-
-                if not current:
-                    logger.warning("현재 턴 전투원을 찾을 수 없음")
-                    break
-
-                # 플레이어 턴이면 중단
-                if current.combatant_type == CombatantType.PLAYER:
-                    logger.info(f"플레이어 {session.player.username}의 턴 - 몬스터 턴 처리 완료")
-
-                    # 플레이어에게 턴 알림 전송 (포맷팅된 텍스트)
-                    from ..localization import get_localization_manager
-                    localization = get_localization_manager()
-                    locale = session.player.preferred_locale if session.player else "en"
-
-                    turn_msg = f"""
-{self._format_combat_status(combat, locale)}
-
-{localization.get_message("combat.your_turn", locale)}
-
-1️⃣ {localization.get_message("combat.action_attack", locale)}
-2️⃣ {localization.get_message("combat.action_defend", locale)}
-3️⃣ {localization.get_message("combat.action_flee", locale)}
-
-{localization.get_message("combat.enter_command", locale)}"""
-                    await session.send_message({
-                        'type': 'combat_your_turn',
-                        'message': turn_msg.strip()
-                    })
-                    break
-
-                # 몬스터 턴 처리
-                logger.info(f"몬스터 {current.name}의 턴 자동 처리 중...")
-                await self.game_engine.combat_handler.process_monster_turn(combat.id)
-
-                # 전투 종료 확인
-                if combat.is_combat_over():
-                    logger.info("전투 종료됨")
-                    await self._handle_combat_end(combat, session)
-                    break
-
-            if iterations >= max_iterations:
-                logger.error(f"몬스터 턴 처리 무한 루프 감지 (combat_id: {combat.id})")
-
-        except Exception as e:
-            logger.error(f"몬스터 턴 자동 처리 중 오류: {e}", exc_info=True)
-
-    async def _handle_combat_end(self, combat: Any, session: SessionType) -> None:
-        """
-        전투 종료 처리
-
-        Args:
-            combat: 전투 인스턴스
-            session: 플레이어 세션
-        """
-        from ...game.combat import CombatantType
-
-        try:
-            winners = combat.get_winners()
-            player_won = any(w.combatant_type == CombatantType.PLAYER for w in winners)
-
-            # 보상 계산 (승리 시)
-            rewards: dict[str, Any] = {'experience': 0, 'gold': 0, 'items': []}
-            if player_won:
-                defeated_monsters = [c for c in combat.combatants if c.combatant_type != CombatantType.PLAYER and not c.is_alive()]
-                for monster in defeated_monsters:
-                    rewards['experience'] = rewards['experience'] + 50  # 기본 경험치
-                    rewards['gold'] = rewards['gold'] + 10  # 기본 골드
-
-            # 전투 종료 메시지
-            from ..localization import get_localization_manager
-            localization = get_localization_manager()
-            locale = session.player.preferred_locale if session.player else "en"
-
-            if player_won:
-                message = f"""
-{localization.get_message("combat.victory", locale)}
-
-{localization.get_message("combat.return_location", locale)}
-"""
-            else:
-                message = f"{localization.get_message('combat.defeat', locale)}\n\n{localization.get_message('combat.return_location', locale)}"
-
-            await session.send_message({
-                'type': 'combat_end',
-                'message': message.strip(),
-                'victory': player_won,
-                'rewards': rewards
-            })
-
-            # 원래 방으로 복귀
-            if session.original_room_id:
-                session.current_room_id = session.original_room_id
-
-            # 전투 상태 초기화
-            session.in_combat = False
-            session.original_room_id = None
-            session.combat_id = None
-
-            # 전투 종료
-            self.game_engine.combat_manager.end_combat(combat.id)
-
-            logger.info(f"전투 종료 처리 완료: combat_id={combat.id}, 승리={player_won}")
-
-        except Exception as e:
-            logger.error(f"전투 종료 처리 중 오류: {e}", exc_info=True)
-
-    def _format_combat_status(self, combat: Any, locale: str = "en") -> str:
-        """
-        전투 상태를 포맷팅된 텍스트로 변환
-
-        Args:
-            combat: 전투 인스턴스
-            locale: 언어 설정
-
-        Returns:
-            str: 포맷팅된 전투 상태 텍스트
-        """
-        from ...game.combat import CombatantType
-        from ..localization import get_localization_manager
-
-        localization = get_localization_manager()
-
-        lines = ["━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"]
-        lines.append(localization.get_message("combat.round", locale, round=combat.turn_number))
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-        # 플레이어 정보
-        players = [c for c in combat.combatants if c.combatant_type == CombatantType.PLAYER and c.is_alive()]
-        if players:
-            player = players[0]
-            lines.append(f"\n👤 {player.name} HP: {player.current_hp}/{player.max_hp}")
-
-        # 몬스터 정보
-        monsters = [c for c in combat.combatants if c.combatant_type == CombatantType.MONSTER and c.is_alive()]
-        if monsters:
-            for monster in monsters:
-                # 몬스터 이름을 언어별로 동적 조회
-                monster_name = monster.name  # 기본값
-                if monster.data and 'monster' in monster.data:
-                    monster_obj = monster.data['monster']
-                    monster_name = monster_obj.get_localized_name(locale)
-
-                lines.append(f"👹 {monster_name}: HP: {monster.current_hp}/{monster.max_hp}")
-
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        return "\n".join(lines)
-
-    def _get_hp_bar(self, current: int, maximum: int, length: int = 10) -> str:
-        """
-        HP 바 생성
-
-        Args:
-            current: 현재 HP
-            maximum: 최대 HP
-            length: 바 길이
-
-        Returns:
-            str: HP 바 문자열
-        """
-        if maximum <= 0:
-            return "[" + "░" * length + "]"
-
-        filled = int((current / maximum) * length)
-        empty = length - filled
-
-        return "[" + "█" * filled + "░" * empty + "]"
-
     async def _update_player_coordinates(self, session: SessionType, room_id: str) -> None:
         """
         플레이어의 좌표를 업데이트합니다.
-        room_id에서 좌표를 추출하여 데이터베이스에 저장합니다.
-
-        Args:
-            session: 플레이어 세션
-            room_id: 방 ID (예: forest_5_7, town_square)
+        방 정보에서 좌표를 가져와 데이터베이스에 저장합니다.
         """
         try:
-            # room_id에서 좌표 추출
-            x, y = self._extract_coordinates_from_room_id(room_id)
+            room = await self.game_engine.world_manager.get_room(room_id)
+            if not room or room.x is None or room.y is None:
+                return
 
-            if x is not None and y is not None:
-                # 플레이어 객체 업데이트
-                session.player.last_room_x = x
-                session.player.last_room_y = y
+            session.player.last_room_x = room.x
+            session.player.last_room_y = room.y
 
-                # 데이터베이스 업데이트
-                from ...game.repositories import PlayerRepository
-                from ...database import get_database_manager
+            from ...game.repositories import PlayerRepository
+            from ...database import get_database_manager
 
-                db_manager = await get_database_manager()
-                player_repo = PlayerRepository(db_manager)
-
-                update_data = {
-                    'last_room_x': x,
-                    'last_room_y': y
-                }
-                await player_repo.update(session.player.id, update_data)
-
-                logger.debug(f"플레이어 {session.player.username} 좌표 업데이트: ({x}, {y})")
-            else:
-                logger.debug(f"플레이어 {session.player.username} 좌표 추출 실패: {room_id}")
+            db_manager = await get_database_manager()
+            player_repo = PlayerRepository(db_manager)
+            await player_repo.update(session.player.id, {
+                'last_room_x': room.x,
+                'last_room_y': room.y,
+            })
+            logger.debug(f"플레이어 {session.player.username} 좌표 업데이트: ({room.x}, {room.y})")
 
         except Exception as e:
             logger.error(f"플레이어 좌표 업데이트 실패: {e}")
 
-    def _extract_coordinates_from_room_id(self, room_id: str) -> tuple[int | None, int | None]:
-        """
-        room_id에서 좌표를 추출합니다.
-
-        Args:
-            room_id: 방 ID (예: forest_5_7, town_square)
-
-        Returns:
-            tuple: (x, y) 좌표, 추출 실패 시 (None, None)
-        """
-        try:
-            # room_id 형식: prefix_x_y (예: forest_5_7)
-            parts = room_id.split('_')
-
-            if len(parts) >= 3:
-                # 마지막 두 부분이 숫자인지 확인
-                try:
-                    x = int(parts[-2])
-                    y = int(parts[-1])
-                    return (x, y)
-                except ValueError:
-                    pass
-
-            # 좌표를 추출할 수 없는 경우
-            return (None, None)
-
-        except Exception as e:
-            logger.error(f"좌표 추출 실패 ({room_id}): {e}")
-            return (None, None)
     # === 좌표 기반 이동 시스템 ===
 
     async def move_player_by_direction(self, session: SessionType, direction: str, skip_followers: bool = False) -> bool:
@@ -807,6 +390,14 @@ class PlayerMovementManager:
             bool: 이동 성공 여부
         """
         if not session.is_authenticated or not session.player:
+            return False
+
+        # 스태미나 체크 (전투 밖 액션)
+        if getattr(session, 'stamina', 5.0) < 1.0:
+            from ..localization import get_localization_manager
+            localization = get_localization_manager()
+            locale = session.player.preferred_locale if session.player else "en"
+            await session.send_error(localization.get_message("system.stamina_exhausted", locale))
             return False
 
         try:
@@ -835,6 +426,15 @@ class PlayerMovementManager:
 
             new_x, new_y = calculate_new_coordinates(current_room.x, current_room.y, direction_enum)
 
+            # 막힌 출구 확인
+            if hasattr(current_room, 'blocked_exits') and direction.lower() in (current_room.blocked_exits or []):
+                from ..localization import get_localization_manager
+                localization = get_localization_manager()
+                locale = session.player.preferred_locale if session.player else "en"
+                message = localization.get_message("movement.no_exit", locale, direction=direction)
+                await session.send_error(message)
+                return False
+
             # 목적지 방 확인
             target_room = await self.game_engine.world_manager.get_room_at_coordinates(new_x, new_y)
             if not target_room:
@@ -851,6 +451,9 @@ class PlayerMovementManager:
             locale = session.player.preferred_locale if session.player else "en"
             move_message = localization.get_message("movement.success", locale, direction=direction)
             await session.send_success(move_message)
+
+            # 스태미나 소모
+            session.stamina = max(0.0, session.stamina - 1.0)
 
             # 기존 이동 메서드 사용
             return await self.move_player_to_room(session, target_room.id, skip_followers)
@@ -898,51 +501,3 @@ class PlayerMovementManager:
             message = localization.get_message("movement.error", locale)
             await session.send_error(message)
             return False
-
-    def get_player_coordinates(self, session: SessionType) -> Optional[tuple[int, int]]:
-        """
-        플레이어의 현재 좌표를 반환합니다.
-
-        Args:
-            session: 플레이어 세션
-
-        Returns:
-            tuple[int, int] | None: (x, y) 좌표 또는 None
-        """
-        if not session.is_authenticated or not session.player:
-            return None
-
-        current_room_id = getattr(session, 'current_room_id', None)
-        if not current_room_id:
-            return None
-
-        # 캐시된 좌표가 있다면 사용 (성능 최적화)
-        cached_coords = getattr(session, '_cached_coordinates', None)
-        if cached_coords:
-            return cached_coords
-
-        return None
-
-    async def update_player_coordinates_cache(self, session: SessionType) -> None:
-        """
-        플레이어의 좌표 캐시를 업데이트합니다.
-
-        Args:
-            session: 플레이어 세션
-        """
-        if not session.is_authenticated or not session.player:
-            return
-
-        current_room_id = getattr(session, 'current_room_id', None)
-        if not current_room_id:
-            return
-
-        try:
-            room = await self.game_engine.world_manager.get_room(current_room_id)
-            if room and room.x is not None and room.y is not None:
-                session._cached_coordinates = (room.x, room.y)
-            else:
-                session._cached_coordinates = None
-        except Exception as e:
-            logger.error(f"좌표 캐시 업데이트 실패 ({session.player.username}): {e}")
-            session._cached_coordinates = None

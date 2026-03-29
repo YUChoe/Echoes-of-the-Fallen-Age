@@ -1,0 +1,26 @@
+{
+  "template_id": "tutorial_club",
+  "name_en": "Club",
+  "name_ko": "곤봉",
+  "description_en": "A simple wooden club. Basic but effective weapon.",
+  "description_ko": "단순한 나무 곤봉입니다. 기본적이지만 효과적인 무기입니다.",
+  "object_type": "item",
+  "category": "weapon",
+  "weight": 2.0,
+  "equipment_slot": "right_hand",
+  "properties": {
+    "durability": 50,
+    "attack_speed": 1.0,
+    "weapon_type": "melee",
+    "material": "wood",
+    "template_id": "club",
+    "dice": "1d4",
+    "stats_bonus": {
+      "ATK": 3
+    },
+    "verbs": {
+      "attack": {"en": "swings", "ko": "휘두릅니다"}
+    }
+  },
+  "max_stack": 1
+}

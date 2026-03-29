@@ -1,0 +1,6 @@
+{
+  "specType": "feature",
+  "workflowType": "design-first",
+  "featureName": "python-mud-engine",
+  "designArtifacts": ["high-level", "low-level"]
+}

@@ -17,8 +17,7 @@
     "constitution": 14,
     "intelligence": 10,
     "wisdom": 12,
-    "charisma": 10,
-    "level": 8
+    "charisma": 10
   },
   "experience_reward": 0,
   "gold_reward": 0,
@@ -26,6 +25,14 @@
   "respawn_time": 0,
   "aggro_range": 0,
   "roaming_range": 0,
+  "unarmed_attack": {
+    "name": {"en": "fists", "ko": "맨손"},
+    "verbs": {"attack": {"en": "punches", "ko": "주먹으로 칩니다"}},
+    "dice": "1d4"
+  },
+  "equipment": [
+    {"template_id": "guard_halberd", "slot": "right_hand"}
+  ],
   "spawn_config": {
     "count": 3,
     "global_max_count": 3,

@@ -63,36 +63,37 @@ class OpenCommand(BaseCommand):
         return await self._open_container(session, game_engine, container_id, container_name)
 
     async def _find_container_in_room(self, session: SessionType, game_engine, entity_number: int) -> tuple[Optional[str], Optional[str]]:
-        """상자 찾기 - 번호 로만 TODO: 나중에 id 로 """
+        """상자 찾기 - 번호로"""
+        locale = getattr(session, 'locale', 'en')
         entity_map = getattr(session, 'room_entity_map', {})
         if entity_number in entity_map:
             entity_info = entity_map[entity_number]
             if entity_info.get('type') == 'object':
-                # 컨테이너인지 확인
                 obj = entity_info.get('entity')
                 if obj and self._is_container(obj):
-                    return entity_info.get('id'), entity_info.get('name') # TODO: name 을 locale 로
+                    return entity_info.get('id'), obj.get_localized_name(locale)
         return None, None
 
     async def _find_container_in_inv(self, session: SessionType, game_engine, entity_number: int) -> tuple[Optional[str], Optional[str]]:
-        """inv 에서 상자 찾기 TODO: 나중에 id 로 """
-        inventory_entity = getattr(session, 'inventory_entity_map', {})  # session 을 dict로 쓸 수 있네.. 흐음..
+        """inv 에서 상자 찾기"""
+        locale = getattr(session, 'locale', 'en')
+        inventory_entity = getattr(session, 'inventory_entity_map', {})
         logger.info(f"inventory_entity from session cnt[{len(inventory_entity.keys())}]")
         if entity_number in inventory_entity:
             entity_info = inventory_entity[entity_number]['objects'][0]
             logger.info(f"entity_info[{entity_info}]")
             if self._is_container(entity_info):
-                return entity_info.id, entity_info.name  # TODO: name 을 locale 로
+                return entity_info.id, entity_info.get_localized_name(locale)
         return None, None
 
     async def _find_item_in_inv(self, session: SessionType, game_engine, entity_number: int) -> tuple[Optional[str], Optional[str]]:
-        inventory_entity = getattr(session, 'inventory_entity_map', {})  # session 을 dict로 쓸 수 있네.. 흐음..
+        locale = getattr(session, 'locale', 'en')
+        inventory_entity = getattr(session, 'inventory_entity_map', {})
         logger.info(f"inventory_entity from session cnt[{len(inventory_entity.keys())}]")
         if entity_number in inventory_entity:
             game_obj = inventory_entity[entity_number]['objects'][0]
             logger.info(f"found [{entity_number}] game_obj[{game_obj}]")
-            # TODO: name 을 locale 로
-            return game_obj.id, game_obj.name
+            return game_obj.id, game_obj.get_localized_name(locale)
         return None, None
 
     def _is_container(self, gameobj) -> bool:
@@ -217,43 +218,43 @@ class PutCommand(BaseCommand):
             return self.create_error_result("아이템을 넣는 중 오류가 발생했습니다.")
 
     async def _find_container_in_room(self, session: SessionType, game_engine, target: str) -> tuple[Optional[str], Optional[str]]:
-        """상자 찾기 - 번호 로만 TODO: 나중에 id 로 """
-
+        """상자 찾기 - 번호로"""
+        locale = getattr(session, 'locale', 'en')
         if target.isdigit():
             entity_number = int(target)
             entity_map = getattr(session, 'room_entity_map', {})
             if entity_number in entity_map:
                 entity_info = entity_map[entity_number]
                 if entity_info.get('type') == 'object':
-                    # 컨테이너인지 확인
-                    obj = entity_info.get('entity')  # !!! 여기서 에러 날 듯
+                    obj = entity_info.get('entity')
                     if obj and self._is_container(obj):
-                        return entity_info.get('id'), entity_info.get('name') # TODO: name 을 locale 로
+                        return entity_info.get('id'), obj.get_localized_name(locale)
         return None, None
 
     async def _find_container_in_inv(self, session: SessionType, game_engine, target: str) -> tuple[Optional[str], Optional[str]]:
-        """inv 에서 상자 찾기 TODO: 나중에 id 로 """
+        """inv 에서 상자 찾기"""
+        locale = getattr(session, 'locale', 'en')
         if target.isdigit():
             entity_number = int(target)
-            inventory_entity = getattr(session, 'inventory_entity_map', {})  # session 을 dict로 쓸 수 있네.. 흐음..
+            inventory_entity = getattr(session, 'inventory_entity_map', {})
             logger.info(f"inventory_entity from session cnt[{len(inventory_entity.keys())}]")
             if entity_number in inventory_entity:
                 entity_info = inventory_entity[entity_number]['objects'][0]
                 logger.info(f"entity_info[{entity_info}]")
                 if self._is_container(entity_info):
-                    return entity_info.id, entity_info.name  # TODO: name 을 locale 로
+                    return entity_info.id, entity_info.get_localized_name(locale)
         return None, None
 
     async def _find_item_in_inv(self, session: SessionType, game_engine, target: str) -> tuple[Optional[str], Optional[str]]:
+        locale = getattr(session, 'locale', 'en')
         if target.isdigit():
             entity_number = int(target)
-            inventory_entity = getattr(session, 'inventory_entity_map', {})  # session 을 dict로 쓸 수 있네.. 흐음..
+            inventory_entity = getattr(session, 'inventory_entity_map', {})
             logger.info(f"inventory_entity from session cnt[{len(inventory_entity.keys())}]")
             if entity_number in inventory_entity:
                 game_obj = inventory_entity[entity_number]['objects'][0]
                 logger.info(f"found [{entity_number}] game_obj[{game_obj}]")
-                # TODO: name 을 locale 로
-                return game_obj.id, game_obj.name
+                return game_obj.id, game_obj.get_localized_name(locale)
         return None, None
 
     def _is_container(self, obj) -> bool:

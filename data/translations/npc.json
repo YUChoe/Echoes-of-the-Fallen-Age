@@ -1,0 +1,204 @@
+{
+    "npc.talk.usage": {
+        "en": "Who would you like to talk to? Usage: talk <monster_name>",
+        "ko": "누구와 대화하시겠습니까? 사용법: talk <몬스터이름>"
+    },
+    "npc.talk.no_engine": {
+        "en": "Cannot access the game engine.",
+        "ko": "게임 엔진에 접근할 수 없습니다."
+    },
+    "npc.talk.no_location": {
+        "en": "Cannot determine your current location.",
+        "ko": "현재 위치를 확인할 수 없습니다."
+    },
+    "npc.talk.no_room_coords": {
+        "en": "Cannot determine the coordinates of the current room.",
+        "ko": "현재 방의 좌표를 확인할 수 없습니다."
+    },
+    "npc.talk.not_found": {
+        "en": "Cannot find '{target}'.",
+        "ko": "'{target}'을(를) 찾을 수 없습니다."
+    },
+    "npc.talk.hostile": {
+        "en": "{name} is hostile and cannot be spoken to.",
+        "ko": "{name}은(는) 적대적이어서 대화할 수 없습니다."
+    },
+    "npc.talk.silent_stare": {
+        "en": "{name} silently watches you.",
+        "ko": "{name}은(는) 당신을 조용히 바라봅니다."
+    },
+    "npc.talk.dialogue": {
+        "en": "{name}: \"{dialogue}\"",
+        "ko": "{name}: \"{dialogue}\""
+    },
+    "npc.talk.broadcast": {
+        "en": "{player} is talking to {monster}.",
+        "ko": "{player}이(가) {monster}와(과) 대화하고 있습니다."
+    },
+    "npc.talk.error": {
+        "en": "An error occurred during the conversation.",
+        "ko": "대화 중 오류가 발생했습니다."
+    },
+    "npc.talk.quest.already_completed": {
+        "en": "🎉 You already received your basic equipment. Enjoy your adventure!",
+        "ko": "🎉 이미 기본 장비를 받으셨군요. 모험을 즐기세요!"
+    },
+    "npc.talk.quest.progress": {
+        "en": "📋 You have collected {count}/10 Essence of Life. You need {remaining} more.",
+        "ko": "📋 생명의 정수를 {count}/10개 수집하셨군요. {remaining}개 더 필요합니다."
+    },
+    "npc.talk.quest.start": {
+        "en": "📜 Quest Started: Basic Equipment\n\n🎯 Objective: Collect 10 Essence of Life\n📍 Location: Obtainable by defeating monsters in the wilderness\n\nReturn to me when completed to receive basic equipment:\n• Wooden Club (weapon)\n• Linen Shirt (armour)\n• Linen Trousers (armour)",
+        "ko": "📜 퀘스트 시작: 기본 장비\n\n🎯 목표: 생명의 정수 10개 수집\n📍 위치: 야생 몬스터 처치 시 획득 가능\n\n완료 후 다시 저에게 오시면 기본 장비를 드리겠습니다:\n• 나무 곤봉 (무기)\n• 리넨 상의 (방어구)\n• 리넨 하의 (방어구)"
+    },
+    "npc.talk.quest.complete": {
+        "en": "🎉 Quest Completed: Basic Equipment\n\n✅ Received 10 Essence of Life.\n🎁 Basic equipment has been given as reward:\n{equipment}\n\nYou are now ready to begin your adventure!",
+        "ko": "🎉 퀘스트 완료: 기본 장비\n\n✅ 생명의 정수 10개를 받았습니다.\n🎁 보상으로 기본 장비를 지급했습니다:\n{equipment}\n\n이제 모험을 시작할 준비가 되었습니다!"
+    },
+    "npc.talk.quest.not_enough": {
+        "en": "❌ Not enough Essence of Life. ({count}/10)",
+        "ko": "❌ 생명의 정수가 부족합니다. ({count}/10개)"
+    },
+    "npc.talk.quest.complete_error": {
+        "en": "❌ An error occurred whilst completing the quest.",
+        "ko": "❌ 퀘스트 완료 처리 중 오류가 발생했습니다."
+    },
+    "npc.talk.quest.equipment_fail": {
+        "en": "Equipment delivery failed",
+        "ko": "장비 지급 실패"
+    },
+    "npc.talk.quest.equipment_error": {
+        "en": "An error occurred during equipment delivery",
+        "ko": "장비 지급 중 오류 발생"
+    },
+
+    "npc.trade.usage": {
+        "en": "Usage: trade <item_name> <monster_name>",
+        "ko": "사용법: trade <아이템이름> <몬스터이름>"
+    },
+    "npc.trade.no_engine": {
+        "en": "Cannot access the game engine.",
+        "ko": "게임 엔진에 접근할 수 없습니다."
+    },
+    "npc.trade.no_location": {
+        "en": "Cannot determine your current location.",
+        "ko": "현재 위치를 확인할 수 없습니다."
+    },
+    "npc.trade.no_room_coords": {
+        "en": "Cannot determine the coordinates of the current room.",
+        "ko": "현재 방의 좌표를 확인할 수 없습니다."
+    },
+    "npc.trade.not_found": {
+        "en": "Cannot find '{monster_name}'.",
+        "ko": "'{monster_name}'을(를) 찾을 수 없습니다."
+    },
+    "npc.trade.no_trade": {
+        "en": "This monster does not trade.",
+        "ko": "이 몬스터는 거래를 하지 않습니다."
+    },
+    "npc.trade.error": {
+        "en": "An error occurred during the trade.",
+        "ko": "거래 중 오류가 발생했습니다."
+    },
+    "npc.trade.monk.already_completed": {
+        "en": "You have already completed the quest. No more trades available.",
+        "ko": "이미 퀘스트를 완료하셨습니다. 더 이상 거래할 수 없습니다."
+    },
+    "npc.trade.monk.essence_only": {
+        "en": "The monk only accepts Essence of Life.",
+        "ko": "수도사는 생명의 정수만 받습니다."
+    },
+    "npc.trade.monk.no_essence": {
+        "en": "You don't have any Essence of Life.",
+        "ko": "생명의 정수를 가지고 있지 않습니다."
+    },
+    "npc.trade.monk.not_enough": {
+        "en": "Not enough Essence of Life. ({total_essence}/10)",
+        "ko": "생명의 정수가 부족합니다. ({total_essence}/10개)"
+    },
+    "npc.trade.monk.error": {
+        "en": "An error occurred during the trade.",
+        "ko": "거래 처리 중 오류가 발생했습니다."
+    },
+
+    "npc.shop.usage": {
+        "en": "Usage: shop list [merchant_name] or shop buy <item> [merchant_name]",
+        "ko": "사용법: shop list [상인이름] 또는 shop buy <아이템> [상인이름]"
+    },
+    "npc.shop.no_engine": {
+        "en": "Cannot access the game engine.",
+        "ko": "게임 엔진에 접근할 수 없습니다."
+    },
+    "npc.shop.no_location": {
+        "en": "Cannot determine your current location.",
+        "ko": "현재 위치를 확인할 수 없습니다."
+    },
+    "npc.shop.no_room_coords": {
+        "en": "Cannot determine the coordinates of the current room.",
+        "ko": "현재 방의 좌표를 확인할 수 없습니다."
+    },
+    "npc.shop.no_merchant": {
+        "en": "There are no merchants here.",
+        "ko": "이 곳에는 상인이 없습니다."
+    },
+    "npc.shop.buy_usage": {
+        "en": "Usage: shop buy <item>",
+        "ko": "사용법: shop buy <아이템>"
+    },
+    "npc.shop.invalid_action": {
+        "en": "Usage: shop list or shop buy <item>",
+        "ko": "사용법: shop list 또는 shop buy <아이템>"
+    },
+    "npc.shop.error": {
+        "en": "An error occurred whilst using the shop.",
+        "ko": "상점 이용 중 오류가 발생했습니다."
+    },
+    "npc.shop.no_items": {
+        "en": "This merchant has nothing to sell.",
+        "ko": "이 상인은 판매할 물건이 없습니다."
+    },
+    "npc.shop.list_header": {
+        "en": "📦 Items for sale:",
+        "ko": "📦 판매 상품:"
+    },
+    "npc.shop.list_hint": {
+        "en": "💡 To purchase: shop buy <item_name>",
+        "ko": "💡 구매하려면: shop buy <아이템이름>"
+    },
+    "npc.shop.price_free": {
+        "en": "Free",
+        "ko": "무료"
+    },
+    "npc.shop.list_error": {
+        "en": "Cannot load the shop list.",
+        "ko": "상점 목록을 불러올 수 없습니다."
+    },
+    "npc.shop.item_not_found": {
+        "en": "Cannot find the item '{item_name}'.",
+        "ko": "'{item_name}' 아이템을 찾을 수 없습니다."
+    },
+    "npc.shop.quest_required": {
+        "en": "You must complete the quest first to purchase this item.",
+        "ko": "이 아이템을 구매하려면 먼저 퀘스트를 완료해야 합니다."
+    },
+    "npc.shop.payment_failed": {
+        "en": "Payment failed.",
+        "ko": "결제에 실패했습니다."
+    },
+    "npc.shop.give_item_failed": {
+        "en": "Failed to deliver the item.",
+        "ko": "아이템 지급에 실패했습니다."
+    },
+    "npc.shop.purchase_quest_complete": {
+        "en": "🎉 Purchased {item_id} {price_text}!\nQuest completed!",
+        "ko": "🎉 {item_id}을(를) {price_text} 구매했습니다!\n퀘스트가 완료되었습니다!"
+    },
+    "npc.shop.purchase_success": {
+        "en": "✅ Purchased {item_id} {price_text}!",
+        "ko": "✅ {item_id}을(를) {price_text} 구매했습니다!"
+    },
+    "npc.shop.buy_error": {
+        "en": "An error occurred during the purchase.",
+        "ko": "구매 처리 중 오류가 발생했습니다."
+    }
+}

@@ -6,7 +6,10 @@
   "description_ko": "체력을 회복시켜주는 빨간 물약입니다.",
   "weight": 0.2,
   "properties": {
-    "hp_restore": 50
+    "hp_restore": 50,
+    "verbs": {
+      "use": {"en": "drinks", "ko": "마십니다"}
+    }
   },
   "max_stack": 20
 }

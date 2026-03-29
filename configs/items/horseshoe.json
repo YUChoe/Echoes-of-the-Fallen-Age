@@ -7,7 +7,13 @@
   "weight": 0.3,
   "properties": {
     "material": "iron",
-    "luck_bonus": 1
+    "luck_bonus": 1,
+    "verbs": {
+      "use": {
+        "en": "attaches",
+        "ko": "부착합니다"
+      }
+    }
   },
   "max_stack": 5
 }

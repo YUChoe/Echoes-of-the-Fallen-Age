@@ -8,7 +8,13 @@
   "properties": {
     "material": "leather",
     "durability": 100,
-    "horse_control": 5
+    "horse_control": 5,
+    "verbs": {
+      "use": {
+        "en": "fastens",
+        "ko": "채웁니다"
+      }
+    }
   },
   "equipment_slot": "accessory",
   "max_stack": 1

@@ -1,0 +1,20 @@
+{
+  "template_id": "guard_heavy_sword",
+  "name_en": "Heavy Sword",
+  "name_ko": "중검",
+  "description_en": "A large, heavy sword used by heavily armoured guards.",
+  "description_ko": "중장갑 경비병이 사용하는 크고 무거운 검입니다.",
+  "object_type": "item",
+  "category": "weapon",
+  "weight": 3.5,
+  "equipment_slot": "right_hand",
+  "properties": {
+    "dice": "2d6",
+    "weapon_type": "melee",
+    "material": "steel",
+    "verbs": {
+      "attack": {"en": "cleaves with", "ko": "내려칩니다"}
+    }
+  },
+  "max_stack": 1
+}

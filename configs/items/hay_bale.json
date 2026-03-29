@@ -7,7 +7,13 @@
   "weight": 5.0,
   "properties": {
     "feed_value": 10,
-    "material": "organic"
+    "material": "organic",
+    "verbs": {
+      "use": {
+        "en": "spreads",
+        "ko": "펼칩니다"
+      }
+    }
   },
   "max_stack": 3
 }

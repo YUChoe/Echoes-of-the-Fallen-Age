@@ -1,0 +1,20 @@
+{
+  "template_id": "guide_walking_stick",
+  "name_en": "Walking Stick",
+  "name_ko": "지팡이",
+  "description_en": "A sturdy wooden walking stick. Can be used as a makeshift weapon.",
+  "description_ko": "튼튼한 나무 지팡이입니다. 임시 무기로 사용할 수 있습니다.",
+  "object_type": "item",
+  "category": "weapon",
+  "weight": 1.0,
+  "equipment_slot": "right_hand",
+  "properties": {
+    "dice": "1d4",
+    "weapon_type": "melee",
+    "material": "wood",
+    "verbs": {
+      "attack": {"en": "strikes with", "ko": "내리칩니다"}
+    }
+  },
+  "max_stack": 1
+}

@@ -30,7 +30,6 @@ async def main():
                 'intelligence': 3,
                 'wisdom': 11,
                 'charisma': 4,
-                'level': 1,
                 'current_hp': 25
             },
             'behavior': 'AGGRESSIVE',
@@ -83,7 +82,6 @@ async def main():
         print(f"✅ 테스트 몬스터 생성 완료: {monster_data['name_ko']} ({monster_data['id']})")
         print(f"   위치: ({monster_data['x']}, {monster_data['y']})")
         print(f"   HP: {monster_data['stats']['current_hp']}")
-        print(f"   레벨: {monster_data['stats']['level']}")
 
         return 0
 

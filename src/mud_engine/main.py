@@ -277,6 +277,9 @@ async def main():
         if game_engine:
             await game_engine.stop()
 
+        # 비동기 태스크 정리 대기
+        await asyncio.sleep(0.5)
+
         await close_database_manager()
         logger.info("MUD Engine이 성공적으로 종료되었습니다.")
         print("👋 MUD Engine 종료.")

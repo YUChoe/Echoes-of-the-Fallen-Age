@@ -120,7 +120,6 @@ class TemplateLoader:
                 intelligence=stats_data.get('intelligence', 10),
                 wisdom=stats_data.get('wisdom', 10),
                 charisma=stats_data.get('charisma', 10),
-                level=stats_data.get('level', 1),
                 current_hp=stats_data.get('current_hp', stats_data.get('constitution', 10) * 5)
             )
 
@@ -141,6 +140,16 @@ class TemplateLoader:
                 faction_id=template.get('faction_id'),
                 properties={'template_id': template_id, 'is_template': False}
             )
+
+            # unarmed_attack 정보를 properties에 저장
+            unarmed_data = template.get('unarmed_attack')
+            if unarmed_data:
+                monster.properties['unarmed_attack'] = unarmed_data
+
+            # weapon 정보를 properties에 추가 (하위 호환성)
+            weapon_data = template.get('weapon')
+            if weapon_data:
+                monster.properties['weapon'] = weapon_data
 
             logger.debug(f"템플릿에서 몬스터 생성: {monster_id} (템플릿: {template_id})")
             return monster

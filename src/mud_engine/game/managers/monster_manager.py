@@ -5,7 +5,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from uuid import uuid4
-
+from .room_manager import RoomManager
 from ..repositories import MonsterRepository
 from ..monster import Monster, MonsterType, MonsterBehavior, MonsterStats
 from ...config import TemplateLoader
@@ -159,10 +159,50 @@ class MonsterManager:
             created_monster = await self._monster_repo.create(new_monster.to_dict())
             if created_monster:
                 logger.info(f"몬스터 스폰됨: {created_monster.get_localized_name()} (방: {room_id})")
+
+                # equipment 아이템 생성 (game_objects에 저장)
+                await self._create_monster_equipment(created_monster.id, template_id)
+
                 return created_monster
         except Exception as e:
             logger.error(f"몬스터 스폰 실패 ({template_id} -> {room_id}): {e}")
         return None
+
+    async def _create_monster_equipment(self, monster_id: str, template_id: str) -> None:
+        """몬스터 스폰 시 equipment 배열의 아이템을 game_objects에 생성"""
+        try:
+            template = self._template_loader.get_monster_template(template_id)
+            if not template:
+                return
+
+            equipment_list = template.get('equipment', [])
+            if not equipment_list:
+                return
+
+            if not self._game_engine:
+                logger.warning("game_engine 없음 - 몬스터 장비 생성 불가")
+                return
+
+            for equip in equipment_list:
+                item_template_id = equip.get('template_id')
+                slot = equip.get('slot')
+                if not item_template_id:
+                    continue
+
+                item = self._template_loader.create_item_from_template(
+                    item_template_id, str(uuid4()),
+                    location_type="inventory",
+                    location_id=monster_id
+                )
+                if item:
+                    item.is_equipped = True
+                    if slot:
+                        item.equipment_slot = slot
+                    await self._game_engine.world_manager._object_manager.create_game_object(item.to_dict())
+                    logger.debug(f"몬스터 {monster_id[-12:]}에 장비 생성: {item_template_id}")
+
+        except Exception as e:
+            logger.error(f"몬스터 장비 생성 실패 ({monster_id}, {template_id}): {e}")
 
     async def _respawn_monster(self, monster: Monster) -> bool:
         """몬스터를 리스폰합니다."""
@@ -170,6 +210,10 @@ class MonsterManager:
             success = await self._monster_repo.respawn_monster(monster.id)
             if success:
                 logger.info(f"몬스터 리스폰됨: {monster.get_localized_name()} (좌표: {monster.x}, {monster.y})")
+                # 리스폰 시 장비 재생성
+                template_id = monster.properties.get('template_id')
+                if template_id:
+                    await self._create_monster_equipment(monster.id, template_id)
             return success
         except Exception as e:
             logger.error(f"몬스터 리스폰 실패 ({monster.id}): {e}")
@@ -473,7 +517,7 @@ class MonsterManager:
             logger.error(f"몬스터 방 이동 실패 ({monster_id} -> {room_id}): {e}")
             raise
 
-    async def find_monsters_by_name(self, name_pattern: str, locale: str = 'ko') -> List[Monster]:
+    async def find_monsters_by_name(self, name_pattern: str, locale: str = 'en') -> List[Monster]:
         """이름 패턴으로 몬스터를 검색합니다."""
         try:
             all_monsters = await self.get_all_monsters()
@@ -532,11 +576,14 @@ class MonsterManager:
         except Exception as e:
             logger.error(f"몬스터 로밍 처리 실패: {e}")
 
-    async def _roam_monster(self, monster: Monster, roaming_config: Dict[str, Any], room_manager=None, game_engine=None, random_value: float = 0.0) -> None:
+    async def _roam_monster(self, monster: Monster, roaming_config: Dict[str, Any], room_manager: RoomManager=None, game_engine=None, random_value: float = 0.0) -> None:
         """몬스터를 로밍 범위 내에서 이동시킵니다."""
         try:
             if monster.x is None or monster.y is None:
                 return
+            priv_x = monster.x
+            priv_y = monster.y
+            priv_room = await room_manager.get_room_at_coordinates(priv_x, priv_y)
 
             if room_manager:
 
@@ -570,7 +617,7 @@ class MonsterManager:
                         continue
 
                     # 해당 좌표에 방이 존재하는지 확인
-                    target_room = await room_manager.get_room_at_coordinates(target_x, target_y)
+                    target_room = await room_manager.get_room_at_coordinates(target_x, target_y)  # target_room은 아래의 배열에 넣는데에만 쓰임
                     if target_room:
                         available_moves.append((direction, target_x, target_y))
 
@@ -592,6 +639,11 @@ class MonsterManager:
                     monster_name = monster.get_localized_name('en')[:15] if monster.get_localized_name('en') else short_id
 
                     logger.info(f"{monster_name} {short_id} ({current_x}, {current_y}) -> ({target_x}, {target_y}) 로밍 (확률: {random_value:.2f})")
+
+                    target_room = await room_manager.get_room_at_coordinates(target_x, target_y)  # 그래서 여기서 다시 room을 가져 옴
+                    await self._game_engine.broadcast_to_room_by_detection_ability(priv_room.id, f"{monster_name} leaves the room.")
+                    await self._game_engine.broadcast_to_room_by_detection_ability(target_room.id, f"{monster_name} enters this room.")
+
         except Exception as e:
             logger.error(f"몬스터 로밍 실패 ({monster.id}): {e}")
 

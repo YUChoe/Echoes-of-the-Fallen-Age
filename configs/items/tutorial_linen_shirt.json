@@ -1,0 +1,20 @@
+{
+  "template_id": "tutorial_linen_shirt",
+  "name_en": "Linen Shirt",
+  "name_ko": "리넨 상의",
+  "description_en": "A simple linen shirt. Offers minimal protection.",
+  "description_ko": "단순한 리넨 상의입니다. 최소한의 보호를 제공합니다.",
+  "object_type": "item",
+  "category": "armor",
+  "weight": 0.5,
+  "equipment_slot": "chest",
+  "properties": {
+    "stats_bonus": {
+      "DEF": 1
+    },
+    "verbs": {
+      "use": {"en": "puts on", "ko": "입습니다"}
+    }
+  },
+  "max_stack": 1
+}

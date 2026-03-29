@@ -15,21 +15,17 @@
         "en": "🎯 Your turn! Choose your action:",
         "ko": "🎯 당신의 턴입니다! 행동을 선택하세요:"
     },
-    "combat.monster_turn": {
-        "en": "⏳ {monster}'s turn...",
-        "ko": "⏳ {monster}의 턴입니다..."
+    "combat.whos_turn": {
+        "en": "⏳ {name}'s turn...",
+        "ko": "⏳ {name}의 턴입니다..."
     },
-    "combat.attack_hit": {
-        "en": "✅ Hit! {damage} damage to {target}!",
-        "ko": "✅ 명중! {target}에게 {damage} 데미지!"
+    "combat.turn_order": {
+        "en": "Order: ",
+        "ko": "순서: "
     },
-    "combat.attack_miss": {
-        "en": "❌ Missed {target}!",
-        "ko": "❌ {target}을(를) 빗나갔습니다!"
-    },
-    "combat.defend": {
-        "en": "{actor} takes a defensive stance. (Next damage reduced by 50%)",
-        "ko": "{actor}이(가) 방어 자세를 취했습니다. (다음 공격 데미지 50% 감소)"
+    "combat.no_target": {
+        "en": "Please specify a target.\nUsage: attack <target_num>",
+        "ko": "공격할 대상을 지정해주세요.\n사용법: attack <몹num>"
     },
     "combat.flee_success": {
         "en": "💨 You fled from combat!",
@@ -43,29 +39,9 @@
         "en": "⚔️ Turn {round}",
         "ko": "⚔️ 턴 {round}"
     },
-    "combat.player_hp": {
-        "en": "👤 {name}",
-        "ko": "👤 {name}"
-    },
-    "combat.monsters": {
-        "en": "👹 Monsters:",
-        "ko": "👹 몬스터:"
-    },
-    "combat.monster_entry": {
-        "en": "   • {name}",
-        "ko": "   • {name}"
-    },
-    "combat.hp_display": {
-        "en": "     HP: {hp_bar} {current}/{max}",
-        "ko": "     HP: {hp_bar} {current}/{max}"
-    },
     "combat.action_attack": {
         "en": "[1] attack  - Attack with weapon",
         "ko": "[1] attack  - 무기로 공격"
-    },
-    "combat.action_defend": {
-        "en": "[2] defend  - Defensive stance (50% damage reduction next turn)",
-        "ko": "[2] defend  - 방어 자세 (다음 데미지 50% 감소)"
     },
     "combat.action_flee": {
         "en": "[3] flee    - Flee from combat (50% chance)",
@@ -74,10 +50,6 @@
     "combat.enter_command": {
         "en": "Enter command:",
         "ko": "명령어를 입력하세요:"
-    },
-    "combat.defend_stance": {
-        "en": "{actor} takes a defensive stance. (Next damage reduced by 50%)",
-        "ko": "{actor}이(가) 방어 자세를 취했습니다. (다음 공격 데미지 50% 감소)"
     },
     "combat.fled_from_combat": {
         "en": "{actor} fled from combat!",
@@ -95,10 +67,6 @@
         "en": "[1] attack (or number 1) - Attack with weapon",
         "ko": "[1] attack (또는 숫자 1) - 무기로 공격"
     },
-    "combat.help_defend": {
-        "en": "[2] defend (or number 2) - Defensive stance (50% damage reduction next turn)",
-        "ko": "[2] defend (또는 숫자 2) - 방어 자세 (다음 데미지 50% 감소)"
-    },
     "combat.help_flee": {
         "en": "[3] flee (or number 3) - Flee from combat (50% chance)",
         "ko": "[3] flee (또는 숫자 3) - 도망치기 (50% 확률)"
@@ -107,53 +75,9 @@
         "en": "📋 Other Commands:",
         "ko": "📋 기타 명령어:"
     },
-    "combat.rewards": {
-        "en": "💰 Rewards:",
-        "ko": "💰 보상:"
-    },
-    "combat.exp_gained": {
-        "en": "  - Experience: {exp}",
-        "ko": "  - 경험치: {exp}"
-    },
-    "combat.gold_gained": {
-        "en": "  - Gold: {gold}",
-        "ko": "  - 골드: {gold}"
-    },
     "combat.return_location": {
         "en": "Returning to original location...",
         "ko": "원래 위치로 돌아왔습니다."
-    },
-    "combat.victory_message": {
-        "en": "🎉 Victory in combat!",
-        "ko": "🎉 전투에서 승리했습니다!"
-    },
-    "combat.defeat_message": {
-        "en": "💀 Defeated in combat...",
-        "ko": "💀 전투에서 패배했습니다..."
-    },
-    "combat.rewards_header": {
-        "en": "💰 Rewards:",
-        "ko": "💰 보상:"
-    },
-    "combat.gold_reward": {
-        "en": "  - Gold: {gold}",
-        "ko": "  - 골드: {gold}"
-    },
-    "combat.items_obtained": {
-        "en": "📦 Items obtained:",
-        "ko": "📦 획득한 아이템:"
-    },
-    "combat.item_ground": {
-        "en": "  - {name} x{quantity} (dropped on ground)",
-        "ko": "  - {name} x{quantity} (땅에 떨어짐)"
-    },
-    "combat.item_inventory": {
-        "en": "- {name} x{quantity} goes into your pocket.",
-        "ko": "- {name} x{quantity}개가 주머니속으로 들어갑니다."
-    },
-    "combat.returning_location": {
-        "en": "Returning to original location...",
-        "ko": "원래 위치로 돌아갑니다..."
     },
     "help.look_combat": {
         "en": "Check combat status",
@@ -170,5 +94,69 @@
     "help.tip_numbers": {
         "en": "Tip: You can just enter numbers to select actions!",
         "ko": "팁: 숫자만 입력해도 행동을 선택할 수 있습니다!"
+    },
+    "combat.attack_swing": {
+        "en": "{actor} attacks {target} with {weapon}!",
+        "ko": "{actor}이(가) {weapon}(으)로 {target}을(를) 공격합니다!"
+    },
+    "combat.roll_info": {
+        "en": "🎲 Attack roll: {roll} vs AC {ac}",
+        "ko": "🎲 공격 굴림: {roll} vs AC {ac}"
+    },
+    "combat.roll_info_dice": {
+        "en": "🎲 Attack roll({dice}): {roll} vs AC {ac}",
+        "ko": "🎲 공격 굴림({dice}): {roll} vs AC {ac}"
+    },
+    "combat.miss": {
+        "en": "❌ The attack missed!",
+        "ko": "❌ 공격이 빗나갔습니다!"
+    },
+    "combat.hit": {
+        "en": "✅ Hit! {damage} damage to {target}!",
+        "ko": "✅ 명중! {target}에게 {damage} 데미지를 입혔습니다!"
+    },
+    "combat.critical_hit": {
+        "en": "💥 Critical hit! {damage} damage to {target}!",
+        "ko": "💥 크리티컬 히트! {target}에게 {damage} 데미지를 입혔습니다!"
+    },
+    "combat.death": {
+        "en": "💀 {name} has been slain!",
+        "ko": "💀 {name}이(가) 죽었습니다!"
+    },
+    "combat.no_target_specified": {
+        "en": "You must specify an attack target.",
+        "ko": "공격 대상을 지정해야 합니다."
+    },
+    "combat.target_not_found": {
+        "en": "Cannot find the target.",
+        "ko": "대상을 찾을 수 없습니다."
+    },
+    "combat.target_already_dead": {
+        "en": "The target is already dead.",
+        "ko": "이미 사망한 대상입니다."
+    },
+    "combat.corpse_name": {
+        "en": "Corpse of {name}",
+        "ko": "{name}의 사체"
+    },
+    "combat.corpse_desc": {
+        "en": "The lifeless remains of {name}.",
+        "ko": "{name}의 시체입니다."
+    },
+    "combat.action_endturn": {
+        "en": "End Turn",
+        "ko": "턴넘기기"
+    },
+    "combat.corpse_dropped": {
+        "en": "💀 The remains of {name} fall to the ground.",
+        "ko": "💀 {name}의 사체가 바닥에 떨어졌습니다."
+    },
+    "combat.ended": {
+        "en": "The combat has ended.",
+        "ko": "전투가 종료 되었습니다."
+    },
+    "combat.target_not_found_usage": {
+        "en": "Cannot find the attack target.\n{usage}",
+        "ko": "공격 대상을 찾을 수 없습니다.\n{usage}"
     }
 }

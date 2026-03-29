@@ -28,7 +28,7 @@ class MapExporter:
     async def get_all_rooms(self) -> List[Tuple[Any, ...]]:
         """모든 방 정보 가져오기"""
         cursor = await self.db_manager.execute("""
-            SELECT id, description_ko, description_en, x, y
+            SELECT id, description_ko, description_en, x, y, blocked_exits
             FROM rooms
             WHERE x IS NOT NULL AND y IS NOT NULL
             ORDER BY x, y
@@ -177,11 +177,6 @@ class MapExporter:
         cursor = await self.db_manager.execute("""
             SELECT r.id, m.name_ko, m.name_en,
                    COALESCE(
-                       json_extract(m.stats, '$.level'),
-                       json_extract(m.properties, '$.level'),
-                       1
-                   ) as level,
-                   COALESCE(
                        json_extract(m.stats, '$.current_hp'),
                        json_extract(m.stats, '$.max_hp'),
                        20
@@ -199,12 +194,11 @@ class MapExporter:
         creatures = await cursor.fetchall()
 
         for creature in creatures:
-            room_id, name_ko, name_en, level, current_hp, max_hp, faction_id = creature
+            room_id, name_ko, name_en, current_hp, max_hp, faction_id = creature
             if room_id in room_details:
                 room_details[room_id]['creatures'].append({
                     'name_ko': name_ko,
                     'name_en': name_en,
-                    'level': level,
                     'hp': f"{current_hp}/{max_hp}",
                     'faction': faction_id or 'unknown'
                 })
@@ -267,13 +261,17 @@ class MapExporter:
 
         return room_details
 
-    def calculate_coordinate_based_exits(self, x: int, y: int, all_rooms_coords: Dict[Tuple[int, int], str], enter_connections: Dict[Tuple[int, int], Tuple[int, int]] = None) -> Dict[str, str]:
+    def calculate_coordinate_based_exits(self, x: int, y: int, all_rooms_coords: Dict[Tuple[int, int], str], enter_connections: Dict[Tuple[int, int], Tuple[int, int]] = None, blocked_exits: List[str] = None) -> Dict[str, str]:
         """좌표 기반으로 출구를 계산합니다 (enter 연결 포함)."""
         exits = {}
+        blocked = set(blocked_exits) if blocked_exits else set()
 
         # 모든 방향에 대해 인접한 방이 있는지 확인
         for direction in Direction:
             try:
+                if direction.value in blocked:
+                    continue  # 막힌 방향은 건너뜀
+
                 adj_x, adj_y = calculate_new_coordinates(x, y, direction)
 
                 # 해당 좌표에 방이 있는지 확인
@@ -323,13 +321,21 @@ class MapExporter:
             desc_en = room[2]
             x = room[3]
             y = room[4]
+            raw_blocked = room[5] if len(room) > 5 else "[]"
+
+            room_blocked: List[str] = []
+            if isinstance(raw_blocked, str):
+                try:
+                    room_blocked = json.loads(raw_blocked)
+                except (json.JSONDecodeError, TypeError):
+                    room_blocked = []
 
             # x, y 좌표가 있으면 직접 사용
             if x is not None and y is not None:
                 coord = (x, y)
 
                 # 좌표 기반 출구 계산
-                exits = self.calculate_coordinate_based_exits(coord[0], coord[1], all_rooms_coords)
+                exits = self.calculate_coordinate_based_exits(coord[0], coord[1], all_rooms_coords, blocked_exits=room_blocked)
 
                 # description에서 첫 줄을 이름으로 사용
                 name_ko = desc_ko.split('\n')[0] if desc_ko else room_id
@@ -337,7 +343,8 @@ class MapExporter:
                 grid[coord] = {
                     'id': room_id,
                     'name_ko': name_ko,
-                    'exits': exits
+                    'exits': exits,
+                    'blocked_exits': room_blocked,
                 }
 
         # 그리드 범위 계산
@@ -367,6 +374,7 @@ class MapExporter:
                 margin: 20px auto;
                 overflow: auto;
                 max-width: 100%;
+                position: relative;
             }
             table {
                 border-collapse: collapse;
@@ -391,7 +399,7 @@ class MapExporter:
                 border: 2px solid #4a9eff;
             }
             td:hover .tooltip {
-                display: block;
+                display: none;
             }
             .empty {
                 background-color: #1a1a1a;
@@ -427,16 +435,14 @@ class MapExporter:
             }
             .tooltip {
                 display: none;
-                position: absolute;
-                top: -5px;
-                left: 30px;
+                position: fixed;
                 background-color: rgba(0, 0, 0, 0.95);
                 color: #fff;
                 padding: 6px 10px;
                 border-radius: 4px;
                 white-space: nowrap;
                 font-size: 13px;
-                z-index: 1000;
+                z-index: 10000;
                 border: 1px solid #4a9eff;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
                 pointer-events: none;
@@ -623,7 +629,23 @@ class MapExporter:
                     entity_text = ' '.join(entity_info) if entity_info else ''
                     tooltip_text = f"{exit_arrows}({x},{y}) {entity_text}"
 
-                    html += f"""                <td class="{css_class}" onclick="showRoomDetails('{room_id}')">
+                    # 막힌 방향에 두꺼운 border 적용
+                    blocked = room.get('blocked_exits', [])  # type: ignore[attr-defined]
+                    border_style = ''
+                    if blocked:
+                        borders = []
+                        if 'north' in blocked:
+                            borders.append('border-top: 3px solid #ff4444')
+                        if 'south' in blocked:
+                            borders.append('border-bottom: 3px solid #ff4444')
+                        if 'east' in blocked:
+                            borders.append('border-right: 3px solid #ff4444')
+                        if 'west' in blocked:
+                            borders.append('border-left: 3px solid #ff4444')
+                        if borders:
+                            border_style = f' style="{"; ".join(borders)}"'
+
+                    html += f"""                <td class="{css_class}"{border_style} onclick="showRoomDetails('{room_id}')">
                         {indicators_html}
                         <div class="tooltip">{tooltip_text}</div>
                     </td>\n"""
@@ -754,7 +776,7 @@ class MapExporter:
                 monsters.innerHTML = `
                     <div class="section-title">몬스터 (${details.monsters.length})</div>
                     <div class="item-list">
-                        ${details.monsters.map(m => `• ${m.name_ko} (${m.name_en}) Lv.${m.level} HP:${m.hp}`).join('<br>')}
+                        ${details.monsters.map(m => `• ${m.name_ko} (${m.name_en}) HP:${m.hp}`).join('<br>')}
                     </div>
                 `;
             }} else {{
@@ -802,6 +824,24 @@ class MapExporter:
         function hideRoomDetails() {{
             document.getElementById('roomDetails').style.display = 'none';
         }}
+
+        // tooltip을 마우스 커서 위치에 표시
+        document.querySelectorAll('.map-container td.room').forEach(function(td) {{
+            var tooltip = td.querySelector('.tooltip');
+            if (!tooltip) return;
+            td.addEventListener('mouseenter', function(e) {{
+                tooltip.style.display = 'block';
+                tooltip.style.left = (e.clientX + 15) + 'px';
+                tooltip.style.top = (e.clientY - 10) + 'px';
+            }});
+            td.addEventListener('mousemove', function(e) {{
+                tooltip.style.left = (e.clientX + 15) + 'px';
+                tooltip.style.top = (e.clientY - 10) + 'px';
+            }});
+            td.addEventListener('mouseleave', function() {{
+                tooltip.style.display = 'none';
+            }});
+        }});
     </script>
 </body>
 </html>
@@ -894,7 +934,6 @@ class MapExporter:
         html = html.replace('{player_rows}', player_rows)
 
         # 방 상세 정보 JSON 데이터 추가
-        import json
         room_details_json = json.dumps(room_details, ensure_ascii=False, indent=2)
         html = html.replace('{room_details_json}', room_details_json)
 
@@ -929,13 +968,21 @@ class MapExporter:
             desc_en = room[2]
             x = room[3]
             y = room[4]
+            raw_blocked = room[5] if len(room) > 5 else "[]"
+
+            room_blocked: List[str] = []
+            if isinstance(raw_blocked, str):
+                try:
+                    room_blocked = json.loads(raw_blocked)
+                except (json.JSONDecodeError, TypeError):
+                    room_blocked = []
 
             # x, y 좌표가 있으면 직접 사용
             if x is not None and y is not None:
                 coord = (x, y)
 
                 # 좌표 기반 출구 계산
-                exits = self.calculate_coordinate_based_exits(coord[0], coord[1], all_rooms_coords)
+                exits = self.calculate_coordinate_based_exits(coord[0], coord[1], all_rooms_coords, blocked_exits=room_blocked)
 
                 # description에서 첫 줄을 이름으로 사용
                 name_ko = desc_ko.split('\n')[0] if desc_ko else room_id
@@ -943,7 +990,8 @@ class MapExporter:
                 grid[coord] = {
                     'id': room_id,
                     'name_ko': name_ko,
-                    'exits': exits
+                    'exits': exits,
+                    'blocked_exits': room_blocked,
                 }
 
         # 그리드 범위 계산
@@ -997,7 +1045,7 @@ class MapExporter:
                 border: 2px solid #4a9eff;
             }
             td:hover .tooltip {
-                display: block;
+                display: none;
             }
             .empty {
                 background-color: #1a1a1a;
@@ -1030,16 +1078,14 @@ class MapExporter:
             }
             .tooltip {
                 display: none;
-                position: absolute;
-                top: -5px;
-                left: 30px;
+                position: fixed;
                 background-color: rgba(0, 0, 0, 0.95);
                 color: #fff;
                 padding: 6px 10px;
                 border-radius: 4px;
                 white-space: nowrap;
                 font-size: 13px;
-                z-index: 1000;
+                z-index: 10000;
                 border: 1px solid #4a9eff;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
                 pointer-events: none;
@@ -1246,7 +1292,23 @@ class MapExporter:
                     entity_text = ' '.join(entity_info) if entity_info else ''
                     tooltip_text = f"{exit_arrows}({x},{y}) {entity_text}"
 
-                    html += f"""                <td class="{css_class}" onclick="showRoomDetails('{room_id}')">
+                    # 막힌 방향에 두꺼운 border 적용
+                    blocked = room_data.get('blocked_exits', [])
+                    border_style = ''
+                    if blocked:
+                        borders = []
+                        if 'north' in blocked:
+                            borders.append('border-top: 3px solid #ff4444')
+                        if 'south' in blocked:
+                            borders.append('border-bottom: 3px solid #ff4444')
+                        if 'east' in blocked:
+                            borders.append('border-right: 3px solid #ff4444')
+                        if 'west' in blocked:
+                            borders.append('border-left: 3px solid #ff4444')
+                        if borders:
+                            border_style = f' style="{"; ".join(borders)}"'
+
+                    html += f"""                <td class="{css_class}"{border_style} onclick="showRoomDetails('{room_id}')">
                         {indicators_html}
                         <div class="tooltip">{tooltip_text}</div>
                     </td>\n"""
@@ -1374,7 +1436,7 @@ class MapExporter:
             // 생명체 목록 (몬스터/NPC 통합)
             if (details.creatures && details.creatures.length > 0) {
                 const creatureList = details.creatures.map(c =>
-                    '• ' + c.name_ko + ' (' + c.name_en + ') Lv.' + c.level + ' HP:' + c.hp + ' [' + c.faction + ']'
+                    '• ' + c.name_ko + ' (' + c.name_en + ') HP:' + c.hp + ' [' + c.faction + ']'
                 ).join('<br>');
                 monsters.innerHTML =
                     '<div class="section-title">생명체 (' + details.creatures.length + ')</div>' +
@@ -1423,6 +1485,24 @@ class MapExporter:
         function hideRoomDetails() {
             document.getElementById('roomDetails').style.display = 'none';
         }
+
+        // tooltip을 마우스 커서 위치에 표시
+        document.querySelectorAll('.map-container td.room').forEach(function(td) {
+            var tooltip = td.querySelector('.tooltip');
+            if (!tooltip) return;
+            td.addEventListener('mouseenter', function(e) {
+                tooltip.style.display = 'block';
+                tooltip.style.left = (e.clientX + 15) + 'px';
+                tooltip.style.top = (e.clientY - 10) + 'px';
+            });
+            td.addEventListener('mousemove', function(e) {
+                tooltip.style.left = (e.clientX + 15) + 'px';
+                tooltip.style.top = (e.clientY - 10) + 'px';
+            });
+            td.addEventListener('mouseleave', function() {
+                tooltip.style.display = 'none';
+            });
+        });
     </script>
 </body>
 </html>

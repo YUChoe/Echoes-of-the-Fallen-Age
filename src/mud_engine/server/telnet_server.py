@@ -237,7 +237,7 @@ after suffering a crushing defeat in a war against an enigmatic sorcerer.
                 if not choice:
                     localization = get_localization_manager()
                     # 로그인 전이므로 기본 언어 사용
-                    timeout_msg = localization.get_message("system.input_timeout", "ko")
+                    timeout_msg = localization.get_message("system.input_timeout", "en")
                     await session.send_error(timeout_msg)
                     return False
 
@@ -322,14 +322,6 @@ after suffering a crushing defeat in a war against an enigmatic sorcerer.
             # 세션의 locale을 플레이어의 preferred_locale로 설정
             session.locale = player.preferred_locale
 
-            # 게임 엔진에 세션 추가
-            if self.game_engine:
-                await self.game_engine.add_player_session(session, player)
-
-                # 전투 복귀 시도
-                if await self.game_engine.try_rejoin_combat(session):
-                    logger.info(f"플레이어 {username} 전투 복귀 성공")
-
             # 다국어 환영 메시지
             from ..core.localization import get_localization_manager
             localization = get_localization_manager()
@@ -346,6 +338,16 @@ after suffering a crushing defeat in a war against an enigmatic sorcerer.
             })
 
             logger.info(f"✅ Telnet 로그인 성공: 사용자명='{username}', 플레이어ID={player.id}")
+
+            # 게임 엔진에 세션 추가
+            if self.game_engine:
+                await self.game_engine.add_player_session(session, player)
+
+                # 전투 복귀 시도
+                if await self.game_engine.try_rejoin_combat(session):
+                    logger.info(f"플레이어 {username} 전투 복귀 성공")
+
+
             return True
 
         except AuthenticationError as e:

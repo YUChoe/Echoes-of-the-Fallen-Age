@@ -1,0 +1,20 @@
+{
+  "template_id": "rusty_dagger",
+  "name_en": "Rusty Dagger",
+  "name_ko": "녹슨 단검",
+  "description_en": "A small dagger covered in rust. Still sharp enough to cut.",
+  "description_ko": "녹으로 뒤덮인 작은 단검입니다. 아직 베일 정도는 됩니다.",
+  "object_type": "item",
+  "category": "weapon",
+  "weight": 0.5,
+  "equipment_slot": "right_hand",
+  "properties": {
+    "dice": "1d4",
+    "weapon_type": "melee",
+    "material": "iron",
+    "verbs": {
+      "attack": {"en": "slashes", "ko": "베어냅니다"}
+    }
+  },
+  "max_stack": 1
+}

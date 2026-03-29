@@ -6,7 +6,13 @@
   "description_ko": "야생에서 발견한 달콤한 베리입니다.",
   "weight": 0.1,
   "properties": {
-    "hunger_restore": 5
+    "hunger_restore": 5,
+    "verbs": {
+      "use": {
+        "en": "eats",
+        "ko": "먹습니다"
+      }
+    }
   },
   "max_stack": 50
 }
