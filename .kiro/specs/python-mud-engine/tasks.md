@@ -147,7 +147,7 @@
 
 ## 향후 작업
 
-- [-] 25. 다국어 시스템 고도화
+- [x] 25. 다국어 시스템 고도화
   - [x] 25.1 전투/컨테이너 locale TODO 해결 (combat.py, combat_commands.py, container_commands.py)
   - [x] 25.2 관리자 명령어 응답 다국어화 (admin_commands.py → admin.json 70키)
   - [x] 25.3 object_commands.py 한국어 하드코딩 → i18n 키 전환 (item.json 20키 추가)
@@ -205,9 +205,9 @@
   - [x] 32.6 전투 시스템에서 level 참조 제거 (combat_manager.py)
   - [x] 32.7 설정 파일에서 level 제거 (configs/monsters/*.json 7개)
   - [x] 32.8 맵 내보내기에서 level 제거 (map_exporter.py)
-  - [ ] 32.9 design.md/requirements.md에서 레벨 관련 내용 업데이트
+  - [x] 32.9 design.md/requirements.md에서 레벨 관련 내용 업데이트
 
-- [ ] 29. 파일 분리 리팩토링 (한 파일 한 클래스 원칙)
+- [x] 29. 파일 분리 리팩토링 (한 파일 한 클래스 원칙)
   - [x] 29.1 admin_commands.py → 클래스별 파일 분리 (14 클래스)
   - [x] 29.2 combat_commands.py → 클래스별 파일 분리 (5 클래스)
   - [x] 29.3 interaction_commands.py → 클래스별 파일 분리 (4 클래스)

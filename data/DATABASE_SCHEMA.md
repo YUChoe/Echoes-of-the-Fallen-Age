@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2026-03-28
+**Last Updated**: 2026-03-29
 
 ## Overview
 
@@ -173,11 +173,13 @@ CREATE TABLE game_objects (
     name_ko TEXT NOT NULL,            -- 한국어 이름
     description_en TEXT,              -- 영어 설명
     description_ko TEXT,              -- 한국어 설명
-    location_type TEXT NOT NULL,      -- 위치 타입 (ROOM, INVENTORY, EQUIPPED)
-    location_id TEXT,                 -- 위치 ID (room_id or player_id)
+    object_type TEXT NOT NULL,        -- 오브젝트 타입 (item, npc, furniture 등)
+    location_type TEXT NOT NULL,      -- 위치 타입 (ROOM, INVENTORY, EQUIPPED, CONTAINER)
+    location_id TEXT,                 -- 위치 ID (room_id or player_id or container_id)
     properties TEXT DEFAULT '{}',     -- 속성 (JSON)
     weight REAL DEFAULT 1.0,          -- 무게
     max_stack INTEGER DEFAULT 1,      -- 최대 스택 개수 (1이면 스택 불가)
+    category TEXT DEFAULT 'misc',     -- 카테고리 (weapon, armor, consumable, misc)
     equipment_slot TEXT,              -- 장비 슬롯 (HEAD, BODY, WEAPON, etc.)
     is_equipped BOOLEAN DEFAULT FALSE, -- 장착 여부
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -414,4 +416,4 @@ cp data/mud_engine.db.backup_YYYYMMDD_HHMMSS data/mud_engine.db
 ---
 
 **작성자**: Kiro AI
-**최종 수정**: 2025-12-20
+**최종 수정**: 2026-03-29

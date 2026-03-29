@@ -43,6 +43,8 @@ graph TD
     GE --> EB[EventBus]
     EB --> EH
 
+    GE --> TA[TutorialAnnouncer]
+
     RMgr --> RRepo[RoomRepository]
     OMgr --> ORepo[GameObjectRepository]
     MonMgr --> MRepo[MonsterRepository]
@@ -245,6 +247,7 @@ class GameEngine:
     scheduler_manager: SchedulerManager
     global_tick_manager: GlobalTickManager
     event_bus: EventBus
+    tutorial_announcer: TutorialAnnouncer
 
     async def start() -> None
     async def stop() -> None
@@ -365,6 +368,26 @@ class EventBus:
 
 이벤트 타입: PLAYER_CONNECTED, PLAYER_DISCONNECTED, PLAYER_LOGIN, PLAYER_LOGOUT, PLAYER_COMMAND, ROOM_ENTERED, ROOM_LEFT, ROOM_MESSAGE, ROOM_BROADCAST, PLAYER_ACTION, PLAYER_EMOTE, PLAYER_GIVE, PLAYER_FOLLOW, OBJECT_PICKED_UP, OBJECT_DROPPED, SERVER_STARTED, SERVER_STOPPING
 
+### 8. TutorialAnnouncer
+
+목적: 마을 광장의 신입 플레이어에게 튜토리얼 안내를 주기적으로 전송.
+
+```python
+class TutorialAnnouncer:
+    game_engine: GameEngine
+    last_announcement: Dict[str, datetime]  # 플레이어별 마지막 안내 시간
+    announcement_interval: int = 300        # 5분 간격
+    running: bool = False
+
+    async def start() -> None
+    async def stop() -> None
+```
+
+책임:
+- 1분 간격으로 마을 광장의 신입 플레이어(튜토리얼 퀘스트 미완료) 감지
+- 5분 간격으로 교회 방문 안내 메시지를 locale별로 전송
+- 플레이어별 마지막 안내 시간 추적으로 중복 안내 방지
+
 
 ## 데이터 모델
 
@@ -383,7 +406,6 @@ class Player(BaseModel):
     last_room_x: int = 0            # 좌표 기반 마지막 위치
     last_room_y: int = 0
     stats: PlayerStats               # D&D 기반 능력치
-    faction_id: str = "ash_knights"  # 기본 세력
     completed_quests: List[str]      # 완료된 퀘스트 ID
     quest_progress: Dict[str, Any]   # 진행 중 퀘스트
 ```
@@ -407,20 +429,24 @@ class PlayerStats:
     constitution: int = 1   # HP, 스태미나
     charisma: int = 1       # NPC 상호작용, 거래
 
-    level: int = 1
     current_hp: int = 0     # 0이면 max_hp로 초기화
+    current_values: Dict[str, int]              # DB 영속화 대상 (hp, mp 등)
 
     equipment_bonuses: Dict[str, int]           # 장비 보너스
     temporary_effects: Dict[str, Dict[str, Any]]  # 버프/디버프
 ```
 
-파생 스탯 계산:
-- HP = 10 + (CON × 5) + (level × 2)
-- MP = 50 + (INT × 3) + (WIS × 2) + (level × 5)
-- ATK = 10 + (STR × 2) + level + 장비보너스
-- DEF = 2 + (CON × 0.3) + (level × 0.2) + 장비보너스
+파생 스탯 계산 (레벨 없음):
+- HP = 10 + (CON × 5)
+- MP = 50 + (INT × 3) + (WIS × 2)
+- STA = 100 + (CON × 3) + (DEX × 2)
+- ATK = 10 + (STR × 2) + 장비보너스
+- DEF = 2 + (CON × 0.3) + 장비보너스
 - SPD = 10 + (DEX × 1.5)
-- max_carry_weight = 50 + (STR × 5)
+- RES = 5 + (WIS × 1.5)
+- LCK = 10 + (전체 능력치 평균 / 10)
+- INF = 5 + (CHA × 2)
+- max_carry_weight = 5 + (STR × 5)
 
 ### Room
 
@@ -460,11 +486,12 @@ class Monster(BaseModel):
     properties: Dict[str, Any]       # template_id, roaming_config 등
 ```
 
-MonsterStats 파생값:
-- max_hp = 10 + (CON × 2) + (level × 5)
-- attack_power = 1 + (STR / 2) + level
+MonsterStats 파생값 (레벨 없음):
+- max_hp = 10 + (CON × 2)
+- attack_power = 1 + (STR / 2)
+- defense = CON / 3
 - armor_class = 10 + (DEX - 10) / 2
-- attack_bonus = (STR - 10) / 2 + (level / 4)
+- attack_bonus = (STR - 10) / 2
 
 ### GameObject
 
@@ -516,26 +543,27 @@ class Combatant:
 ## 데이터베이스 스키마 (SQLite)
 
 ```sql
--- 플레이어 (좌표 기반 위치, D&D 6스탯, 세력, 퀘스트)
+-- 플레이어 (좌표 기반 위치, D&D 6스탯, 퀘스트)
 CREATE TABLE players (
     id TEXT PRIMARY KEY,
-    username TEXT NOT NULL,
+    username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    email TEXT,
     preferred_locale TEXT DEFAULT 'en',
     is_admin BOOLEAN DEFAULT FALSE,
-    stat_strength INTEGER DEFAULT 10,
-    stat_dexterity INTEGER DEFAULT 10,
-    stat_intelligence INTEGER DEFAULT 10,
-    stat_wisdom INTEGER DEFAULT 10,
-    stat_constitution INTEGER DEFAULT 10,
-    stat_charisma INTEGER DEFAULT 10,
-    stat_level INTEGER DEFAULT 1,
+    stat_strength INTEGER DEFAULT 1,
+    stat_dexterity INTEGER DEFAULT 1,
+    stat_intelligence INTEGER DEFAULT 1,
+    stat_wisdom INTEGER DEFAULT 1,
+    stat_constitution INTEGER DEFAULT 1,
+    stat_charisma INTEGER DEFAULT 1,
     stat_equipment_bonuses TEXT DEFAULT '{}',
     stat_temporary_effects TEXT DEFAULT '{}',
+    stat_current TEXT DEFAULT '{}',
     last_room_x INTEGER DEFAULT 0,
     last_room_y INTEGER DEFAULT 0,
     display_name TEXT,
-    faction_id TEXT DEFAULT 'ash_knights',
+    last_name_change TIMESTAMP,
     completed_quests TEXT DEFAULT '[]',
     quest_progress TEXT DEFAULT '{}'
 );
@@ -546,14 +574,17 @@ CREATE TABLE rooms (
     description_en TEXT,
     description_ko TEXT,
     x INTEGER,
-    y INTEGER
+    y INTEGER,
+    blocked_exits TEXT DEFAULT '[]'
 );
 
--- 몬스터 (좌표 기반, D&D 스탯, 세력)
+-- 몬스터 (좌표 기반, D&D 스탯)
 CREATE TABLE monsters (
     id TEXT PRIMARY KEY,
     name_en TEXT NOT NULL,
     name_ko TEXT NOT NULL,
+    description_en TEXT,
+    description_ko TEXT,
     monster_type TEXT DEFAULT 'passive',
     behavior TEXT DEFAULT 'stationary',
     stats TEXT DEFAULT '{}',
@@ -561,11 +592,11 @@ CREATE TABLE monsters (
     x INTEGER,
     y INTEGER,
     respawn_time INTEGER DEFAULT 300,
+    last_death_time TIMESTAMP,
     is_alive BOOLEAN DEFAULT TRUE,
     aggro_range INTEGER DEFAULT 1,
     roaming_range INTEGER DEFAULT 2,
-    properties TEXT DEFAULT '{}',
-    faction_id TEXT
+    properties TEXT DEFAULT '{}'
 );
 
 -- 게임 오브젝트 (다국어, 장비 슬롯, 스택, 무게)
@@ -573,11 +604,15 @@ CREATE TABLE game_objects (
     id TEXT PRIMARY KEY,
     name_en TEXT NOT NULL,
     name_ko TEXT NOT NULL,
+    description_en TEXT,
+    description_ko TEXT,
+    object_type TEXT NOT NULL,
     location_type TEXT NOT NULL,
     location_id TEXT,
     properties TEXT DEFAULT '{}',
     weight REAL DEFAULT 1.0,
     max_stack INTEGER DEFAULT 1,
+    category TEXT DEFAULT 'misc',
     equipment_slot TEXT,
     is_equipped BOOLEAN DEFAULT FALSE
 );
@@ -748,11 +783,15 @@ NPC:
 - roominfo - 방 상세 정보
 - terminate - 서버 종료
 - scheduler - 스케줄러 관리
+- kick - 플레이어 강제 퇴장
+- adminlist - 관리자 목록/관리
 
 기타:
 - changename - 표시 이름 변경
 - adminchangename - 관리자 이름 변경
 - language - 언어 설정 변경
+- examine - 아이템/엔티티 상세 조사
+- emote - 감정 표현
 
 ## 에러 처리
 
