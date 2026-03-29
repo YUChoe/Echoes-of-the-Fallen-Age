@@ -177,13 +177,6 @@ class Monster(BaseModel):
     created_at: datetime = field(default_factory=datetime.now)
     faction_id: Optional[str] = None  # 세력 ID (예: 'goblins', 'animals')
 
-    # 맨손 공격 데이터 (무기 미장착 시 사용)
-    unarmed_attack: Dict[str, Any] = field(default_factory=lambda: {
-        "name": {"en": "claws", "ko": "발톱"},
-        "verbs": {"attack": {"en": "claws", "ko": "할퀴어냅니다"}},
-        "dice": "1d4"
-    })
-
     def __post_init__(self):
         """초기화 후 검증"""
         self.validate()

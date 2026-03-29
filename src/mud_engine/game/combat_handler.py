@@ -82,14 +82,14 @@ class CombatHandler:
             if combatant.combatant_type.value == "player" and combatant.data:
                 player_obj = combatant.data.get("player")
                 if player_obj and hasattr(player_obj, 'stats'):
-                    unarmed = getattr(player_obj.stats, 'unarmed_attack', None)
-                    if unarmed:
-                        name_dict = unarmed.get("name", {})
-                        return name_dict.get(locale, name_dict.get("en", "fists"))
+                    # 플레이어 기본 맨손 공격
+                    unarmed = {"name": {"en": "fists", "ko": "맨손"}}
+                    name_dict = unarmed.get("name", {})
+                    return name_dict.get(locale, name_dict.get("en", "fists"))
             elif combatant.combatant_type.value == "monster" and combatant.data:
                 monster_obj = combatant.data.get("monster")
                 if monster_obj:
-                    unarmed = getattr(monster_obj, 'unarmed_attack', None)
+                    unarmed = monster_obj.properties.get('unarmed_attack')
                     if unarmed:
                         name_dict = unarmed.get("name", {})
                         return name_dict.get(locale, name_dict.get("en", "claws"))

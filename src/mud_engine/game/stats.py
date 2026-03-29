@@ -49,13 +49,6 @@ class PlayerStats:
     # 현재 상태값 (DB 영속화 대상) - {"hp": 45, "mp": 30, ...}
     current_values: Dict[str, int] = field(default_factory=dict)
 
-    # 맨손 공격 데이터 (무기 미장착 시 사용)
-    unarmed_attack: Dict[str, Any] = field(default_factory=lambda: {
-        "name": {"en": "fists", "ko": "맨손"},
-        "verbs": {"attack": {"en": "punches", "ko": "주먹으로 칩니다"}},
-        "dice": "1d2"
-    })
-
     # 장비 보너스 (착용한 장비로부터 받는 추가 능력치)
     equipment_bonuses: Dict[str, int] = field(default_factory=dict)
 
