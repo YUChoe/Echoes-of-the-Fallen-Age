@@ -114,7 +114,7 @@ class GlobalTickManager:
                 if not aggressive_monsters:
                     logger.info(f"방 {s.current_room_id[-12:]}에 선공형 몬스터 없음")
                     return
-                logger.info(f"선공몹({len(aggressive_monsters)}개) action {aggressive_monsters[0].to_simple()}")  # TODO: aggressive_monsters[0] 만 사용?
+                logger.info(f"선공몹({len(aggressive_monsters)}개) action {aggressive_monsters[0].get_localized_name('en')}")
                 # TODO: 선공형몹이 플레이어를 발견했습니다 메시지
                 # 인스턴스 확인 및 생성
                 combat = await self.combat_handler.start_combat(s.player, aggressive_monsters[0], s.current_room_id, aggresive=True)
