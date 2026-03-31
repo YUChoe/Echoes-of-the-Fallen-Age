@@ -3,12 +3,15 @@
 
 import logging
 from typing import List
+import uuid
 
 from .base import AdminCommand
 from ..base import CommandResult, CommandResultType
 from ..utils import get_user_locale
 from ...core.types import SessionType
 from ...core.localization import get_localization_manager
+from ...utils.coordinate_utils import get_direction_from_string, calculate_new_coordinates  # TODO: lazy loading 이 도움이 되나? 난 싫어 하는 패턴인데
+
 
 logger = logging.getLogger(__name__)
 I18N = get_localization_manager()
@@ -32,16 +35,32 @@ class CreateRoomCommand(AdminCommand):
                 result_type=CommandResultType.ERROR,
                 message=I18N.get_message("admin.createroom.usage", locale)
             )
+        # 현재 룸에 대해서 nsew 에 방을 생성
+        room_direction = args[0]
+        if room_direction not in ["north", "south", "east", "west"]:
+            return CommandResult(
+                result_type=CommandResultType.ERROR,
+                message=I18N.get_message("admin.createroom.usage", locale)
+            )
+        logger.info(f"mkroom {args}")
 
-        room_id = args[0]
-        default_desc = I18N.get_message("admin.createroom.default_desc", locale)
-        room_description = " ".join(args[1:]) if len(args) > 1 else default_desc
+        # 현재 위치 > new위치 확인
+        current_room_id = getattr(session, 'current_room_id', None)
+        current_room = await session.game_engine.world_manager.get_room(current_room_id)
+        logger.info(f"current_room_id[{current_room_id[-12:]}] ({current_room.x},{current_room.y})")
+
+        direction_enum = get_direction_from_string(room_direction)
+        new_x, new_y = calculate_new_coordinates(current_room.x, current_room.y, direction_enum)
+        logger.info(f"new_x[{new_x}] new_y[{new_y}]")
 
         try:
             room_data = {
-                "id": room_id,
-                "description": {"ko": room_description, "en": room_description},
-                "exits": {}
+                "id": str(uuid.uuid4()),
+                "description": {
+                    "ko": I18N.get_message("admin.createroom.default_desc", "ko"),
+                    "en": I18N.get_message("admin.createroom.default_desc", "en")},
+                "x": new_x,
+                "y": new_y
             }
 
             success = await session.game_engine.create_room_realtime(room_data, session)
@@ -49,7 +68,7 @@ class CreateRoomCommand(AdminCommand):
             if success:
                 return CommandResult(
                     result_type=CommandResultType.SUCCESS,
-                    message=I18N.get_message("admin.createroom.success", locale, room_id=room_id),
+                    message=I18N.get_message("admin.createroom.success", locale, room_id=current_room_id),
                     broadcast=True,
                     broadcast_message=I18N.get_message("admin.createroom.broadcast", locale)
                 )
@@ -70,13 +89,11 @@ class CreateRoomCommand(AdminCommand):
         return """
 🏗️ **방 생성 명령어**
 
-**사용법:** `createroom <방ID> [설명]`
+**사용법:** `createroom <direction>`
 
 **예시:**
-- `createroom garden` - 기본 설명으로 방 생성
-- `createroom library 조용한 도서관입니다` - 상세 설명과 함께 생성
+- `createroom south` - 남쪽에 방을 생성
 
 **별칭:** `cr`, `mkroom`
 **권한:** 관리자 전용
-**참고:** 방 이름은 좌표로 자동 표시됩니다.
-        """
+"""

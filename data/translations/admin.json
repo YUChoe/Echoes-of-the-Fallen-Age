@@ -16,8 +16,8 @@
         "ko": "❌ 전투 중에는 이동할 수 없습니다. 먼저 전투에서 도망치거나 승리하세요."
     },
     "admin.createroom.usage": {
-        "en": "Usage: createroom <room_id> [description]",
-        "ko": "사용법: createroom <방ID> [설명]"
+        "en": "Usage: createroom <direction>",
+        "ko": "사용법: createroom <방향>"
     },
     "admin.createroom.success": {
         "en": "✅ Room (ID: {room_id}) has been successfully created.",
@@ -36,8 +36,8 @@
         "ko": "❌ 방 생성 중 오류가 발생했습니다: {error}"
     },
     "admin.createroom.default_desc": {
-        "en": "A newly created room.",
-        "ko": "새로 생성된 방입니다."
+        "en": "The newly conjured chamber lies submerged in a formless abyss. This profound void, which has swallowed even the light, holds its breath—craving naught but the Creator’s next command.",
+        "ko": "새로이 창조된 방은 형체 없는 심연에 잠겨 있습니다. 빛조차 삼켜버린 그 깊은 공허는 오직 창조주의 다음 손길만을 갈구하며 숨을 죽이고 있습니다."
     },
     "admin.editroom.usage": {
         "en": "Usage: editroom <room_id> <description>",
