@@ -1345,14 +1345,6 @@ class MapExporter:
 {faction_rows}
             </tbody>
         </table>
-        <div style="margin-top: 20px; padding: 15px; background-color: #1a1a1a; border-radius: 4px; color: #888;">
-            <p style="margin: 5px 0;"><strong>우호도 범위:</strong></p>
-            <p style="margin: 5px 0;">• 50 ~ 100: <span style="color: #00ff00;">ALLIED (동맹)</span></p>
-            <p style="margin: 5px 0;">• 1 ~ 49: <span style="color: #90ee90;">FRIENDLY (우호)</span></p>
-            <p style="margin: 5px 0;">• 0: <span style="color: #ffff00;">NEUTRAL (중립)</span></p>
-            <p style="margin: 5px 0;">• -1 ~ -49: <span style="color: #ffa500;">UNFRIENDLY (비우호)</span></p>
-            <p style="margin: 5px 0;">• -50 ~ -100: <span style="color: #ff0000;">HOSTILE (적대)</span></p>
-        </div>
     </div>
 
     <div style="margin: 40px auto; max-width: 800px; padding: 20px; background-color: #2a2a2a; border-radius: 8px;">
@@ -1362,7 +1354,6 @@ class MapExporter:
                 <tr style="background-color: #1a1a1a;">
                     <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">사용자명</th>
                     <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">현재 위치</th>
-                    <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">권한</th>
                     <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">가입일</th>
                     <th style="padding: 10px; border: 1px solid #444; color: #4a9eff;">마지막 로그인</th>
                 </tr>
@@ -1549,8 +1540,8 @@ class MapExporter:
         player_rows = ""
         for username, x, y, is_admin, created_at, last_login in all_players:
             # 관리자 여부 표시
-            admin_badge = "🛡️ 관리자" if is_admin else "👤 일반"
-            admin_color = "#ffd700" if is_admin else "#90ee90"
+            admin_badge = "🛡️" if is_admin else "👤"
+            # admin_color = "#ffd700" if is_admin else "#90ee90"
 
             # 현재 위치 표시 (좌표 기반)
             location = f"({x}, {y})"
@@ -1582,11 +1573,10 @@ class MapExporter:
                 last_login_date = "없음"
 
             player_rows += f"""                <tr>
-                    <td style="padding: 10px; border: 1px solid #444; color: #e0e0e0; font-weight: bold;">{username}</td>
-                    <td style="padding: 10px; border: 1px solid #444; color: #888;">{location}</td>
-                    <td style="padding: 10px; border: 1px solid #444; color: {admin_color}; text-align: center;">{admin_badge}</td>
-                    <td style="padding: 10px; border: 1px solid #444; color: #888; text-align: center;">{join_date}</td>
-                    <td style="padding: 10px; border: 1px solid #444; color: #888; text-align: center;">{last_login_date}</td>
+                    <td style="padding: 5px; border: 1px solid #444; color: #e0e0e0; font-weight: bold;">{admin_badge}{username}</td>
+                    <td style="padding: 5px; border: 1px solid #444; color: #888;">{location}</td>
+                    <td style="padding: 5px; border: 1px solid #444; color: #888; text-align: center;">{join_date}</td>
+                    <td style="padding: 5px; border: 1px solid #444; color: #888; text-align: center;">{last_login_date}</td>
                 </tr>
 """
 
