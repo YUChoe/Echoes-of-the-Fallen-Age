@@ -79,7 +79,7 @@ class ListMonsterTemplatesCommand(AdminCommand):
                 )
 
 
-            template_list = "📋 Monster Templates:\n\n
+            template_list = "📋 Monster Templates:\n\n"
 
 
             for template_id, template_data in templates.items():
