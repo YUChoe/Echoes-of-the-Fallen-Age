@@ -19,10 +19,10 @@ class SpawnItemCommand(AdminCommand):
 
     def __init__(self):
         super().__init__(
-            name="spawnitem",
-            description="템플릿에서 아이템을 생성합니다",
-            aliases=["createitem", "item"],
-            usage="spawnitem <template_id> [room_id]"
+            name="mkitem",
+            description="템플릿에서 아이템을 현재 방에 생성합니다",
+            aliases=["spawnitem", "createitem"],
+            usage="mkitem <template_name>"
         )
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
@@ -35,7 +35,7 @@ class SpawnItemCommand(AdminCommand):
             )
 
         template_id = args[0]
-        room_id = args[1] if len(args) > 1 else session.current_room_id
+        room_id = session.current_room_id
 
         if not room_id:
             return CommandResult(

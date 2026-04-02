@@ -5,13 +5,12 @@ from .base import AdminCommand
 from .create_room_command import CreateRoomCommand
 from .edit_room_command import EditRoomCommand
 from .create_exit_command import CreateExitCommand
-from .create_object_command import CreateObjectCommand
 from .kick_command import KickPlayerCommand
 from .goto_command import GotoCommand
 from .room_info_command import RoomInfoCommand
 from .admin_list_command import AdminListCommand
 from .spawn_monster_command import SpawnMonsterCommand
-from .list_templates_command import ListTemplatesCommand
+from .list_monster_templates_command import ListMonsterTemplatesCommand
 from .spawn_item_command import SpawnItemCommand
 from .list_item_templates_command import ListItemTemplatesCommand
 from .terminate_command import TerminateCommand
@@ -22,7 +21,6 @@ __all__ = [
     'CreateRoomCommand',
     'EditRoomCommand',
     'CreateExitCommand',
-    'CreateObjectCommand',
     'KickPlayerCommand',
     'GotoCommand',
     'RoomInfoCommand',

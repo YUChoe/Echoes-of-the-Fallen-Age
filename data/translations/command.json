@@ -139,10 +139,6 @@
         "en": "Create exits between rooms",
         "ko": "방 사이에 출구를 생성합니다"
     },
-    "cmd.createobject.desc": {
-        "en": "Create new game objects",
-        "ko": "새로운 게임 객체를 생성합니다"
-    },
     "cmd.createroom.desc": {
         "en": "Create new rooms",
         "ko": "새로운 방을 생성합니다"
@@ -255,9 +251,9 @@
         "en": "Put an item into a container",
         "ko": "아이템을 상자에 넣습니다"
     },
-    "cmd.spawnitem.desc": {
-        "en": "Spawn an item from a template",
-        "ko": "템플릿에서 아이템을 생성합니다"
+    "cmd.mkitem.desc": {
+        "en": "Create an item from a template in current room",
+        "ko": "템플릿에서 아이템을 현재 방에 생성합니다"
     },
     "cmd.spawnmonster.desc": {
         "en": "Spawn a monster from a template",
