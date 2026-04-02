@@ -75,7 +75,7 @@ class SpawnItemCommand(AdminCommand):
                     message=I18N.get_message("admin.spawnitem.template_failed", locale, template_id=template_id)
                 )
 
-            success = await game_engine.create_object_realtime(item.to_dict(), session)
+            success = await game_engine.model_manager.game_objects.create(item.to_dict())
             if not success:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,
