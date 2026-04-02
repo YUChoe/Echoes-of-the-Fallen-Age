@@ -35,7 +35,7 @@ class UseCommand(BaseCommand):
             return self.create_error_result(I18N.get_message("obj.unauthenticated", get_user_locale(session)))
 
         # 스태미나 체크 (전투 밖 액션)
-        if not getattr(session, 'in_combat', False) and getattr(session, 'stamina', 5.0) < 1.0:
+        if not getattr(session, 'in_combat', False) and getattr(session, 'stamina', 5.0) < 0.1:
             return self.create_error_result(I18N.get_message("system.stamina_exhausted", get_user_locale(session)))
 
         game_engine = getattr(session, 'game_engine', None)
@@ -144,7 +144,7 @@ class UseCommand(BaseCommand):
 
             # 스태미나 소모 (전투 밖일 때만)
             if not getattr(session, 'in_combat', False):
-                session.stamina = max(0.0, session.stamina - 1.0)
+                session.stamina = max(0.0, session.stamina - 0.1)
 
             message = f"💊 {session.player.get_display_name()} {verb} {item_name_display}.\n{effect_message}"
 
