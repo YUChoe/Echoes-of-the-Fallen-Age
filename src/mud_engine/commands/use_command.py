@@ -45,15 +45,24 @@ class UseCommand(BaseCommand):
         item_name = " ".join(args).lower()
 
         try:
-            inventory_objects = await game_engine.world_manager.get_inventory_objects(session.player.id)
-
             target_item = None
-            for obj in inventory_objects:
-                obj_name_en = obj.get_localized_name('en').lower()
-                obj_name_ko = obj.get_localized_name('ko').lower()
-                if item_name in obj_name_en or item_name in obj_name_ko:
-                    target_item = obj
-                    break
+
+            # 숫자인 경우 인벤토리 엔티티 번호로 검색
+            if item_name.isdigit():
+                entity_num = int(item_name)
+                inventory_entity = getattr(session, 'inventory_entity_map', {})
+                if entity_num in inventory_entity:
+                    target_item = inventory_entity[entity_num]['objects'][0]
+
+            # 이름으로 검색 (fallback)
+            if not target_item:
+                inventory_objects = await game_engine.world_manager.get_inventory_objects(session.player.id)
+                for obj in inventory_objects:
+                    obj_name_en = obj.get_localized_name('en').lower()
+                    obj_name_ko = obj.get_localized_name('ko').lower()
+                    if item_name in obj_name_en or item_name in obj_name_ko:
+                        target_item = obj
+                        break
 
             if not target_item:
                 return self.create_error_result(I18N.get_message("obj.use.not_in_inv", get_user_locale(session), name=' '.join(args)))
@@ -113,19 +122,20 @@ class UseCommand(BaseCommand):
             transform_to = after_use.get('transform_to')
 
             if transform_to:
-                # 아이템을 변환 (빈 병으로)
+                # 아이템을 변환 (빈 병으로) - DB 컬럼 직접 업데이트
                 template_loader = game_engine.world_manager._monster_manager._template_loader
                 transform_template = template_loader.get_item_template(transform_to)
                 if transform_template:
+                    import json as _json
                     new_props = transform_template.get('properties', {})
                     new_props['template_id'] = transform_to
-                    await game_engine.world_manager._object_manager.update_game_object(target_item.id, {
+                    await game_engine.model_manager.game_objects.update(target_item.id, {
                         'name_en': transform_template.get('name_en', 'Empty Bottle'),
                         'name_ko': transform_template.get('name_ko', '빈 병'),
                         'description_en': transform_template.get('description_en', ''),
                         'description_ko': transform_template.get('description_ko', ''),
                         'weight': transform_template.get('weight', 0.5),
-                        'properties': new_props,
+                        'properties': _json.dumps(new_props, ensure_ascii=False),
                     })
                 else:
                     await game_engine.world_manager.remove_object(target_item.id)
