@@ -119,16 +119,28 @@ class LookCommand(BaseCommand):
         if not session.is_authenticated or not session.player:
             return self.create_error_result("인증되지 않은 사용자입니다.")
 
-        # 세션에서 entity_map 가져오기
+        # 세션에서 entity_map 가져오기 (방 + 인벤토리)
         entity_map = getattr(session, 'room_entity_map', {})
-        if not entity_map:
-            return self.create_error_result("방 정보를 찾을 수 없습니다.")
+        inventory_map = getattr(session, 'inventory_entity_map', {})
 
-        # 해당 번호의 엔티티 찾기
-        if entity_number not in entity_map:
+        # 해당 번호의 엔티티 찾기 (방 먼저, 없으면 인벤토리)
+        entity_info = None
+        if entity_number in entity_map:
+            entity_info = entity_map[entity_number]
+        elif entity_number in inventory_map:
+            inv_entry = inventory_map[entity_number]
+            first_obj = inv_entry['objects'][0] if inv_entry.get('objects') else None
+            if first_obj:
+                entity_info = {
+                    'type': 'object',
+                    'id': first_obj.id,
+                    'name': first_obj.get_localized_name(session.locale),
+                    'entity': first_obj,
+                }
+
+        if not entity_info:
             return self.create_error_result(f"'{entity_number}'번 대상을 찾을 수 없습니다.")
 
-        entity_info = entity_map[entity_number]
         entity_type = entity_info.get('type')
         entity_id = entity_info.get('id')
         entity_name = entity_info.get('name', '알 수 없음')
