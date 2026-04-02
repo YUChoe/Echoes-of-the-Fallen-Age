@@ -272,8 +272,13 @@ class CommandProcessor:
                 message="명령어가 비어있습니다."
             )
 
-        # 전투 전용 명령어 처리 (defend, flee)
+        # 전투 전용 명령어 처리 (flee, item 등)
         in_combat = getattr(session, 'in_combat', False)
+
+        # 전투 중 use 명령어는 item으로 리다이렉트 (턴 진행 포함)
+        if in_combat and command_name == 'use':
+            return await self._execute_combat_command(session, 'item', args)
+
         combat_only_commands = ['defend', 'flee', 'item', 'spell', 'endturn']
 
         if command_name in combat_only_commands:
