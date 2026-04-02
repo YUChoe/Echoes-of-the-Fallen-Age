@@ -1,0 +1,18 @@
+{
+  "template_id": "stamina_potion",
+  "name_en": "Stamina Potion",
+  "name_ko": "스태미나 물약",
+  "description_en": "A green potion that restores stamina.",
+  "description_ko": "스태미나를 회복시켜주는 초록 물약입니다.",
+  "object_type": "item",
+  "category": "consumable",
+  "weight": 0.6,
+  "properties": {
+    "stamina_restore": 3.0,
+    "after_use": {"transform_to": "empty_bottle"},
+    "verbs": {
+      "use": {"en": "drinks", "ko": "마십니다"}
+    }
+  },
+  "max_stack": 5
+}
