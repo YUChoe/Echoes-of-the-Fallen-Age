@@ -115,12 +115,14 @@ class CommandManager:
         self.command_processor.register_command(PlayersCommand())
 
         # 몬스터 상호작용 명령어들 등록
-        from ...commands.npc_commands import (
-            TalkCommand, TradeCommand, ShopCommand
-        )
-        self.command_processor.register_command(TalkCommand())
-        self.command_processor.register_command(TradeCommand())
-        self.command_processor.register_command(ShopCommand())
+        # from ...commands.npc_commands import (
+        #     TalkCommand, TradeCommand, ShopCommand
+        # )
+        # self.command_processor.register_command(TalkCommand())
+        # self.command_processor.register_command(TradeCommand())
+        # self.command_processor.register_command(ShopCommand())
+        from ...commands.dialogue import TalkCommand
+        self.command_processor.register_command(TalkCommand())  # dialogue 용 새 talk
 
         # 전투 명령어들 등록
         from ...commands.combat_commands import (
