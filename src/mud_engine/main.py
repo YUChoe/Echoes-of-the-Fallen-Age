@@ -30,26 +30,36 @@ def setup_logging():
 
     # 커스텀 포맷터 클래스
     class MudEngineFormatter(logging.Formatter):
-        def format(self, record):
-            # 시분초.밀리초 형식
+        """파일 핸들러용 포맷터 (ANSI 색상 없음)"""
+        def _build_base(self, record):
             timestamp = self.formatTime(record, '%H:%M:%S')
             ms = int(record.created * 1000) % 1000
             time_with_ms = f"{timestamp}.{ms:03d}"
-
-            # 모듈명에서 마지막 부분만 추출 (클래스명)
             module_name = record.name
-            if '.' in module_name:
-                short_name = module_name.split('.')[-1]
-            else:
-                short_name = module_name
+            short_name = module_name.split('.')[-1] if '.' in module_name else module_name
+            location = f"[{short_name}:{record.lineno}]"
+            return time_with_ms, location
 
-            # 파일명과 라인 번호
-            filename = record.filename
-            lineno = record.lineno
-            location = f"[{short_name}:{lineno}]"
-
-            # 최종 포맷: {시분초.ms} {LEVEL} [{short_name:line}] {logstring}
+        def format(self, record):
+            time_with_ms, location = self._build_base(record)
             return f"{time_with_ms} {record.levelname} {location} {record.getMessage()}"
+
+    class ConsoleFormatter(MudEngineFormatter):
+        """콘솔 핸들러용 포맷터 (WARNING/ERROR/CRITICAL 색상 표시)"""
+        COLOURS = {
+            logging.WARNING:  "\033[33m",   # 노란색
+            logging.ERROR:    "\033[31m",   # 빨간색
+            logging.CRITICAL: "\033[1;31m", # 굵은 빨간색
+        }
+        RESET = "\033[0m"
+
+        def format(self, record):
+            time_with_ms, location = self._build_base(record)
+            msg = f"{time_with_ms} {record.levelname} {location} {record.getMessage()}"
+            colour = self.COLOURS.get(record.levelno)
+            if colour:
+                return f"{colour}{msg}{self.RESET}"
+            return msg
 
     # 커스텀 로테이팅 핸들러
     class CustomRotatingHandler(logging.handlers.BaseRotatingHandler):
@@ -167,10 +177,11 @@ def setup_logging():
 
     # 포맷터 생성
     formatter = MudEngineFormatter()
+    console_formatter = ConsoleFormatter()
 
     # 콘솔 핸들러
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
+    console_handler.setFormatter(console_formatter)
     console_handler.addFilter(ExcludeLoggerFilter("aiosqlite"))
 
     # 파일 핸들러 (커스텀 로테이팅)

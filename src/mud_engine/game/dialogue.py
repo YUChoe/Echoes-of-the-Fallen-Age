@@ -36,6 +36,7 @@ class DialogueInstance:
         """해당 session에 있는 NPC 대화 내용 가져오기"""
         # TODO: 이걸 properties 에서 가져올게 아니라 외부 파일로 가져와서 온라인 적용 하게 하자
         # 파일은? configs/dialogues/{id}.lua
+        # TODO: return 값을 choice_entity 로 할 것
         talker = self.interlocutor
         session = self.session
         try:
