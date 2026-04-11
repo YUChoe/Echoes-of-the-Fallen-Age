@@ -162,7 +162,7 @@ class TelnetSession:
             # 빈 문자열이면 전송하지 않음 (내부 업데이트 메시지)
             if not text or text.strip() == "":
                 return True
-            text = f"\n{text}\n"
+            text = f"\n{text}\n".replace("\n\n", "\n")
             return await self.send_text(text)
 
         except Exception as e:

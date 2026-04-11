@@ -121,8 +121,8 @@ class CommandManager:
         # self.command_processor.register_command(TalkCommand())
         # self.command_processor.register_command(TradeCommand())
         # self.command_processor.register_command(ShopCommand())
-        from ...commands.dialogue import TalkCommand
-        self.command_processor.register_command(TalkCommand())  # dialogue 용 새 talk
+        from ...commands.dialogue.talk_command import TalkCommand
+        self.command_processor.register_command(TalkCommand(self.game_engine.dialogue_manager))  # dialogue 용 새 talk
 
         # 전투 명령어들 등록
         from ...commands.combat_commands import (

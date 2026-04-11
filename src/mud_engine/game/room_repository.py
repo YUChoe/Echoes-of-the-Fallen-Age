@@ -45,7 +45,7 @@ class RoomRepository(BaseRepository[Room]):
             if not room or room.x is None or room.y is None:
                 return []
 
-            from ...utils.coordinate_utils import Direction, calculate_new_coordinates
+            from ..utils.coordinate_utils import Direction, calculate_new_coordinates
             connected_rooms = []
 
             # 모든 방향의 인접 좌표 확인
@@ -93,7 +93,7 @@ class RoomRepository(BaseRepository[Room]):
             if not target_room or target_room.x is None or target_room.y is None:
                 return []
 
-            from ...utils.coordinate_utils import Direction, calculate_new_coordinates
+            from ..utils.coordinate_utils import Direction, calculate_new_coordinates
             rooms_with_exits = []
 
             # 대상 방의 인접 좌표들 확인
