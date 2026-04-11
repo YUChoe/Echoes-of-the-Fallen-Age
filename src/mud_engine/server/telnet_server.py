@@ -383,6 +383,16 @@ after suffering a crushing defeat in a war against an enigmatic sorcerer.
             await session.send_error("Username must be 3-20 characters. / 사용자명은 3-20자여야 합니다.")
             return False
 
+        # 금지 단어 검증
+        forbidden_words = ['test', 'player', 'admin', 'gm', 'moderator', 'system', 'server', 'npc', 'bot']
+        username_lower = username.lower()
+        for word in forbidden_words:
+            if word in username_lower:
+                await session.send_error(
+                    f"Username cannot contain '{word}'. / 사용자명에 '{word}'을(를) 포함할 수 없습니다."
+                )
+                return False
+
         # 패스워드 입력 시 에코 비활성화
         await session.disable_echo()
         await session.send_prompt("Password (min 6 chars) / 비밀번호 (최소 6자): ")
