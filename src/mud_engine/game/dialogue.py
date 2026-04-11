@@ -31,10 +31,13 @@ class DialogueInstance:
         # TODO: player offline
         return self.is_active
 
-    def get_dialogue(self, talker: Monster, session: SessionType) -> List[str]:
+    # def get_new_dialogue(self, talker: Monster, session: SessionType) -> List[str]:
+    def get_new_dialogue(self) -> List[str]:
         """해당 session에 있는 NPC 대화 내용 가져오기"""
         # TODO: 이걸 properties 에서 가져올게 아니라 외부 파일로 가져와서 온라인 적용 하게 하자
         # 파일은? configs/dialogues/{id}.lua
+        talker = self.interlocutor
+        session = self.session
         try:
             logger.info(f"talker.id[{talker.id}]")
             file_path = f"{os.path.join('configs', 'dialogues', talker.id)}.lua"
@@ -47,24 +50,17 @@ class DialogueInstance:
             logger.info(data)
             # WIP
             return ["..."]
-
-            # # properties에서 dialogue 정보 가져오기
-            # if hasattr(talker, 'properties') and talker.properties:
-            #     properties = talker.properties
-            #     if isinstance(properties, str):
-            #         import json
-            #         properties = json.loads(properties)
-            # else:
-            #     raise KeyError("has no properties")
-
-            # if isinstance(properties, dict) and 'dialogue' in properties:
-            #     dialogue_data = properties['dialogue']
-            #     if isinstance(dialogue_data, dict):
-            #         dialogue_list = dialogue_data.get(locale, dialogue_data.get('en', ['...']))
-            #         if dialogue_list and isinstance(dialogue_list, list):
-            #             import random
-            #             return random.choice(dialogue_list)
-            # return "..."
         except Exception as e:
             logger.error(f"몬스터 대화 내용 가져오기 실패: {e}")
             return ["..."]
+
+    def get_dialogueby_choice(self, choice:int ) -> List[str]:
+        if choice in self.choice_entity.keys():
+            logger.info(f'choice_entity[{choice}]: {self.choice_entity[choice]}')
+        else:
+            logger.error(f"not found choice[{choice}] in {self.choice_entity}")
+            return ["..."]
+        if self.choice_entity[choice] == 'Bye.':  # TODO: locale
+            self.is_active = False
+            self.ended_at = datetime.now
+        return []

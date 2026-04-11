@@ -76,10 +76,13 @@ class TalkCommand(BaseCommand):
         if self.session.in_dialogue:
             # 대화 중
             dlg: DialogueInstance = self.dialogue_manager.get_dialogue_instance(self.session.dialogue_id)
-            logger.info(f"대화중 명령 {dlg.id} {target_input}")
-            return self.create_info_result(
-                message=""
-            )
+            logger.info(f"대화중 {dlg.id} {target_input}")
+            choice = int(target_input)
+            logger.info(f'choice[{choice}]')
+            await self.dialogue_manager.send_dialogue_message(dlg, dlg.get_dialogueby_choice(choice))
+            if not dlg.is_active:
+                await self.dialogue_manager.end_dialogue(dlg.id)
+            return self.create_info_result(message="")
 
         # 대화 생성
         # 1. 인덱스, id로 대상 찾기
@@ -99,11 +102,11 @@ class TalkCommand(BaseCommand):
         self.session.original_room_id = self.session.current_room_id  # 바꿔치기
         self.session.dialogue_id = dlg.id
         self.session.current_room_id = f"dialogue_{dlg.id}"  # 인스턴스
-        logger.info(self.session)
 
         # 플레이어에게 npc의 메시지
         # 1. 메시지는 플레이어의 상태에 따라 다름
-        await self.dialogue_manager.send_dialogue_message(dlg.get_dialogue(target_npc, self.session), dlg)
+        # await self.dialogue_manager.send_dialogue_message(dlg.get_new_dialogue(target_npc, self.session), dlg)
+        await self.dialogue_manager.send_dialogue_message(dlg, dlg.get_new_dialogue())
         """
         [타운가드]
         처음보는 얼굴이군 저쪽으로 가서 안내를 받으라고
@@ -123,3 +126,4 @@ class TalkCommand(BaseCommand):
             },
             broadcast=False
         )
+

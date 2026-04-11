@@ -148,6 +148,20 @@ class CommandProcessor:
 
         return command_line
 
+    def _convert_dialogue_number_to_command(self, command_line: str) -> str:
+        """
+        [1] bye
+
+        > 1
+        을 talk 1 로 변경
+        - 이 경우 누구에게.. 가 안됨. 다이얼로그 인스턴스는 1:1 대화이므로 상관 없음
+        """
+        # TODO:
+        command_line = command_line.strip()
+        cmdline_list = command_line.split()
+        cmd = cmdline_list[0]
+        return f"talk {cmd}"
+
     async def _execute_combat_command(self, session: SessionType, command_name: str, args: List[str]) -> CommandResult:
         """
         전투 전용 명령어 동적 실행
@@ -262,6 +276,9 @@ class CommandProcessor:
         if getattr(session, 'in_combat', False):
             logger.info("in_combat ")
             command_line = self._convert_combat_number_to_command(command_line)
+        elif getattr(session, 'in_dialogue', False):
+            logger.info("in_dialogue ")
+            command_line = self._convert_dialogue_number_to_command(command_line)
 
         # 명령어 파싱
         command_name, args = self.parse_command(command_line)
