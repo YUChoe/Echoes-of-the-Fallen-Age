@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "커밋 후 메모리 저장 리마인드",
+  "description": "git commit 실행 후 knowledge graph에 커밋 내용을 저장하도록 리마인드합니다. 해당 도메인 엔티티에 observation을 추가해야 합니다.",
+  "version": "1",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": [
+      "shell"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "방금 shell 명령어가 실행되었습니다. 만약 git commit이 실행되었다면, 반드시 knowledge graph(메모리)에 커밋 내용을 저장하세요. 규칙: 1) 변경 내용을 해당 도메인 엔티티에 add_observations로 저장 (예: 전투 관련 → Combat_System, DB 변경 → DB_Schema). 2) 타임스탬프 포함 필수. 3) 프로젝트 루트 엔티티에는 구조적 변경만 저장. git commit이 아닌 다른 명령어였다면 이 메시지를 무시하세요."
+  }
+}

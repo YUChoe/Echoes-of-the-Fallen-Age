@@ -46,8 +46,12 @@ source mud_engine_env/Scripts/activate && PYTHONPATH=. pytest
 ## 프로세스 관리
 ```bash
 ps aux | grep python
-kill -9 <PID>
+
+# 서버 종료 시 반드시 SIGINT(signal 2) 사용 — 정상 종료 절차 수행을 위해
+kill -2 <PID>
 ```
+- `kill -9` (SIGKILL) 사용 금지: 서버의 graceful shutdown 핸들러가 실행되지 않음
+- `kill -2` (SIGINT) = Ctrl+C와 동일, 서버가 정상 종료 절차를 수행함
 
 ## 금지사항
 - PowerShell, CMD 사용
