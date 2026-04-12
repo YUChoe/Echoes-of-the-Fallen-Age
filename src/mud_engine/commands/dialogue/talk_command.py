@@ -79,9 +79,12 @@ class TalkCommand(BaseCommand):
             logger.info(f"대화중 {dlg.id} {target_input}")
             choice = int(target_input)
             logger.info(f'choice[{choice}]')
-            await self.dialogue_manager.send_dialogue_message(dlg, dlg.get_dialogueby_choice(choice))
+            result_msgs = dlg.get_dialogueby_choice(choice)
             if not dlg.is_active:
+                # Bye 선택 → 메시지 전송 없이 대화 종료
                 await self.dialogue_manager.end_dialogue(dlg.id)
+            else:
+                await self.dialogue_manager.send_dialogue_message(dlg, result_msgs)
             return self.create_info_result(message="")
 
         # 대화 생성

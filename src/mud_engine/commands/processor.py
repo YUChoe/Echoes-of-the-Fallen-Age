@@ -155,11 +155,14 @@ class CommandProcessor:
         > 1
         을 talk 1 로 변경
         - 이 경우 누구에게.. 가 안됨. 다이얼로그 인스턴스는 1:1 대화이므로 상관 없음
+        - talk 1 형태로 이미 입력된 경우 그대로 반환
         """
-        # TODO:
         command_line = command_line.strip()
         cmdline_list = command_line.split()
         cmd = cmdline_list[0]
+        # 이미 talk 명령어로 시작하면 그대로 반환
+        if cmd == "talk":
+            return command_line
         return f"talk {cmd}"
 
     async def _execute_combat_command(self, session: SessionType, command_name: str, args: List[str]) -> CommandResult:
