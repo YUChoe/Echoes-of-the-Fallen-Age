@@ -92,10 +92,15 @@
   - [x] 12.6 terminate
   - [x] 12.7 scheduler
 
-- [x] 13. NPC 및 상점 시스템 (요구사항 13)
-  - [x] 13.1 talk 명령어
-  - [x] 13.2 trade 명령어
-  - [x] 13.3 shop 명령어
+- [x] 13. NPC 대화 시스템 (요구사항 13)
+  - [x] 13.1 talk 명령어 (dialogue/talk_command.py로 재구현)
+  - [x] 13.2 DialogueInstance dataclass (dialogue.py)
+  - [x] 13.3 DialogueManager (dialogue_manager.py) — 인스턴스 생성/조회/종료, 메시지 전송
+  - [x] 13.4 세션 대화 모드 전환 (in_dialogue, original_room_id, dialogue_id)
+  - [x] 13.5 선택지 시스템 (choice_entity, get_dialogueby_choice)
+  - [ ] 13.6 외부 대화 스크립트 로딩 (configs/dialogues/{npc_id}.lua) — WIP
+  - [ ] 13.7 trade 명령어
+  - [ ] 13.8 shop 명령어
 
 - [x] 14. 퀘스트 시스템 (요구사항 14)
   - [x] 14.1 QuestManager: 퀘스트 정의 및 관리
