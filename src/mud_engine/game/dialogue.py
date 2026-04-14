@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, ClassVar, List
+from typing import Any, ClassVar, List, TYPE_CHECKING
 from uuid import uuid4
 
 from .dialogue_context import DialogueContext
@@ -9,6 +9,10 @@ from .monster import Monster
 from ..core.localization import get_localization_manager
 from .models import Player
 from ..core.types import SessionType
+
+if TYPE_CHECKING:
+    from .managers.currency_manager import CurrencyManager
+    from .game_object_repository import GameObjectRepository
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +31,49 @@ class DialogueInstance:
 
     def __post_init__(self) -> None:
         self.lua_loader: Any | None = None
+        self.currency_manager: CurrencyManager | None = None
+        self.object_repo: GameObjectRepository | None = None
 
     def is_dialogue_finished(self) -> bool:
         # TODO: player offline
         return self.is_active
 
-    def get_new_dialogue(
+    def _has_exchange_config(self) -> bool:
+        """NPC에 exchange_config가 있는지 확인"""
+        if self.interlocutor is None:
+            return False
+        props = getattr(self.interlocutor, "properties", None)
+        if not isinstance(props, dict):
+            return False
+        return "exchange_config" in props
+
+    async def _build_context(self) -> dict[str, Any]:
+        """대화 컨텍스트를 빌드. exchange_config가 있으면 교환 정보 포함."""
+        assert self.player is not None
+        assert self.session is not None
+        assert self.interlocutor is not None
+
+        if (
+            self._has_exchange_config()
+            and self.currency_manager is not None
+            and self.object_repo is not None
+        ):
+            return await DialogueContext.build_with_exchange(
+                player=self.player,
+                session=self.session,
+                npc=self.interlocutor,
+                dialogue=self,
+                currency_manager=self.currency_manager,
+                object_repo=self.object_repo,
+            )
+        return DialogueContext.build(
+            player=self.player,
+            session=self.session,
+            npc=self.interlocutor,
+            dialogue=self,
+        )
+
+    async def get_new_dialogue(
         self,
     ) -> list[dict[str, str]] | List[str]:
         """해당 session에 있는 NPC 대화 내용 가져오기.
@@ -53,12 +94,7 @@ class DialogueInstance:
             and self.player is not None
         ):
             try:
-                ctx = DialogueContext.build(
-                    player=self.player,
-                    session=session,
-                    npc=talker,
-                    dialogue=self,
-                )
+                ctx = await self._build_context()
                 result = self.lua_loader.execute_get_dialogue(
                     talker.id, ctx
                 )
@@ -79,7 +115,7 @@ class DialogueInstance:
         )
         return ["..."]
 
-    def get_dialogueby_choice(
+    async def get_dialogueby_choice(
         self, choice: int
     ) -> list[dict[str, str]] | List[str]:
         """선택지에 따른 후속 대화 가져오기.
@@ -117,12 +153,7 @@ class DialogueInstance:
                 and self.player is not None
             ):
                 try:
-                    ctx = DialogueContext.build(
-                        player=self.player,
-                        session=self.session,
-                        npc=self.interlocutor,
-                        dialogue=self,
-                    )
+                    ctx = await self._build_context()
                     self.lua_loader.execute_on_bye(self.interlocutor.id, ctx)
                 except Exception as e:
                     logger.error(f"Lua on_bye 콜백 실행 실패: {e}")
@@ -142,12 +173,7 @@ class DialogueInstance:
             and self.player is not None
         ):
             try:
-                ctx = DialogueContext.build(
-                    player=self.player,
-                    session=session,
-                    npc=talker,
-                    dialogue=self,
-                )
+                ctx = await self._build_context()
                 result = self.lua_loader.execute_on_choice(
                     talker.id, choice, ctx
                 )

@@ -24,6 +24,7 @@ class MonsterManager:
         self._global_spawn_limits: Dict[str, int] = {}
         self._game_engine: Optional[Any] = None  # GameEngine 참조 (순환 참조 방지를 위해 Optional)
         self._room_manager: Optional[Any] = None  # RoomManager 참조
+        self._currency_manager: Optional[Any] = None  # CurrencyManager 참조 (교환 시스템용)
         self._template_loader: TemplateLoader = TemplateLoader()
         logger.info("MonsterManager 초기화 완료")
 
@@ -36,6 +37,11 @@ class MonsterManager:
         """RoomManager 참조를 설정합니다"""
         self._room_manager = room_manager
         logger.debug("MonsterManager에 RoomManager 참조 설정됨")
+
+    def set_currency_manager(self, currency_manager: Any) -> None:
+        """CurrencyManager 참조를 설정합니다 (교환 시스템용, 선택적 의존성)"""
+        self._currency_manager = currency_manager
+        logger.debug("MonsterManager에 CurrencyManager 참조 설정됨")
 
     async def initialize_templates(self) -> None:
         """템플릿을 로드합니다."""
@@ -169,37 +175,64 @@ class MonsterManager:
         return None
 
     async def _create_monster_equipment(self, monster_id: str, template_id: str) -> None:
-        """몬스터 스폰 시 equipment 배열의 아이템을 game_objects에 생성"""
+        """몬스터 스폰 시 equipment 배열의 아이템 + exchange_config 기반 silver_coin 생성"""
         try:
             template = self._template_loader.get_monster_template(template_id)
             if not template:
                 return
 
             equipment_list = template.get('equipment', [])
-            if not equipment_list:
-                return
 
-            if not self._game_engine:
-                logger.warning("game_engine 없음 - 몬스터 장비 생성 불가")
-                return
+            if equipment_list:
+                if not self._game_engine:
+                    logger.warning("game_engine 없음 - 몬스터 장비 생성 불가")
+                else:
+                    for equip in equipment_list:
+                        item_template_id = equip.get('template_id')
+                        slot = equip.get('slot')
+                        if not item_template_id:
+                            continue
 
-            for equip in equipment_list:
-                item_template_id = equip.get('template_id')
-                slot = equip.get('slot')
-                if not item_template_id:
-                    continue
+                        item = self._template_loader.create_item_from_template(
+                            item_template_id, str(uuid4()),
+                            location_type="inventory",
+                            location_id=monster_id
+                        )
+                        if item:
+                            item.is_equipped = True
+                            if slot:
+                                item.equipment_slot = slot
+                            await self._game_engine.world_manager._object_manager.create_game_object(item.to_dict())
+                            logger.debug(f"몬스터 {monster_id[-12:]}에 장비 생성: {item_template_id}")
 
-                item = self._template_loader.create_item_from_template(
-                    item_template_id, str(uuid4()),
-                    location_type="inventory",
-                    location_id=monster_id
+            # exchange_config 처리: 초기 실버 생성 + monster properties에 저장
+            try:
+                exchange_config = template.get('exchange_config')
+                if exchange_config:
+                    # monster properties에 exchange_config 저장 (DialogueContext에서 참조)
+                    if self._game_engine:
+                        monster = await self._game_engine.world_manager.get_monster(monster_id)
+                        if monster and isinstance(monster.properties, dict):
+                            monster.properties['exchange_config'] = exchange_config
+                            await self._game_engine.world_manager.update_monster(monster)
+                            logger.debug(f"몬스터 {monster_id[-12:]}에 exchange_config 저장")
+
+                    initial_silver = exchange_config.get('initial_silver', 0)
+                    if initial_silver > 0:
+                        if self._currency_manager:
+                            await self._currency_manager.earn(monster_id, initial_silver)
+                            logger.info(
+                                f"몬스터 {monster_id[-12:]}에 초기 실버 {initial_silver} 생성"
+                            )
+                        else:
+                            logger.warning(
+                                f"currency_manager 없음 - 몬스터 {monster_id[-12:]} 초기 실버 생성 불가"
+                            )
+            except Exception as e:
+                # exchange_config 파싱 실패 시 로깅 후 무시 (NPC는 교환 기능 없이 스폰)
+                logger.warning(
+                    f"exchange_config 처리 실패 ({monster_id[-12:]}, {template_id}): {e}"
                 )
-                if item:
-                    item.is_equipped = True
-                    if slot:
-                        item.equipment_slot = slot
-                    await self._game_engine.world_manager._object_manager.create_game_object(item.to_dict())
-                    logger.debug(f"몬스터 {monster_id[-12:]}에 장비 생성: {item_template_id}")
 
         except Exception as e:
             logger.error(f"몬스터 장비 생성 실패 ({monster_id}, {template_id}): {e}")

@@ -6,12 +6,12 @@
 
 ## Tasks
 
-- [ ] 1. silver_coin 아이템 템플릿 및 CurrencyManager 구현
-  - [ ] 1.1 silver_coin 아이템 템플릿 생성
+- [x] 1. silver_coin 아이템 템플릿 및 CurrencyManager 구현
+  - [x] 1.1 silver_coin 아이템 템플릿 생성
     - `configs/items/silver_coin.json` 파일 생성
     - template_id='silver_coin', name_en='Silver Coin', name_ko='은화', weight=0.003, max_stack=9999, category='currency', base_value=1
     - _Requirements: 1.1_
-  - [ ] 1.2 CurrencyManager 클래스 구현
+  - [x] 1.2 CurrencyManager 클래스 구현
     - `src/mud_engine/game/managers/currency_manager.py` 파일 생성
     - GameObjectRepository를 주입받아 silver_coin 스택 관리
     - get_balance(owner_id): silver_coin의 properties.quantity 합산 조회
@@ -26,8 +26,7 @@
     - earn 후 잔액 = 초기 + amount, spend 후 잔액 = 초기 - amount, 잔액 부족 시 False 및 잔액 불변 검증
     - **Validates: Requirements 1.3, 1.4, 1.5**
 
-- [ ] 2. ExchangeManager 구현
-  - [ ] 2.1 ExchangeManager 클래스 구현
+- [x] 2. ExchangeManager 구현   - [x] 2.1 ExchangeManager 클래스 구현
     - `src/mud_engine/game/managers/exchange_manager.py` 파일 생성
     - ExchangeResult TypedDict 정의 (success, error, error_code)
     - CurrencyManager와 GameObjectRepository를 주입
@@ -49,13 +48,13 @@
     - 장착 아이템 판매 시 is_equipped=false 확인
     - **Validates: Requirements 3.4, 3.5, 5.1**
 
-- [ ] 3. Checkpoint - 기반 컴포넌트 검증
+- [x] 3. Checkpoint - 기반 컴포넌트 검증
   - mypy + ruff 정적 검사 통과 확인
   - CurrencyManager, ExchangeManager 단위 테스트 통과 확인
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Exchange API Lua 등록
-  - [ ] 4.1 LuaScriptLoader에 Exchange API 등록 구현
+- [x] 4. Exchange API Lua 등록
+  - [x] 4.1 LuaScriptLoader에 Exchange API 등록 구현
     - `src/mud_engine/game/lua_script_loader.py` 확장
     - register_exchange_api(exchange_manager) 메서드 추가
     - _register_exchange_globals() 메서드 추가: Lua 글로벌에 exchange 테이블 등록
@@ -72,8 +71,8 @@
     - 잘못된 인자 타입 시 실패 결과 반환 확인
     - _Requirements: 3.6, 3.7_
 
-- [ ] 5. DialogueContext 확장
-  - [ ] 5.1 DialogueContext에 교환 정보 추가
+- [x] 5. DialogueContext 확장
+  - [x] 5.1 DialogueContext에 교환 정보 추가
     - `src/mud_engine/game/dialogue_context.py` 확장
     - _build_player_context에 silver, carry_weight, weight_limit, inventory 필드 추가
     - _build_npc_context에 silver, inventory 필드 추가
@@ -91,8 +90,8 @@
     - silver_coin이 inventory 목록에 포함되지 않는지 검증
     - **Validates: Requirements 6.3, 6.5**
 
-- [ ] 6. NPC 스폰 시 exchange_config 처리
-  - [ ] 6.1 MonsterManager 확장
+- [x] 6. NPC 스폰 시 exchange_config 처리
+  - [x] 6.1 MonsterManager 확장
     - `src/mud_engine/game/managers/monster_manager.py` 확장
     - _create_monster_equipment()에서 exchange_config 처리 로직 추가
     - exchange_config.initial_silver > 0이면 CurrencyManager.earn()으로 silver_coin 생성
@@ -103,13 +102,13 @@
     - exchange_config가 없는 NPC 스폰 시 기존 동작 유지 확인
     - _Requirements: 2.2, 2.3, 2.4_
 
-- [ ] 7. Checkpoint - 핵심 로직 검증
+- [x] 7. Checkpoint - 핵심 로직 검증
   - mypy + ruff 정적 검사 통과 확인
   - Exchange API, DialogueContext 확장, NPC 스폰 확장 테스트 통과 확인
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. 샘플 교환 NPC Lua 스크립트 작성
-  - [ ] 8.1 샘플 교환 NPC Lua 스크립트 구현
+- [x] 8. 샘플 교환 NPC Lua 스크립트 작성
+  - [x] 8.1 샘플 교환 NPC Lua 스크립트 구현
     - `configs/dialogues/{merchant_npc_id}.lua` 파일 생성
     - get_dialogue(ctx): 인사말 + 구매/판매/나가기 선택지
     - on_choice: 구매 메뉴(show_buy_menu), 판매 메뉴(show_sell_menu) 분기
@@ -121,15 +120,15 @@
     - 모든 텍스트 다국어 dict 형식 {en = "...", ko = "..."}
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 5.3, 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 9. DialogueManager 및 GameEngine 통합 배선
-  - [ ] 9.1 DialogueManager에 ExchangeManager 연결
+- [x] 9. DialogueManager 및 GameEngine 통합 배선
+  - [x] 9.1 DialogueManager에 ExchangeManager 연결
     - DialogueManager 초기화 시 CurrencyManager, ExchangeManager 생성 및 LuaScriptLoader에 등록
     - GameEngine 또는 적절한 초기화 지점에서 의존성 주입 배선
     - DialogueContext.build() 호출 시 교환 정보 포함되도록 연결
     - _Requirements: 3.1, 3.2, 6.1, 6.4_
 
-- [ ] 10. Telnet MCP E2E 테스트
-  - [ ] 10.1 교환 NPC E2E 테스트 수행
+- [x] 10. Telnet MCP E2E 테스트
+  - [x] 10.1 교환 NPC E2E 테스트 수행
     - 서버 실행 후 telnet-mcp 도구로 접속
     - 교환 NPC에게 talk 명령 → 인사말 및 선택지 확인
     - 구매 흐름: 구매 선택 → 아이템 목록 확인 → 아이템 구매 → 결과 메시지 확인
@@ -139,13 +138,13 @@
     - 다국어 메시지 확인 (en/ko)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 7.2, 7.3, 7.4_
 
-- [ ] 11. 레거시 명령어 deprecated 처리
-  - [ ] 11.1 shop_command.py, trade_command.py deprecated 표시
+- [x] 11. 레거시 명령어 deprecated 처리
+  - [x] 11.1 shop_command.py, trade_command.py deprecated 표시
     - 각 파일 상단에 deprecated 주석 및 warnings.warn() 추가
     - exchange_config 마이그레이션 가이드 주석 작성
     - _Requirements: 8.1, 8.2, 8.3_
 
-- [ ] 12. Final checkpoint
+- [x] 12. Final checkpoint
   - mypy + ruff 정적 검사 최종 통과 확인
   - 전체 테스트 스위트 통과 확인
   - Ensure all tests pass, ask the user if questions arise.

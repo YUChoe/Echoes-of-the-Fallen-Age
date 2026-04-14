@@ -7,30 +7,75 @@
 
 import logging
 from collections import OrderedDict
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from ..lua_script_loader import LuaScriptLoader
 from ..monster import Monster
 from ..models import Player
 from ...core.localization import get_localization_manager
 from ...game.dialogue import DialogueInstance
+from .currency_manager import CurrencyManager
+from .exchange_manager import ExchangeManager
+
+if TYPE_CHECKING:
+    from ..game_object_repository import GameObjectRepository
+    from ..player_repository import PlayerRepository
 
 logger = logging.getLogger(__name__)
 I18N = get_localization_manager()
 
 
 class DialogueManager:
-    def __init__(self, session_manager: Any = None) -> None:
-        self.session_manager = session_manager
+    def __init__(self, game_engine: Any = None) -> None:
+        self.game_engine = game_engine
         self.dialogue_instances: dict[str, DialogueInstance] = {}
         self.lua_loader: LuaScriptLoader = LuaScriptLoader()
+
+        # 교환 시스템 의존성 초기화
+        self.currency_manager: CurrencyManager | None = None
+        self.exchange_manager: ExchangeManager | None = None
+        self._object_repo: GameObjectRepository | None = None
+
+        if game_engine is not None:
+            self._init_exchange_system(game_engine)
+
         logger.info("DialogueManager 초기화")
+
+    def _init_exchange_system(self, game_engine: Any) -> None:
+        """GameEngine에서 교환 시스템 의존성을 주입받아 초기화.
+
+        CurrencyManager, ExchangeManager를 생성하고
+        LuaScriptLoader에 Exchange API를 등록한다.
+        """
+        try:
+            object_repo = game_engine.world_manager._object_manager._object_repo
+            player_repo = game_engine.player_manager._player_repo
+            self._object_repo = object_repo
+
+            self.currency_manager = CurrencyManager(object_repo)
+            self.exchange_manager = ExchangeManager(
+                currency_manager=self.currency_manager,
+                object_repo=object_repo,
+                player_repo=player_repo,
+            )
+            self.lua_loader.register_exchange_api(self.exchange_manager)
+
+            # MonsterManager에도 CurrencyManager 전달 (NPC 스폰 시 초기 실버 생성용)
+            if hasattr(game_engine, 'world_manager') and game_engine.world_manager:
+                game_engine.world_manager._monster_manager.set_currency_manager(self.currency_manager)
+
+            logger.info("교환 시스템 초기화 완료 (CurrencyManager, ExchangeManager, Exchange API)")
+        except Exception as e:
+            logger.error(f"교환 시스템 초기화 실패: {e}", exc_info=True)
 
     def create_dialogue(self, session: Any) -> DialogueInstance:
         dlg = DialogueInstance()
         dlg.session = session
         dlg.lua_loader = self.lua_loader
-        self.dialogue_instances[dlg.id] = dlg  # append
+        # 교환 시스템 참조 전달
+        dlg.currency_manager = self.currency_manager
+        dlg.object_repo = self._object_repo
+        self.dialogue_instances[dlg.id] = dlg
         logger.info(f"새 대화 인스턴스 {dlg.id} session.id[{session.session_id}]")
         return dlg
 
