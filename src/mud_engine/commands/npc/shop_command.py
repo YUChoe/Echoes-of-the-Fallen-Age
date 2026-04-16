@@ -1,7 +1,21 @@
 # -*- coding: utf-8 -*-
-"""상인과 거래하는 명령어"""
+"""상인과 거래하는 명령어
+
+.. deprecated::
+    이 모듈은 Lua 대화 기반 교환(Exchange) 시스템으로 대체되었습니다.
+    새로운 교환 NPC는 configs/dialogues/{npc_id}.lua 스크립트와
+    몬스터 템플릿의 exchange_config를 사용하세요.
+
+    마이그레이션 가이드:
+    1. 몬스터 템플릿 properties에 exchange_config 추가:
+       {"initial_silver": 500, "buy_margin": 0.5}
+    2. equipment 배열에 판매 아이템 정의
+    3. configs/dialogues/{npc_id}.lua 스크립트 작성
+    4. 기존 shop_items 데이터는 equipment 배열로 이전
+"""
 
 import logging
+import warnings
 from typing import List, Optional
 
 from ...commands.base import BaseCommand, CommandResult
@@ -15,9 +29,18 @@ I18N = get_localization_manager()
 
 
 class ShopCommand(BaseCommand):
-    """상인과 거래하는 명령어"""
+    """상인과 거래하는 명령어
+
+    .. deprecated:: Lua 대화 기반 교환 시스템으로 대체됨
+    """
 
     def __init__(self):
+        warnings.warn(
+            "ShopCommand는 deprecated입니다. "
+            "Lua 대화 기반 교환(Exchange) 시스템을 사용하세요.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(
             name="shop",
             aliases=["buy", "purchase", "store"],

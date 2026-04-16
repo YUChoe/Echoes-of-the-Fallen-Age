@@ -1,0 +1,67 @@
+{
+  "template_id": "template_town_merchant",
+  "name": {
+    "en": "Town Merchant",
+    "ko": "마을 상인"
+  },
+  "description": {
+    "en": "A cheerful merchant with a wide selection of goods laid out on a wooden cart.",
+    "ko": "나무 수레 위에 다양한 물건을 진열해 놓은 쾌활한 상인입니다."
+  },
+  "monster_type": "NEUTRAL",
+  "behavior": "STATIONARY",
+  "faction_id": "townspeople",
+  "stats": {
+    "strength": 10,
+    "dexterity": 12,
+    "constitution": 11,
+    "intelligence": 15,
+    "wisdom": 14,
+    "charisma": 18
+  },
+  "experience_reward": 0,
+  "gold_reward": 0,
+  "drop_items": [],
+  "respawn_time": 0,
+  "aggro_range": 0,
+  "roaming_range": 0,
+  "unarmed_attack": {
+    "name": {"en": "fists", "ko": "맨손"},
+    "verbs": {"attack": {"en": "strikes with", "ko": "내리칩니다"}},
+    "dice": "1d2"
+  },
+  "equipment": [
+    {"template_id": "health_potion", "slot": null},
+    {"template_id": "health_potion", "slot": null},
+    {"template_id": "health_potion", "slot": null},
+    {"template_id": "stamina_potion", "slot": null},
+    {"template_id": "stamina_potion", "slot": null},
+    {"template_id": "torch", "slot": null},
+    {"template_id": "rope", "slot": null},
+    {"template_id": "bread", "slot": null},
+    {"template_id": "bread", "slot": null},
+    {"template_id": "bread", "slot": null}
+  ],
+  "exchange_config": {
+    "initial_silver": 500,
+    "buy_margin": 0.5
+  },
+  "exchange_config": {
+    "initial_silver": 500,
+    "buy_margin": 0.5
+  },
+  "spawn_config": {
+    "count": 1,
+    "global_max_count": 1,
+    "specific_locations": [
+      {
+        "room_id": "town_square",
+        "description": "Town merchant stall"
+      }
+    ],
+    "distribution": "fixed",
+    "roaming": {
+      "enabled": false
+    }
+  }
+}

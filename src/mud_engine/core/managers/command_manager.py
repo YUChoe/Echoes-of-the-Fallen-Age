@@ -87,20 +87,19 @@ class CommandManager:
         # 관리자 명령어들 등록
         from ...commands.admin_commands import (
             CreateRoomCommand, EditRoomCommand, CreateExitCommand,
-            CreateObjectCommand, AdminListCommand, GotoCommand,
-            RoomInfoCommand, SpawnMonsterCommand, ListTemplatesCommand,
+            AdminListCommand, GotoCommand,
+            RoomInfoCommand, SpawnMonsterCommand, ListMonsterTemplatesCommand,
             SpawnItemCommand, ListItemTemplatesCommand, TerminateCommand
         )
         from ...commands.admin.scheduler_command import SchedulerCommand
         self.command_processor.register_command(CreateRoomCommand())
         self.command_processor.register_command(EditRoomCommand())
         self.command_processor.register_command(CreateExitCommand())
-        self.command_processor.register_command(CreateObjectCommand())
         self.command_processor.register_command(AdminListCommand())
         self.command_processor.register_command(GotoCommand())
         self.command_processor.register_command(RoomInfoCommand())
         self.command_processor.register_command(SpawnMonsterCommand())
-        self.command_processor.register_command(ListTemplatesCommand())
+        self.command_processor.register_command(ListMonsterTemplatesCommand())
         self.command_processor.register_command(SpawnItemCommand())
         self.command_processor.register_command(ListItemTemplatesCommand())
         self.command_processor.register_command(TerminateCommand())
@@ -116,12 +115,14 @@ class CommandManager:
         self.command_processor.register_command(PlayersCommand())
 
         # 몬스터 상호작용 명령어들 등록
-        from ...commands.npc_commands import (
-            TalkCommand, TradeCommand, ShopCommand
-        )
-        self.command_processor.register_command(TalkCommand())
-        self.command_processor.register_command(TradeCommand())
-        self.command_processor.register_command(ShopCommand())
+        # from ...commands.npc_commands import (
+        #     TalkCommand, TradeCommand, ShopCommand
+        # )
+        # self.command_processor.register_command(TalkCommand())
+        # self.command_processor.register_command(TradeCommand())
+        # self.command_processor.register_command(ShopCommand())
+        from ...commands.dialogue.talk_command import TalkCommand
+        self.command_processor.register_command(TalkCommand(self.game_engine.dialogue_manager))  # dialogue 용 새 talk
 
         # 전투 명령어들 등록
         from ...commands.combat_commands import (

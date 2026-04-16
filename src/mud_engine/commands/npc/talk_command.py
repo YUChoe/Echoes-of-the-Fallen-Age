@@ -2,6 +2,7 @@
 """몬스터와 대화하는 명령어"""
 
 import logging
+import warnings
 from datetime import datetime
 from typing import List
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 I18N = get_localization_manager()
 
-
+@warnings.deprecated("dialogue/talk_command 로 대체 됨")
 class TalkCommand(BaseCommand):
     """몬스터와 대화하는 명령어"""
 

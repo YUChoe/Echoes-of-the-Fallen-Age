@@ -1,7 +1,14 @@
 # -*- coding: utf-8 -*-
-"""몬스터와 거래하는 명령어 (퀘스트용)"""
+"""몬스터와 거래하는 명령어 (퀘스트용)
+
+.. deprecated::
+    이 모듈은 Lua 대화 기반 교환(Exchange) 시스템으로 대체되었습니다.
+    새로운 교환 NPC는 configs/dialogues/{npc_id}.lua 스크립트와
+    몬스터 템플릿의 exchange_config를 사용하세요.
+"""
 
 import logging
+import warnings
 from typing import List
 
 from ...commands.base import BaseCommand, CommandResult
@@ -14,9 +21,18 @@ I18N = get_localization_manager()
 
 
 class TradeCommand(BaseCommand):
-    """몬스터와 거래하는 명령어 (퀘스트용)"""
+    """몬스터와 거래하는 명령어 (퀘스트용)
+
+    .. deprecated:: Lua 대화 기반 교환 시스템으로 대체됨
+    """
 
     def __init__(self):
+        warnings.warn(
+            "TradeCommand는 deprecated입니다. "
+            "Lua 대화 기반 교환(Exchange) 시스템을 사용하세요.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(
             name="trade",
             aliases=["give"],

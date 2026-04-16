@@ -52,12 +52,12 @@ class ListItemTemplatesCommand(AdminCommand):
                 object_type = template_data.get('object_type', 'item')
                 category = template_data.get('category', 'misc')
 
-                template_list += f"• {template_id}\n"
-                template_list += f"  {name_ko} ({name_en})\n"
-                template_list += f"  type: {object_type}, category: {category}\n\n"
+                template_list += f"• {template_id}"
+                template_list += f"  {name_ko} ({name_en})"
+                template_list += f"  type: {object_type}, category: {category}\n"
 
             template_list += f"Total: {len(templates)} item templates\n"
-            template_list += "\nUsage: `spawnitem <template_id> [room_id]`"
+            template_list += "\nUsage: `mkitem <template_name>`"
 
             return CommandResult(
                 result_type=CommandResultType.SUCCESS,

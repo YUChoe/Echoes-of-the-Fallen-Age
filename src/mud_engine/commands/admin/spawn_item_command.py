@@ -19,10 +19,10 @@ class SpawnItemCommand(AdminCommand):
 
     def __init__(self):
         super().__init__(
-            name="spawnitem",
-            description="템플릿에서 아이템을 생성합니다",
-            aliases=["createitem", "item"],
-            usage="spawnitem <template_id> [room_id]"
+            name="mkitem",
+            description="템플릿에서 아이템을 현재 방에 생성합니다",
+            aliases=["spawnitem", "createitem"],
+            usage="mkitem <template_name>"
         )
 
     async def execute_admin(self, session: SessionType, args: List[str]) -> CommandResult:
@@ -35,7 +35,7 @@ class SpawnItemCommand(AdminCommand):
             )
 
         template_id = args[0]
-        room_id = args[1] if len(args) > 1 else session.current_room_id
+        room_id = session.current_room_id
 
         if not room_id:
             return CommandResult(
@@ -75,7 +75,7 @@ class SpawnItemCommand(AdminCommand):
                     message=I18N.get_message("admin.spawnitem.template_failed", locale, template_id=template_id)
                 )
 
-            success = await game_engine.create_object_realtime(item.to_dict(), session)
+            success = await game_engine.model_manager.game_objects.create(item.to_dict())
             if not success:
                 return CommandResult(
                     result_type=CommandResultType.ERROR,

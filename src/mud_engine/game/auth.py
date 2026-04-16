@@ -74,8 +74,6 @@ class AuthService:
         """
         player: Optional[Player] = await self._player_repo.get_by_username(username)
 
-        logger.info(f"HP: {player.stats.current_hp}")
-
         if not player or not self.verify_password(password, player.password_hash):
             raise AuthenticationError("사용자 이름 또는 비밀번호가 잘못되었습니다.")
 

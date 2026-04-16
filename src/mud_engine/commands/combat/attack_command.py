@@ -129,7 +129,7 @@ class AttackCommand(BaseCommand):
         session.in_combat = True
         session.original_room_id = current_room_id
         session.combat_id = combat.id
-        session.current_room_id = f"combat_{combat.id}"  # 전투 인스턴스로 이동
+        session.current_room_id = f"combat_{combat.id}"  # 인스턴스
         logger.debug(session)
 
         # 출력

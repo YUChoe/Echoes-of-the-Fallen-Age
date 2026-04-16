@@ -10,6 +10,7 @@ from .base import BaseCommand, CommandResult
 from .utils import get_user_locale
 from ..core.types import SessionType
 from ..core.localization import get_localization_manager
+from ..game.stats import StatType
 
 logger = logging.getLogger(__name__)
 I18N = get_localization_manager()
@@ -34,7 +35,7 @@ class UseCommand(BaseCommand):
             return self.create_error_result(I18N.get_message("obj.unauthenticated", get_user_locale(session)))
 
         # 스태미나 체크 (전투 밖 액션)
-        if not getattr(session, 'in_combat', False) and getattr(session, 'stamina', 5.0) < 1.0:
+        if not getattr(session, 'in_combat', False) and getattr(session, 'stamina', 5.0) < 0.1:
             return self.create_error_result(I18N.get_message("system.stamina_exhausted", get_user_locale(session)))
 
         game_engine = getattr(session, 'game_engine', None)
@@ -44,41 +45,108 @@ class UseCommand(BaseCommand):
         item_name = " ".join(args).lower()
 
         try:
-            inventory_objects = await game_engine.world_manager.get_inventory_objects(session.player.id)
-
             target_item = None
-            for obj in inventory_objects:
-                obj_name_en = obj.get_localized_name('en').lower()
-                obj_name_ko = obj.get_localized_name('ko').lower()
-                if item_name in obj_name_en or item_name in obj_name_ko:
-                    target_item = obj
-                    break
+
+            # 숫자인 경우 인벤토리 엔티티 번호로 검색
+            if item_name.isdigit():
+                entity_num = int(item_name)
+                inventory_entity = getattr(session, 'inventory_entity_map', {})
+                if entity_num in inventory_entity:
+                    target_item = inventory_entity[entity_num]['objects'][0]
+
+            # 이름으로 검색 (fallback)
+            if not target_item:
+                inventory_objects = await game_engine.world_manager.get_inventory_objects(session.player.id)
+                for obj in inventory_objects:
+                    obj_name_en = obj.get_localized_name('en').lower()
+                    obj_name_ko = obj.get_localized_name('ko').lower()
+                    if item_name in obj_name_en or item_name in obj_name_ko:
+                        target_item = obj
+                        break
 
             if not target_item:
                 return self.create_error_result(I18N.get_message("obj.use.not_in_inv", get_user_locale(session), name=' '.join(args)))
 
-            if target_item.category != 'consumable':
+            # 소모품 판별: properties에 hp_restore, stamina_restore 등이 있으면 사용 가능
+            usable_keys = ['hp_restore', 'stamina_restore', 'mana_restore', 'heal_amount']
+            is_consumable = any(k in target_item.properties for k in usable_keys)
+            if not is_consumable:
                 return self.create_error_result(I18N.get_message("obj.use.not_usable", get_user_locale(session), name=target_item.get_localized_name(session.locale)))
 
             item_name_display = target_item.get_localized_name(session.locale)
             effect_message = ""
+            verb = target_item.properties.get('verbs', {}).get('use', {}).get(
+                session.locale, target_item.properties.get('verbs', {}).get('use', {}).get('en', 'uses')
+            )
 
-            if 'heal_amount' in target_item.properties:
-                heal_amount = target_item.properties.get('heal_amount', 10)
-                effect_message = f"체력이 {heal_amount} 회복되었습니다."
-            elif 'mana_amount' in target_item.properties:
-                mana_amount = target_item.properties.get('mana_amount', 10)
-                effect_message = f"마나가 {mana_amount} 회복되었습니다."
+            # HP 회복
+            if 'hp_restore' in target_item.properties:
+                heal_amount = target_item.properties.get('hp_restore', 10)
+                max_hp = session.player.stats.get_secondary_stat(StatType.HP)
+                old_hp = session.player.stats.get_current_hp()
+                new_hp = min(old_hp + heal_amount, max_hp)
+                session.player.stats.set_current_hp(new_hp)
+                # DB에 HP 저장
+                from ..game.repositories import PlayerRepository
+                from ..database import get_database_manager
+                db_manager = await get_database_manager()
+                player_repo = PlayerRepository(db_manager)
+                stats_dict = session.player.stats.to_dict()
+                await player_repo.update(session.player.id, {"stat_current": stats_dict.get("current", "{}")})
+
+                if session.locale == "ko":
+                    effect_message = f"HP가 {new_hp - old_hp} 회복되었습니다. ({old_hp} → {new_hp}/{max_hp})"
+                else:
+                    effect_message = f"HP restored by {new_hp - old_hp}. ({old_hp} → {new_hp}/{max_hp})"
+
+            # 스태미나 회복
+            elif 'stamina_restore' in target_item.properties:
+                restore_amount = target_item.properties.get('stamina_restore', 3.0)
+                old_sta = getattr(session, 'stamina', 5.0)
+                max_sta = getattr(session, 'max_stamina', 5.0)
+                session.stamina = min(old_sta + restore_amount, max_sta)
+                actual_restore = session.stamina - old_sta
+
+                if session.locale == "ko":
+                    effect_message = f"스태미나가 {actual_restore:.1f} 회복되었습니다. ({old_sta:.1f} → {session.stamina:.1f}/{max_sta:.1f})"
+                else:
+                    effect_message = f"Stamina restored by {actual_restore:.1f}. ({old_sta:.1f} → {session.stamina:.1f}/{max_sta:.1f})"
             else:
-                effect_message = f"{item_name_display}을(를) 사용했습니다."
+                if session.locale == "ko":
+                    effect_message = f"{item_name_display}을(를) 사용했습니다."
+                else:
+                    effect_message = f"Used {item_name_display}."
 
-            await game_engine.world_manager.remove_object(target_item.id)
+            # 사용 후 변환 (빈 병 등) 또는 삭제
+            after_use = target_item.properties.get('after_use', {})
+            transform_to = after_use.get('transform_to')
+
+            if transform_to:
+                # 아이템을 변환 (빈 병으로) - DB 컬럼 직접 업데이트
+                template_loader = game_engine.world_manager._monster_manager._template_loader
+                transform_template = template_loader.get_item_template(transform_to)
+                if transform_template:
+                    import json as _json
+                    new_props = transform_template.get('properties', {})
+                    new_props['template_id'] = transform_to
+                    await game_engine.model_manager.game_objects.update(target_item.id, {
+                        'name_en': transform_template.get('name_en', 'Empty Bottle'),
+                        'name_ko': transform_template.get('name_ko', '빈 병'),
+                        'description_en': transform_template.get('description_en', ''),
+                        'description_ko': transform_template.get('description_ko', ''),
+                        'weight': transform_template.get('weight', 0.5),
+                        'properties': _json.dumps(new_props, ensure_ascii=False),
+                    })
+                else:
+                    await game_engine.world_manager.remove_object(target_item.id)
+            else:
+                await game_engine.world_manager.remove_object(target_item.id)
 
             # 스태미나 소모 (전투 밖일 때만)
             if not getattr(session, 'in_combat', False):
-                session.stamina = max(0.0, session.stamina - 1.0)
+                session.stamina = max(0.0, session.stamina - 0.1)
 
-            message = f"💊 {item_name_display}을(를) 사용했습니다.\n{effect_message}"
+            message = f"💊 {session.player.get_display_name()} {verb} {item_name_display}.\n{effect_message}"
 
             return self.create_success_result(
                 message=message,

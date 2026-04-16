@@ -51,6 +51,22 @@
         "en": "Cannot pick up the object.",
         "ko": "객체를 획득할 수 없습니다."
     },
+    "obj.get.success": {
+        "en": "📦 Picked up {name}.",
+        "ko": "📦 {name}을(를) 획득했습니다."
+    },
+    "obj.get.success_multi": {
+        "en": "📦 Picked up {name} x{count}.",
+        "ko": "📦 {name} x{count}개를 획득했습니다."
+    },
+    "obj.get.broadcast": {
+        "en": "📦 {username} picked up {name}.",
+        "ko": "📦 {username}님이 {name}을(를) 획득했습니다."
+    },
+    "obj.get.broadcast_multi": {
+        "en": "📦 {username} picked up {name} x{count}.",
+        "ko": "📦 {username}님이 {name} x{count}개를 획득했습니다."
+    },
     "obj.drop.not_in_inv": {
         "en": "'{name}' is not in your inventory.",
         "ko": "인벤토리에 '{name}'이(가) 없습니다."
@@ -58,6 +74,14 @@
     "obj.drop.failed": {
         "en": "Cannot drop the object.",
         "ko": "객체를 버릴 수 없습니다."
+    },
+    "obj.drop.success": {
+        "en": "📦 Dropped {name}.",
+        "ko": "📦 {name}을(를) 버렸습니다."
+    },
+    "obj.drop.broadcast": {
+        "en": "📦 {username} dropped {name}.",
+        "ko": "📦 {username}님이 {name}을(를) 버렸습니다."
     },
     "obj.drop.error": {
         "en": "An error occurred whilst dropping the object.",

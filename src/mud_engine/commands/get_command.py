@@ -178,13 +178,17 @@ class GetCommand(BaseCommand):
             ))
 
             count = len(moved_objects)
-            obj_name = target_group['display_name_ko']
+            locale = get_user_locale(session)
+            obj_name = target_group.get('display_name_en', '') if locale == 'en' else target_group.get('display_name_ko', '')
+            if not obj_name:
+                obj_name = target_group.get('display_name_ko', target_group.get('display_name_en', ''))
+
             if count > 1:
-                player_message = f"📦 {obj_name} x{count}개를 획득했습니다."
-                broadcast_message = f"📦 {session.player.username}님이 {obj_name} x{count}개를 획득했습니다."
+                player_message = I18N.get_message("obj.get.success_multi", locale, name=obj_name, count=count)
+                broadcast_message = I18N.get_message("obj.get.broadcast_multi", locale, name=obj_name, count=count, username=session.player.username)
             else:
-                player_message = f"📦 {obj_name}을(를) 획득했습니다."
-                broadcast_message = f"📦 {session.player.username}님이 {obj_name}을(를) 획득했습니다."
+                player_message = I18N.get_message("obj.get.success", locale, name=obj_name)
+                broadcast_message = I18N.get_message("obj.get.broadcast", locale, name=obj_name, username=session.player.username)
 
             return self.create_success_result(
                 message=player_message,

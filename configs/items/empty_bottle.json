@@ -1,0 +1,16 @@
+{
+  "template_id": "empty_bottle",
+  "name_en": "Empty Bottle",
+  "name_ko": "빈 병",
+  "description_en": "An empty glass bottle. Could be refilled.",
+  "description_ko": "빈 유리병입니다. 다시 채울 수 있을지도 모릅니다.",
+  "object_type": "item",
+  "category": "misc",
+  "weight": 0.5,
+  "properties": {
+    "verbs": {
+      "use": {"en": "examines", "ko": "살펴봅니다"}
+    }
+  },
+  "max_stack": 10
+}

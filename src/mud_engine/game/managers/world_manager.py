@@ -240,6 +240,8 @@ class WorldManager:
     async def get_location_summary(self, room_id: str, locale: str = 'en') -> Dict[str, Any]:
         """특정 방의 위치 요약 정보를 제공합니다."""
         try:
+            if room_id.startswith('dialogue_') or room_id.startswith('combat_'):
+                return {}
             room = await self._room_manager.get_room(room_id)
             if not room:
                 logger.warning(f"방을 찾을 수 없음: {room_id}")

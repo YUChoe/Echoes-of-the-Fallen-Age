@@ -50,6 +50,10 @@ class TelnetSession:
         self.original_room_id: Optional[str] = None  # 전투 전 원래 방 ID
         self.combat_id: Optional[str] = None  # 참여 중인 전투 ID
 
+        self.in_dialogue: bool = False  # 대화 중인지 여부
+        # self.original_room_id: Optional[str] = None  # 전투 전 원래 방 ID
+        self.dialogue_id: Optional[str] = None  # 참여 중인 대화 인스턴스 ID
+
         # 스태미나 (메모리 only, 로그인 시 초기화)
         self.stamina: float = 5.0
         self.max_stamina: float = 5.0
@@ -158,7 +162,7 @@ class TelnetSession:
             # 빈 문자열이면 전송하지 않음 (내부 업데이트 메시지)
             if not text or text.strip() == "":
                 return True
-            text = f"\n{text}\n"
+            text = f"\n{text}\n".replace("\n\n", "\n")
             return await self.send_text(text)
 
         except Exception as e:

@@ -76,8 +76,9 @@ class DropCommand(BaseCommand):
             ))
 
             obj_name = target_object.get_localized_name(session.locale)
-            player_message = f"📦 {obj_name}을(를) 버렸습니다."
-            broadcast_message = f"📦 {session.player.username}가 {obj_name}을(를) 버렸습니다."
+            locale = get_user_locale(session)
+            player_message = I18N.get_message("obj.drop.success", locale, name=obj_name)
+            broadcast_message = I18N.get_message("obj.drop.broadcast", locale, name=obj_name, username=session.player.username)
 
             return self.create_success_result(
                 message=player_message,

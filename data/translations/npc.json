@@ -39,6 +39,10 @@
         "en": "An error occurred during the conversation.",
         "ko": "대화 중 오류가 발생했습니다."
     },
+    "npc.talk.finished": {
+        "en": "the conversation is over.",
+        "ko": "대화 가 종료 되었습니다."
+    },
     "npc.talk.quest.already_completed": {
         "en": "🎉 You already received your basic equipment. Enjoy your adventure!",
         "ko": "🎉 이미 기본 장비를 받으셨군요. 모험을 즐기세요!"

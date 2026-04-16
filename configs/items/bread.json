@@ -7,6 +7,7 @@
   "weight": 0.3,
   "properties": {
     "hunger_restore": 20,
+    "base_value": 3,
     "verbs": {
       "use": {
         "en": "eats",

@@ -84,3 +84,9 @@ src/mud_engine/version_info.json
 
 .excalidraw*
 knowledge-graph.json
+Untitled*.md
+mcp.json
+configs/dialogues/*.lua
+configs/items/*.json
+configs/monsters/*.json
+configs/rooms/*.json

@@ -1,0 +1,13 @@
+{
+  "template_id": "silver_coin",
+  "name_en": "Silver Coin",
+  "name_ko": "은화",
+  "description_en": "A standard silver coin used for trade.",
+  "description_ko": "거래에 사용되는 표준 은화입니다.",
+  "weight": 0.003,
+  "properties": {
+    "category": "currency",
+    "base_value": 1
+  },
+  "max_stack": 9999
+}

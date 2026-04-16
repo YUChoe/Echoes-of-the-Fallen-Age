@@ -13,11 +13,12 @@ from .types import SessionType
 from ..game.managers import PlayerManager, WorldManager
 from ..game.repositories import RoomRepository, GameObjectRepository
 from ..database.connection import DatabaseManager
+from ..game.managers.dialogue_manager import DialogueManager
 
 if TYPE_CHECKING:
     from ..server.session_manager import SessionManager
     from ..game.models import Player
-    from ..stat import PlayerStats
+    from ..game.stats import PlayerStats
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,8 @@ class GameEngine:
 
         # 매니저들 초기화
         try:
+            self.dialogue_manager = DialogueManager(self)
+
             self.command_manager = CommandManager(self)
             self.event_handler = EventHandler(self)
             self.movement_manager = PlayerMovementManager(self)
@@ -77,7 +80,7 @@ class GameEngine:
             self.scheduler_manager = SchedulerManager(self)
             self.global_tick_manager = GlobalTickManager(self)
 
-            # 튜토리얼 안내 시스템 초기화
+            # 튜토리얼 안내 시스템 초기화  # TODO: 퀘스트 만들면 지울 내용
             from ..game.tutorial_announcer import get_tutorial_announcer
             self.tutorial_announcer = get_tutorial_announcer(self)
 

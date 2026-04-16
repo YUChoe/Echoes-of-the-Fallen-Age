@@ -28,6 +28,7 @@ graph TD
     GE --> PM[PlayerManager]
     GE --> CH[CombatHandler]
     GE --> CMgr[CombatManager]
+    GE --> DM[DialogueManager]
 
     WM --> RMgr[RoomManager]
     WM --> OMgr[ObjectManager]
@@ -38,6 +39,7 @@ graph TD
     CP --> CC[Combat Commands]
     CP --> AC[Admin Commands]
     CP --> NC[NPC Commands]
+    CP --> DC[Dialogue Commands]
     CP --> OC[Object Commands]
 
     GE --> EB[EventBus]
@@ -764,8 +766,9 @@ async def _worker() -> None
 - item - 전투 중 아이템 사용 (전투 중만)
 - combat (별칭: battle, cs) - 전투 상태 확인
 
-NPC:
-- talk - NPC 대화
+NPC/대화:
+- talk <번호> - NPC 대화 시작 (DialogueManager → DialogueInstance 생성, 세션 대화 모드 전환)
+- talk <선택지번호> - 대화 중 선택지 입력 (DialogueInstance.get_dialogueby_choice)
 - trade - NPC 거래
 - shop - 상점
 
