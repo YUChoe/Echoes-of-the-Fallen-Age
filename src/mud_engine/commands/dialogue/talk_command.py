@@ -79,9 +79,12 @@ class TalkCommand(BaseCommand):
             logger.info(f"대화중 {dlg.id} {target_input}")
             choice = int(target_input)
             logger.info(f'choice[{choice}]')
-            await self.dialogue_manager.send_dialogue_message(dlg, dlg.get_dialogueby_choice(choice))
+            result_msgs = await dlg.get_dialogueby_choice(choice)
             if not dlg.is_active:
+                # Bye 선택 → 메시지 전송 없이 대화 종료
                 await self.dialogue_manager.end_dialogue(dlg.id)
+            else:
+                await self.dialogue_manager.send_dialogue_message(dlg, result_msgs)
             return self.create_info_result(message="")
 
         # 대화 생성
@@ -106,7 +109,7 @@ class TalkCommand(BaseCommand):
         # 플레이어에게 npc의 메시지
         # 1. 메시지는 플레이어의 상태에 따라 다름
         # await self.dialogue_manager.send_dialogue_message(dlg.get_new_dialogue(target_npc, self.session), dlg)
-        await self.dialogue_manager.send_dialogue_message(dlg, dlg.get_new_dialogue())
+        await self.dialogue_manager.send_dialogue_message(dlg, await dlg.get_new_dialogue())
         """
         [타운가드]
         처음보는 얼굴이군 저쪽으로 가서 안내를 받으라고

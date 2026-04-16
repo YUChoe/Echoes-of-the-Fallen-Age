@@ -29,13 +29,40 @@ class ObjectManager:
     async def create_game_object(self, object_data: Dict[str, Any]) -> GameObject:
         """새로운 게임 객체를 생성합니다."""
         try:
+            # name이 없고 name_en/name_ko가 있으면 name dict로 재조합
+            name = object_data.get('name', {})
+            if not name and (object_data.get('name_en') or object_data.get('name_ko')):
+                name = {}
+                if object_data.get('name_en'):
+                    name['en'] = object_data['name_en']
+                if object_data.get('name_ko'):
+                    name['ko'] = object_data['name_ko']
+
+            # description도 동일하게 처리
+            description = object_data.get('description', {})
+            if not description and (object_data.get('description_en') or object_data.get('description_ko')):
+                description = {}
+                if object_data.get('description_en'):
+                    description['en'] = object_data['description_en']
+                if object_data.get('description_ko'):
+                    description['ko'] = object_data['description_ko']
+
+            # properties가 JSON 문자열이면 dict로 파싱
+            properties = object_data.get('properties', {})
+            if isinstance(properties, str):
+                import json
+                try:
+                    properties = json.loads(properties)
+                except (json.JSONDecodeError, TypeError):
+                    properties = {}
+
             game_object = GameObject(
                 id=object_data.get('id'),
-                name=object_data.get('name', {}),
-                description=object_data.get('description', {}),
+                name=name,
+                description=description,
                 location_type=object_data.get('location_type', 'room'),
                 location_id=object_data.get('location_id'),
-                properties=object_data.get('properties', {}),
+                properties=properties,
                 weight=object_data.get('weight', 1.0),
                 max_stack=object_data.get('max_stack', 1),
                 equipment_slot=object_data.get('equipment_slot'),

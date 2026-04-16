@@ -9,6 +9,7 @@
   "weight": 0.6,
   "properties": {
     "hp_restore": 10,
+    "base_value": 15,
     "after_use": {"transform_to": "empty_bottle"},
     "verbs": {
       "use": {"en": "drinks", "ko": "마십니다"}

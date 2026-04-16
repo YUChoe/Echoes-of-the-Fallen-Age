@@ -9,6 +9,7 @@
   "weight": 0.6,
   "properties": {
     "stamina_restore": 3.0,
+    "base_value": 12,
     "after_use": {"transform_to": "empty_bottle"},
     "verbs": {
       "use": {"en": "drinks", "ko": "마십니다"}
