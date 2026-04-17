@@ -6,13 +6,13 @@
 
 ## 태스크
 
-- [ ] 1. I18N 메시지 및 아이템 템플릿 준비
-  - [ ] 1.1 `data/translations/item.json`에 read 관련 I18N 메시지 추가
+- [x] 1. I18N 메시지 및 아이템 템플릿 준비
+  - [x] 1.1 `data/translations/item.json`에 read 관련 I18N 메시지 추가
     - `read.usage`, `read.not_found`, `read.not_readable`, `read.header`, `read.page_info`, `read.page_hint`, `read.invalid_page`, `read.error` 키를 en/ko로 추가
     - 영어 텍스트는 영국 영어(British English)로 작성
     - _요구사항: 7.1, 7.2, 7.3_
 
-  - [ ] 1.2 샘플 readable 아이템 템플릿 4종 생성
+  - [x] 1.2 샘플 readable 아이템 템플릿 4종 생성
     - `configs/items/ash_knights_proclamation.json` (note, 단일 페이지)
     - `configs/items/merchant_journal.json` (book, 2페이지 이상)
     - `configs/items/forgotten_scripture.json` (scroll, 단일 페이지)
@@ -22,8 +22,8 @@
     - `category`를 `"readable"`로 설정, `properties.readable` 구조 준수
     - _요구사항: 5.1, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 
-- [ ] 2. ReadCommand 핵심 구현
-  - [ ] 2.1 `src/mud_engine/commands/read_command.py` 생성
+- [x] 2. ReadCommand 핵심 구현
+  - [x] 2.1 `src/mud_engine/commands/read_command.py` 생성
     - `BaseCommand`를 상속하여 `ReadCommand` 클래스 구현
     - `name="read"`, `aliases=[]`, `usage="read <아이템명> [페이지번호]"`
     - `execute()` 메서드: 인자 검증, 인증 확인, 아이템 검색, readable 판별, 텍스트 표시
@@ -43,12 +43,12 @@
     - 모든 메시지는 I18N 시스템 사용
     - _요구사항: 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 7.1_
 
-  - [ ] 2.2 `CommandProcessor`에 `ReadCommand` 등록
+  - [x] 2.2 `CommandProcessor`에 `ReadCommand` 등록
     - 기존 명령어 등록 패턴을 따라 게임 엔진 초기화 시 `ReadCommand`를 `"read"` 이름으로 등록
     - `src/mud_engine/commands/__init__.py`에 import 추가
     - _요구사항: 1.1_
 
-- [ ] 3. 체크포인트 - 정적 검사 및 기본 동작 확인
+- [x] 3. 체크포인트 - 정적 검사 및 기본 동작 확인
   - mypy + ruff 정적 검사 통과 확인
   - 모든 테스트 통과 확인, 문제 발생 시 사용자에게 질문
 
@@ -109,7 +109,7 @@
     - **Property 9: 출력에는 항상 아이템 이름이 헤더로 포함된다**
     - **Validates: 요구사항 3.2**
 
-- [ ] 5. 최종 체크포인트 - 전체 검증
+- [x] 5. 최종 체크포인트 - 전체 검증
   - mypy + ruff 정적 검사 통과 확인
   - 모든 테스트 통과 확인, 문제 발생 시 사용자에게 질문
 

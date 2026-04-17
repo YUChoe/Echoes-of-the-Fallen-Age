@@ -1,0 +1,20 @@
+{
+  "template_id": "ash_knights_proclamation",
+  "name_en": "Ash Knights' Proclamation",
+  "name_ko": "잿빛 기사단 포고문",
+  "description_en": "An official proclamation bearing the seal of the Ash Knights.",
+  "description_ko": "잿빛 기사단의 인장이 찍힌 공식 포고문입니다.",
+  "object_type": "item",
+  "category": "readable",
+  "weight": 0.1,
+  "max_stack": 1,
+  "properties": {
+    "readable": {
+      "type": "note",
+      "content": {
+        "en": "By order of the Ash Knights, all citizens of Greyhaven Port are hereby commanded to surrender any provisions beyond a fortnight's ration to the garrison stores. Those found hoarding shall be judged before the Knight Lieutenant without appeal. The defence of these walls demands sacrifice from every soul within them. Signed and sealed under the authority of the Ash Knights, Greyhaven Port.",
+        "ko": "잿빛 기사단의 명에 따라, 잿빛 항구의 모든 시민은 보름치를 초과하는 식량을 수비대 창고에 즉시 납부할 것을 명한다. 비축이 발각된 자는 기사 부관 앞에서 항소 없이 심판을 받게 될 것이다. 이 성벽의 방어는 그 안의 모든 영혼에게 희생을 요구한다. 잿빛 기사단의 권위 아래 서명하고 봉인함. 잿빛 항구."
+      }
+    }
+  }
+}

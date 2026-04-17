@@ -1,0 +1,20 @@
+{
+  "template_id": "personal_letter",
+  "name_en": "A Weathered Letter",
+  "name_ko": "낡은 편지",
+  "description_en": "A folded letter, its edges worn and stained with travel.",
+  "description_ko": "접힌 편지로, 가장자리가 닳고 여행의 얼룩이 묻어 있습니다.",
+  "object_type": "item",
+  "category": "readable",
+  "weight": 0.05,
+  "max_stack": 1,
+  "properties": {
+    "readable": {
+      "type": "letter",
+      "content": {
+        "en": "My dearest,\n\nI write this not knowing whether you still draw breath. The third expedition has failed — the prince and the king's brother are both missing, and those who returned speak only of a blinding light they cannot explain. I have reached Greyhaven Port with what little I could carry. The walls still hold, though for how long, none can say.\n\nIf you live, come south. Ask for the fisherman by the northern cliff — he is a good man and will help you find me.\n\nYours, always.",
+        "ko": "가장 소중한 이에게,\n\n당신이 아직 숨 쉬고 있는지도 모른 채 이 글을 씁니다. 제3차 원정이 실패했습니다 — 왕자와 왕의 동생 모두 행방불명이며, 돌아온 자들은 설명할 수 없는 눈부신 빛에 대해서만 이야기합니다. 가져올 수 있는 것만 겨우 챙겨 잿빛 항구에 도착했습니다. 성벽은 아직 버티고 있지만, 얼마나 오래갈지는 아무도 모릅니다.\n\n살아 있다면 남쪽으로 오세요. 북쪽 절벽의 어부를 찾으세요 — 좋은 사람이니 저를 찾는 것을 도와줄 것입니다.\n\n언제나 당신의."
+      }
+    }
+  }
+}

@@ -139,6 +139,10 @@ class CommandManager:
         self.command_processor.register_command(ChangeNameCommand())
         self.command_processor.register_command(AdminChangeNameCommand())
 
+        # 읽기 명령어 등록
+        from ...commands.read_command import ReadCommand
+        self.command_processor.register_command(ReadCommand())
+
         # 언어 설정 명령어들 등록
         from ...commands.language_commands import LanguageCommand
         self.command_processor.register_command(LanguageCommand())

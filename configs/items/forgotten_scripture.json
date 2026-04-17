@@ -1,0 +1,20 @@
+{
+  "template_id": "forgotten_scripture",
+  "name_en": "Scripture of the Forgotten God",
+  "name_ko": "잊혀진 신의 경전",
+  "description_en": "A weathered scroll inscribed with ancient prayers to a nameless deity.",
+  "description_ko": "이름 없는 신에게 바치는 고대의 기도문이 적힌 낡은 두루마리입니다.",
+  "object_type": "item",
+  "category": "readable",
+  "weight": 0.2,
+  "max_stack": 1,
+  "properties": {
+    "readable": {
+      "type": "scroll",
+      "content": {
+        "en": "Hear us, O Nameless One, whose temples lie in ruin and whose name the living have forsaken. Before the empire burned, before the Great Mage tore the veil between what is and what should never be, You walked amongst us. Grant us sight in this age of darkness. Grant us courage where fear has taken root. In the necropolis beneath Your church, the faithful still keep vigil. We shall not forget, even if the world above has.",
+        "ko": "들으소서, 이름 없는 분이여. 신전은 폐허가 되었고 살아있는 자들은 당신의 이름을 버렸나이다. 제국이 불타기 전, 대마법사가 존재와 존재하지 말아야 할 것 사이의 장막을 찢기 전, 당신은 우리 사이를 걸으셨나이다. 이 어둠의 시대에 시야를 허락하소서. 두려움이 뿌리내린 곳에 용기를 허락하소서. 당신의 교회 아래 네크로폴리스에서 신실한 자들은 여전히 깨어 지키고 있나이다. 위의 세상이 잊었을지라도, 우리는 잊지 않으리이다."
+      }
+    }
+  }
+}

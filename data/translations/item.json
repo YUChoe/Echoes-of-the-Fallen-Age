@@ -138,5 +138,37 @@
     "obj.container.item_not_found": {
         "en": "'{item}' not found in {container}.",
         "ko": "'{item}'을(를) {container}에서 찾을 수 없습니다."
+    },
+    "read.usage": {
+        "en": "Please specify an item to read.\nUsage: read <item name> [page number]",
+        "ko": "읽을 아이템을 지정해주세요.\n사용법: read <아이템명> [페이지번호]"
+    },
+    "read.not_found": {
+        "en": "Cannot find '{name}' to read.",
+        "ko": "'{name}'을(를) 찾을 수 없습니다."
+    },
+    "read.not_readable": {
+        "en": "{name} is not something you can read.",
+        "ko": "{name}은(는) 읽을 수 없는 아이템입니다."
+    },
+    "read.header": {
+        "en": "{icon} {name}",
+        "ko": "{icon} {name}"
+    },
+    "read.page_info": {
+        "en": "— Page {current} of {total} —",
+        "ko": "— {current} / {total} 페이지 —"
+    },
+    "read.page_hint": {
+        "en": "This has {total} pages. Use 'read {name} <page>' to read other pages.",
+        "ko": "이 아이템은 {total}페이지입니다. 'read {name} <페이지번호>'로 다른 페이지를 읽을 수 있습니다."
+    },
+    "read.invalid_page": {
+        "en": "Invalid page number. Valid pages: 1–{total}.",
+        "ko": "유효하지 않은 페이지 번호입니다. 유효 범위: 1–{total}."
+    },
+    "read.error": {
+        "en": "An error occurred whilst reading the item.",
+        "ko": "아이템을 읽는 중 오류가 발생했습니다."
     }
 }
