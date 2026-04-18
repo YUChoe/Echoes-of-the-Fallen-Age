@@ -115,8 +115,8 @@
   - 14개 Lua 파일이 configs/dialogues/ 에 모두 존재하는지 확인
   - 모든 테스트 통과 확인, 문제 발생 시 사용자에게 질문
 
-- [ ] 10. 검증 스크립트 작성 (scripts/verify_worldview_npcs.py)
-  - [ ] 10.1 데이터 정합성 검증 로직 구현
+- [x] 10. 검증 스크립트 작성 (scripts/verify_worldview_npcs.py)
+  - [x] 10.1 데이터 정합성 검증 로직 구현
     - 14개 NPC가 monsters 테이블에 모두 존재하는지 확인
     - 각 NPC의 필수 컬럼(name_en, name_ko, description_en, description_ko, x, y, faction_id) 검증
     - 각 NPC UUID에 대응하는 Lua 파일이 configs/dialogues/ 에 존재하는지 확인
@@ -124,13 +124,13 @@
     - Smuggler의 game_objects(silver_coin, 판매 아이템)가 존재하는지 확인
     - 검증 결과를 요약 출력 (통과/실패 건수)
     - _요구사항: 8.1, 8.2, 8.3, 8.4, 7.5_
-  - [ ] 10.2 검증 스크립트 실행 및 결과 확인
+  - [x] 10.2 검증 스크립트 실행 및 결과 확인
     - `./script_test.sh verify_worldview_npcs` 실행
     - 모든 검증 항목 통과 확인
     - _요구사항: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 11. Telnet E2E 테스트
-  - [ ] 11.1 일반 NPC 대화 테스트 (Telnet MCP 사용)
+- [x] 11. Telnet E2E 테스트
+  - [x] 11.1 일반 NPC 대화 테스트 (Telnet MCP 사용)
     - 서버 실행 후 관리자 계정(player5426)으로 로그인
     - goto 명령어로 각 NPC 위치 이동
     - look 명령어로 NPC 존재 확인
@@ -138,14 +138,14 @@
     - 대화 선택지 탐색 및 응답 확인 (en/ko 모두)
     - 구역별 최소 1개 NPC 대화 테스트
     - _요구사항: 1.3, 1.4, 2.3, 2.4, 3.3, 3.4, 4.3, 4.4, 5.3, 5.4, 6.3, 6.4, 7.3, 11.1~11.7_
-  - [ ] 11.2 거래 NPC(Smuggler) 대화 및 거래 테스트
+  - [x] 11.2 거래 NPC(Smuggler) 대화 및 거래 테스트
     - goto 명령어로 항구(0,7) 이동
     - talk smuggler로 대화 시작
     - 구매/판매 메뉴 진입 확인
     - 거래 시도 및 에러 메시지 확인
     - _요구사항: 7.4, 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 12. 최종 체크포인트
+- [x] 12. 최종 체크포인트
   - 모든 테스트 통과 확인, 문제 발생 시 사용자에게 질문
 
 ## 참고사항

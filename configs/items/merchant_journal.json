@@ -1,0 +1,26 @@
+{
+  "template_id": "merchant_journal",
+  "name_en": "Merchant's Journal",
+  "name_ko": "상인의 일지",
+  "description_en": "A leather-bound journal filled with cramped handwriting.",
+  "description_ko": "빽빽한 글씨로 가득 찬 가죽 장정의 일지입니다.",
+  "object_type": "item",
+  "category": "readable",
+  "weight": 0.3,
+  "max_stack": 1,
+  "properties": {
+    "readable": {
+      "type": "book",
+      "pages": [
+        {
+          "en": "Day 42 since the fall. The western road is no longer passable — bandits, or worse, those wretched goblins that appeared after the Great Mage's coming. I lost half my wares near the old bridge. My partner Aldric did not make it. I write this so that someone may know what became of us, should I too perish on this cursed journey to Greyhaven Port.",
+          "ko": "몰락 이후 42일째. 서쪽 길은 더 이상 지나갈 수 없다 — 도적들, 아니 그보다 더 끔찍한, 대마법사의 출현 이후 나타난 저 비참한 고블린들 때문이다. 옛 다리 근처에서 물건의 절반을 잃었다. 동료 알드릭은 살아남지 못했다. 만약 나 역시 잿빛 항구로 향하는 이 저주받은 여정에서 목숨을 잃는다면, 누군가 우리에게 무슨 일이 있었는지 알 수 있도록 이 글을 남긴다."
+        },
+        {
+          "en": "Day 58. I have reached Greyhaven Port at last, though I can scarcely call it a refuge. The garrison demands tribute for entry, and the pawnbroker — that sly fellow — offered me a pittance for goods worth ten times as much. The church folk speak of a forgotten god who shall deliver us, but I place my faith in silver alone. If the smuggler by the southern jetty can be trusted, there may yet be a way out of this wretched place.",
+          "ko": "58일째. 마침내 잿빛 항구에 도착했으나, 이곳을 피난처라 부르기는 어렵다. 수비대는 입장료를 요구하고, 전당포 주인 — 그 교활한 자 — 은 열 배 가치의 물건에 푼돈을 제시했다. 교회 사람들은 잊혀진 신이 우리를 구원할 것이라 말하지만, 나는 오직 은화만을 믿는다. 남쪽 잔교의 밀수업자를 믿을 수 있다면, 이 비참한 곳에서 빠져나갈 길이 아직 있을지도 모른다."
+        }
+      ]
+    }
+  }
+}

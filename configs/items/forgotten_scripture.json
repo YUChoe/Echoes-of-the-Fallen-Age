@@ -1,0 +1,20 @@
+{
+  "template_id": "forgotten_scripture",
+  "name_en": "Scripture of Alva",
+  "name_ko": "알바 태양신의 경전",
+  "description_en": "A weathered scroll inscribed with ancient prayers to Alva, the sun god.",
+  "description_ko": "태양신 알바에게 바치는 고대의 기도문이 적힌 낡은 두루마리입니다.",
+  "object_type": "item",
+  "category": "readable",
+  "weight": 0.2,
+  "max_stack": 1,
+  "properties": {
+    "readable": {
+      "type": "scroll",
+      "content": {
+        "en": "Hear us, O Alva, whose name means 'white' and 'bright' in the tongue of our forebears. You are not the searing blaze of midday, but the gentle, clean light of dawn — the first warmth that touches the earth when darkness yields. Your temples once stood upon the open plains, where folk gathered at stone altars to lay offerings before You. Now the grand rites have faded, yet Your teachings remain woven into the fabric of daily life: in the bread we share, in the kindness we show to strangers, in the quiet courage that carries us through each day. In the chapel within the fortress walls, the faithful still keep vigil. Grant us Your dawn light in this age of shadow. Guide those who have strayed back to the path. We shall not forget, even if the world above has.",
+        "ko": "들으소서, 알바여. 당신의 이름은 우리 선조의 말로 '희다', '밝다'를 뜻하나이다. 당신은 한낮의 뜨거운 불꽃이 아니라, 새벽녘의 온화하고 깨끗한 빛 — 어둠이 물러날 때 대지에 닿는 첫 온기이시나이다. 당신의 신전은 한때 열린 평야 위에 서 있었고, 사람들은 돌 제단에 모여 당신 앞에 제물을 바쳤나이다. 이제 거창한 의식은 사라졌으나, 당신의 가르침은 여전히 일상의 결에 스며 있나이다: 우리가 나누는 빵에, 낯선 이에게 베푸는 친절에, 하루하루를 버텨내는 조용한 용기에. 요새 성벽 안의 예배당에서 신실한 자들은 여전히 깨어 지키고 있나이다. 이 그림자의 시대에 당신의 새벽빛을 허락하소서. 길을 잃은 자들을 다시 길로 인도하소서. 위의 세상이 잊었을지라도, 우리는 잊지 않으리이다."
+      }
+    }
+  }
+}
