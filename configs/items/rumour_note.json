@@ -1,0 +1,20 @@
+{
+  "template_id": "rumour_note",
+  "name_en": "Scrap of Rumours",
+  "name_ko": "소문 쪽지",
+  "description_en": "A crumpled scrap of parchment covered in hastily scrawled notes — snippets of rumours gathered from travellers and refugees.",
+  "description_ko": "급하게 휘갈겨 쓴 메모로 가득한 구겨진 양피지 조각 — 여행자와 난민들에게서 모은 소문 조각들입니다.",
+  "object_type": "item",
+  "category": "readable",
+  "weight": 0.1,
+  "max_stack": 1,
+  "properties": {
+    "readable": {
+      "type": "note",
+      "content": {
+        "en": "Rumours heard in Greyhaven and beyond:\n\n- The Great Sorcerer is said to be a man from the future, bringing knowledge and ruin in equal measure. No one has ever seen him, yet the world changed the moment he appeared.\n\n- The failing harvests and barren livestock are no accident. Some believe the sorcerer cursed the land when the Ash Knights declared war upon him. Crops wither before they ripen; animals bear no young.\n\n- The king may be dead. He has not been seen in public for a long while. His advisers attend to all matters of state in his stead. Whether he rests or rots, none can say for certain.\n\n- The blinding light that struck down the expeditionary forces was not a weapon. Old folk in the chapel whisper that it was Alva — the sun god himself — shining upon the battlefield. Whether in protection or in judgement, no one knows.\n\n- Soldiers who fell during the expeditions may not be truly dead. There are whispers of familiar faces seen wandering in distant places — men who were counted among the fallen, walking as though they had never perished.",
+        "ko": "잿빛 항구 안팎에서 들은 소문들:\n\n- 대마법사는 미래에서 온 사람이라고 한다. 지식과 파멸을 동시에 가져왔다고. 아무도 그를 본 적은 없지만, 그가 나타난 순간 세상이 변했다.\n\n- 계속되는 농사 실패와 가축의 불임은 우연이 아니다. 잿빛 기사단이 전쟁을 선포했을 때 마법사가 땅에 저주를 걸었다고 믿는 사람들이 있다. 작물은 익기 전에 시들고, 동물은 새끼를 낳지 않는다.\n\n- 왕은 죽었을지도 모른다. 오랫동안 공개석상에 모습을 보이지 않았다. 대신들이 왕을 대신하여 모든 국정을 처리하고 있다. 쉬고 있는 것인지 썩어가고 있는 것인지, 아무도 확실히 말할 수 없다.\n\n- 원정군을 쓰러뜨린 눈부신 빛은 무기가 아니었다. 예배당의 늙은이들은 그것이 알바 — 태양신 자신 — 가 전장에 빛을 비춘 것이라고 속삭인다. 보호를 위한 것인지 심판을 위한 것인지, 아무도 모른다.\n\n- 원정 중 쓰러진 병사들이 진짜로 죽지 않았을 수도 있다. 먼 곳에서 낯익은 얼굴이 떠돌아다니는 것을 보았다는 속삭임이 있다 — 전사자 명단에 올랐던 사람들이, 마치 죽은 적이 없는 것처럼 걸어 다니고 있다고."
+      }
+    }
+  }
+}

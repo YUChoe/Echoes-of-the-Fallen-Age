@@ -1,0 +1,20 @@
+{
+  "template_id": "relocation_order",
+  "name_en": "Relocation Order",
+  "name_ko": "이주 명령 공고문",
+  "description_en": "An official notice bearing the seal of the Ash Knights, ordering the evacuation of the western village.",
+  "description_ko": "잿빛 기사단의 인장이 찍힌 공식 공고문으로, 서쪽 마을의 이주를 명령하고 있습니다.",
+  "object_type": "item",
+  "category": "readable",
+  "weight": 0.1,
+  "max_stack": 1,
+  "properties": {
+    "readable": {
+      "type": "note",
+      "content": {
+        "en": "BY ORDER OF THE ASH KNIGHTS\n\nTo all residents of the western settlement:\n\nFor the defence of Greyhaven Fortress and the safety of its walls, all civilians dwelling within proximity of the western fortifications are hereby commanded to vacate their homes and relocate to a position beyond the outer perimeter.\n\nThis measure is necessary to ensure clear lines of sight for the garrison and to prevent enemy forces from using civilian structures as cover during an assault.\n\nAll residents are to comply within fourteen days of this notice. Those who fail to relocate shall be removed by force.\n\nBy authority of the Ash Knights,\nCommander of the Greyhaven Garrison",
+        "ko": "잿빛 기사단 명령\n\n서쪽 정착지의 모든 주민에게 고함:\n\n잿빛 항구 요새의 방어와 성벽의 안전을 위하여, 서쪽 성벽 인근에 거주하는 모든 민간인은 즉시 주거지를 비우고 외곽 경계선 너머로 이주할 것을 명한다.\n\n이 조치는 수비대의 명확한 시야 확보와 적의 공격 시 민간 건물이 엄폐물로 사용되는 것을 방지하기 위해 필요하다.\n\n모든 주민은 본 공고일로부터 14일 이내에 이행하여야 한다. 이주하지 않는 자는 강제로 퇴거시킬 것이다.\n\n잿빛 기사단의 권한으로,\n잿빛 항구 수비대장"
+      }
+    }
+  }
+}
