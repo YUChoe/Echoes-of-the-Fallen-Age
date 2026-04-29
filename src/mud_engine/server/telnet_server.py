@@ -13,6 +13,7 @@ from ..core.game_engine import GameEngine
 from ..core.event_bus import initialize_event_bus, shutdown_event_bus
 from ..core.localization import get_localization_manager
 from ..utils.version_manager import get_version_manager
+from ..utils.discord_webhook import notify_new_registration
 from .player_session_logger import PlayerSessionLogger
 
 logger = logging.getLogger(__name__)
@@ -441,6 +442,11 @@ after suffering a crushing defeat in a war against an enigmatic sorcerer.
             await session.send_success(f"계정 '{username}'이(가) 생성되었습니다!")
             await session.send_success("자동으로 로그인되었습니다.")
             logger.info(f"✅ Telnet 회원가입 성공: 사용자명='{username}', 플레이어ID={player.id}")
+
+            # Discord 웹훅 알림 (실패해도 가입 흐름에 영향 없음)
+            asyncio.create_task(
+                notify_new_registration(username, session.ip_address or "unknown")
+            )
 
             # 플레이어 세션 로그 설정
             self.player_session_logger.setup_player_logger(
