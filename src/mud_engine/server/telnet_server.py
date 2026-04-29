@@ -13,6 +13,7 @@ from ..core.game_engine import GameEngine
 from ..core.event_bus import initialize_event_bus, shutdown_event_bus
 from ..core.localization import get_localization_manager
 from ..utils.version_manager import get_version_manager
+from .player_session_logger import PlayerSessionLogger
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class TelnetServer:
         self.server: Optional[asyncio.Server] = None
         self._is_running: bool = False
         self._cleanup_task: Optional[asyncio.Task] = None
+        self.player_session_logger: PlayerSessionLogger = PlayerSessionLogger()
 
         logger.info("TelnetServer 초기화")
 
@@ -82,6 +84,9 @@ class TelnetServer:
             # 세션 정리
             self.sessions.clear()
             self.player_sessions.clear()
+
+            # 플레이어 세션 로거 전체 정리
+            self.player_session_logger.cleanup_all()
 
             # 정리 작업 중지
             if self._cleanup_task and not self._cleanup_task.done():
@@ -339,6 +344,14 @@ after suffering a crushing defeat in a war against an enigmatic sorcerer.
 
             logger.info(f"✅ Telnet 로그인 성공: 사용자명='{username}', 플레이어ID={player.id}")
 
+            # 플레이어 세션 로그 설정
+            self.player_session_logger.setup_player_logger(
+                player_id=player.id,
+                player_username=player.username,
+                session_id=session.session_id,
+                ip_address=session.ip_address or "unknown",
+            )
+
             # 게임 엔진에 세션 추가
             if self.game_engine:
                 await self.game_engine.add_player_session(session, player)
@@ -428,6 +441,15 @@ after suffering a crushing defeat in a war against an enigmatic sorcerer.
             await session.send_success(f"계정 '{username}'이(가) 생성되었습니다!")
             await session.send_success("자동으로 로그인되었습니다.")
             logger.info(f"✅ Telnet 회원가입 성공: 사용자명='{username}', 플레이어ID={player.id}")
+
+            # 플레이어 세션 로그 설정
+            self.player_session_logger.setup_player_logger(
+                player_id=player.id,
+                player_username=player.username,
+                session_id=session.session_id,
+                ip_address=session.ip_address or "unknown",
+            )
+
             return True
 
         except Exception as e:
@@ -491,6 +513,10 @@ after suffering a crushing defeat in a war against an enigmatic sorcerer.
 
         logger.info(f"🎮 Telnet 명령어 입력: 플레이어='{session.player.username}', 명령어='{command}'")
 
+        # 플레이어 세션 로그에 명령어 기록
+        if session.player:
+            self.player_session_logger.log_command(session.player.id, command)
+
         # 종료 명령어
         if command.lower() in ['quit', 'exit', 'logout']:
             from ..core.localization import get_localization_manager
@@ -528,6 +554,9 @@ after suffering a crushing defeat in a war against an enigmatic sorcerer.
 
         # 플레이어 매핑 제거
         if session.player and session.player.id in self.player_sessions:
+            # 플레이어 세션 로그 종료 및 정리
+            self.player_session_logger.log_session_end(session.player.id, reason)
+            self.player_session_logger.cleanup_player_logger(session.player.id)
             del self.player_sessions[session.player.id]
 
         # 연결 종료
