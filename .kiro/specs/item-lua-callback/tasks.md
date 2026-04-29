@@ -6,8 +6,8 @@
 
 ## Tasks
 
-- [ ] 1. ItemLuaCallbackHandler 핵심 클래스 구현
-  - [ ] 1.1 `src/mud_engine/game/item_lua_callback_handler.py` 파일 생성 및 클래스 골격 구현
+- [x] 1. ItemLuaCallbackHandler 핵심 클래스 구현
+  - [x] 1.1 `src/mud_engine/game/item_lua_callback_handler.py` 파일 생성 및 클래스 골격 구현
     - `ItemLuaCallbackHandler` 클래스 정의
     - `__init__`에서 `LuaScriptLoader` 인스턴스를 주입받아 저장
     - `load_item_script(template_id)` 메서드 구현: `configs/items/{template_id}.lua` 파일 읽기, 파일 미존재 시 None 반환
@@ -46,13 +46,13 @@
     - hypothesis 라이브러리 사용, 최소 100회 반복
     - **Validates: Requirements 2.6, 3.4, 7.1, 7.2, 7.3**
 
-- [ ] 2. 체크포인트 - ItemLuaCallbackHandler 검증
+- [x] 2. 체크포인트 - ItemLuaCallbackHandler 검증
   - mypy + ruff 정적 검사 통과 확인
   - 모든 테스트 통과 확인
   - 사용자에게 질문이 있으면 확인
 
-- [ ] 3. UseCommand에 Lua 콜백 통합
-  - [ ] 3.1 UseCommand 수정: Lua 콜백 우선 시도 로직 삽입
+- [x] 3. UseCommand에 Lua 콜백 통합
+  - [x] 3.1 UseCommand 수정: Lua 콜백 우선 시도 로직 삽입
     - `execute` 메서드의 소모품 효과 처리 직전에 Lua 콜백 시도 로직 삽입
     - session에서 `ItemLuaCallbackHandler` 인스턴스 접근 (game_engine 경유)
     - 아이템의 `properties.template_id` 추출
@@ -70,8 +70,8 @@
     - consume=false 시 아이템 유지 확인
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 4. ReadCommand에 Lua 콜백 통합
-  - [ ] 4.1 ReadCommand 수정: Lua 콜백 우선 시도 로직 삽입
+- [x] 4. ReadCommand에 Lua 콜백 통합
+  - [x] 4.1 ReadCommand 수정: Lua 콜백 우선 시도 로직 삽입
     - `execute` 메서드의 readable 텍스트 표시 직전에 Lua 콜백 시도 로직 삽입
     - session에서 `ItemLuaCallbackHandler` 인스턴스 접근 (game_engine 경유)
     - 아이템의 `properties.template_id` 추출
@@ -87,23 +87,23 @@
     - Lua 콜백 None 반환 시 기존 readable 텍스트 표시 확인
     - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 5. 체크포인트 - Command 통합 검증
+- [x] 5. 체크포인트 - Command 통합 검증
   - mypy + ruff 정적 검사 통과 확인
   - 모든 테스트 통과 확인
   - 사용자에게 질문이 있으면 확인
 
-- [ ] 6. GameEngine 배선 및 샘플 Lua 스크립트 작성
-  - [ ] 6.1 GameEngine 또는 WorldManager에서 ItemLuaCallbackHandler 인스턴스 생성 및 배선
+- [x] 6. GameEngine 배선 및 샘플 Lua 스크립트 작성
+  - [x] 6.1 GameEngine 또는 WorldManager에서 ItemLuaCallbackHandler 인스턴스 생성 및 배선
     - 기존 `LuaScriptLoader` 인스턴스를 주입하여 `ItemLuaCallbackHandler` 생성
     - UseCommand, ReadCommand에서 game_engine 경유로 접근 가능하도록 속성 노출
     - _Requirements: 1.2, 1.5, 6.2_
 
-  - [ ] 6.2 샘플 Lua 스크립트 작성
+  - [x] 6.2 샘플 Lua 스크립트 작성
     - `configs/items/health_potion.lua`: `on_use(ctx)` 콜백 정의 (다국어 메시지, consume=true)
     - `configs/items/forgotten_scripture.lua`: `on_read(ctx)` 콜백 정의 (다국어 메시지)
     - _Requirements: 2.1, 3.1_
 
-- [ ] 7. 최종 체크포인트 - 전체 시스템 검증
+- [x] 7. 최종 체크포인트 - 전체 시스템 검증
   - mypy + ruff 정적 검사 통과 확인
   - 모든 테스트 통과 확인
   - 사용자에게 질문이 있으면 확인

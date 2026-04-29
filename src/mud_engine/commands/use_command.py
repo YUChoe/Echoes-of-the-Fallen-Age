@@ -4,7 +4,7 @@
 import json
 import logging
 import traceback
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from .base import BaseCommand, CommandResult
 from .utils import get_user_locale
@@ -67,7 +67,44 @@ class UseCommand(BaseCommand):
             if not target_item:
                 return self.create_error_result(I18N.get_message("obj.use.not_in_inv", get_user_locale(session), name=' '.join(args)))
 
-            # 소모품 판별: properties에 hp_restore, stamina_restore 등이 있으면 사용 가능
+            # [Lua 콜백 우선 시도] 아이템 Lua 스크립트가 있으면 콜백 실행
+            lua_result = self._try_lua_callback(session, game_engine, target_item, "use")
+            if lua_result is not None:
+                message = lua_result.get("message", "")
+                if lua_result.get("consume", False):
+                    # 기존 소모 로직 재사용 (after_use 변환 또는 삭제)
+                    after_use = target_item.properties.get('after_use', {})
+                    transform_to = after_use.get('transform_to') if isinstance(after_use, dict) else None
+                    if transform_to:
+                        template_loader = game_engine.world_manager._monster_manager._template_loader
+                        transform_template = template_loader.get_item_template(transform_to)
+                        if transform_template:
+                            import json as _json
+                            new_props = transform_template.get('properties', {})
+                            new_props['template_id'] = transform_to
+                            await game_engine.model_manager.game_objects.update(target_item.id, {
+                                'name_en': transform_template.get('name_en', 'Empty Bottle'),
+                                'name_ko': transform_template.get('name_ko', '빈 병'),
+                                'description_en': transform_template.get('description_en', ''),
+                                'description_ko': transform_template.get('description_ko', ''),
+                                'weight': transform_template.get('weight', 0.5),
+                                'properties': _json.dumps(new_props, ensure_ascii=False),
+                            })
+                        else:
+                            await game_engine.world_manager.remove_object(target_item.id)
+                    else:
+                        await game_engine.world_manager.remove_object(target_item.id)
+
+                # 스태미나 소모 (전투 밖일 때만)
+                if not getattr(session, 'in_combat', False):
+                    session.stamina = max(0.0, getattr(session, 'stamina', 5.0) - 0.1)
+
+                return self.create_success_result(
+                    message=message,
+                    data={"action": "use", "item_id": target_item.id, "item_name": target_item.get_localized_name(session.locale), "lua_callback": True}
+                )
+
+            # [기존 폴백] 소모품 판별: properties에 hp_restore, stamina_restore 등이 있으면 사용 가능
             usable_keys = ['hp_restore', 'stamina_restore', 'mana_restore', 'heal_amount']
             is_consumable = any(k in target_item.properties for k in usable_keys)
             if not is_consumable:
@@ -336,3 +373,50 @@ class UseCommand(BaseCommand):
             return properties.get('is_container', False)
         except Exception:
             return False
+
+    def _try_lua_callback(
+        self, session: SessionType, game_engine: Any,
+        target_item: Any, verb: str,
+    ) -> Dict[str, Any] | None:
+        """아이템 Lua 콜백 시도 - 결과가 있으면 dict, 없으면 None 반환"""
+        handler = getattr(game_engine, 'item_lua_callback_handler', None)
+        if handler is None:
+            return None
+
+        # properties에서 template_id 추출 (dict/str 방어적 처리)
+        properties = getattr(target_item, 'properties', {})
+        if isinstance(properties, str):
+            try:
+                properties = json.loads(properties)
+            except (json.JSONDecodeError, TypeError):
+                properties = {}
+        if not isinstance(properties, dict):
+            return None
+
+        template_id = properties.get("template_id")
+        if not template_id:
+            return None
+
+        # Callback_Context 구성
+        player = session.player
+        context = {
+            "player": {
+                "id": str(player.id),
+                "display_name": player.get_display_name(),
+                "locale": player.preferred_locale,
+            },
+            "item": {
+                "id": str(target_item.id),
+                "template_id": template_id,
+                "name": {
+                    "en": target_item.get_localized_name("en"),
+                    "ko": target_item.get_localized_name("ko"),
+                },
+                "properties": properties,
+            },
+            "session": {
+                "locale": session.locale,
+            },
+        }
+
+        return handler.execute_verb_callback(template_id, verb, context)

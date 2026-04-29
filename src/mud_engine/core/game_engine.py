@@ -14,6 +14,7 @@ from ..game.managers import PlayerManager, WorldManager
 from ..game.repositories import RoomRepository, GameObjectRepository
 from ..database.connection import DatabaseManager
 from ..game.managers.dialogue_manager import DialogueManager
+from ..game.item_lua_callback_handler import ItemLuaCallbackHandler
 
 if TYPE_CHECKING:
     from ..server.session_manager import SessionManager
@@ -72,6 +73,11 @@ class GameEngine:
         try:
             self.dialogue_manager = DialogueManager(self)
 
+            # 아이템 Lua 콜백 핸들러 초기화 (DialogueManager의 LuaScriptLoader 재사용)
+            self.item_lua_callback_handler = ItemLuaCallbackHandler(
+                self.dialogue_manager.lua_loader
+            )
+
             self.command_manager = CommandManager(self)
             self.event_handler = EventHandler(self)
             self.movement_manager = PlayerMovementManager(self)
@@ -122,18 +128,19 @@ class GameEngine:
             await self.world_manager.initialize_templates()
             logger.info("몬스터 템플릿 로드 완료")
 
-            # 글로벌 스폰 제한 설정
-            self.world_manager.set_global_spawn_limit('template_small_rat', 20)
-            self.world_manager.set_global_spawn_limit('template_forest_goblin', 10)
-            self.world_manager.set_global_spawn_limit('template_town_guard', 4)
-            logger.info("글로벌 스폰 제한 설정 완료")
+            # # 글로벌 스폰 제한 설정
+            # self.world_manager.set_global_spawn_limit('template_small_rat', 20)
+            # self.world_manager.set_global_spawn_limit('template_forest_goblin', 10)
+            # self.world_manager.set_global_spawn_limit('template_town_guard', 4)
+            # # 초과 몬스터 정리
+            # await self.world_manager.cleanup_all_excess_monsters()
+            # logger.info("글로벌 스폰 제한 설정 완료")
 
-            # 초과 몬스터 정리
-            await self.world_manager.cleanup_all_excess_monsters()
-
+            logger.info("몬스터 스폰 시스템 시작")
             await self.world_manager.setup_default_spawn_points()
             await self.world_manager.start_spawn_scheduler()
-            logger.info("몬스터 스폰 시스템 시작 완료")
+            logger.info("몬스터 스폰 시스템 완료")
+
         except Exception as e:
             logger.error(f"몬스터 스폰 시스템 시작 실패: {e}")
 
