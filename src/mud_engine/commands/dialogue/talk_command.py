@@ -92,7 +92,7 @@ class TalkCommand(BaseCommand):
         target_npc = self.get_npc_entity_by_input_digit(self.session, target_input)
         if not target_input or not target_npc:
             logger.info(f"NPC 대화 대상을 찾을 수 없습니다.args[{args}] target_input[{target_input}]")
-            return self.create_error_result(self.I18N.get_message("combat.target_not_found_usage", locale, usage=self.usage))
+            return self.create_error_result(self.I18N.get_message("combat.target_not_found_usage", locale, usage=self.get_localized_usage(locale)))
         logger.info(f"target_npc.id[{target_npc.id}]")
 
         # 2. 인스턴스 확인 및 생성. 확인은 필요 없을 꺼 같음. 유지 할 필요 없으니 바로바로 삭제 되도록

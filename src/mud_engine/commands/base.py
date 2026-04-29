@@ -83,25 +83,59 @@ class BaseCommand(ABC):
         command_name = command_name.lower()
         return command_name == self.name or command_name in self.aliases
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "ko") -> str:
         """
-        명령어 도움말 반환
+        명령어 도움말 반환 (다국어 지원)
+
+        Args:
+            locale: 언어 설정 ("en" 또는 "ko")
 
         Returns:
             str: 도움말 텍스트
         """
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+
         help_text = f"{self.name}"
 
         if self.aliases:
-            help_text += f" (별칭: {', '.join(self.aliases)})"
+            alias_label = "Aliases" if locale == "en" else "별칭"
+            help_text += f" ({alias_label}: {', '.join(self.aliases)})"
 
-        if self.description:
+        # 번역 키로 description 조회, 없으면 self.description 폴백
+        desc_key = f"cmd.{self.name}.desc"
+        description = localization.get_message(desc_key, locale)
+        if description and not description.startswith("[Missing message:"):
+            help_text += f"\n{description}"
+        elif self.description:
             help_text += f"\n{self.description}"
 
-        if self.usage:
-            help_text += f"\n사용법: {self.usage}"
+        # 번역 키로 usage 조회, 없으면 self.usage 폴백
+        usage_str = self.get_localized_usage(locale)
+        if usage_str:
+            usage_label = "Usage" if locale == "en" else "사용법"
+            help_text += f"\n{usage_label}: {usage_str}"
 
         return help_text
+
+    def get_localized_usage(self, locale: str = "ko") -> str:
+        """
+        locale에 맞는 usage 문자열 반환
+
+        Args:
+            locale: 언어 설정 ("en" 또는 "ko")
+
+        Returns:
+            str: 사용법 문자열 (번역 키 우선, 없으면 self.usage 폴백)
+        """
+        from ..core.localization import get_localization_manager
+        localization = get_localization_manager()
+
+        usage_key = f"cmd.{self.name}.usage"
+        usage = localization.get_message(usage_key, locale)
+        if usage and not usage.startswith("[Missing message:"):
+            return usage
+        return self.usage
 
     def validate_args(self, args: List[str], min_args: int = 0,
                      max_args: Optional[int] = None) -> bool:

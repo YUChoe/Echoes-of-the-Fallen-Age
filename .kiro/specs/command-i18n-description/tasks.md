@@ -39,9 +39,9 @@
   - 테스트 완료 후 태스크 완료 처리 (통과 확인)
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 3. Command I18N Description 버그 수정
+- [x] 3. Command I18N Description 버그 수정
 
-  - [ ] 3.1 BaseCommand.get_help(locale) 시그니처 변경 및 get_localized_usage(locale) 추가
+  - [x] 3.1 BaseCommand.get_help(locale) 시그니처 변경 및 get_localized_usage(locale) 추가
     - `get_help()` → `get_help(locale: str = "ko")` 시그니처 변경
     - LocalizationManager를 통해 `cmd.{self.name}.desc` 키로 description 조회, 없으면 self.description 폴백
     - `cmd.{self.name}.usage` 키로 usage 조회, 없으면 self.usage 폴백
@@ -53,14 +53,14 @@
     - _Preservation: locale="ko" 시 기존과 동일한 한국어 결과 반환_
     - _Requirements: 1.1, 1.4, 2.1, 2.4, 3.1_
 
-  - [ ] 3.2 CommandProcessor.get_help_text()에서 command.get_help(locale) 호출로 변경
+  - [x] 3.2 CommandProcessor.get_help_text()에서 command.get_help(locale) 호출로 변경
     - `command.get_help()` → `command.get_help(locale)` 변경
     - _Bug_Condition: isBugCondition(input) where input.method == "get_help_text" AND command_name IS specified_
     - _Expected_Behavior: 개별 명령어 조회 시 locale에 맞는 도움말 반환_
     - _Preservation: 관리자 전용 명령어 필터링 로직 변경 없음_
     - _Requirements: 1.2, 2.2, 3.5_
 
-  - [ ] 3.3 attack_command.py, talk_command.py에서 self.usage → self.get_localized_usage(locale) 변경
+  - [x] 3.3 attack_command.py, talk_command.py에서 self.usage → self.get_localized_usage(locale) 변경
     - attack_command.py: `self.I18N.get_message("combat.target_not_found_usage", locale, usage=self.usage)` → `usage=self.get_localized_usage(locale)`
     - talk_command.py: 동일 패턴 적용
     - _Bug_Condition: isBugCondition(input) where input.method == "execute" AND error_message CONTAINS command.usage_
@@ -68,24 +68,24 @@
     - _Preservation: execute() 결과의 result_type, data 필드 변경 없음_
     - _Requirements: 1.3, 2.3, 3.3_
 
-  - [ ] 3.4 data/translations/command.json에 usage 번역 키 추가
+  - [x] 3.4 data/translations/command.json에 usage 번역 키 추가
     - `cmd.attack.usage`: `{"en": "attack <mob_id>", "ko": "attack <몹id>"}`
     - `cmd.talk.usage`: `{"en": "talk <mob_id>", "ko": "talk <Mob id>"}`
     - _Requirements: 2.1, 2.3_
 
-  - [ ] 3.5 정적 검사 통과 확인
+  - [x] 3.5 정적 검사 통과 확인
     - mypy src/ 통과 확인
     - ruff check src/ 통과 확인
     - _Requirements: 전체_
 
-  - [ ] 3.6 버그 조건 탐색 테스트 통과 확인
+  - [x] 3.6 버그 조건 탐색 테스트 통과 확인
     - **Property 1: Expected Behavior** - get_help(locale) 다국어 반환
     - **IMPORTANT**: 태스크 1에서 작성한 동일 테스트를 재실행 — 새 테스트 작성 금지
     - 수정 후 코드에서 버그 조건 탐색 테스트 실행
     - **EXPECTED OUTCOME**: 테스트 PASS (버그 수정 확인)
     - _Requirements: 2.1, 2.4_
 
-  - [ ] 3.7 보존 속성 테스트 통과 확인
+  - [x] 3.7 보존 속성 테스트 통과 확인
     - **Property 2: Preservation** - 한국어 locale 및 비locale 메서드 동작 보존
     - **IMPORTANT**: 태스크 2에서 작성한 동일 테스트를 재실행 — 새 테스트 작성 금지
     - 수정 후 코드에서 보존 속성 테스트 실행
@@ -93,7 +93,7 @@
     - 모든 테스트가 수정 후에도 통과하는지 확인
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 4. Checkpoint - 모든 테스트 통과 확인
+- [x] 4. Checkpoint - 모든 테스트 통과 확인
   - 전체 테스트 스위트 실행하여 모든 테스트 통과 확인
   - mypy + ruff 정적 검사 최종 통과 확인
   - 문제 발생 시 사용자에게 질문

@@ -393,7 +393,7 @@ class CommandProcessor:
                 # 관리자 전용 명령어인데 관리자가 아니면 접근 거부
                 if hasattr(command, 'admin_only') and command.admin_only and not is_admin:
                     return localization.get_message("command.admin_only", locale)
-                return command.get_help()
+                return command.get_help(locale)
             else:
                 return localization.get_message("command.unknown", locale, command=command_name)
 
