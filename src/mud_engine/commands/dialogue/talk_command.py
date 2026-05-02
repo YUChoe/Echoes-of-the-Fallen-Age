@@ -55,6 +55,10 @@ class TalkCommand(BaseCommand):
         if entity_num in entity_map:
             entity_info = entity_map[entity_num]
             logger.info(f"{target_input}번은 타입이 {entity_info['type']} 입니다.")
+            # NPC(몬스터)만 대화 가능, 오브젝트는 대화 불가
+            if entity_info['type'] != 'monster':
+                logger.info(f"{target_input}번은 NPC가 아닙니다 (type={entity_info['type']})")
+                return None
         else:
             logger.info("못찾음")
             return None
