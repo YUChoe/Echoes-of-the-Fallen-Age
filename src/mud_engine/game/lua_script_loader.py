@@ -15,6 +15,8 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, TYPE_CHECKING
 
+from .managers.price_resolver import PriceResolver
+
 if TYPE_CHECKING:
     from .managers.exchange_manager import ExchangeManager
 
@@ -312,10 +314,14 @@ class LuaScriptLoader:
             t["error_code"] = "invalid_arguments"
             return t
 
-        def _inventory_to_lua(items: list[Any]) -> Any:
+        def _inventory_to_lua(
+            items: list[Any],
+            price_field: str | None = None,
+        ) -> Any:
             """인벤토리 아이템 목록을 Lua 테이블로 변환.
 
             silver_coin은 제외한다.
+            price_field가 지정되면 해당 필드에 PriceResolver 산출 가격을 추가한다.
             """
             result = new_table_fn()
             idx = 1
@@ -341,34 +347,98 @@ class LuaScriptLoader:
                     dict(item.properties) if isinstance(item.properties, dict)
                     else {}
                 )
+                # 가격 필드 추가 (PriceResolver가 template_id로 DB 조회)
+                if price_field == "buy_price":
+                    entry["buy_price"] = _run_async(
+                        price_resolver.get_buy_price(
+                            item.properties.get("template_id", "")
+                        )
+                    )
+                elif price_field == "sell_price":
+                    entry["sell_price"] = _run_async(
+                        price_resolver.get_sell_price(
+                            item.properties.get("template_id", "")
+                        )
+                    )
                 result[idx] = entry
                 idx += 1
             return result
 
+        # PriceResolver 인스턴스 생성 (DB 기반 가격 산출 위임)
+        price_resolver = PriceResolver(em._object_repo._db_manager)
+
+        # ── 가격 조회 함수 래퍼 ──
+
+        def get_buy_price(item_id: Any) -> Any:
+            """아이템 기준 구매 가격 조회 (template_id 기반 DB 조회)"""
+            if not isinstance(item_id, str):
+                return 0
+            try:
+                item = _run_async(em._object_repo.get_by_id(item_id))
+                if item is None:
+                    return 0
+                template_id = item.properties.get("template_id", "")
+                return _run_async(price_resolver.get_buy_price(template_id))
+            except Exception as e:
+                logger.error(f"get_buy_price 오류: {e}")
+                return 0
+
+        def get_sell_price(item_id: Any) -> Any:
+            """아이템 기준 판매 가격 조회 (template_id 기반 DB 조회)"""
+            if not isinstance(item_id, str):
+                return 0
+            try:
+                item = _run_async(em._object_repo.get_by_id(item_id))
+                if item is None:
+                    return 0
+                template_id = item.properties.get("template_id", "")
+                return _run_async(price_resolver.get_sell_price(template_id))
+            except Exception as e:
+                logger.error(f"get_sell_price 오류: {e}")
+                return 0
+
+        def get_item_properties(item_id: Any) -> Any:
+            """아이템 전체 속성을 Lua 테이블로 조회"""
+            if not isinstance(item_id, str):
+                return _make_error("item_id must be a string")
+            try:
+                item = _run_async(em._object_repo.get_by_id(item_id))
+                if item is None:
+                    return _make_error("item not found")
+                props = (
+                    dict(item.properties)
+                    if isinstance(item.properties, dict)
+                    else {}
+                )
+                return _to_lua(props)
+            except Exception as e:
+                logger.error(f"get_item_properties 오류: {e}")
+                return _make_error(f"Internal error: {e}")
+
         # ── 조회 함수 래퍼 ──
 
         def get_npc_inventory(npc_id: Any) -> Any:
-            """NPC 인벤토리 목록 조회 (silver_coin 제외)"""
+            """NPC 인벤토리 목록 조회 (silver_coin 제외, buy_price 포함)"""
             if not isinstance(npc_id, str):
                 return _make_error("npc_id must be a string")
             try:
                 items = _run_async(
                     em._object_repo.get_objects_in_inventory(npc_id)
                 )
-                return _inventory_to_lua(items)
+                return _inventory_to_lua(items, price_field="buy_price")
             except Exception as e:
                 logger.error(f"get_npc_inventory 오류: {e}")
                 return _make_error(f"Internal error: {e}")
 
         def get_player_inventory(player_id: Any) -> Any:
-            """플레이어 인벤토리 목록 조회 (silver_coin 제외)"""
+            """플레이어 인벤토리 목록 조회 (silver_coin 제외, sell_price 포함)"""
             if not isinstance(player_id, str):
                 return _make_error("player_id must be a string")
             try:
                 items = _run_async(
                     em._object_repo.get_objects_in_inventory(player_id)
                 )
-                return _inventory_to_lua(items)
+                return _inventory_to_lua(items, price_field="sell_price")
             except Exception as e:
                 logger.error(f"get_player_inventory 오류: {e}")
                 return _make_error(f"Internal error: {e}")
@@ -447,6 +517,9 @@ class LuaScriptLoader:
 
         # Lua 글로벌에 exchange 테이블 등록
         exchange_table = new_table_fn()
+        exchange_table["get_buy_price"] = get_buy_price
+        exchange_table["get_sell_price"] = get_sell_price
+        exchange_table["get_item_properties"] = get_item_properties
         exchange_table["get_npc_inventory"] = get_npc_inventory
         exchange_table["get_player_inventory"] = get_player_inventory
         exchange_table["get_npc_silver"] = get_npc_silver

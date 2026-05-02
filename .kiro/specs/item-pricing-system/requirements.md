@@ -4,46 +4,50 @@
 
 아이템별 고정 매수/매도 가격 시스템과 Lua 스크립트 기반 동적 가격 조정 기능을 구현한다.
 현재 시스템은 `properties.base_value`만 존재하여 매수/매도 가격 구분이 없고, 상인 Lua 스크립트에서 `base_value`에 하드코딩된 마진을 곱해 판매 가격을 산출한다.
-이 기능은 아이템 템플릿에 고정 구매/판매 가격 필드를 추가하고, Lua 스크립트에서 평판·호감도 등 외부 조건에 따라 최종 가격을 동적으로 조정할 수 있는 구조를 제공한다.
+이 기능은 아이템 가격을 DB `item_prices` 테이블에서 관리하고, PriceResolver가 `template_id`로 DB를 조회하여 가격을 산출하며, Lua 스크립트에서 평판·호감도 등 외부 조건에 따라 최종 가격을 동적으로 조정할 수 있는 구조를 제공한다.
 
 ## 용어집
 
-- **Item_Template**: `configs/items/{template_id}.json` 파일로 정의되는 아이템 원형. 이름, 무게, 속성 등을 포함한다.
-- **buy_price**: 플레이어가 NPC로부터 아이템을 구매할 때의 고정 기준 가격 (NPC 판매가). 필수 필드.
-- **sell_price**: 플레이어가 NPC에게 아이템을 판매할 때의 고정 기준 가격 (NPC 매입가). 필수 필드.
-- **PriceResolver**: 아이템의 고정 가격(buy_price, sell_price)을 조회하고, Lua 스크립트의 동적 조정 결과를 반영하여 최종 거래 가격을 산출하는 모듈.
+- **item_prices**: 아이템 가격 정보를 저장하는 DB 테이블. `template_id`를 PRIMARY KEY로 사용하며, `buy_price`와 `sell_price`를 저장한다.
+- **template_id**: 아이템 템플릿의 고유 식별자. `game_objects.properties` JSON 내의 `template_id` 필드로 저장되며, `item_prices` 테이블의 키로 사용된다.
+- **buy_price**: 플레이어가 NPC로부터 아이템을 구매할 때의 고정 기준 가격 (NPC 판매가). `item_prices` 테이블에 저장.
+- **sell_price**: 플레이어가 NPC에게 아이템을 판매할 때의 고정 기준 가격 (NPC 매입가). `item_prices` 테이블에 저장.
+- **PriceResolver**: `template_id`로 `item_prices` DB 테이블을 조회하여 기준 가격을 반환하고, 선택적 `price_modifier`를 적용하여 최종 거래 가격을 산출하는 모듈.
 - **price_modifier**: Lua 스크립트에서 반환하는 가격 조정 배율 (예: 0.9 = 10% 할인, 1.1 = 10% 할증).
+- **DatabaseManager**: 비동기 SQLite 데이터베이스 연결을 관리하는 기존 모듈.
 - **ExchangeManager**: 플레이어와 NPC 간 양방향 아이템 교환을 원자적으로 처리하는 기존 매니저.
 - **LuaScriptLoader**: NPC 대화 스크립트를 로드하고 실행하는 기존 모듈. exchange API를 Lua 글로벌에 등록한다.
 - **exchange_API**: Lua 글로벌에 등록된 교환 함수 테이블 (`exchange.buy_from_npc`, `exchange.sell_to_npc` 등).
 
 ## 요구사항
 
-### 요구사항 1: 아이템 템플릿에 고정 가격 필드 추가
+### 요구사항 1: item_prices DB 테이블에 가격 저장
 
-**사용자 스토리:** 게임 디자이너로서, 아이템별로 NPC 구매가와 판매가를 개별 설정하고 싶다. 이를 통해 아이템 경제를 세밀하게 조정할 수 있다.
-
-#### 수용 기준
-
-1. THE Item_Template SHALL 아이템 속성(properties) 내에 `buy_price` 필드(정수, 실버 단위)를 필수로 포함한다.
-2. THE Item_Template SHALL 아이템 속성(properties) 내에 `sell_price` 필드(정수, 실버 단위)를 필수로 포함한다.
-3. THE Item_Template SHALL `buy_price` 값이 0 이상의 정수임을 보장한다.
-4. THE Item_Template SHALL `sell_price` 값이 0 이상의 정수임을 보장한다.
-5. WHEN `buy_price` 또는 `sell_price`가 정의되지 않은 아이템에 대해 거래가 시도되면, THE PriceResolver SHALL 가격 0을 반환하여 거래가 불가능함을 나타낸다.
-
-### 요구사항 2: PriceResolver 모듈 구현
-
-**사용자 스토리:** 개발자로서, 아이템의 최종 거래 가격을 일관된 방식으로 산출하는 중앙 모듈이 필요하다. 이를 통해 가격 산출 로직이 분산되지 않고 단일 지점에서 관리된다.
+**사용자 스토리:** 게임 디자이너로서, 아이템별로 NPC 구매가와 판매가를 DB에서 중앙 관리하고 싶다. 이를 통해 아이템 템플릿 JSON을 수정하지 않고도 가격을 조정할 수 있다.
 
 #### 수용 기준
 
-1. THE PriceResolver SHALL 아이템 템플릿의 `buy_price`, `sell_price`를 읽어 기준 가격을 반환한다.
+1. THE Database SHALL `item_prices` 테이블을 포함하며, 스키마는 `template_id TEXT PRIMARY KEY, buy_price INTEGER DEFAULT 0, sell_price INTEGER DEFAULT 0`이다.
+2. THE item_prices 테이블 SHALL 모든 거래 가능 아이템의 `template_id`에 대해 `buy_price`와 `sell_price` 레코드를 포함한다.
+3. THE item_prices 테이블 SHALL `buy_price` 값이 0 이상의 정수임을 보장한다.
+4. THE item_prices 테이블 SHALL `sell_price` 값이 0 이상의 정수임을 보장한다.
+5. WHEN `template_id`가 `item_prices` 테이블에 존재하지 않는 아이템에 대해 거래가 시도되면, THE PriceResolver SHALL 가격 0을 반환하여 거래가 불가능함을 나타낸다.
+6. THE item_prices 테이블 SHALL 거래 불가 아이템(quest item 등)에 대해 레코드를 포함하지 않는다 (조회 시 0 반환).
+
+### 요구사항 2: PriceResolver 모듈 구현 (DB 기반)
+
+**사용자 스토리:** 개발자로서, 아이템의 최종 거래 가격을 `template_id` 기반 DB 조회로 일관되게 산출하는 중앙 모듈이 필요하다. 이를 통해 가격 산출 로직이 분산되지 않고 단일 지점에서 관리된다.
+
+#### 수용 기준
+
+1. THE PriceResolver SHALL `template_id`로 `item_prices` DB 테이블을 조회하여 `buy_price`, `sell_price` 기준 가격을 반환한다.
 2. WHEN Lua 스크립트가 price_modifier를 반환하면, THE PriceResolver SHALL 기준 가격에 price_modifier를 곱하여 최종 가격을 산출한다.
 3. THE PriceResolver SHALL 최종 가격을 정수로 반올림(round)하여 반환한다.
 4. THE PriceResolver SHALL 최종 가격이 1 미만이 되지 않도록 최소값 1을 보장한다.
 5. WHEN price_modifier가 제공되지 않으면, THE PriceResolver SHALL 기준 가격을 그대로 최종 가격으로 사용한다.
-6. THE PriceResolver SHALL `get_buy_price(item_properties, price_modifier)` 메서드를 제공한다.
-7. THE PriceResolver SHALL `get_sell_price(item_properties, price_modifier)` 메서드를 제공한다.
+6. THE PriceResolver SHALL `async get_buy_price(template_id, price_modifier)` 메서드를 제공한다.
+7. THE PriceResolver SHALL `async get_sell_price(template_id, price_modifier)` 메서드를 제공한다.
+8. THE PriceResolver SHALL `__init__`에서 `DatabaseManager`를 주입받아 DB 조회에 사용한다.
 
 ### 요구사항 3: Lua 스크립트 기반 동적 가격 조정
 

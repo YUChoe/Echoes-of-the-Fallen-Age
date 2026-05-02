@@ -197,6 +197,66 @@ CREATE TABLE game_objects (
 
 ---
 
+### 5. item_prices
+
+아이템 가격 정보를 중앙 관리합니다. `template_id` 기반으로 매수/매도 가격을 조회합니다.
+
+```sql
+CREATE TABLE item_prices (
+    template_id TEXT PRIMARY KEY,     -- 아이템 템플릿 고유 식별자
+    buy_price INTEGER DEFAULT 0,      -- NPC 구매가 (플레이어가 NPC에게서 살 때)
+    sell_price INTEGER DEFAULT 0      -- NPC 판매가 (플레이어가 NPC에게 팔 때)
+);
+```
+
+**필드 설명**:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `template_id` | TEXT PRIMARY KEY | 아이템 템플릿 고유 식별자 (예: `health_potion`) |
+| `buy_price` | INTEGER DEFAULT 0 | NPC 구매가 — 플레이어가 NPC에게서 살 때의 가격 |
+| `sell_price` | INTEGER DEFAULT 0 | NPC 판매가 — 플레이어가 NPC에게 팔 때의 가격 |
+
+**참고**:
+
+- `item_prices`에 레코드가 없는 아이템은 거래 불가 (PriceResolver 조회 시 0 반환)
+- `buy_price` 또는 `sell_price`가 0이면 해당 방향 거래 불가
+- 가격 데이터는 `game_objects.properties`가 아닌 이 테이블에서 중앙 관리
+
+**초기 데이터** (27개 거래 가능 아이템):
+
+| template_id | buy_price | sell_price |
+|-------------|-----------|------------|
+| health_potion | 20 | 7 |
+| stamina_potion | 16 | 5 |
+| bread | 4 | 1 |
+| club | 15 | 5 |
+| guard_sword | 50 | 12 |
+| guard_heavy_sword | 100 | 25 |
+| guard_halberd | 80 | 20 |
+| guard_spear | 60 | 15 |
+| rusty_dagger | 8 | 2 |
+| guide_walking_stick | 10 | 3 |
+| rope | 10 | 3 |
+| torch | 7 | 2 |
+| backpack | 25 | 8 |
+| saddle | 50 | 15 |
+| leather_bridle | 30 | 10 |
+| horse_brush | 12 | 4 |
+| horseshoe | 8 | 3 |
+| oats | 6 | 2 |
+| hay_bale | 5 | 2 |
+| oak_branch | 3 | 1 |
+| forest_mushroom | 2 | 1 |
+| wild_berries | 1 | 0 |
+| smooth_stone | 1 | 0 |
+| wildflower_crown | 3 | 1 |
+| empty_bottle | 2 | 1 |
+| merchant_journal | 20 | 8 |
+| forgotten_scripture | 15 | 5 |
+
+---
+
 ### 7. room_connections
 
 방 간의 특별한 연결(enter 명령어용)을 저장합니다.
@@ -343,6 +403,7 @@ factions (N) ─────< (N) factions (faction_relations)
 - **rooms**: 173개
 - **monsters**: 51개
 - **game_objects**: 24개
+- **item_prices**: 27개
 - **room_connections**: 2개
 - **factions**: 3개
 - **faction_relations**: 6개

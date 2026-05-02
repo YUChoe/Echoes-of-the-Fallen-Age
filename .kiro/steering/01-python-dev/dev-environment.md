@@ -53,6 +53,15 @@ kill -2 <PID>
 - `kill -9` (SIGKILL) 사용 금지: 서버의 graceful shutdown 핸들러가 실행되지 않음
 - `kill -2` (SIGINT) = Ctrl+C와 동일, 서버가 정상 종료 절차를 수행함
 
+## 서버 실행 상태 확인 (필수)
+서버를 시작하기 전에 반드시 포트 4000이 이미 사용 중인지 확인할 것.
+```bash
+# bash 환경에서 포트 사용 확인
+ss -tlnp 2>/dev/null | grep 4000 || netstat -an | grep 4000
+```
+- 포트가 사용 중이면 서버가 이미 실행 중인 것이므로 재시작하지 말 것
+- controlPwshProcess로 시작한 서버는 대화 컨텍스트가 바뀌면 terminalId를 잃으므로, 포트 체크로 실행 여부를 판단할 것
+
 ## 금지사항
 - PowerShell, CMD 사용
 - 전역 Python 환경 사용

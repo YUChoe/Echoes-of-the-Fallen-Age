@@ -104,6 +104,15 @@ DATABASE_SCHEMA: List[str] = [
     CREATE INDEX IF NOT EXISTS idx_monsters_coordinates ON monsters(x, y);
     CREATE INDEX IF NOT EXISTS idx_monsters_type ON monsters(monster_type);
     CREATE INDEX IF NOT EXISTS idx_monsters_alive ON monsters(is_alive);
+    """,
+
+    """
+    -- 아이템 가격 테이블
+    CREATE TABLE IF NOT EXISTS item_prices (
+        template_id TEXT PRIMARY KEY,
+        buy_price INTEGER DEFAULT 0,
+        sell_price INTEGER DEFAULT 0
+    );
     """
 ]
 
@@ -323,6 +332,64 @@ async def migrate_database(db_manager) -> None:
             await db_manager.commit()
             logger.info("stat_level 컬럼 삭제 완료")
 
+        # item_prices 테이블 생성 확인 및 생성
+        cursor = await db_manager.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='item_prices'"
+        )
+        item_prices_exists = await cursor.fetchone()
+
+        if not item_prices_exists:
+            logger.info("item_prices 테이블 생성 중...")
+            await db_manager.execute("""
+                CREATE TABLE IF NOT EXISTS item_prices (
+                    template_id TEXT PRIMARY KEY,
+                    buy_price INTEGER DEFAULT 0,
+                    sell_price INTEGER DEFAULT 0
+                )
+            """)
+            await db_manager.commit()
+            logger.info("item_prices 테이블 생성 완료")
+
+        # item_prices 초기 데이터 삽입 (멱등성 보장: INSERT OR IGNORE)
+        logger.info("item_prices 초기 데이터 삽입 중...")
+        initial_prices = [
+            ("health_potion", 20, 7),
+            ("stamina_potion", 16, 5),
+            ("bread", 4, 1),
+            ("club", 15, 5),
+            ("guard_sword", 50, 12),
+            ("guard_heavy_sword", 100, 25),
+            ("guard_halberd", 80, 20),
+            ("guard_spear", 60, 15),
+            ("rusty_dagger", 8, 2),
+            ("guide_walking_stick", 10, 3),
+            ("rope", 10, 3),
+            ("torch", 7, 2),
+            ("backpack", 25, 8),
+            ("saddle", 50, 15),
+            ("leather_bridle", 30, 10),
+            ("horse_brush", 12, 4),
+            ("horseshoe", 8, 3),
+            ("oats", 6, 2),
+            ("hay_bale", 5, 2),
+            ("oak_branch", 3, 1),
+            ("forest_mushroom", 2, 1),
+            ("wild_berries", 1, 0),
+            ("smooth_stone", 1, 0),
+            ("wildflower_crown", 3, 1),
+            ("empty_bottle", 2, 1),
+            ("merchant_journal", 20, 8),
+            ("forgotten_scripture", 15, 5),
+        ]
+        for template_id, buy_price, sell_price in initial_prices:
+            await db_manager.execute(
+                "INSERT OR IGNORE INTO item_prices (template_id, buy_price, sell_price) "
+                "VALUES (?, ?, ?)",
+                (template_id, buy_price, sell_price),
+            )
+        await db_manager.commit()
+        logger.info("item_prices 초기 데이터 삽입 완료 (%d건)", len(initial_prices))
+
         logger.info("데이터베이스 마이그레이션 완료")
 
     except Exception as e:
@@ -341,7 +408,7 @@ async def verify_schema(db_connection) -> bool:
     Returns:
         bool: 스키마 검증 성공 여부
     """
-    expected_tables = ['players', 'rooms', 'game_objects', 'monsters']
+    expected_tables = ['players', 'rooms', 'game_objects', 'monsters', 'item_prices']
 
     try:
         cursor = await db_connection.execute(
