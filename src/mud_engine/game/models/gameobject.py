@@ -131,11 +131,11 @@ class GameObject(BaseModel):
 
     def is_in_room(self, room_id: str) -> bool:
         """특정 방에 있는지 확인"""
-        return self.location_type == "room" and self.location_id == room_id
+        return self.location_type.lower() == "room" and self.location_id == room_id
 
     def is_in_inventory(self, character_id: str) -> bool:
         """특정 캐릭터의 인벤토리에 있는지 확인"""
-        return self.location_type == "inventory" and self.location_id == character_id
+        return self.location_type.lower() == "inventory" and self.location_id == character_id
 
     def can_be_equipped(self) -> bool:
         """장비할 수 있는 아이템인지 확인"""
