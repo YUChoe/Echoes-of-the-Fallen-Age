@@ -97,7 +97,7 @@ class SpawnItemCommand(AdminCommand):
                 message=I18N.get_message("admin.spawnitem.error", locale, error=str(e))
             )
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "en") -> str:
         return """
 📦 **아이템 생성 도움말**
 

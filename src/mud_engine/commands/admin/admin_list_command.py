@@ -61,7 +61,7 @@ class AdminListCommand(AdminCommand):
             message=admin_commands.strip()
         )
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "en") -> str:
         return """
 🔧 **관리자 도움말**
 

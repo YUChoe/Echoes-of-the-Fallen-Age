@@ -73,7 +73,7 @@ class CreateExitCommand(AdminCommand):
                 message=I18N.get_message("admin.createexit.error", locale, error=str(e))
             )
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "en") -> str:
         return """
 🚪 **출구 생성 명령어**
 

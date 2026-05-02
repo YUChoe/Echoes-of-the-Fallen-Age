@@ -83,7 +83,7 @@ class BaseCommand(ABC):
         command_name = command_name.lower()
         return command_name == self.name or command_name in self.aliases
 
-    def get_help(self, locale: str = "ko") -> str:
+    def get_help(self, locale: str = "en") -> str:
         """
         명령어 도움말 반환 (다국어 지원)
 
@@ -118,7 +118,7 @@ class BaseCommand(ABC):
 
         return help_text
 
-    def get_localized_usage(self, locale: str = "ko") -> str:
+    def get_localized_usage(self, locale: str = "en") -> str:
         """
         locale에 맞는 usage 문자열 반환
 

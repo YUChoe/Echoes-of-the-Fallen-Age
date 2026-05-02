@@ -145,7 +145,7 @@ class TerminateCommand(AdminCommand):
                 message=I18N.get_message("admin.terminate.error", locale, error=str(e))
             )
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "en") -> str:
         return """
 🗑️ **객체/몬스터 완전 삭제 명령어**
 
