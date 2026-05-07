@@ -77,6 +77,7 @@ CREATE TABLE rooms (
     description_ko TEXT,              -- 한국어 설명
     x INTEGER,                        -- X 좌표
     y INTEGER,                        -- Y 좌표
+    room_type TEXT DEFAULT 'unknown', -- 방 유형 (지형 분류)
     blocked_exits TEXT DEFAULT '[]',  -- 막힌 출구 방향 (JSON 배열, 예: ["north", "west"])
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -87,10 +88,37 @@ CREATE TABLE rooms (
 
 - `CREATE INDEX idx_rooms_coordinates ON rooms(x, y);`
 
+**room_type 값 목록**:
+
+| room_type | 설명 | 수 |
+|-----------|------|-----|
+| forest | 숲 | 205 |
+| grassland | 들판/초원 | 97 |
+| coast | 해안 | 57 |
+| road | 도로 | 27 |
+| castle | 성/요새 내부 | 25 |
+| field | 밭/경작지 | 20 |
+| pasture | 목초지 | 15 |
+| wilderness | 자연 생태계 | 11 |
+| town | 마을/주거지 | 11 |
+| water | 물/하천 | 10 |
+| hedge | 울타리/관목 | 10 |
+| trail | 오솔길 | 8 |
+| cave | 동굴 | 6 |
+| crypt | 지하묘지 | 5 |
+| building | 건물 내부 | 5 |
+| harbour | 항구/부두 | 2 |
+| cliff | 절벽 | 2 |
+| stable | 마구간 | 1 |
+| ruins | 폐허 | 1 |
+| gate | 성문 | 1 |
+| farmland | 농경지 | 1 |
+
 **참고**:
 
 - 방 이름과 출구 정보는 별도 시스템에서 관리됨
 - 좌표 기반 위치 시스템 사용
+- 모든 방 ID는 UUID 형식 사용
 
 ---
 
@@ -400,7 +428,7 @@ factions (N) ─────< (N) factions (faction_relations)
 ## Current Data Statistics
 
 - **players**: 6개
-- **rooms**: 173개
+- **rooms**: 520개
 - **monsters**: 51개
 - **game_objects**: 24개
 - **item_prices**: 27개

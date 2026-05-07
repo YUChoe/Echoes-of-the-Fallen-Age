@@ -47,6 +47,7 @@ DATABASE_SCHEMA: List[str] = [
         exits TEXT DEFAULT '{}', -- JSON 형태로 저장 (방향: 목적지_방_ID)
         x INTEGER, -- X 좌표
         y INTEGER, -- Y 좌표
+        room_type TEXT DEFAULT 'unknown', -- 방 유형 (지형 분류)
         blocked_exits TEXT DEFAULT '[]', -- 막힌 출구 방향 (JSON 배열, 예: ["north", "west"])
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -321,6 +322,15 @@ async def migrate_database(db_manager) -> None:
             )
             await db_manager.commit()
             logger.info("rooms 테이블에 blocked_exits 컬럼 추가 완료")
+
+        # rooms 테이블에 room_type 컬럼 추가
+        if 'room_type' not in rooms_column_names:
+            logger.info("rooms 테이블에 room_type 컬럼 추가 중...")
+            await db_manager.execute(
+                "ALTER TABLE rooms ADD COLUMN room_type TEXT DEFAULT 'unknown'"
+            )
+            await db_manager.commit()
+            logger.info("rooms 테이블에 room_type 컬럼 추가 완료")
 
         # stat_level 컬럼 삭제 (레벨 시스템 제거)
         cursor = await db_manager.execute("PRAGMA table_info(players)")
