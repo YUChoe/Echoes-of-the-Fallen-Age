@@ -75,6 +75,8 @@ class LuaScriptLoader:
                 attribute_filter=_attribute_filter,
             )
             self._available = True
+            # Lua 글로벌에 log 함수 등록 (Python logger로 출력)
+            self._lua.globals()["log"] = lambda msg: logger.info(f"[Lua] {msg}")
             logger.info("LuaScriptLoader 초기화 완료 (lupa 사용 가능)")
         except ImportError:
             logger.error(
