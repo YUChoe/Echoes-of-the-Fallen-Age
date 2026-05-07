@@ -51,6 +51,7 @@ class PlayerMovementManager:
 
             # 세션의 현재 방 업데이트
             session.current_room_id = room_id
+            session.current_room_type = getattr(room, 'room_type', 'unknown')
 
             # 방 퇴장 이벤트 발행 (이전 방이 있는 경우)
             if old_room_id:

@@ -204,6 +204,7 @@ class DialogueContext:
             "session_id": str(session.session_id),
             "locale": str(session.locale),
             "current_room_id": str(session.current_room_id or ""),
+            "room_type": str(getattr(session, 'current_room_type', 'unknown')),
             "stamina": float(session.stamina),
         }
 
