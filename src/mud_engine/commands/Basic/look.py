@@ -87,7 +87,7 @@ class LookCommand(BaseCommand):
             if not game_engine:
                 return self.create_error_result("게임 엔진에 접근할 수 없습니다.")
 
-            # 방 정보를 플레이어에게 전송
+            # 방 정보를 플레이어에게 전송 (미니맵 포함)
             await game_engine.movement_manager.send_room_info_to_player(session, current_room_id)
 
             # 다국어 메시지 사용
@@ -236,3 +236,4 @@ class LookCommand(BaseCommand):
                 "entity_id": entity_id,
             }
         )
+
