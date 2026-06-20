@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2026-03-29
+**Last Updated**: 2026-06-20
 
 ## Overview
 
@@ -27,12 +27,12 @@ CREATE TABLE players (
     last_login TIMESTAMP,
 
     -- 능력치 (Stats)
-    stat_strength INTEGER DEFAULT 1,         -- 힘
-    stat_dexterity INTEGER DEFAULT 1,        -- 민첩
-    stat_intelligence INTEGER DEFAULT 1,     -- 지능
-    stat_wisdom INTEGER DEFAULT 1,           -- 지혜
-    stat_constitution INTEGER DEFAULT 1,     -- 체력
-    stat_charisma INTEGER DEFAULT 1,         -- 매력
+    stat_strength INTEGER DEFAULT 10,        -- 힘
+    stat_dexterity INTEGER DEFAULT 10,       -- 민첩
+    stat_intelligence INTEGER DEFAULT 10,    -- 지능
+    stat_wisdom INTEGER DEFAULT 10,          -- 지혜
+    stat_constitution INTEGER DEFAULT 10,    -- 체력
+    stat_charisma INTEGER DEFAULT 10,        -- 매력
     stat_equipment_bonuses TEXT DEFAULT '{}', -- 장비 보너스 (JSON)
     stat_temporary_effects TEXT DEFAULT '{}', -- 임시 효과 (JSON)
     stat_current TEXT DEFAULT '{}',          -- 현재 상태값 (JSON: {"hp": 45, ...})
@@ -109,6 +109,7 @@ CREATE TABLE rooms (
 | building | 건물 내부 | 5 |
 | harbour | 항구/부두 | 2 |
 | cliff | 절벽 | 2 |
+| unknown | 미분류 | 1 |
 | stable | 마구간 | 1 |
 | ruins | 폐허 | 1 |
 | gate | 성문 | 1 |
@@ -201,18 +202,19 @@ CREATE TABLE game_objects (
     name_ko TEXT NOT NULL,            -- 한국어 이름
     description_en TEXT,              -- 영어 설명
     description_ko TEXT,              -- 한국어 설명
-    object_type TEXT NOT NULL,        -- 오브젝트 타입 (item, npc, furniture 등)
     location_type TEXT NOT NULL,      -- 위치 타입 (ROOM, INVENTORY, EQUIPPED, CONTAINER)
     location_id TEXT,                 -- 위치 ID (room_id or player_id or container_id)
     properties TEXT DEFAULT '{}',     -- 속성 (JSON)
     weight REAL DEFAULT 1.0,          -- 무게
-    max_stack INTEGER DEFAULT 1,      -- 최대 스택 개수 (1이면 스택 불가)
-    category TEXT DEFAULT 'misc',     -- 카테고리 (weapon, armor, consumable, misc)
     equipment_slot TEXT,              -- 장비 슬롯 (HEAD, BODY, WEAPON, etc.)
     is_equipped BOOLEAN DEFAULT FALSE, -- 장착 여부
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    max_stack INTEGER DEFAULT 1,      -- 최대 스택 개수 (1이면 스택 불가)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    category TEXT DEFAULT 'misc'      -- 카테고리 (weapon, armor, consumable, misc)
 );
 ```
+
+> **참고**: 실제 DB에는 `object_type` 컬럼이 존재하지 않습니다. 오브젝트의 종류는 `category`와 `properties`(JSON)로 구분합니다.
 
 **인덱스**:
 
@@ -349,11 +351,12 @@ CREATE TABLE factions (
 
 ```sql
 CREATE TABLE faction_relations (
-    faction_a_id TEXT NOT NULL PRIMARY KEY, -- 종족 A ID
-    faction_b_id TEXT NOT NULL PRIMARY KEY, -- 종족 B ID
+    faction_a_id TEXT NOT NULL,             -- 종족 A ID
+    faction_b_id TEXT NOT NULL,             -- 종족 B ID
     relation_value INTEGER DEFAULT 0,       -- 관계 값 (-100 ~ 100)
     relation_status TEXT DEFAULT 'NEUTRAL', -- 관계 상태
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (faction_a_id, faction_b_id),
     FOREIGN KEY (faction_a_id) REFERENCES factions(id),
     FOREIGN KEY (faction_b_id) REFERENCES factions(id)
 );
@@ -427,12 +430,12 @@ factions (N) ─────< (N) factions (faction_relations)
 
 ## Current Data Statistics
 
-- **players**: 6개
-- **rooms**: 520개
-- **monsters**: 51개
-- **game_objects**: 24개
+- **players**: 10개
+- **rooms**: 521개
+- **monsters**: 66개
+- **game_objects**: 103개
 - **item_prices**: 27개
-- **room_connections**: 2개
+- **room_connections**: 6개
 - **factions**: 3개
 - **faction_relations**: 6개
 
@@ -505,4 +508,4 @@ cp data/mud_engine.db.backup_YYYYMMDD_HHMMSS data/mud_engine.db
 ---
 
 **작성자**: Kiro AI
-**최종 수정**: 2026-03-29
+**최종 수정**: 2026-06-20
