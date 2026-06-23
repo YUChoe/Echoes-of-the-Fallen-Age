@@ -87,7 +87,7 @@ class KickPlayerCommand(AdminCommand):
                 message=I18N.get_message("admin.kick.error", locale, error=str(e))
             )
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "en") -> str:
         return """
 🚫 **플레이어 추방 명령어**
 

@@ -125,7 +125,7 @@ class ListMonsterTemplatesCommand(AdminCommand):
             )
 
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "en") -> str:
 
         return """
 

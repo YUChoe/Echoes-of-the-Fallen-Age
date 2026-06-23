@@ -278,5 +278,153 @@
     "cmd.unequipall.desc": {
         "en": "Unequip all currently equipped items",
         "ko": "착용 중인 모든 장비를 해제합니다"
+    },
+    "cmd.attack.usage": {
+        "en": "attack <mob_id>",
+        "ko": "attack <몹id>"
+    },
+    "cmd.talk.usage": {
+        "en": "talk <mob_id>",
+        "ko": "talk <Mob id>"
+    },
+    "cmd.use.usage": {
+        "en": "use <item_name>",
+        "ko": "use <아이템명>"
+    },
+    "cmd.read.desc": {
+        "en": "Read the contents of a readable item",
+        "ko": "읽을 수 있는 아이템의 내용을 확인합니다"
+    },
+    "cmd.read.usage": {
+        "en": "read <item_name> [page_number]",
+        "ko": "read <아이템명> [페이지번호]"
+    },
+    "cmd.players.usage": {
+        "en": "players",
+        "ko": "players"
+    },
+    "cmd.language.usage": {
+        "en": "language [en|ko]",
+        "ko": "language [en|ko]"
+    },
+    "cmd.help.usage": {
+        "en": "help [command]",
+        "ko": "help [명령어]"
+    },
+    "cmd.inventory.usage": {
+        "en": "inventory [category]",
+        "ko": "inventory [category]"
+    },
+    "cmd.give.usage": {
+        "en": "give <item_name> <player_name>",
+        "ko": "give <아이템명> <플레이어명>"
+    },
+    "cmd.get.usage": {
+        "en": "get <object_name>",
+        "ko": "get <객체명>"
+    },
+    "cmd.follow.usage": {
+        "en": "follow <player_name> or follow stop",
+        "ko": "follow <플레이어명> 또는 follow stop (따라가기 중지)"
+    },
+    "cmd.examine.usage": {
+        "en": "examine <target>",
+        "ko": "examine <대상>"
+    },
+    "cmd.equip.usage": {
+        "en": "equip <item_name>",
+        "ko": "equip <장비명>"
+    },
+    "cmd.unequip.usage": {
+        "en": "unequip <item_name>",
+        "ko": "unequip <장비명>"
+    },
+    "cmd.unequipall.usage": {
+        "en": "unequipall",
+        "ko": "unequipall"
+    },
+    "cmd.emote.usage": {
+        "en": "emote <action/emotion>",
+        "ko": "emote <행동/감정>"
+    },
+    "cmd.drop.usage": {
+        "en": "drop <object_name>",
+        "ko": "drop <객체명>"
+    },
+    "cmd.open.usage": {
+        "en": "open <target> or open <number>",
+        "ko": "open <대상> 또는 open <번호>"
+    },
+    "cmd.put.usage": {
+        "en": "put <item> in <container_number>",
+        "ko": "put <아이템> in <상자번호>"
+    },
+    "cmd.item.usage": {
+        "en": "item [number]",
+        "ko": "item [번호]"
+    },
+    "cmd.flee.usage": {
+        "en": "flee",
+        "ko": "flee"
+    },
+    "cmd.endturn.desc": {
+        "en": "End your turn",
+        "ko": "턴을 넘깁니다"
+    },
+    "cmd.endturn.usage": {
+        "en": "endturn",
+        "ko": "endturn"
+    },
+    "cmd.combat.usage": {
+        "en": "combat",
+        "ko": "combat"
+    },
+    "cmd.who.usage": {
+        "en": "who",
+        "ko": "who"
+    },
+    "cmd.whisper.usage": {
+        "en": "whisper <player_name> <message>",
+        "ko": "whisper <플레이어명> <메시지>"
+    },
+    "cmd.status.usage": {
+        "en": "status",
+        "ko": "status"
+    },
+    "cmd.say.usage": {
+        "en": "say <message> or '<message>",
+        "ko": "say <메시지> 또는 '<메시지>"
+    },
+    "cmd.quit.usage": {
+        "en": "quit",
+        "ko": "quit"
+    },
+    "cmd.look.usage": {
+        "en": "look [target]",
+        "ko": "look [대상]"
+    },
+    "cmd.enter.usage": {
+        "en": "enter",
+        "ko": "enter"
+    },
+    "cmd.terminate.usage": {
+        "en": "terminate <target_id_or_number> [reason]",
+        "ko": "terminate <대상_ID_또는_번호> [reason]"
+    },
+    "cmd.spawnmonster.usage": {
+        "en": "spawnmonster <template_id> [room_id]",
+        "ko": "spawnmonster <template_id> [room_id]"
+    },
+    "cmd.mkitem.usage": {
+        "en": "mkitem <template_name>",
+        "ko": "mkitem <template_name>"
+    },
+    "cmd.trade.usage": {
+        "en": "trade <item_name> <monster_name>",
+        "ko": "trade <아이템이름> <몬스터이름>"
+    },
+    "cmd.shop.usage": {
+        "en": "shop [list|buy <item>] [merchant_name]",
+        "ko": "shop [list|buy <아이템>] [상인이름]"
     }
 }

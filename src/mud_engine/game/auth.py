@@ -54,7 +54,14 @@ class AuthService:
         hashed_password: str = self.hash_password(password)
         player_data = {
             'username': username,
-            'password_hash': hashed_password
+            'password_hash': hashed_password,
+            # stat 초기값 명시 (DB DEFAULT 10 문제 우회)
+            'stat_strength': 1,
+            'stat_dexterity': 1,
+            'stat_intelligence': 1,
+            'stat_wisdom': 1,
+            'stat_constitution': 1,
+            'stat_charisma': 1,
         }
         new_player: Player = await self._player_repo.create(player_data)
         return new_player

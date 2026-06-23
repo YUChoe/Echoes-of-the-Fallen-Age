@@ -203,7 +203,7 @@ class RoomInfoCommand(AdminCommand):
 
         return info_lines
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "en") -> str:
         return """
 🔍 **방 정보 조회 명령어**
 

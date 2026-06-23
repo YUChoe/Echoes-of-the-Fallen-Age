@@ -87,7 +87,7 @@ class AttackCommand(BaseCommand):
         target_monster = self.get_monster_entity_by_input_digit(session, target_input)
         if not target_input or not target_monster:
             logger.info(f"공격 대상을 찾을 수 없습니다.args[{args}] target_input[{target_input}]")
-            return self.create_error_result(self.I18N.get_message("combat.target_not_found_usage", locale, usage=self.usage))
+            return self.create_error_result(self.I18N.get_message("combat.target_not_found_usage", locale, usage=self.get_localized_usage(locale)))
         logger.info(f"target_monster.id[{target_monster.id}]")
 
         current_room_id = getattr(session, "current_room_id", None)

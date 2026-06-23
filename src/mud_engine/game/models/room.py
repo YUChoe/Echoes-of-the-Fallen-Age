@@ -17,6 +17,7 @@ class Room(BaseModel):
     description: Dict[str, str] = field(default_factory=dict)
     x: Optional[int] = None  # X 좌표
     y: Optional[int] = None  # Y 좌표
+    room_type: str = "unknown"  # 방 유형 (지형 분류)
     blocked_exits: List[str] = field(default_factory=list)  # 막힌 출구 방향 (예: ["north", "west"])
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)

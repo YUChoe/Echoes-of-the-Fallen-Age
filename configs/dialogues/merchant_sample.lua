@@ -46,9 +46,10 @@ function get_buyable_items(ctx)
     local i = 1
     while npc_inv[i] do
         local item = npc_inv[i]
-        local price = 0
-        if item.properties and item.properties.base_value then
-            price = item.properties.base_value
+        -- item_prices DB 테이블에서 buy_price 조회 (인벤토리 필드 또는 API 호출)
+        local price = item.buy_price or 0
+        if price <= 0 then
+            price = exchange.get_buy_price(item.id) or 0
         end
         if price > 0 then
             items[#items + 1] = {obj = item, price = price}
@@ -60,20 +61,16 @@ end
 
 function get_sellable_items(ctx)
     local items = {}
-    local buy_margin = 0.5
-    if ctx.npc.properties and ctx.npc.properties.exchange_config then
-        buy_margin = ctx.npc.properties.exchange_config.buy_margin or 0.5
-    end
     local player_inv = ctx.player.inventory
     if not player_inv then return items end
     local i = 1
     while player_inv[i] do
         local item = player_inv[i]
-        local base_value = 0
-        if item.properties and item.properties.base_value then
-            base_value = item.properties.base_value
+        -- item_prices DB 테이블에서 sell_price 조회 (인벤토리 필드 또는 API 호출)
+        local sell_price = item.sell_price or 0
+        if sell_price <= 0 then
+            sell_price = exchange.get_sell_price(item.id) or 0
         end
-        local sell_price = math.floor(base_value * buy_margin)
         if sell_price > 0 then
             items[#items + 1] = {obj = item, price = sell_price}
         end
@@ -103,8 +100,8 @@ function show_buy_menu(ctx)
     local silver = ctx.player.silver or 0
     return {
         text = {{
-            en = "Here's what I have. You have " .. silver .. " silver.",
-            ko = "제가 가진 물건입니다. " .. silver .. " 실버를 가지고 계시네요."
+            en = "Here's what I have. Take your time.",
+            ko = "제가 가진 물건입니다. 천천히 보세요."
         }},
         choices = choices
     }
@@ -131,8 +128,8 @@ function show_sell_menu(ctx)
     local npc_silver = ctx.npc.silver or 0
     return {
         text = {{
-            en = "What would you like to sell? I have " .. npc_silver .. " silver.",
-            ko = "무엇을 파시겠어요? 제가 " .. npc_silver .. " 실버를 가지고 있습니다."
+            en = "What would you like to sell? Let me have a look.",
+            ko = "무엇을 파시겠어요? 한번 보여주세요."
         }},
         choices = choices
     }
@@ -222,6 +219,14 @@ function handle_sell(item_idx, ctx)
             text = {{
                 en = "I'm afraid I don't have enough silver to buy that from you.",
                 ko = "죄송합니다, 그것을 살 만큼 실버가 충분하지 않습니다."
+            }},
+            choices = {[1] = {en = "Buy", ko = "구매"}, [2] = {en = "Sell", ko = "판매"}}
+        }
+    elseif error_code == "item_not_owned" then
+        return {
+            text = {{
+                en = "It seems you no longer have that item.",
+                ko = "그 물건을 더 이상 가지고 있지 않은 것 같습니다."
             }},
             choices = {[1] = {en = "Buy", ko = "구매"}, [2] = {en = "Sell", ko = "판매"}}
         }

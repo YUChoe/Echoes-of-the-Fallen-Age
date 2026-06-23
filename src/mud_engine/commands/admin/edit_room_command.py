@@ -63,7 +63,7 @@ class EditRoomCommand(AdminCommand):
                 message=I18N.get_message("admin.editroom.error", locale, error=str(e))
             )
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "en") -> str:
         return """
 🔧 **방 편집 명령어**
 

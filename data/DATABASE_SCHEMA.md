@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2026-03-29
+**Last Updated**: 2026-06-20
 
 ## Overview
 
@@ -27,12 +27,12 @@ CREATE TABLE players (
     last_login TIMESTAMP,
 
     -- 능력치 (Stats)
-    stat_strength INTEGER DEFAULT 1,         -- 힘
-    stat_dexterity INTEGER DEFAULT 1,        -- 민첩
-    stat_intelligence INTEGER DEFAULT 1,     -- 지능
-    stat_wisdom INTEGER DEFAULT 1,           -- 지혜
-    stat_constitution INTEGER DEFAULT 1,     -- 체력
-    stat_charisma INTEGER DEFAULT 1,         -- 매력
+    stat_strength INTEGER DEFAULT 10,        -- 힘
+    stat_dexterity INTEGER DEFAULT 10,       -- 민첩
+    stat_intelligence INTEGER DEFAULT 10,    -- 지능
+    stat_wisdom INTEGER DEFAULT 10,          -- 지혜
+    stat_constitution INTEGER DEFAULT 10,    -- 체력
+    stat_charisma INTEGER DEFAULT 10,        -- 매력
     stat_equipment_bonuses TEXT DEFAULT '{}', -- 장비 보너스 (JSON)
     stat_temporary_effects TEXT DEFAULT '{}', -- 임시 효과 (JSON)
     stat_current TEXT DEFAULT '{}',          -- 현재 상태값 (JSON: {"hp": 45, ...})
@@ -77,6 +77,7 @@ CREATE TABLE rooms (
     description_ko TEXT,              -- 한국어 설명
     x INTEGER,                        -- X 좌표
     y INTEGER,                        -- Y 좌표
+    room_type TEXT DEFAULT 'unknown', -- 방 유형 (지형 분류)
     blocked_exits TEXT DEFAULT '[]',  -- 막힌 출구 방향 (JSON 배열, 예: ["north", "west"])
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -87,10 +88,38 @@ CREATE TABLE rooms (
 
 - `CREATE INDEX idx_rooms_coordinates ON rooms(x, y);`
 
+**room_type 값 목록**:
+
+| room_type | 설명 | 수 |
+|-----------|------|-----|
+| forest | 숲 | 205 |
+| grassland | 들판/초원 | 97 |
+| coast | 해안 | 57 |
+| road | 도로 | 27 |
+| castle | 성/요새 내부 | 25 |
+| field | 밭/경작지 | 20 |
+| pasture | 목초지 | 15 |
+| wilderness | 자연 생태계 | 11 |
+| town | 마을/주거지 | 11 |
+| water | 물/하천 | 10 |
+| hedge | 울타리/관목 | 10 |
+| trail | 오솔길 | 8 |
+| cave | 동굴 | 6 |
+| crypt | 지하묘지 | 5 |
+| building | 건물 내부 | 5 |
+| harbour | 항구/부두 | 2 |
+| cliff | 절벽 | 2 |
+| unknown | 미분류 | 1 |
+| stable | 마구간 | 1 |
+| ruins | 폐허 | 1 |
+| gate | 성문 | 1 |
+| farmland | 농경지 | 1 |
+
 **참고**:
 
 - 방 이름과 출구 정보는 별도 시스템에서 관리됨
 - 좌표 기반 위치 시스템 사용
+- 모든 방 ID는 UUID 형식 사용
 
 ---
 
@@ -173,18 +202,19 @@ CREATE TABLE game_objects (
     name_ko TEXT NOT NULL,            -- 한국어 이름
     description_en TEXT,              -- 영어 설명
     description_ko TEXT,              -- 한국어 설명
-    object_type TEXT NOT NULL,        -- 오브젝트 타입 (item, npc, furniture 등)
     location_type TEXT NOT NULL,      -- 위치 타입 (ROOM, INVENTORY, EQUIPPED, CONTAINER)
     location_id TEXT,                 -- 위치 ID (room_id or player_id or container_id)
     properties TEXT DEFAULT '{}',     -- 속성 (JSON)
     weight REAL DEFAULT 1.0,          -- 무게
-    max_stack INTEGER DEFAULT 1,      -- 최대 스택 개수 (1이면 스택 불가)
-    category TEXT DEFAULT 'misc',     -- 카테고리 (weapon, armor, consumable, misc)
     equipment_slot TEXT,              -- 장비 슬롯 (HEAD, BODY, WEAPON, etc.)
     is_equipped BOOLEAN DEFAULT FALSE, -- 장착 여부
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    max_stack INTEGER DEFAULT 1,      -- 최대 스택 개수 (1이면 스택 불가)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    category TEXT DEFAULT 'misc'      -- 카테고리 (weapon, armor, consumable, misc)
 );
 ```
+
+> **참고**: 실제 DB에는 `object_type` 컬럼이 존재하지 않습니다. 오브젝트의 종류는 `category`와 `properties`(JSON)로 구분합니다.
 
 **인덱스**:
 
@@ -194,6 +224,66 @@ CREATE TABLE game_objects (
 
 - `max_stack = 1`: 스택 불가능한 아이템 (무기, 방어구 등)
 - `max_stack > 1`: 스택 가능한 아이템 (골드, 포션 등)
+
+---
+
+### 5. item_prices
+
+아이템 가격 정보를 중앙 관리합니다. `template_id` 기반으로 매수/매도 가격을 조회합니다.
+
+```sql
+CREATE TABLE item_prices (
+    template_id TEXT PRIMARY KEY,     -- 아이템 템플릿 고유 식별자
+    buy_price INTEGER DEFAULT 0,      -- NPC 구매가 (플레이어가 NPC에게서 살 때)
+    sell_price INTEGER DEFAULT 0      -- NPC 판매가 (플레이어가 NPC에게 팔 때)
+);
+```
+
+**필드 설명**:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `template_id` | TEXT PRIMARY KEY | 아이템 템플릿 고유 식별자 (예: `health_potion`) |
+| `buy_price` | INTEGER DEFAULT 0 | NPC 구매가 — 플레이어가 NPC에게서 살 때의 가격 |
+| `sell_price` | INTEGER DEFAULT 0 | NPC 판매가 — 플레이어가 NPC에게 팔 때의 가격 |
+
+**참고**:
+
+- `item_prices`에 레코드가 없는 아이템은 거래 불가 (PriceResolver 조회 시 0 반환)
+- `buy_price` 또는 `sell_price`가 0이면 해당 방향 거래 불가
+- 가격 데이터는 `game_objects.properties`가 아닌 이 테이블에서 중앙 관리
+
+**초기 데이터** (27개 거래 가능 아이템):
+
+| template_id | buy_price | sell_price |
+|-------------|-----------|------------|
+| health_potion | 20 | 7 |
+| stamina_potion | 16 | 5 |
+| bread | 4 | 1 |
+| club | 15 | 5 |
+| guard_sword | 50 | 12 |
+| guard_heavy_sword | 100 | 25 |
+| guard_halberd | 80 | 20 |
+| guard_spear | 60 | 15 |
+| rusty_dagger | 8 | 2 |
+| guide_walking_stick | 10 | 3 |
+| rope | 10 | 3 |
+| torch | 7 | 2 |
+| backpack | 25 | 8 |
+| saddle | 50 | 15 |
+| leather_bridle | 30 | 10 |
+| horse_brush | 12 | 4 |
+| horseshoe | 8 | 3 |
+| oats | 6 | 2 |
+| hay_bale | 5 | 2 |
+| oak_branch | 3 | 1 |
+| forest_mushroom | 2 | 1 |
+| wild_berries | 1 | 0 |
+| smooth_stone | 1 | 0 |
+| wildflower_crown | 3 | 1 |
+| empty_bottle | 2 | 1 |
+| merchant_journal | 20 | 8 |
+| forgotten_scripture | 15 | 5 |
 
 ---
 
@@ -261,11 +351,12 @@ CREATE TABLE factions (
 
 ```sql
 CREATE TABLE faction_relations (
-    faction_a_id TEXT NOT NULL PRIMARY KEY, -- 종족 A ID
-    faction_b_id TEXT NOT NULL PRIMARY KEY, -- 종족 B ID
+    faction_a_id TEXT NOT NULL,             -- 종족 A ID
+    faction_b_id TEXT NOT NULL,             -- 종족 B ID
     relation_value INTEGER DEFAULT 0,       -- 관계 값 (-100 ~ 100)
     relation_status TEXT DEFAULT 'NEUTRAL', -- 관계 상태
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (faction_a_id, faction_b_id),
     FOREIGN KEY (faction_a_id) REFERENCES factions(id),
     FOREIGN KEY (faction_b_id) REFERENCES factions(id)
 );
@@ -339,11 +430,12 @@ factions (N) ─────< (N) factions (faction_relations)
 
 ## Current Data Statistics
 
-- **players**: 6개
-- **rooms**: 173개
-- **monsters**: 51개
-- **game_objects**: 24개
-- **room_connections**: 2개
+- **players**: 10개
+- **rooms**: 521개
+- **monsters**: 66개
+- **game_objects**: 103개
+- **item_prices**: 27개
+- **room_connections**: 6개
 - **factions**: 3개
 - **faction_relations**: 6개
 
@@ -416,4 +508,4 @@ cp data/mud_engine.db.backup_YYYYMMDD_HHMMSS data/mud_engine.db
 ---
 
 **작성자**: Kiro AI
-**최종 수정**: 2026-03-29
+**최종 수정**: 2026-06-20

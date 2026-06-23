@@ -7,5 +7,6 @@
 
 from .player_manager import PlayerManager
 from .world_manager import WorldManager
+from .price_resolver import PriceResolver
 
-__all__ = ['PlayerManager', 'WorldManager']
+__all__ = ['PlayerManager', 'WorldManager', 'PriceResolver']

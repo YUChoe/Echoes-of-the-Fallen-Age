@@ -150,12 +150,11 @@ class CommandProcessor:
 
     def _convert_dialogue_number_to_command(self, command_line: str) -> str:
         """
-        [1] bye
+        대화 중 숫자 입력을 talk 명령어로 변환.
 
-        > 1
-        을 talk 1 로 변경
-        - 이 경우 누구에게.. 가 안됨. 다이얼로그 인스턴스는 1:1 대화이므로 상관 없음
-        - talk 1 형태로 이미 입력된 경우 그대로 반환
+        > 1  →  talk 1
+        > talk 1  →  talk 1 (그대로)
+        > buy 101  →  buy 101 (일반 명령어는 변환하지 않음)
         """
         command_line = command_line.strip()
         cmdline_list = command_line.split()
@@ -163,7 +162,11 @@ class CommandProcessor:
         # 이미 talk 명령어로 시작하면 그대로 반환
         if cmd == "talk":
             return command_line
-        return f"talk {cmd}"
+        # 숫자 입력만 talk으로 변환
+        if cmd.isdigit():
+            return f"talk {cmd}"
+        # 일반 명령어는 그대로 반환 (대화 중에도 다른 명령어 사용 가능)
+        return command_line
 
     async def _execute_combat_command(self, session: SessionType, command_name: str, args: List[str]) -> CommandResult:
         """
@@ -393,7 +396,7 @@ class CommandProcessor:
                 # 관리자 전용 명령어인데 관리자가 아니면 접근 거부
                 if hasattr(command, 'admin_only') and command.admin_only and not is_admin:
                     return localization.get_message("command.admin_only", locale)
-                return command.get_help()
+                return command.get_help(locale)
             else:
                 return localization.get_message("command.unknown", locale, command=command_name)
 

@@ -109,7 +109,7 @@ class GotoCommand(AdminCommand):
                 message=I18N.get_message("admin.goto.error", locale, error=str(e))
             )
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "en") -> str:
         return """
 ✨ **순간이동 명령어**
 

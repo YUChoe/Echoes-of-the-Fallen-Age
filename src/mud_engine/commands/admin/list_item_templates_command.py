@@ -71,7 +71,7 @@ class ListItemTemplatesCommand(AdminCommand):
                 message=I18N.get_message("admin.itemtemplates.error", locale, error=str(e))
             )
 
-    def get_help(self) -> str:
+    def get_help(self, locale: str = "en") -> str:
         return """
 📦 **아이템 템플릿 목록 도움말**
 

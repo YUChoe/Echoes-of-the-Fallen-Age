@@ -89,7 +89,22 @@ class ReadCommand(BaseCommand):
                     )
                 )
 
-            # readable 판별
+            # [Lua 콜백 우선 시도] 아이템 Lua 스크립트가 있으면 콜백 실행
+            lua_result = self._try_lua_callback(
+                session, game_engine, target_item, "read"
+            )
+            if lua_result is not None:
+                message = lua_result.get("message", "")
+                return self.create_success_result(
+                    message=message,
+                    data={
+                        "action": "read",
+                        "item_name": target_item.get_localized_name(locale),
+                        "lua_callback": True,
+                    }
+                )
+
+            # [기존 폴백] readable 판별
             if not self._is_readable(target_item):
                 display_name = target_item.get_localized_name(locale)
                 return self.create_error_result(
@@ -269,3 +284,50 @@ class ReadCommand(BaseCommand):
             if val:
                 return str(val)
         return ""
+
+    def _try_lua_callback(
+        self, session: Any, game_engine: Any,
+        target_item: Any, verb: str,
+    ) -> Dict[str, Any] | None:
+        """아이템 Lua 콜백 시도 - 결과가 있으면 dict, 없으면 None 반환"""
+        handler = getattr(game_engine, 'item_lua_callback_handler', None)
+        if handler is None:
+            return None
+
+        # properties에서 template_id 추출 (dict/str 방어적 처리)
+        properties = getattr(target_item, 'properties', {})
+        if isinstance(properties, str):
+            try:
+                properties = json.loads(properties)
+            except (json.JSONDecodeError, TypeError):
+                properties = {}
+        if not isinstance(properties, dict):
+            return None
+
+        template_id = properties.get("template_id")
+        if not template_id:
+            return None
+
+        # Callback_Context 구성
+        player = session.player
+        context: Dict[str, Any] = {
+            "player": {
+                "id": str(player.id),
+                "display_name": player.get_display_name(),
+                "locale": player.preferred_locale,
+            },
+            "item": {
+                "id": str(target_item.id),
+                "template_id": template_id,
+                "name": {
+                    "en": target_item.get_localized_name("en"),
+                    "ko": target_item.get_localized_name("ko"),
+                },
+                "properties": properties,
+            },
+            "session": {
+                "locale": session.locale,
+            },
+        }
+
+        return handler.execute_verb_callback(template_id, verb, context)

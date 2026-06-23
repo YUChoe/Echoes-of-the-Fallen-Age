@@ -51,6 +51,7 @@ class PlayerMovementManager:
 
             # 세션의 현재 방 업데이트
             session.current_room_id = room_id
+            session.current_room_type = getattr(room, 'room_type', 'unknown')
 
             # 방 퇴장 이벤트 발행 (이전 방이 있는 경우)
             if old_room_id:
@@ -256,6 +257,11 @@ class PlayerMovementManager:
                     "entity_map": entity_map
                 })
 
+                # 미니맵 전송
+                minimap = await self._generate_minimap(session, room_id)
+                if minimap:
+                    await session.send_text(minimap)
+
                 # UI 업데이트 정보 전송
                 # await self.game_engine.ui_manager.send_ui_update(session, room_info)
 
@@ -263,6 +269,52 @@ class PlayerMovementManager:
 
         except Exception as e:
             logger.error(f"방 정보 전송 실패 ({session.player.username}, {room_id}): {e}")
+
+    # room_type → 미니맵 기호 매핑
+    _MINIMAP_SYMBOLS = {
+        "forest": "🌲", "grassland": "🌿", "coast": "🏖️", "road": "🛤️",
+        "castle": "🏰", "field": "🌾", "pasture": "🐄", "wilderness": "🌳",
+        "town": "🏘️", "water": "💧", "hedge": "🌿", "trail": "🚶",
+        "cave": "🕳️", "crypt": "💀", "building": "🏛️", "harbour": "⚓",
+        "cliff": "🧗", "stable": "🐴", "ruins": "🏚️", "gate": "🚪",
+        "farmland": "🌱", "unknown": "❓",
+    }
+
+    async def _generate_minimap(self, session: SessionType, room_id: str) -> str:
+        """현재 위치 중심 5x5 미니맵 생성"""
+        try:
+            room = await self.game_engine.world_manager.get_room(room_id)
+            if not room or room.x is None or room.y is None:
+                return ""
+
+            cx, cy = room.x, room.y
+            nearby_rooms = await self.game_engine.world_manager.get_rooms_in_area(cx, cy, 2)
+
+            # 좌표 → room_type 매핑
+            room_map = {}
+            for r in nearby_rooms:
+                if r.x is not None and r.y is not None:
+                    room_map[(r.x, r.y)] = getattr(r, 'room_type', 'unknown')
+
+            # 5x5 그리드 생성 (y축: 위가 north = +y)
+            lines = ["🗺️ Minimap:"]
+            for dy in range(2, -3, -1):
+                row = ""
+                for dx in range(-2, 3):
+                    tx, ty = cx + dx, cy + dy
+                    if dx == 0 and dy == 0:
+                        row += "📍"
+                    elif (tx, ty) in room_map:
+                        room_type = room_map[(tx, ty)]
+                        row += self._MINIMAP_SYMBOLS.get(room_type, "❓")
+                    else:
+                        row += "⬛"
+                lines.append(row)
+
+            return "\n".join(lines)
+        except Exception as e:
+            logger.error(f"미니맵 생성 오류: {e}")
+            return ""
 
     async def update_room_player_list(self, room_id: str) -> None:
         """
