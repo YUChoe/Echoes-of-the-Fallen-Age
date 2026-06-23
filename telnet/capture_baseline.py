@@ -64,6 +64,7 @@ def send(sock: socket.socket, cmd: str) -> None:
 
 
 def main() -> int:
+    out_path = sys.argv[1] if len(sys.argv) > 1 else OUT_PATH
     lines: list[str] = []
 
     def record(label: str, data: str) -> None:
@@ -105,9 +106,9 @@ def main() -> int:
     finally:
         sock.close()
 
-    with open(OUT_PATH, "w", encoding="utf-8") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print(f"\n기준선 저장 완료: {OUT_PATH} ({len(lines)} 줄)")
+    print(f"\n캡처 저장 완료: {out_path} ({len(lines)} 줄)")
     return 0
 
 

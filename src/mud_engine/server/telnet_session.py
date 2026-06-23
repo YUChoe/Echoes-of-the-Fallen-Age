@@ -9,6 +9,9 @@ from datetime import datetime
 
 from ..game.models import Player
 from .session.util import short_session_id as _short_id
+from .session.transport import TelnetTransport
+from .session.protocol import TelnetProtocol
+from .session.state import SessionState
 
 logger = logging.getLogger(__name__)
 
@@ -33,39 +36,16 @@ class TelnetSession:
         self.session_id: str = session_id or str(uuid.uuid4())
         self.reader: asyncio.StreamReader = reader
         self.writer: asyncio.StreamWriter = writer
-        self.player: Optional[Player] = None
-        self.is_authenticated: bool = False
+
+        # 도메인 상태 (SessionState로 분리, 아래 프로퍼티로 프록시)
+        self.state = SessionState()
+
+        # 연결 메타데이터
         self.created_at: datetime = datetime.now()
         self.last_activity: datetime = datetime.now()
         self.ip_address: Optional[str] = None
         self.metadata: Dict[str, Any] = {}
-
-        # 게임 관련 속성
-        self.current_room_id: Optional[str] = None
-        self.current_room_type: str = "unknown"  # 현재 방 유형
-        self.locale: str = "en"  # 기본 언어 설정
         self.game_engine: Optional[Any] = None  # GameEngine 참조
-        self.following_player: Optional[str] = None  # 따라가고 있는 플레이어 이름
-
-        # 엔티티 번호 매핑 (look/방 이동 시 갱신, 명령어가 번호로 대상 조회)
-        self.room_entity_map: Dict[int, Dict[str, Any]] = {}
-        self.inventory_entity_map: Dict[int, Dict[str, Any]] = {}
-
-        # 마지막 실행 명령어 ("." 반복용)
-        self.last_command: Optional[str] = None
-
-        # 전투 관련 속성
-        self.in_combat: bool = False  # 전투 중인지 여부
-        self.original_room_id: Optional[str] = None  # 전투 전 원래 방 ID
-        self.combat_id: Optional[str] = None  # 참여 중인 전투 ID
-
-        self.in_dialogue: bool = False  # 대화 중인지 여부
-        # self.original_room_id: Optional[str] = None  # 전투 전 원래 방 ID
-        self.dialogue_id: Optional[str] = None  # 참여 중인 대화 인스턴스 ID
-
-        # 스태미나 (메모리 only, 로그인 시 초기화)
-        self.stamina: float = 5.0
-        self.max_stamina: float = 5.0
 
         # Telnet 관련 속성
         self.use_ansi_colors: bool = True  # ANSI 색상 코드 사용 여부
@@ -77,36 +57,151 @@ class TelnetSession:
         if peername:
             self.ip_address = peername[0]
 
+        # 전송(Transport) 구성요소 - 바이트 IO 위임
+        self._transport = TelnetTransport(
+            reader, writer, self.session_id, self.update_activity
+        )
+        # 프로토콜(Protocol) 구성요소 - IAC 협상/필터링 위임
+        self._protocol = TelnetProtocol(writer)
+
         short_session_id = _short_id(self.session_id)
         logger.info(f"새 Telnet 세션 생성: {short_session_id} (IP: {self.ip_address})")
 
+    # ── 도메인 상태 프록시 (SessionState 위임, 외부 API 보존) ──
+
+    @property
+    def player(self) -> Optional[Player]:
+        return self.state.player
+
+    @player.setter
+    def player(self, value: Optional[Player]) -> None:
+        self.state.player = value
+
+    @property
+    def is_authenticated(self) -> bool:
+        return self.state.is_authenticated
+
+    @is_authenticated.setter
+    def is_authenticated(self, value: bool) -> None:
+        self.state.is_authenticated = value
+
+    @property
+    def current_room_id(self) -> Optional[str]:
+        return self.state.current_room_id
+
+    @current_room_id.setter
+    def current_room_id(self, value: Optional[str]) -> None:
+        self.state.current_room_id = value
+
+    @property
+    def current_room_type(self) -> str:
+        return self.state.current_room_type
+
+    @current_room_type.setter
+    def current_room_type(self, value: str) -> None:
+        self.state.current_room_type = value
+
+    @property
+    def locale(self) -> str:
+        return self.state.locale
+
+    @locale.setter
+    def locale(self, value: str) -> None:
+        self.state.locale = value
+
+    @property
+    def following_player(self) -> Optional[str]:
+        return self.state.following_player
+
+    @following_player.setter
+    def following_player(self, value: Optional[str]) -> None:
+        self.state.following_player = value
+
+    @property
+    def in_combat(self) -> bool:
+        return self.state.in_combat
+
+    @in_combat.setter
+    def in_combat(self, value: bool) -> None:
+        self.state.in_combat = value
+
+    @property
+    def original_room_id(self) -> Optional[str]:
+        return self.state.original_room_id
+
+    @original_room_id.setter
+    def original_room_id(self, value: Optional[str]) -> None:
+        self.state.original_room_id = value
+
+    @property
+    def combat_id(self) -> Optional[str]:
+        return self.state.combat_id
+
+    @combat_id.setter
+    def combat_id(self, value: Optional[str]) -> None:
+        self.state.combat_id = value
+
+    @property
+    def in_dialogue(self) -> bool:
+        return self.state.in_dialogue
+
+    @in_dialogue.setter
+    def in_dialogue(self, value: bool) -> None:
+        self.state.in_dialogue = value
+
+    @property
+    def dialogue_id(self) -> Optional[str]:
+        return self.state.dialogue_id
+
+    @dialogue_id.setter
+    def dialogue_id(self, value: Optional[str]) -> None:
+        self.state.dialogue_id = value
+
+    @property
+    def stamina(self) -> float:
+        return self.state.stamina
+
+    @stamina.setter
+    def stamina(self, value: float) -> None:
+        self.state.stamina = value
+
+    @property
+    def max_stamina(self) -> float:
+        return self.state.max_stamina
+
+    @max_stamina.setter
+    def max_stamina(self, value: float) -> None:
+        self.state.max_stamina = value
+
+    @property
+    def last_command(self) -> Optional[str]:
+        return self.state.last_command
+
+    @last_command.setter
+    def last_command(self, value: Optional[str]) -> None:
+        self.state.last_command = value
+
+    @property
+    def room_entity_map(self) -> Dict[int, Dict[str, Any]]:
+        return self.state.room_entity_map
+
+    @room_entity_map.setter
+    def room_entity_map(self, value: Dict[int, Dict[str, Any]]) -> None:
+        self.state.room_entity_map = value
+
+    @property
+    def inventory_entity_map(self) -> Dict[int, Dict[str, Any]]:
+        return self.state.inventory_entity_map
+
+    @inventory_entity_map.setter
+    def inventory_entity_map(self, value: Dict[int, Dict[str, Any]]) -> None:
+        self.state.inventory_entity_map = value
+
     async def initialize_telnet(self) -> None:
         """
-        Telnet 프로토콜 초기화 및 협상
+        Telnet 프로토콜 초기화 및 협상 (Protocol 위임)
         """
-        # Telnet 옵션 협상 응답
-        # WONT ECHO - 서버가 에코를 처리하지 않음 (클라이언트가 에코함)
-        # WILL SUPPRESS_GO_AHEAD - Go-Ahead 신호 억제
-        # DONT LINEMODE - 라인 모드 사용 안 함
-
-        IAC = bytes([255])  # Interpret As Command
-        WILL = bytes([251])
-        WONT = bytes([252])
-        DO = bytes([253])  # noqa: F841
-        DONT = bytes([254])
-
-        ECHO = bytes([1])
-        SUPPRESS_GO_AHEAD = bytes([3])
-        LINEMODE = bytes([34])
-
-        try:
-            # 서버 옵션 전송
-            self.writer.write(IAC + WILL + SUPPRESS_GO_AHEAD)
-            self.writer.write(IAC + WONT + ECHO)  # 기본적으로 클라이언트가 에코
-            self.writer.write(IAC + DONT + LINEMODE)
-            await self.writer.drain()
-        except Exception as e:
-            logger.debug(f"Telnet 프로토콜 협상 오류 (무시됨): {e}")
+        await self._protocol.initialize()
 
     def authenticate(self, player: Player) -> None:
         """
@@ -506,7 +601,7 @@ class TelnetSession:
 
     async def send_text(self, text: str, newline: bool = True) -> bool:
         """
-        클라이언트에게 텍스트 전송
+        클라이언트에게 텍스트 전송 (Transport 위임)
 
         Args:
             text: 전송할 텍스트
@@ -515,26 +610,7 @@ class TelnetSession:
         Returns:
             bool: 전송 성공 여부
         """
-        try:
-            if self.writer.is_closing():
-                short_session_id = _short_id(self.session_id)
-                logger.warning(f"Telnet 세션 {short_session_id}: 연결이 이미 닫혀있음")
-                return False
-
-            # 텍스트 인코딩 및 전송
-            text = text.replace("\r", "\n").replace("\n\n", "\n")  # 중간에 들어간 행변환 처리
-            if newline:
-                text += "\n"
-                # text += "\r\n"
-
-            self.writer.write(text.encode("utf-8"))
-            await self.writer.drain()
-            self.update_activity()
-            return True
-
-        except Exception as e:
-            logger.error(f"Telnet 세션 {self.session_id} 텍스트 전송 실패: {e}")
-            return False
+        return await self._transport.send_text(text, newline)
 
     async def send_colored_text(
         self, text: str, color_code: str = "", newline: bool = True
@@ -611,7 +687,7 @@ class TelnetSession:
 
     async def send_prompt(self, prompt: str = "> ") -> bool:
         """
-        클라이언트에게 프롬프트 전송 (줄바꿈 없음)
+        클라이언트에게 프롬프트 전송 (줄바꿈 없음, Transport 위임)
 
         Args:
             prompt: 프롬프트 문자열
@@ -619,41 +695,19 @@ class TelnetSession:
         Returns:
             bool: 전송 성공 여부
         """
-        return await self.send_text(prompt, newline=False)
+        return await self._transport.send_prompt(prompt)
 
     async def disable_echo(self) -> None:
-        """
-        클라이언트 에코 비활성화 (패스워드 입력용)
-        """
-        IAC = bytes([255])  # Interpret As Command
-        WILL = bytes([251])
-        ECHO = bytes([1])
-
-        try:
-            # 서버가 에코를 처리하겠다고 알림 (클라이언트 에코 비활성화)
-            self.writer.write(IAC + WILL + ECHO)
-            await self.writer.drain()
-        except Exception as e:
-            logger.debug(f"에코 비활성화 오류 (무시됨): {e}")
+        """클라이언트 에코 비활성화 (패스워드 입력용, Transport 위임)"""
+        await self._transport.disable_echo()
 
     async def enable_echo(self) -> None:
-        """
-        클라이언트 에코 활성화 (일반 입력용)
-        """
-        IAC = bytes([255])  # Interpret As Command
-        WONT = bytes([252])
-        ECHO = bytes([1])
-
-        try:
-            # 서버가 에코를 처리하지 않겠다고 알림 (클라이언트 에코 활성화)
-            self.writer.write(IAC + WONT + ECHO)
-            await self.writer.drain()
-        except Exception as e:
-            logger.debug(f"에코 활성화 오류 (무시됨): {e}")
+        """클라이언트 에코 활성화 (일반 입력용, Transport 위임)"""
+        await self._transport.enable_echo()
 
     def _filter_telnet_commands(self, data: bytes) -> bytes:
         """
-        Telnet 프로토콜 명령어를 필터링
+        Telnet 프로토콜 명령어를 필터링 (Protocol 위임)
 
         Args:
             data: 원본 바이트 데이터
@@ -661,44 +715,11 @@ class TelnetSession:
         Returns:
             bytes: 필터링된 데이터
         """
-        # Telnet 명령어 바이트
-        IAC = 255  # 0xFF - Interpret As Command
-        DONT = 254  # 0xFE
-        DO = 253  # 0xFD
-        WONT = 252  # 0xFC
-        WILL = 251  # 0xFB
-
-        result = bytearray()
-        i = 0
-        while i < len(data):
-            if data[i] == IAC:
-                # IAC 명령어 처리
-                if i + 1 < len(data):
-                    cmd = data[i + 1]
-                    if cmd in (DO, DONT, WILL, WONT):
-                        # 3바이트 명령어 (IAC + 명령 + 옵션)
-                        if i + 2 < len(data):
-                            i += 3
-                            continue
-                    elif cmd == IAC:
-                        # IAC IAC는 실제 0xFF 바이트를 의미
-                        result.append(IAC)
-                        i += 2
-                        continue
-                    else:
-                        # 2바이트 명령어
-                        i += 2
-                        continue
-                i += 1
-            else:
-                result.append(data[i])
-                i += 1
-
-        return bytes(result)
+        return TelnetProtocol.filter_commands(data)
 
     async def read_line(self, timeout: Optional[float] = None) -> Optional[str]:
         """
-        클라이언트로부터 한 줄 읽기 (백스페이스 처리 포함)
+        클라이언트로부터 한 줄 읽기 (백스페이스/IAC 처리 포함, Transport 위임)
 
         Args:
             timeout: 타임아웃 시간 (초)
@@ -706,123 +727,16 @@ class TelnetSession:
         Returns:
             Optional[str]: 읽은 문자열 (타임아웃 또는 연결 종료 시 None, 빈 줄은 "")
         """
-        # 백스페이스 및 제어 문자
-        BACKSPACE = 0x08  # ^H (Ctrl+H)
-        DELETE = 0x7F  # DEL
-        CR = 0x0D  # Carriage Return (\r)
-        LF = 0x0A  # Line Feed (\n)
-        IAC = 0xFF  # Telnet IAC
-
-        buffer = bytearray()
-        start_time = asyncio.get_event_loop().time() if timeout else None
-
-        try:
-            while True:
-                # 타임아웃 체크
-                if timeout and start_time:
-                    elapsed = asyncio.get_event_loop().time() - start_time
-                    if elapsed >= timeout:
-                        logger.debug(f"Telnet 세션 {self.session_id} 읽기 타임아웃")
-                        return None
-                    remaining = timeout - elapsed
-                else:
-                    remaining = None
-
-                # 1바이트씩 읽기
-                try:
-                    if remaining:
-                        byte_data = await asyncio.wait_for(
-                            self.reader.read(1), timeout=remaining
-                        )
-                    else:
-                        byte_data = await self.reader.read(1)
-                except asyncio.TimeoutError:
-                    logger.debug(f"Telnet 세션 {self.session_id} 읽기 타임아웃")
-                    return None
-
-                # 연결 종료 확인
-                if not byte_data:
-                    logger.debug(f"Telnet 세션 {self.session_id}: 연결 종료 감지")
-                    return None
-
-                byte_val = byte_data[0]
-
-                # Telnet IAC 명령어 처리
-                if byte_val == IAC:
-                    # IAC 명령어 시퀀스 읽기 (최대 2바이트 더)
-                    try:
-                        cmd_byte = await asyncio.wait_for(
-                            self.reader.read(1), timeout=0.1
-                        )
-                        if cmd_byte:
-                            cmd = cmd_byte[0]
-                            # DO, DONT, WILL, WONT는 3바이트 명령어
-                            if cmd in (251, 252, 253, 254):  # WILL, WONT, DO, DONT
-                                await asyncio.wait_for(self.reader.read(1), timeout=0.1)
-                    except asyncio.TimeoutError:
-                        pass
-                    continue
-
-                # 백스페이스 처리
-                if byte_val in (BACKSPACE, DELETE):
-                    if len(buffer) > 0:
-                        buffer.pop()
-                        # 클라이언트에 백스페이스 에코 (선택사항)
-                        # await self.send_text("\b \b", newline=False)
-                    continue
-
-                # 줄바꿈 처리
-                if byte_val in (CR, LF):
-                    # CR+LF 또는 LF만 처리
-                    if byte_val == CR:
-                        # 다음 바이트가 LF인지 확인 (peek)
-                        try:
-                            next_byte = await asyncio.wait_for(
-                                self.reader.read(1), timeout=0.05
-                            )
-                            if next_byte and next_byte[0] != LF:
-                                # LF가 아니면 다시 버퍼에 넣어야 하지만 불가능하므로 무시
-                                pass
-                        except asyncio.TimeoutError:
-                            pass
-
-                    # 입력 완료
-                    break
-
-                # 일반 문자 추가
-                if 32 <= byte_val <= 126 or byte_val >= 128:  # 출력 가능한 문자
-                    buffer.append(byte_val)
-
-            # 디코딩
-            try:
-                decoded_line = buffer.decode("utf-8", errors="ignore").strip()
-                self.update_activity()
-                return decoded_line
-            except Exception as e:
-                logger.warning(f"Telnet 세션 {self.session_id} 디코딩 오류: {e}")
-                return ""
-
-        except Exception as e:
-            logger.error(f"Telnet 세션 {self.session_id} 읽기 오류: {e}")
-            return None
+        return await self._transport.read_line(timeout)
 
     async def close(self, message: str = "Connection closed") -> None:
         """
-        Telnet 연결 종료
+        Telnet 연결 종료 (Transport 위임)
 
         Args:
             message: 종료 메시지
         """
-        try:
-            if not self.writer.is_closing():
-                await self.send_text(f"\r\n{message}\r\n")
-                self.writer.close()
-                await self.writer.wait_closed()
-                short_session_id = _short_id(self.session_id)
-                logger.info(f"Telnet 세션 {short_session_id} 연결 종료: {message}")
-        except Exception as e:
-            short_session_id = _short_id(self.session_id)
-            logger.error(f"Telnet 세션 {short_session_id} 종료 중 오류: {e}")
+        await self._transport.close(message)
 
     def is_active(self, timeout_seconds: int = 300) -> bool:
         """

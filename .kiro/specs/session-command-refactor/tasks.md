@@ -24,13 +24,13 @@
 - [x] 3.1 `server/session/` 패키지 및 `short_session_id` 유틸 통합
   - `server/session/util.py`에 짧은 세션 식별자 산출을 단일 정의로 만들고 기존 6곳을 대체한다.
   - _Requirements: 4.1, 2.5_
-- [ ] 3.2 `TelnetTransport` 추출
+- [x] 3.2 `TelnetTransport` 추출
   - reader/writer, send_text, send_prompt, read_line, enable/disable_echo, is_closing, close를 `transport.py`로 이동하고 `TelnetSession`이 위임한다.
   - _Requirements: 2.1, 2.5_
-- [ ] 3.3 `TelnetProtocol` 추출
+- [x] 3.3 `TelnetProtocol` 추출
   - IAC 협상(initialize_telnet), `_filter_telnet_commands`, read_line 내 IAC 스킵을 `protocol.py`로 이동한다.
   - _Requirements: 2.2, 2.5_
-- [ ] 3.4 `SessionState` 추출
+- [x] 3.4 `SessionState` 추출
   - player/room/locale/전투/대화/stamina/following/last_command/타임스탬프 상태를 `state.py`로 이동하고 `TelnetSession`이 프록시한다. 외부 호출부(`session.player`, `session.current_room_id` 등) 인터페이스 보존.
   - _Requirements: 2.4, 2.5_
 - [ ] 3.5 Presenter 분리 및 팩션 판정 위임, 로깅/임포트 정리
