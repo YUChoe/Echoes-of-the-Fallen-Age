@@ -6,22 +6,22 @@
 
 ## Tasks
 
-- [ ] 1. 회귀 기준선 및 검증 절차 확보
+- [x] 1. 회귀 기준선 및 검증 절차 확보
   - telnet-mcp로 look, 방 정보(엔티티 번호/팩션 분류), 전투(attack/flee/item/endturn, 숫자 입력), 대화(숫자 입력), 관리자 권한 거부, 미인증 접근, 알 수 없는 명령어 시나리오의 현재 출력을 캡처해 기준선으로 저장한다.
   - `mypy src/`와 `ruff check src/`의 현재 상태를 기록한다.
   - _Requirements: 1.1, 1.2, 10.1, 10.3, 10.4_
 
-- [ ] 2. 세션 타입 단일화 및 깨진 임포트 정리
-- [ ] 2.1 `core/types.py`의 깨진 `..server.session` 임포트 제거 및 `SessionType` 단일화
+- [x] 2. 세션 타입 단일화 및 깨진 임포트 정리
+- [x] 2.1 `core/types.py`의 깨진 `..server.session` 임포트 제거 및 `SessionType` 단일화
   - `SessionType`을 `TelnetSession` 단일 참조(또는 `ClientSession` Protocol)로 정의하고 `TYPE_CHECKING` 가드로 순환 임포트를 방지한다.
   - _Requirements: 3.1, 3.2, 3.6_
-- [ ] 2.2 Legacy_Session 미사용 확인 및 제거
+- [x] 2.2 Legacy_Session 미사용 확인 및 제거
   - grep 전체 검색 + mypy 미사용 보고로 런타임 미참조를 확인한 뒤 `game/models/session.py`와 `game/__init__.py`·`game/models/__init__.py`의 export를 제거한다.
   - Legacy_Session을 참조하던 테스트 임포트를 유효 세션 타입으로 갱신한다.
   - _Requirements: 3.3, 3.4, 3.5, 3.6_
 
 - [ ] 3. 세션 계층 책임 분리 (파사드 유지)
-- [ ] 3.1 `server/session/` 패키지 및 `short_session_id` 유틸 통합
+- [x] 3.1 `server/session/` 패키지 및 `short_session_id` 유틸 통합
   - `server/session/util.py`에 짧은 세션 식별자 산출을 단일 정의로 만들고 기존 6곳을 대체한다.
   - _Requirements: 4.1, 2.5_
 - [ ] 3.2 `TelnetTransport` 추출

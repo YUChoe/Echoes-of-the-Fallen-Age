@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 from ..game.models import Player
+from .session.util import short_session_id as _short_id
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,13 @@ class TelnetSession:
         self.game_engine: Optional[Any] = None  # GameEngine 참조
         self.following_player: Optional[str] = None  # 따라가고 있는 플레이어 이름
 
+        # 엔티티 번호 매핑 (look/방 이동 시 갱신, 명령어가 번호로 대상 조회)
+        self.room_entity_map: Dict[int, Dict[str, Any]] = {}
+        self.inventory_entity_map: Dict[int, Dict[str, Any]] = {}
+
+        # 마지막 실행 명령어 ("." 반복용)
+        self.last_command: Optional[str] = None
+
         # 전투 관련 속성
         self.in_combat: bool = False  # 전투 중인지 여부
         self.original_room_id: Optional[str] = None  # 전투 전 원래 방 ID
@@ -69,11 +77,7 @@ class TelnetSession:
         if peername:
             self.ip_address = peername[0]
 
-        short_session_id = (
-            self.session_id.split("-")[-1]
-            if "-" in self.session_id
-            else self.session_id
-        )
+        short_session_id = _short_id(self.session_id)
         logger.info(f"새 Telnet 세션 생성: {short_session_id} (IP: {self.ip_address})")
 
     async def initialize_telnet(self) -> None:
@@ -115,11 +119,7 @@ class TelnetSession:
         self.is_authenticated = True
         self.locale = player.preferred_locale
         self.update_activity()
-        short_session_id = (
-            self.session_id.split("-")[-1]
-            if "-" in self.session_id
-            else self.session_id
-        )
+        short_session_id = _short_id(self.session_id)
         logger.info(
             f"Telnet 세션 {short_session_id}에 플레이어 '{player.username}' 인증 완료"
         )
@@ -517,11 +517,7 @@ class TelnetSession:
         """
         try:
             if self.writer.is_closing():
-                short_session_id = (
-                    self.session_id.split("-")[-1]
-                    if "-" in self.session_id
-                    else self.session_id
-                )
+                short_session_id = _short_id(self.session_id)
                 logger.warning(f"Telnet 세션 {short_session_id}: 연결이 이미 닫혀있음")
                 return False
 
@@ -822,18 +818,10 @@ class TelnetSession:
                 await self.send_text(f"\r\n{message}\r\n")
                 self.writer.close()
                 await self.writer.wait_closed()
-                short_session_id = (
-                    self.session_id.split("-")[-1]
-                    if "-" in self.session_id
-                    else self.session_id
-                )
+                short_session_id = _short_id(self.session_id)
                 logger.info(f"Telnet 세션 {short_session_id} 연결 종료: {message}")
         except Exception as e:
-            short_session_id = (
-                self.session_id.split("-")[-1]
-                if "-" in self.session_id
-                else self.session_id
-            )
+            short_session_id = _short_id(self.session_id)
             logger.error(f"Telnet 세션 {short_session_id} 종료 중 오류: {e}")
 
     def is_active(self, timeout_seconds: int = 300) -> bool:
@@ -876,11 +864,7 @@ class TelnetSession:
     def __str__(self) -> str:
         """세션 문자열 표현"""
         player_info = f"({self.player.username})" if self.player else "(미인증)"
-        short_session_id = (
-            self.session_id.split("-")[-1]
-            if "-" in self.session_id
-            else self.session_id
-        )
+        short_session_id = _short_id(self.session_id)
         return f"TelnetSession[{short_session_id}]{player_info}"
 
     def __repr__(self) -> str:

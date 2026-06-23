@@ -7,6 +7,7 @@ from datetime import datetime
 
 from .telnet_session import TelnetSession
 from ..game.models import Player
+from .session.util import short_session_id as _short_id
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ class SessionManager:
 
         # 세션 등록 (인증은 telnet_server에서 수행)
         self.player_sessions[player.id] = session_id
-        short_session_id = session_id.split('-')[-1] if '-' in session_id else session_id
+        short_session_id = _short_id(session_id)
         logger.info(f"세션 등록: {short_session_id}, 플레이어: {player.username}")
 
     def get_session(self, session_id: str) -> Optional[TelnetSession]:

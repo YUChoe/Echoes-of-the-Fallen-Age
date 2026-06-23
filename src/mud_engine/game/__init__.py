@@ -4,7 +4,6 @@
 핵심 데이터 모델과 게임 로직을 제공합니다.
 """
 
-from .models.session import Session
 from .models.player import Player
 from .models.room import Room
 from .models.gameobject import GameObject
@@ -25,7 +24,6 @@ __all__ = [
     "Player",
     "Room",
     "GameObject",
-    "Session",
     # 리포지토리
     "PlayerRepository",
     "RoomRepository",
