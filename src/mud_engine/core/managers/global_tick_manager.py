@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class GlobalTickManager:
     """글로벌 Tick 매니저 - 3초간격 몹 턴"""
+    # TODO: 주기, 콜백을 등록 할 수 있도록 할 것
 
     def __init__(self, game_engine: 'GameEngine'):
         self.game_engine = game_engine
@@ -106,13 +107,13 @@ class GlobalTickManager:
                     return
                 aggressive_monsters = []
                 for monster in room_info['monsters']:
-                    logger.info(f"몬스터 체크: {monster.get_localized_name(locale)}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
+                    logger.debug(f"몬스터 체크: {monster.get_localized_name(locale)}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
                     # 선공형이고 살아있는 몬스터만
                     if monster.is_aggressive() and monster.is_alive:
                         aggressive_monsters.append(monster)
                         logger.info(f"선공형 몬스터 발견: {monster.get_localized_name(locale)}")
                 if not aggressive_monsters:
-                    logger.info(f"방 {s.current_room_id[-12:]}에 선공형 몬스터 없음")
+                    logger.debug(f"방 {s.current_room_id[-12:]}에 선공형 몬스터 없음")
                     return
                 logger.info(f"선공몹({len(aggressive_monsters)}개) action {aggressive_monsters[0].get_localized_name('en')}")
                 # TODO: 선공형몹이 플레이어를 발견했습니다 메시지

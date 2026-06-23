@@ -75,7 +75,7 @@ class MonsterManager:
                 await self._process_respawns()
                 await self._process_initial_spawns()
                 await self._process_monster_roaming()
-                await asyncio.sleep(30)
+                await asyncio.sleep(30)  ## TODO: 아하! 여기가 맘에 안듬 ㅡㅡ; 위에 것들을 글로벌틱에서 관리 하도록 할 것
         except asyncio.CancelledError:
             logger.info("스폰 스케줄러 루프 종료")
             raise
@@ -575,6 +575,8 @@ class MonsterManager:
             alive_monsters = [m for m in all_monsters if m.is_alive]
 
             for monster in alive_monsters:
+                # TODO: 여기서 몹의 lua 에 있는 로밍 함수를 실행
+
                 # 템플릿은 로밍하지 않음
                 if monster.get_property('is_template', False):
                     continue
