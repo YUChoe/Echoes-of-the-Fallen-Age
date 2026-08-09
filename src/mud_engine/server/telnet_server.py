@@ -423,10 +423,18 @@ class TelnetServer:
             logger.info(f"클라이언트 정보: {message.get('client')}")
             return True
 
-        if msg_type in ("action", "chat"):
-            # 액션 디스패처는 server-json-protocol Task 4에서 도입한다.
-            # 그때까지 게임 액션은 처리되지 않는다.
-            logger.warning(f"아직 디스패처가 없는 메시지 무시: {msg_type}")
+        if msg_type == "action":
+            if self.game_engine:
+                await self.game_engine.command_manager.handle_action(session, message)
+            else:
+                await session.send_protocol_error(
+                    "INTERNAL_ERROR", "game engine not initialised", seq
+                )
+            return True
+
+        if msg_type == "chat":
+            # 채팅 분리는 server-json-protocol Task 4.5에서 처리한다.
+            logger.warning(f"아직 처리하지 않는 메시지 무시: {msg_type}")
             return True
 
         # 계약에 없는 type 은 무시한다. 상위 버전 클라이언트와의 호환을 위한 규칙이다.

@@ -19,7 +19,7 @@ import argparse
 import socket
 import sys
 
-from . import scenario_auth, scenario_framing
+from . import scenario_action, scenario_auth, scenario_framing
 from .client import DEFAULT_PORT
 from .result import RunSummary, ScenarioResult
 
@@ -98,7 +98,20 @@ def main() -> int:
         scenario_auth.run(auth, port=args.port)
     summary.add(auth)
 
-    # 4. 액션 시나리오는 server-json-protocol Task 4 이후에 추가한다.
+    # 4. 액션 디스패처
+    print()
+    print("[액션 시나리오]")
+    action = ScenarioResult("action")
+    if args.unit_only:
+        action.skip("액션 시나리오", "--unit-only 지정")
+    elif not server_up:
+        action.skip(
+            "액션 시나리오",
+            f"{args.host}:{args.port} 에 접속할 수 없다. 서버를 먼저 기동하십시오",
+        )
+    else:
+        scenario_action.run(action, port=args.port)
+    summary.add(action)
 
     summary.report()
     return summary.exit_code
