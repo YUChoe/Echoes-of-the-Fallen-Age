@@ -97,12 +97,35 @@ class LuaScriptLoader:
         """lupa 라이브러리 사용 가능 여부 반환"""
         return self._available
 
+    def get_script_path(self, npc_id: str) -> str:
+        """대화 스크립트 파일 경로를 반환한다.
+
+        파일명은 NPC 인스턴스 id 다. 템플릿 id 가 아니므로 인스턴스가 새로
+        생성되면 매칭이 깨진다. Monster.respawn() 은 id 를 유지하므로 리스폰으로
+        인한 문제는 없으나, terminate 후 재생성하면 스크립트를 잃는다.
+        """
+        return os.path.join("configs", "dialogues", f"{npc_id}.lua")
+
+    def has_dialogue_script(self, npc_id: str) -> bool:
+        """대화 스크립트 파일이 존재하는지 확인한다.
+
+        파일을 읽지 않으므로 방 정보를 만들 때마다 호출해도 부담이 적다.
+        `can_talk` 산출에 사용한다.
+
+        스크립트가 없어도 서버는 대화 시도를 거절하지 않고 침묵 응답을 돌려준다.
+        따라서 이 값은 클라이언트의 버튼 표시 우선순위 판단용이다.
+
+        lupa 사용 가능 여부는 확인하지 않는다. 필요하면 호출부가
+        `is_available()` 과 함께 판단한다.
+        """
+        return os.path.isfile(self.get_script_path(npc_id))
+
     def load_script(self, npc_id: str) -> str | None:
         """configs/dialogues/{npc_id}.lua 파일을 읽어 문자열로 반환.
 
         파일 미존재 시 None 반환.
         """
-        file_path = os.path.join("configs", "dialogues", f"{npc_id}.lua")
+        file_path = self.get_script_path(npc_id)
         if not os.path.exists(file_path):
             logger.info(f"Lua 스크립트 파일 없음: {file_path}")
             return None
