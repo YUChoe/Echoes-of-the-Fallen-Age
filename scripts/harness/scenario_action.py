@@ -328,6 +328,14 @@ def run(result: ScenarioResult, port: int = DEFAULT_PORT) -> None:
             _check_container_cycle(result, client)
 
             _check_dialogue_cycle(result, client)
+
+            _check_who(result, client)
+            _check_players_here(result, client)
+            _check_emote(result, client)
+            _check_unfollow_without_target(result, client)
+            _check_changename(result, client)
+            _check_chat(result, client)
+
             _check_move(result, client, room_info)
 
             # 전투는 마지막에 검사한다. 전투 진입이 세션 상태를 크게 바꾼다.
@@ -808,3 +816,180 @@ def _check_dialogue_cycle(result: ScenarioResult, client: HarnessClient) -> None
         "대화 왕복",
         f"{npc['name'].get('ko', '')} 와 대화 시작·종료 확인 (선택지 {len(choices)}개)",
     )
+
+
+# 사교와 계정 --------------------------------------------------------------
+
+
+def _check_who(result: ScenarioResult, client: HarnessClient) -> None:
+    """who 가 접속자 목록을 계약 형식으로 보내는지 확인한다."""
+    seq = _send_action(client, "who")
+
+    try:
+        payload = client.wait_for("who_result", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("접속자 목록", str(exc))
+        return
+
+    players = payload.get("players")
+    if not isinstance(players, list) or not players:
+        result.fail("접속자 목록", f"players 가 {players!r}")
+        return
+
+    entry = players[0]
+    missing = [
+        field
+        for field in ("id", "username", "display_name", "faction_id", "is_admin")
+        if field not in entry
+    ]
+    if missing:
+        result.fail("접속자 목록", f"필드 누락: {missing}")
+        return
+
+    if not isinstance(entry["is_admin"], bool):
+        result.fail("접속자 목록", f"is_admin 이 boolean 이 아니다: {entry['is_admin']!r}")
+        return
+
+    # 좌표를 노출하지 않아야 한다
+    leaked = [field for field in ("x", "y", "room_id") if field in entry]
+    if leaked:
+        result.fail("접속자 목록", f"위치 정보가 노출됐다: {leaked}")
+        return
+
+    result.ok("접속자 목록", f"{len(players)}명, 위치 비노출")
+
+
+def _check_players_here(result: ScenarioResult, client: HarnessClient) -> None:
+    """players_here 가 방 범위 목록을 보내는지 확인한다."""
+    seq = _send_action(client, "players_here")
+
+    try:
+        payload = client.wait_for("who_result", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("방 플레이어 목록", str(exc))
+        return
+
+    if not isinstance(payload.get("players"), list):
+        result.fail("방 플레이어 목록", f"players 가 {payload.get('players')!r}")
+        return
+
+    result.ok("방 플레이어 목록", f"{len(payload['players'])}명")
+
+
+def _check_emote(result: ScenarioResult, client: HarnessClient) -> None:
+    """감정 표현이 목록 검증을 수행하는지 확인한다."""
+    _expect_rejection(
+        result,
+        client,
+        "감정 표현 목록 검증",
+        "emote",
+        "INVALID_PARAMS",
+        params={"emote_id": "not_an_emote"},
+    )
+
+    seq = _send_action(client, "emote", params={"emote_id": "wave"})
+    try:
+        rejection = client.wait_for("action_rejected", seq=seq, timeout_ms=800)
+        result.fail("감정 표현", f"거절: {rejection.get('reason_code')}")
+        return
+    except HarnessError:
+        pass
+
+    result.ok("감정 표현", "wave 수행")
+
+
+def _check_unfollow_without_target(
+    result: ScenarioResult, client: HarnessClient
+) -> None:
+    """따라가는 대상이 없을 때 unfollow 를 거절하는지 확인한다."""
+    _expect_rejection(
+        result, client, "미따라가기 상태 unfollow 거절", "unfollow", "WRONG_STATE"
+    )
+
+
+def _check_changename(result: ScenarioResult, client: HarnessClient) -> None:
+    """표시 이름 변경의 검증 경로를 확인한다.
+
+    실제 이름은 바꾸지 않는다. 계정 데이터를 건드리지 않기 위해 거절 경로만 본다.
+    """
+    _expect_rejection(
+        result,
+        client,
+        "이름 형식 검증",
+        "changename",
+        "INVALID_PARAMS",
+        params={"display_name": "a"},
+    )
+
+    _expect_rejection(
+        result,
+        client,
+        "예약 이름 거절",
+        "changename",
+        "PERMISSION_DENIED",
+        params={"display_name": "SUPERADMIN"},
+    )
+
+
+def _check_chat(result: ScenarioResult, client: HarnessClient) -> None:
+    """방 채팅과 검증 경로를 확인한다."""
+    # 정상 전송
+    seq = client.send_json(
+        {"type": "chat", "channel": "room", "message": "안녕하세요 카르나스"}
+    )
+    try:
+        echoed = client.wait_for("chat", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("방 채팅", str(exc))
+        return
+
+    problems: list[str] = []
+    if echoed.get("channel") != "room":
+        problems.append(f"channel 이 {echoed.get('channel')!r}")
+    if echoed.get("message") != "안녕하세요 카르나스":
+        problems.append(f"본문이 변형됐다: {echoed.get('message')!r}")
+    if not isinstance(echoed.get("from"), dict):
+        problems.append(f"from 이 {echoed.get('from')!r}")
+    if "timestamp" not in echoed:
+        problems.append("timestamp 누락")
+
+    if problems:
+        result.fail("방 채팅", "; ".join(problems))
+        return
+
+    result.ok("방 채팅", "한국어 본문 무변형 왕복")
+
+    # 잘못된 채널
+    seq = client.send_json({"type": "chat", "channel": "global", "message": "x"})
+    try:
+        err = client.wait_for("error", seq=seq, timeout_ms=3000)
+        if err.get("reason_code") != "MALFORMED_MESSAGE":
+            result.fail("채팅 채널 검증", f"reason_code 가 {err.get('reason_code')!r}")
+        else:
+            result.ok("채팅 채널 검증", "허용되지 않는 채널 거절")
+    except HarnessError as exc:
+        result.fail("채팅 채널 검증", str(exc))
+
+    # 길이 초과
+    seq = client.send_json(
+        {"type": "chat", "channel": "room", "message": "가" * 501}
+    )
+    try:
+        err = client.wait_for("error", seq=seq, timeout_ms=3000)
+        if err.get("reason_code") != "MALFORMED_MESSAGE":
+            result.fail("채팅 길이 검증", f"reason_code 가 {err.get('reason_code')!r}")
+        else:
+            result.ok("채팅 길이 검증", "500자 초과 거절")
+    except HarnessError as exc:
+        result.fail("채팅 길이 검증", str(exc))
+
+    # 귓속말 대상 누락
+    seq = client.send_json({"type": "chat", "channel": "whisper", "message": "x"})
+    try:
+        err = client.wait_for("error", seq=seq, timeout_ms=3000)
+        if err.get("reason_code") != "MALFORMED_MESSAGE":
+            result.fail("귓속말 대상 검증", f"reason_code 가 {err.get('reason_code')!r}")
+        else:
+            result.ok("귓속말 대상 검증", "대상 누락 거절")
+    except HarnessError as exc:
+        result.fail("귓속말 대상 검증", str(exc))

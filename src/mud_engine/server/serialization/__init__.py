@@ -36,6 +36,7 @@ from .inventory import (
     serialize_equipped_slots,
 )
 from .player import build_player_state, serialize_stats
+from .social import build_chat, build_who_result, serialize_player_summary
 from .room import (
     UNKNOWN_ROOM_TYPE,
     build_room_info,
@@ -49,12 +50,14 @@ __all__ = [
     "UNKNOWN_ROOM_TYPE",
     "action_rejected",
     "build",
+    "build_chat",
     "build_combat_state",
     "build_container_contents",
     "build_dialogue",
     "build_inventory",
     "build_player_state",
     "build_room_info",
+    "build_who_result",
     "coerce_properties",
     "encode",
     "encode_line",
@@ -72,6 +75,7 @@ __all__ = [
     "serialize_nearby_rooms",
     "serialize_object",
     "serialize_player",
+    "serialize_player_summary",
     "serialize_room",
     "serialize_stats",
     "stack_count",

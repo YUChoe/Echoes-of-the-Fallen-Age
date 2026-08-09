@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any
 from ..game.managers import PlayerManager
 from ..utils.exceptions import AuthenticationError
 from .telnet_session import TelnetSession
+from .chat import ChatRouter
 from .serialization import PROTOCOL_VERSION, build, message_payload
 from ..core.game_engine import GameEngine
 from ..core.event_bus import initialize_event_bus, shutdown_event_bus
@@ -53,6 +54,7 @@ class TelnetServer:
         self._is_running: bool = False
         self._cleanup_task: Optional[asyncio.Task] = None
         self.player_session_logger: PlayerSessionLogger = PlayerSessionLogger()
+        self._chat: Optional[ChatRouter] = None
 
         logger.info("TelnetServer 초기화")
 
@@ -354,6 +356,12 @@ class TelnetServer:
             )
         )
 
+    def _chat_router(self, game_engine: GameEngine) -> ChatRouter:
+        """채팅 라우터를 반환한다. 상태가 없어 세션마다 만들어도 무해하다."""
+        if self._chat is None:
+            self._chat = ChatRouter(game_engine)
+        return self._chat
+
     async def _send_pong(
         self, session: TelnetSession, seq: Optional[int]
     ) -> None:
@@ -433,8 +441,12 @@ class TelnetServer:
             return True
 
         if msg_type == "chat":
-            # 채팅 분리는 server-json-protocol Task 4.5에서 처리한다.
-            logger.warning(f"아직 처리하지 않는 메시지 무시: {msg_type}")
+            if self.game_engine:
+                await self._chat_router(self.game_engine).handle(session, message)
+            else:
+                await session.send_protocol_error(
+                    "INTERNAL_ERROR", "game engine not initialised", seq
+                )
             return True
 
         # 계약에 없는 type 은 무시한다. 상위 버전 클라이언트와의 호환을 위한 규칙이다.
