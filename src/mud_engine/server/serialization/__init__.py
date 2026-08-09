@@ -7,6 +7,7 @@
 프로토콜 계약: docs/protocol/
 """
 
+from .combat import build_combat_state, serialize_combatant
 from .entity import (
     coerce_properties,
     is_container,
@@ -27,11 +28,29 @@ from .envelope import (
     error,
     message_payload,
 )
+from .inventory import (
+    build_container_contents,
+    build_inventory,
+    serialize_equipped_slots,
+)
+from .player import build_player_state, serialize_stats
+from .room import (
+    UNKNOWN_ROOM_TYPE,
+    build_room_info,
+    serialize_nearby_rooms,
+    serialize_room,
+)
 
 __all__ = [
     "MAX_LINE_BYTES",
+    "UNKNOWN_ROOM_TYPE",
     "action_rejected",
     "build",
+    "build_combat_state",
+    "build_container_contents",
+    "build_inventory",
+    "build_player_state",
+    "build_room_info",
     "coerce_properties",
     "encode",
     "encode_line",
@@ -41,8 +60,13 @@ __all__ = [
     "is_usable",
     "localized_dict",
     "message_payload",
+    "serialize_combatant",
+    "serialize_equipped_slots",
     "serialize_monster",
+    "serialize_nearby_rooms",
     "serialize_object",
     "serialize_player",
+    "serialize_room",
+    "serialize_stats",
     "stack_count",
 ]

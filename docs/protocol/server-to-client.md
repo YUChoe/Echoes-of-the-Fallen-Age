@@ -275,15 +275,23 @@
 {
   "id": "49a55ff4-...",
   "name": { "en": "Ash Raider", "ko": "재의 약탈자" },
+  "combatant_type": "monster",
   "hp": 18,
   "max_hp": 30,
-  "armor_class": 12,
   "attack_power": 6,
+  "defense": 3,
+  "is_defending": false,
   "is_alive": true
 }
 ```
 
-레벨은 제공하지 않는다. 서버에 level 개념이 없다. 전투 화면은 HP와 `armor_class`, `attack_power`로 상대의 강함을 표현한다.
+전투 참가자는 `Combatant` 구조를 따른다. 방 정보의 monster 엔티티와 필드가 다르다. `Combatant`는 `armor_class`를 갖지 않고 `defense`를 가지며, 플레이어와 몬스터가 같은 구조로 표현된다.
+
+`name`은 몬스터의 경우 `data["monster"]`의 언어별 dict에서, 플레이어의 경우 표시 이름을 양쪽 언어에 복제해 만든다. `Combatant.name`은 문자열 단일 값이므로 직접 쓰지 않는다.
+
+`combatant_type`은 `player` 또는 `monster`다. `allies`와 `enemies` 분류는 요청 플레이어를 기준으로 서버가 나누며, 현재 구현은 참가자 타입으로 구분한다.
+
+레벨은 제공하지 않는다. 서버에 level 개념이 없다. 전투 화면은 HP와 `attack_power`, `defense`로 상대의 강함을 표현한다.
 
 전투가 끝나면 `is_over`가 true인 `combat_state`를 보낸 뒤 `room_info`와 `player_state`를 보낸다. 클라이언트는 전투 화면을 닫고 탐험 화면으로 전환한다.
 
