@@ -166,7 +166,7 @@ async def _apply_equipment_bonuses(player, equipment, game_engine):
         for stat_name, bonus in stats_bonus.items():
             if isinstance(bonus, (int, float)) and bonus > 0:
                 player.stats.add_equipment_bonus(stat_name, int(bonus))
-        await game_engine.session_manager.update_player(player)
+        await game_engine.player_manager.save_player(player)
     except Exception as e:
         logger.error(f"장비 보너스 적용 중 오류: {e}")
 
@@ -180,6 +180,6 @@ async def _remove_equipment_bonuses(player, equipment, game_engine):
         for stat_name, bonus in stats_bonus.items():
             if isinstance(bonus, (int, float)) and bonus > 0:
                 player.stats.remove_equipment_bonus(stat_name, int(bonus))
-        await game_engine.session_manager.update_player(player)
+        await game_engine.player_manager.save_player(player)
     except Exception as e:
         logger.error(f"장비 보너스 제거 중 오류: {e}")

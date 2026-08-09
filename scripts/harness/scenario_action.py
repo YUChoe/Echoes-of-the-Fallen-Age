@@ -317,9 +317,307 @@ def run(result: ScenarioResult, port: int = DEFAULT_PORT) -> None:
             _check_request_state(result, client)
             _check_request_inventory(result, client)
             _check_examine(result, client, room_info)
+
+            # 아이템과 컨테이너는 이동 전에 검사한다. 방이 바뀌면 방에 버린
+            # 아이템을 다시 줍는 왕복이 성립하지 않는다.
+            _check_drop_and_get(result, client)
+            _check_equip_cycle(result, client)
+            _check_partial_quantity_rejected(result, client)
+            _check_not_readable_rejected(result, client)
+            _check_read(result, client)
+            _check_container_cycle(result, client)
+
             _check_move(result, client, room_info)
 
             client.send_json({"type": "logout"})
 
     except HarnessError as exc:
         result.skip("액션 시나리오", str(exc))
+
+
+# 아이템과 컨테이너 --------------------------------------------------------
+
+
+def _find_inventory_item(
+    client: HarnessClient, predicate: Any = None
+) -> Optional[dict[str, Any]]:
+    """인벤토리를 조회해 조건에 맞는 첫 아이템을 돌려준다."""
+    seq = _send_action(client, "request_inventory")
+    inventory = client.wait_for("inventory", seq=seq, timeout_ms=3000)
+
+    for item in inventory.get("items", []):
+        if predicate is None or predicate(item):
+            return item
+
+    return None
+
+
+def _check_drop_and_get(result: ScenarioResult, client: HarnessClient) -> None:
+    """버렸다가 다시 줍는 왕복으로 위치 이동을 확인한다."""
+    item = _find_inventory_item(
+        client, lambda i: not i.get("is_equipped") and not i.get("is_container")
+    )
+    if item is None:
+        result.skip("버리기·줍기 왕복", "버릴 수 있는 아이템이 없다")
+        return
+
+    item_id = item["id"]
+
+    # 버리기
+    seq = _send_action(client, "drop", target=item_id)
+    try:
+        client.wait_for("room_info", timeout_ms=1)
+    except HarnessError:
+        pass
+
+    dropped = _room_has_entity(client, item_id)
+    if not dropped:
+        result.fail("버리기·줍기 왕복", f"버린 뒤 방에서 {item_id[-12:]} 를 찾을 수 없다")
+        return
+
+    # 다시 줍기
+    _send_action(client, "get", target=item_id)
+    carried = _inventory_has(client, item_id)
+
+    if not carried:
+        result.fail("버리기·줍기 왕복", "다시 줍기 후 인벤토리에 없다")
+        return
+
+    result.ok("버리기·줍기 왕복", f"{item_id[-12:]} 방↔인벤토리 이동 확인")
+
+
+def _room_has_entity(client: HarnessClient, entity_id: str) -> bool:
+    """look 으로 방을 다시 조회해 엔티티 존재를 확인한다."""
+    _send_action(client, "look")
+    try:
+        room_info = client.wait_for("room_info", timeout_ms=3000)
+    except HarnessError:
+        return False
+
+    return any(e.get("id") == entity_id for e in room_info.get("entities", []))
+
+
+def _inventory_has(client: HarnessClient, item_id: str) -> bool:
+    """인벤토리에 아이템이 있는지 확인한다."""
+    seq = _send_action(client, "request_inventory")
+    try:
+        inventory = client.wait_for("inventory", seq=seq, timeout_ms=3000)
+    except HarnessError:
+        return False
+
+    return any(i.get("id") == item_id for i in inventory.get("items", []))
+
+
+def _check_equip_cycle(result: ScenarioResult, client: HarnessClient) -> None:
+    """장착과 해제가 반영되는지 확인한다.
+
+    초기 상태에 의존하지 않는다. 착용 중인 장비가 있으면 해제 후 재장착으로,
+    미착용 장비가 있으면 장착 후 해제로 같은 두 경로를 지난다.
+    """
+    equipped_item = _find_inventory_item(
+        client, lambda i: i.get("equipment_slot") and i.get("is_equipped")
+    )
+    idle_item = _find_inventory_item(
+        client, lambda i: i.get("equipment_slot") and not i.get("is_equipped")
+    )
+
+    if equipped_item is not None:
+        first, second, item = "unequip", "equip", equipped_item
+    elif idle_item is not None:
+        first, second, item = "equip", "unequip", idle_item
+    else:
+        result.skip("장착·해제 왕복", "장착 슬롯을 가진 아이템이 없다")
+        return
+
+    item_id = item["id"]
+    expected_after_first = first == "equip"
+
+    for verb, expected in ((first, expected_after_first), (second, not expected_after_first)):
+        seq = _send_action(client, verb, target=item_id)
+        try:
+            rejection = client.wait_for("action_rejected", seq=seq, timeout_ms=600)
+            result.fail(
+                "장착·해제 왕복",
+                f"{verb} 거절: {rejection.get('reason_code')}",
+            )
+            return
+        except HarnessError:
+            pass
+
+        state = _find_inventory_item(client, lambda i: i.get("id") == item_id)
+        if state is None:
+            result.fail("장착·해제 왕복", f"{verb} 후 아이템이 인벤토리에서 사라졌다")
+            return
+        if bool(state.get("is_equipped")) is not expected:
+            result.fail(
+                "장착·해제 왕복",
+                f"{verb} 후 is_equipped 가 {state.get('is_equipped')!r} (기대 {expected})",
+            )
+            return
+
+    result.ok(
+        "장착·해제 왕복",
+        f"슬롯 {item.get('equipment_slot')} 에 {first}→{second} 확인",
+    )
+
+
+def _check_partial_quantity_rejected(
+    result: ScenarioResult, client: HarnessClient
+) -> None:
+    """부분 수량 요청을 거절하는지 확인한다."""
+    item = _find_inventory_item(
+        client, lambda i: not i.get("is_equipped") and i.get("stack_count", 1) == 1
+    )
+    if item is None:
+        result.skip("부분 수량 거절", "검사할 아이템이 없다")
+        return
+
+    _expect_rejection(
+        result,
+        client,
+        "부분 수량 거절",
+        "drop",
+        "INVALID_PARAMS",
+        target=item["id"],
+        params={"quantity": 99},
+    )
+
+
+def _check_not_readable_rejected(
+    result: ScenarioResult, client: HarnessClient
+) -> None:
+    """읽을 수 없는 아이템의 read 를 거절하는지 확인한다."""
+    item = _find_inventory_item(client, lambda i: not i.get("is_readable"))
+    if item is None:
+        result.skip("읽기 불가 거절", "읽을 수 없는 아이템이 없다")
+        return
+
+    _expect_rejection(
+        result,
+        client,
+        "읽기 불가 거절",
+        "read",
+        "NOT_APPLICABLE",
+        target=item["id"],
+    )
+
+
+def _find_room_entity(
+    client: HarnessClient, predicate: Any
+) -> Optional[dict[str, Any]]:
+    """방을 다시 조회해 조건에 맞는 첫 엔티티를 돌려준다."""
+    _send_action(client, "look")
+    try:
+        room_info = client.wait_for("room_info", timeout_ms=3000)
+    except HarnessError:
+        return None
+
+    for entity in room_info.get("entities", []):
+        if predicate(entity):
+            return entity
+
+    return None
+
+
+def _check_read(result: ScenarioResult, client: HarnessClient) -> None:
+    """읽을 수 있는 아이템을 읽는다.
+
+    read 는 소지를 요구하지 않으므로 인벤토리에 없으면 방에서 찾는다.
+    """
+    item = _find_inventory_item(client, lambda i: i.get("is_readable"))
+    source = "인벤토리"
+
+    if item is None:
+        item = _find_room_entity(
+            client, lambda e: e.get("kind") == "object" and e.get("is_readable")
+        )
+        source = "방"
+
+    if item is None:
+        result.skip("읽기", "읽을 수 있는 아이템이 없다")
+        return
+
+    seq = _send_action(client, "read", target=item["id"])
+
+    try:
+        rejection = client.wait_for("action_rejected", seq=seq, timeout_ms=600)
+        result.fail("읽기", f"읽기 거절: {rejection.get('reason_code')}")
+        return
+    except HarnessError:
+        pass
+
+    result.ok("읽기", f"{source}의 {item['name'].get('ko', '')} 읽기 성공")
+
+
+def _check_container_cycle(result: ScenarioResult, client: HarnessClient) -> None:
+    """컨테이너 열기, 넣기, 꺼내기를 확인한다."""
+    container = _find_inventory_item(client, lambda i: i.get("is_container"))
+
+    if container is None:
+        # 컨테이너는 방에 있는 경우가 더 흔하다(시체, 상자)
+        container = _find_room_entity(
+            client, lambda e: e.get("kind") == "object" and e.get("is_container")
+        )
+
+    if container is None:
+        result.skip("컨테이너 왕복", "인벤토리와 방 모두에 컨테이너가 없다")
+        return
+
+    item = _find_inventory_item(
+        client,
+        lambda i: (
+            not i.get("is_container")
+            and not i.get("is_equipped")
+            and i["id"] != container["id"]
+        ),
+    )
+    if item is None:
+        result.skip("컨테이너 왕복", "넣을 아이템이 없다")
+        return
+
+    container_id = container["id"]
+    item_id = item["id"]
+
+    # 열기
+    seq = _send_action(client, "open", target=container_id)
+    try:
+        contents = client.wait_for("container_contents", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("컨테이너 왕복", f"open 실패: {exc}")
+        return
+
+    if contents.get("container_id") != container_id:
+        result.fail("컨테이너 왕복", f"container_id 가 {contents.get('container_id')!r}")
+        return
+
+    # 넣기
+    seq = _send_action(client, "put", target=item_id, params={"container": container_id})
+    try:
+        rejection = client.wait_for("action_rejected", seq=seq, timeout_ms=600)
+        result.fail("컨테이너 왕복", f"put 거절: {rejection.get('reason_code')}")
+        return
+    except HarnessError:
+        pass
+
+    seq = _send_action(client, "open", target=container_id)
+    contents = client.wait_for("container_contents", seq=seq, timeout_ms=3000)
+    if not any(i.get("id") == item_id for i in contents.get("items", [])):
+        result.fail("컨테이너 왕복", "넣은 아이템이 내용물에 없다")
+        return
+
+    # 꺼내기
+    seq = _send_action(
+        client, "take_from", target=item_id, params={"container": container_id}
+    )
+    try:
+        rejection = client.wait_for("action_rejected", seq=seq, timeout_ms=600)
+        result.fail("컨테이너 왕복", f"take_from 거절: {rejection.get('reason_code')}")
+        return
+    except HarnessError:
+        pass
+
+    if not _inventory_has(client, item_id):
+        result.fail("컨테이너 왕복", "꺼낸 아이템이 인벤토리에 없다")
+        return
+
+    result.ok("컨테이너 왕복", "열기·넣기·꺼내기 확인")

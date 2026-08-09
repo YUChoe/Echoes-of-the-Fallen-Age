@@ -8,6 +8,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ...game.models.gameobject import GameObject
+from ...server.serialization import coerce_properties
 
 if TYPE_CHECKING:
     from ..context import ActionContext
@@ -95,3 +96,109 @@ def entity_payload(ctx: "ActionContext", resolved: Any) -> dict[str, Any]:
 
     # 전투 참가자는 전투 상태 메시지가 담당하므로 여기서 다루지 않는다
     return {"id": str(getattr(resolved.entity, "id", "")), "kind": "combatant"}
+
+
+async def apply_equipment_bonuses(player: Any, equipment: Any, game_engine: Any) -> None:
+    """장비의 능력치 보너스를 플레이어에게 적용한다."""
+    try:
+        properties = coerce_properties(getattr(equipment, "properties", None))
+        stats_bonus = properties.get("stats_bonus", {})
+
+        if not isinstance(stats_bonus, dict):
+            return
+
+        for stat_name, bonus in stats_bonus.items():
+            if isinstance(bonus, (int, float)) and not isinstance(bonus, bool) and bonus > 0:
+                player.stats.add_equipment_bonus(stat_name, int(bonus))
+
+        # 기존 구현은 존재하지 않는 session_manager.update_player 를 호출했고
+        # 예외가 삼켜져 보너스가 저장되지 않았다.
+        await game_engine.player_manager.save_player(player)
+    except Exception as e:
+        logger.error(f"장비 보너스 적용 중 오류: {e}")
+
+
+async def remove_equipment_bonuses(player: Any, equipment: Any, game_engine: Any) -> None:
+    """장비의 능력치 보너스를 플레이어에서 제거한다."""
+    try:
+        properties = coerce_properties(getattr(equipment, "properties", None))
+        stats_bonus = properties.get("stats_bonus", {})
+
+        if not isinstance(stats_bonus, dict):
+            return
+
+        for stat_name, bonus in stats_bonus.items():
+            if isinstance(bonus, (int, float)) and not isinstance(bonus, bool) and bonus > 0:
+                player.stats.remove_equipment_bonus(stat_name, int(bonus))
+
+        await game_engine.player_manager.save_player(player)
+    except Exception as e:
+        logger.error(f"장비 보너스 제거 중 오류: {e}")
+
+
+def reject_partial_quantity(ctx: "ActionContext", obj: GameObject) -> Any:
+    """부분 수량 이동 요청을 거절한다.
+
+    아이템은 개별 레코드로 존재하고 서버가 스택을 병합하지 않는다. 화폐만
+    `properties.quantity` 를 쓰며 스택 분할이 구현되어 있지 않다. 따라서 uuid 는
+    항상 전량을 가리키고, 그보다 적은 수량 요청은 수행할 수 없다.
+
+    Returns:
+        거절 결과. 요청이 전량과 일치하거나 생략됐으면 None
+    """
+    from ...server.serialization import stack_count
+    from ..context import rejected
+
+    requested = ctx.params.get("quantity")
+    if requested is None:
+        return None
+
+    if not isinstance(requested, int) or isinstance(requested, bool) or requested < 1:
+        return rejected("INVALID_PARAMS", message="quantity must be a positive integer")
+
+    available = stack_count(obj.properties)
+    if requested != available:
+        return rejected(
+            "INVALID_PARAMS",
+            message=(
+                f"partial stack transfer is not supported "
+                f"(requested {requested}, stack holds {available})"
+            ),
+        )
+
+    return None
+
+
+async def reject_if_overweight(
+    ctx: "ActionContext", weight: float
+) -> Any:
+    """무게 제한을 초과하면 거절한다.
+
+    Args:
+        ctx: 액션 컨텍스트
+        weight: 추가로 들게 되는 무게
+
+    Returns:
+        거절 결과. 여유가 있으면 None
+    """
+    from ..context import rejected
+
+    player = ctx.session.player
+    if player is None or not ctx.player_id:
+        return rejected("NOT_AUTHENTICATED")
+
+    inventory = await ctx.game_engine.world_manager.get_inventory_objects(ctx.player_id)
+
+    if player.can_carry_more(inventory, weight):
+        return None
+
+    info = player.get_carry_capacity_info(inventory)
+    return rejected(
+        "INVENTORY_FULL",
+        params={
+            "current_weight": round(float(info["current_weight"]), 2),
+            "max_weight": round(float(info["max_weight"]), 2),
+            "item_weight": round(float(weight), 2),
+        },
+        message="Carry weight exceeded",
+    )

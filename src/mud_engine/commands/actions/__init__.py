@@ -23,11 +23,13 @@ def build_handlers() -> list["ActionHandler"]:
     Returns:
         핸들러 인스턴스 목록
     """
-    from . import inspection, movement, state
+    from . import containers, inspection, items, movement, state
 
     handlers: list["ActionHandler"] = []
     handlers.extend(movement.handlers())
     handlers.extend(inspection.handlers())
+    handlers.extend(items.handlers())
+    handlers.extend(containers.handlers())
     handlers.extend(state.handlers())
 
     return handlers
