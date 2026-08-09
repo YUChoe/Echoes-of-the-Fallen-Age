@@ -277,10 +277,13 @@
   "name": { "en": "Ash Raider", "ko": "재의 약탈자" },
   "hp": 18,
   "max_hp": 30,
-  "level": 4,
+  "armor_class": 12,
+  "attack_power": 6,
   "is_alive": true
 }
 ```
+
+레벨은 제공하지 않는다. 서버에 level 개념이 없다. 전투 화면은 HP와 `armor_class`, `attack_power`로 상대의 강함을 표현한다.
 
 전투가 끝나면 `is_over`가 true인 `combat_state`를 보낸 뒤 `room_info`와 `player_state`를 보낸다. 클라이언트는 전투 화면을 닫고 탐험 화면으로 전환한다.
 

@@ -55,7 +55,7 @@ flowchart TB
 | `send_text()` 자유 텍스트 | 제거. 모든 송신이 구조화 메시지 |
 | `locale` property | 제거 |
 | `room_entity_map`, `inventory_entity_map` | 제거 |
-| `_is_friendly_faction`, `_is_neutral_faction` | 제거. `FactionManager`에 위임 |
+| `_is_friendly_faction`, `_is_neutral_faction` | 제거. `game/faction_rules.py`로 이동 |
 
 수신 경로에 라인 버퍼를 둔다. `session/transport.py`의 `read_line`이 이미 라인 단위로 읽지만, JSON 파싱 실패와 부분 수신을 구분해 처리해야 한다.
 
@@ -89,15 +89,34 @@ ActionDispatcher 또는 인증 핸들러
 파생 boolean은 여기서 계산한다.
 
 ```
-is_container   ← properties JSON의 컨테이너 표식
-is_readable    ← properties JSON의 읽기 가능 표식
-is_usable      ← category와 properties
-is_merchant    ← properties JSON의 상인 표식
-can_talk       ← 대화 스크립트 보유 여부
-disposition    ← FactionManager.get_disposition(player_faction, target_faction)
+is_container   ← properties.get('is_container', False)
+is_readable    ← bool(properties.get('readable', {}))
+is_usable      ← any(k in properties for k in
+                     ['hp_restore','stamina_restore','mana_restore','heal_amount'])
+category       ← properties.get('category')
+can_talk       ← 대화 스크립트 파일 존재 여부 (LuaScriptLoader 조회 메서드)
+disposition    ← faction_rules.get_disposition(player_faction, target_faction)
 ```
 
-`disposition` 계산은 `FactionManager`에 단일 구현을 둔다. 현재 `telnet_session.py`에 하드코딩된 판정(`friendly_factions = {"ash_knights": ["ash_knights"]}`)을 제거하고 `factions`, `faction_relations` 테이블을 조회하는 구현으로 교체한다.
+판정식은 기존 명령어 구현에서 그대로 가져온 것이다. `is_container`는 `container_commands.py`와 `use_command.py`에 세 번 중복 정의되어 있으므로 직렬화 계층의 단일 구현으로 모으는 것을 검토한다.
+
+`properties`가 문자열로 들어올 수 있다. `BaseModel.to_dict()`가 dict와 list를 JSON 문자열로 만들기 때문이며, 기존 판정 코드도 이를 방어 파싱한다. 직렬화 계층도 같은 방어가 필요하다.
+
+레벨과 상인 여부는 산출하지 않는다. 레벨은 코드에서 제거된 개념이고(`pop('level')` 3곳), 상인은 판정 로직이 없으며 모든 캐릭터와 거래할 수 있어 구분이 불필요하다. 강함 지표로는 `Monster`의 계산 프로퍼티인 `max_hp`, `armor_class`, `attack_power`를 쓴다.
+
+`disposition` 계산은 `game/faction_rules.py`에 단일 구현을 둔다. 현재 `telnet_session.py`에 하드코딩된 판정을 규칙 그대로 옮기며 동작을 바꾸지 않는다.
+
+`FactionManager`라는 클래스는 존재하지 않는다. 페이즈1 스펙이 그 이름을 전제했으나 실제 코드에는 없으며, faction 관련 조회는 `utils/map_exporter.py`에만 있다. 매니저를 새로 만들지 않고 순수 함수 모듈을 두는 이유는 현재 판정에 상태나 DB 접근이 필요하지 않기 때문이다. 우호도 기능을 개발할 때 이 모듈을 매니저로 승격하거나 내부를 DB 조회로 교체하면 된다.
+
+보존할 규칙:
+
+| 조건 | 결과 |
+|---|---|
+| 대상 종족이 플레이어 종족과 같음 | `friendly` |
+| 플레이어가 `ash_knights`이고 대상이 `animals` | `neutral` |
+| 그 밖의 경우, 대상 종족이 없는 경우 포함 | `hostile` |
+
+`faction_relations` 테이블을 조회하는 동적 판정은 이번 범위에 포함하지 않는다. 도입하면 동맹 관계가 반영되어 방 정보의 인물·동물·적 분류가 달라지므로 우호도 기능 개발 시점에 데이터를 확인하며 진행한다.
 
 ### 액션 디스패처
 
@@ -337,4 +356,4 @@ ruff는 현재 0.16.2 기본 룰셋으로 1,373건을 보고한다. 이는 툴 �
 
 어드민 이전 중에는 Node 웹어드민과 서버 어드민이 동시에 존재한다. 두 경로가 같은 DB를 조작하면 캐시 불일치가 발생한다. 7단계 완료 후 클라이언트 저장소에서 Node 웹어드민을 즉시 제거해야 하며, 이 순서를 `gateway-landing` 스펙과 맞춘다.
 
-`disposition` 판정을 `FactionManager`로 옮길 때 현재 하드코딩 동작과 결과가 달라질 수 있다. 현재는 같은 종족만 우호로 취급하는데, `faction_relations` 테이블을 조회하면 동맹 관계가 반영된다. 이는 의도된 개선이지만 방 정보의 인물/동물/적 분류가 바뀌므로 데이터 확인이 필요하다. 프로덕션 DB에 `factions` 3건과 `faction_relations`가 존재한다.
+`disposition` 판정 이동은 규칙을 보존하므로 동작이 바뀌지 않는다. 이동 후 같은 입력에 같은 결과가 나오는지 확인한다. `faction_relations` 기반 동적 판정을 도입할 때는 분류 결과가 달라지므로 프로덕션 데이터(`factions` 3건과 `faction_relations`)를 확인하며 진행해야 한다. 이는 우호도 기능 개발 범위다.

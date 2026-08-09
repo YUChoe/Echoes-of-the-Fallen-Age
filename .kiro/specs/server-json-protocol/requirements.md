@@ -66,7 +66,8 @@
 4. THE Codebase SHALL 5x5 텍스트 미니맵 조립(`_generate_minimap`)을 제거하고 `nearby_rooms` 좌표 배열 송신으로 대체한다.
 5. THE Codebase SHALL 엔티티 이름과 설명을 `{"en":..., "ko":...}` 형태로 송신하며 서버에서 언어를 선택하지 않는다.
 6. THE Codebase SHALL 몬스터의 종족 관계를 요청 플레이어 기준 Disposition으로 계산해 송신한다.
-7. THE Codebase SHALL Disposition 판정을 `FactionManager`에 위임하고 `telnet_session.py`의 하드코딩된 `_is_friendly_faction`/`_is_neutral_faction`을 제거한다.
+7. THE Codebase SHALL Disposition 판정을 세션 계층에서 분리해 전용 모듈로 이동하고 `telnet_session.py`의 `_is_friendly_faction`/`_is_neutral_faction`을 제거한다.
+8. THE Codebase SHALL Disposition 판정 규칙을 현재 동작 그대로 보존한다. 같은 종족은 우호, `ash_knights` 기준 `animals`는 중립, 그 밖은 적대다. `faction_relations` 테이블을 조회하는 동적 판정은 이번 범위에 포함하지 않으며 우호도 기능 개발 시점에 도입한다.
 
 ### Requirement 3: uuid 기반 대상 지정
 
@@ -132,7 +133,10 @@
 5. WHEN `target`이 현재 컨텍스트에 존재하지 않으면, THE Codebase SHALL `NOT_FOUND`로 거절한다.
 6. WHEN verb가 대상의 성질에 적용될 수 없으면, THE Codebase SHALL `NOT_APPLICABLE`로 거절한다.
 7. THE Codebase SHALL 클라이언트가 부적절한 verb를 보내는 것을 오류로 취급하지 않는다. 클라이언트는 엔티티 속성으로 버튼을 추론하므로 이는 정상 동작 범위다.
-8. THE Codebase SHALL 엔티티 페이로드에 클라이언트가 버튼을 구성하기에 충분한 속성을 포함한다. 몬스터는 Disposition, `is_merchant`, `can_talk`, `is_alive`를, 오브젝트는 `category`, `equipment_slot`, `is_container`, `is_readable`, `is_usable`, `max_stack`을 포함한다.
+8. THE Codebase SHALL 엔티티 페이로드에 클라이언트가 버튼을 구성하기에 충분한 속성을 포함한다. 몬스터는 Disposition, `can_talk`, `is_alive`, `hp`, `max_hp`, `armor_class`, `attack_power`를, 오브젝트는 `category`, `equipment_slot`, `is_container`, `is_readable`, `is_usable`, `max_stack`, `is_equipped`를 포함한다.
+10. THE Codebase SHALL 레벨 개념을 페이로드에 포함하지 않는다. 서버 코드에서 제거된 개념이며 모델과 DB에 해당 필드가 없다.
+11. THE Codebase SHALL 상인 여부를 페이로드에 포함하지 않는다. 모든 캐릭터와 거래할 수 있으므로 구분이 불필요하다.
+12. THE Codebase SHALL 오브젝트의 `category`를 `properties.category`에서 읽는다. `game_objects.category` 컬럼은 모델이 사용하지 않는다.
 9. THE Codebase SHALL 가용 verb 목록을 엔티티 페이로드에 포함하지 않는다. 버튼 구성은 클라이언트의 판단이다.
 
 ### Requirement 7: 어드민 채널

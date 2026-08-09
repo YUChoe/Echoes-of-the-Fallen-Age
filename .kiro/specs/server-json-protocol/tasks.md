@@ -27,10 +27,23 @@
 - [ ] 2. 직렬화 계층 신설
 - [ ] 2.1 봉투와 엔티티 직렬화
   - `server/serialization/envelope.py`(봉투 생성, seq 부착, JSON 라인 인코딩), `entity.py`(monster/object/player 페이로드, 언어별 dict 유지, 파생 boolean 계산)를 만든다. 기존 송신 경로를 아직 바꾸지 않는다.
-  - _Requirements: 1.1, 1.2, 2.5, 6.8_
-- [ ] 2.2 FactionManager에 disposition 판정 추가
-  - `factions`와 `faction_relations`를 조회해 `friendly`/`neutral`/`hostile`을 판정하는 단일 구현을 만든다. 프로덕션 데이터(factions 3건)로 결과를 확인한다.
-  - _Requirements: 2.6, 2.7_
+  - 모델은 `name`/`description`을 `Dict[str, str]` 단일 필드로 보유한다. `name_en`/`name_ko` 속성은 존재하지 않으므로 `obj.name` dict를 그대로 담는다.
+  - 파생 boolean은 다음 판정식을 쓴다. `is_container` = `properties.get('is_container', False)`, `is_readable` = `bool(properties.get('readable', {}))`, `is_usable` = `any(k in properties for k in ['hp_restore','stamina_restore','mana_restore','heal_amount'])`. properties가 문자열로 들어올 수 있으므로 방어 파싱한다.
+  - `category`는 `properties.get('category')`에서 읽는다. 모델에 `category` 필드가 없다.
+  - 레벨과 상인 여부는 포함하지 않는다. 강함 지표는 `max_hp`, `armor_class`, `attack_power`이며 모두 Monster의 계산 프로퍼티다.
+  - `commands/container_commands.py`와 `use_command.py`에 중복 정의된 `_is_container` 3곳을 직렬화 계층의 단일 구현으로 대체할 수 있는지 검토한다.
+  - _Requirements: 1.1, 1.2, 2.5, 6.8, 6.10, 6.11, 6.12_
+- [ ] 2.4 대화 스크립트 존재 확인 메서드 추가
+  - `game/lua_script_loader.py`에 스크립트 파일 존재를 확인하는 조회 메서드를 추가해 `can_talk` 산출에 사용한다. 현재는 `load_script()`가 파일을 읽으며 부수효과를 갖고, 존재만 확인하는 경로가 없다.
+  - 파일명이 NPC 인스턴스 uuid(`configs/dialogues/{monster.id}.lua`)이므로 리스폰으로 인스턴스 id가 바뀌면 매칭이 깨진다. 이 문제를 기록하고 template_id 기반 조회로 바꿀지 결정한다.
+  - `can_talk`이 거짓이어도 서버는 대화를 거절하지 않고 침묵 응답을 준다. 이 동작을 유지한다.
+  - _Requirements: 6.8_
+- [ ] 2.2 disposition 판정을 전용 모듈로 이동
+  - `game/faction_rules.py`에 `get_disposition()`을 만들고 `telnet_session.py`의 `_is_friendly_faction`/`_is_neutral_faction` 규칙을 그대로 옮긴다. 같은 종족은 `friendly`, `ash_knights` 기준 `animals`는 `neutral`, 그 밖은 `hostile`이다.
+  - `FactionManager`는 존재하지 않는 클래스다. 상태나 DB 접근이 필요하지 않으므로 순수 함수 모듈로 둔다.
+  - `faction_relations` 조회 기반 동적 판정은 범위 밖이다. 우호도 기능 개발 시 이 모듈의 내부를 교체한다.
+  - 이동 전후로 같은 입력에 같은 결과가 나오는지 확인한다.
+  - _Requirements: 2.6, 2.7, 2.8_
 - [ ] 2.3 방·전투·인벤토리·플레이어 직렬화
   - `serialization/room.py`(room_info, nearby_rooms 좌표 배열), `combat.py`, `inventory.py`, `player.py`를 만든다. 각 페이로드는 `docs/protocol/server-to-client.md` 스키마를 따른다.
   - `room_info`에 `has_passage`를 포함한다. 현재 좌표에 `room_connections` 항목이 있는지 조회한 결과이며, 클라이언트가 진입 버튼 표시 여부를 판단하는 근거다. `commands/Basic/enter.py`가 사용하는 조회를 재사용한다.

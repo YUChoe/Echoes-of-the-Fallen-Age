@@ -36,28 +36,34 @@ NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 
   "description": { "en": "...", "ko": "..." },
   "hp": 60,
   "max_hp": 60,
-  "level": 3,
+  "armor_class": 12,
+  "attack_power": 6,
   "faction_id": "ash_knights",
   "disposition": "friendly",
   "monster_type": "passive",
   "behavior": "stationary",
   "is_alive": true,
-  "is_merchant": true,
   "can_talk": true
 }
 ```
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
-| `hp` `max_hp` | integer | `stats` JSON의 `current_hp`와 최대치 |
-| `level` | integer | 레벨 |
+| `hp` `max_hp` | integer | `stats` JSON의 `current_hp`와 체력 기반 계산 최대치 |
+| `armor_class` | integer | 방어도. 민첩 보정 기반 계산값 |
+| `attack_power` | integer | 공격력. 힘 기반 계산값 |
 | `faction_id` | string 또는 null | 종족. `factions.id` 참조 |
 | `disposition` | string | 요청 플레이어 기준 상대 관계 |
 | `monster_type` | string | `aggressive`, `passive`, `neutral` |
-| `behavior` | string | `stationary`, `roaming`, `territorial` |
+| `behavior` | string | `stationary`, `roaming`, `territorial`, `aggressive` |
 | `is_alive` | boolean | 생존 여부 |
-| `is_merchant` | boolean | 상점 보유 여부 |
 | `can_talk` | boolean | 대화 스크립트 보유 여부 |
+
+레벨 개념은 제공하지 않는다. 서버 코드에서 의도적으로 제거된 개념이며 `Monster`와 `Player` 모두 level 필드가 없고 DB 컬럼도 없다. 상대적 강함을 짐작할 근거로는 `max_hp`, `armor_class`, `attack_power`를 제공한다. 이 세 값은 모두 능력치에서 계산되는 파생값이므로 별도 저장이 필요하지 않다.
+
+상인 여부는 제공하지 않는다. 모든 캐릭터와 거래할 수 있으므로 구분이 불필요하다. 클라이언트는 `disposition`이 적대가 아닌 대상에게 거래 버튼을 표시할 수 있다.
+
+`can_talk`은 대화 스크립트 파일의 존재 여부다. 거짓이어도 서버는 대화 시도를 거절하지 않고 침묵 응답을 돌려주므로, 클라이언트는 이 값을 버튼 표시 우선순위 판단에만 쓴다.
 
 `disposition`은 서버가 계산한다. 값은 `friendly`, `neutral`, `hostile`이다. 판정에 `factions`와 `faction_relations` 테이블이 필요하므로 클라이언트가 계산할 수 없다. 클라이언트는 이 값으로 인물/동물/적 구역을 나눠 표시한다.
 
@@ -88,7 +94,7 @@ NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
-| `category` | string | `weapon`, `armor`, `consumable`, `misc` |
+| `category` | string | `weapon`, `armor`, `consumable`, `misc`. 모델에는 필드가 없고 `properties.category`에서 읽는다 |
 | `weight` | number | 개당 무게 |
 | `stack_count` | integer | 이 항목이 대표하는 수량. 스택 불가 아이템은 1 |
 | `max_stack` | integer | 최대 스택. 1이면 스택 불가 |
