@@ -4,7 +4,6 @@ import asyncio
 import logging
 
 from typing import TYPE_CHECKING
-from ...commands.combat_commands import AttackCommand
 
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
@@ -89,8 +88,7 @@ class GlobalTickManager:
                             await self._process_monster_turn(cid)
                             # 전투 종료 확인
                             if _combat_instancese.is_combat_over():
-                                acmd = AttackCommand(_combats)
-                                await acmd._end_combat(s, _combat_instancese, {})
+                                await self.combat_handler.leave_combat(s, _combat_instancese)
                         break  # 해당 세션에 대한 combat_id 를 찾으려는 것이므로 찾았으면 break
         except asyncio.CancelledError:
             logger.info("Worker 태스크 취소됨 - 전투중 몹턴")
@@ -124,10 +122,7 @@ class GlobalTickManager:
                 combat.set_entity_map(getattr(s, "room_entity_map", {}))
 
                 # 세션 상태 업데이트
-                s.in_combat = True
-                s.original_room_id =s.current_room_id
-                s.combat_id = combat.id
-                s.current_room_id = f"combat_{combat.id}"  # 전투 인스턴스로 이동
+                self.combat_handler.enter_combat(s, combat, s.current_room_id)
                 logger.debug(s)
 
                 # 만약 몹 턴이면 공격
@@ -137,8 +132,7 @@ class GlobalTickManager:
                     await self._process_monster_turn(combat.id)
                     # 전투 종료 확인
                     if combat.is_combat_over():
-                        acmd = AttackCommand(_combats)
-                        await acmd._end_combat(s, _combat_instancese, {})
+                        await self.combat_handler.leave_combat(s, combat)
 
         except asyncio.CancelledError:
             logger.info("Worker 태스크 취소됨 - 몹 선공")

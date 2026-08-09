@@ -733,6 +733,50 @@ class CombatHandler:
         """활성 전투 목록 (호환성을 위한 속성)"""
         return {combat_id: combat for combat_id, combat in self.combat_manager.combat_instances.items() if combat.is_active}
 
+    def enter_combat(self, session: Any, combat: CombatInstance, room_id: str) -> None:
+        """세션을 전투 상태로 전환한다.
+
+        전투 인스턴스는 방처럼 취급되어 `combat_{id}` 를 현재 방으로 삼는다.
+        원래 방은 전투 종료 후 복귀에 쓰인다.
+
+        Args:
+            session: 플레이어 세션
+            combat: 참가할 전투 인스턴스
+            room_id: 전투 직전의 방 id
+        """
+        session.in_combat = True
+        session.original_room_id = room_id
+        session.combat_id = combat.id
+        session.current_room_id = f"combat_{combat.id}"
+
+    async def leave_combat(self, session: Any, combat: CombatInstance) -> None:
+        """세션의 전투 상태를 해제하고 원래 방으로 돌린다.
+
+        기존에는 이 로직이 AttackCommand 에만 있어서, 3초 틱이 이를 부르려고
+        CombatHandler 대신 dict 를 넘겨 커맨드를 만드는 오용이 있었다.
+
+        Args:
+            session: 플레이어 세션
+            combat: 떠나는 전투 인스턴스
+        """
+        original_room_id = getattr(session, "original_room_id", None)
+        if original_room_id:
+            session.current_room_id = original_room_id
+
+        session.in_combat = False
+        session.original_room_id = None
+        session.combat_id = None
+
+        if session.player:
+            self.combat_manager.remove_player_from_combat(session.player.id)
+
+        remaining = combat.get_alive_players()
+        if not remaining:
+            self.combat_manager.end_combat(combat.id)
+            logger.info(f"전투 {combat.id} 종료 - 모든 플레이어 이탈")
+        else:
+            logger.info(f"전투 {combat.id} 유지 - 남은 플레이어 {len(remaining)}명")
+
     async def start_combat(self, player: Player, monster: Monster, room_id: str, broadcast_callback=None, aggresive=False) -> CombatInstance:
         """
         새로운 전투 시작 + 이미 전투 중인 경우 기존 CombatInstance 리턴

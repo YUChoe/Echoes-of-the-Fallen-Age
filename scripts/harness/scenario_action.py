@@ -329,6 +329,9 @@ def run(result: ScenarioResult, port: int = DEFAULT_PORT) -> None:
 
             _check_move(result, client, room_info)
 
+            # 전투는 마지막에 검사한다. 전투 진입이 세션 상태를 크게 바꾼다.
+            _check_combat_cycle(result, client)
+
             client.send_json({"type": "logout"})
 
     except HarnessError as exc:
@@ -621,3 +624,99 @@ def _check_container_cycle(result: ScenarioResult, client: HarnessClient) -> Non
         return
 
     result.ok("컨테이너 왕복", "열기·넣기·꺼내기 확인")
+
+
+# 전투 --------------------------------------------------------------------
+
+
+def _check_combat_cycle(result: ScenarioResult, client: HarnessClient) -> None:
+    """전투 시작, 상태 조회, 도주를 확인한다.
+
+    3초 틱이 몬스터 턴을 처리하므로 상태가 계속 바뀐다. 여기서는 전투 진입과
+    이탈이 성립하는지, 그리고 턴 강제가 동작하는지만 확인한다.
+    """
+    monster = _find_room_entity(
+        client,
+        lambda e: e.get("kind") == "monster"
+        and e.get("is_alive")
+        and e.get("disposition") == "hostile",
+    )
+    if monster is None:
+        result.skip("전투 왕복", "방에 적대적인 몬스터가 없다")
+        return
+
+    monster_id = monster["id"]
+
+    # 전투 시작
+    seq = _send_action(client, "attack", target=monster_id)
+    try:
+        state = client.wait_for("combat_state", timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("전투 왕복", f"attack 후 combat_state 없음: {exc}")
+        return
+
+    problems: list[str] = []
+    for field in (
+        "combat_id",
+        "round",
+        "current_turn",
+        "is_my_turn",
+        "turn_order",
+        "allies",
+        "enemies",
+        "is_over",
+    ):
+        if field not in state:
+            problems.append(f"{field} 누락")
+
+    if problems:
+        result.fail("전투 왕복", "; ".join(problems))
+        return
+
+    if not state["enemies"]:
+        result.fail("전투 왕복", "enemies 가 비어 있다")
+        return
+
+    # 전투 중에는 이동이 금지된다
+    _expect_rejection(
+        result,
+        client,
+        "전투 중 이동 금지",
+        "move",
+        "WRONG_STATE",
+        params={"direction": "north"},
+    )
+
+    # 전투 상태 재요청이 이제는 허용된다
+    seq = _send_action(client, "request_combat_state")
+    try:
+        client.wait_for("combat_state", seq=seq, timeout_ms=3000)
+        result.ok("전투 중 상태 조회", "combat_state 수신")
+    except HarnessError as exc:
+        result.fail("전투 중 상태 조회", str(exc))
+
+    # 도주로 이탈
+    for _ in range(6):
+        seq = _send_action(client, "flee")
+        try:
+            rejection = client.wait_for("action_rejected", seq=seq, timeout_ms=800)
+            if rejection.get("reason_code") in ("NOT_YOUR_TURN", "WRONG_STATE"):
+                continue
+            result.fail("전투 왕복", f"flee 거절: {rejection.get('reason_code')}")
+            return
+        except HarnessError:
+            pass
+
+        # 도주 성공 여부는 확률이므로 세션 상태로 판정한다
+        seq = _send_action(client, "request_state")
+        try:
+            player_state = client.wait_for("player_state", seq=seq, timeout_ms=3000)
+        except HarnessError as exc:
+            result.fail("전투 왕복", f"도주 후 상태 조회 실패: {exc}")
+            return
+
+        if player_state["player"]["in_combat"] is False:
+            result.ok("전투 왕복", "전투 시작과 도주 이탈 확인")
+            return
+
+    result.skip("전투 왕복", "도주가 연속 실패해 이탈을 확인하지 못했다")

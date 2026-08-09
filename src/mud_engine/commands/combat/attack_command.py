@@ -125,10 +125,7 @@ class AttackCommand(BaseCommand):
 
         """else: 새로운 전투 시작"""
         # 세션 상태 업데이트
-        session.in_combat = True
-        session.original_room_id = current_room_id
-        session.combat_id = combat.id
-        session.current_room_id = f"combat_{combat.id}"  # 인스턴스
+        self.combat_handler.enter_combat(session, combat, current_room_id)
         logger.debug(session)
 
         # 출력
@@ -170,28 +167,8 @@ class AttackCommand(BaseCommand):
             combat, lambda loc: self.I18N.get_message("combat.ended", loc)
         )
 
-        # 원래 방으로 복귀
-        original_room_id = getattr(session, "original_room_id", None)
-        if original_room_id:
-            logger.info(f"원래 방으로 복귀 {original_room_id}")
-            session.current_room_id = original_room_id
-
-        # 전투 상태 초기화
-        session.in_combat = False
-        session.original_room_id = None
-        session.combat_id = None
-
-        # 현재 플레이어를 전투에서 제거
-        self.combat_handler.combat_manager.remove_player_from_combat(session.player.id)
-
-        # 다른 플레이어가 남아있는지 확인
-        remaining_players = combat.get_alive_players()
-        if len(remaining_players) == 0:
-            # 모든 플레이어가 나갔으면 전투 종료
-            self.combat_handler.combat_manager.end_combat(combat.id)
-            logger.info(f"전투 {combat.id} 종료 - 모든 플레이어 이탈")
-        else:
-            logger.info(f"전투 {combat.id} 유지 - 남은 플레이어 {len(remaining_players)}명")
+        # 세션 전투 상태 해제와 전투 정리 (CombatHandler 가 단일 구현을 갖는다)
+        await self.combat_handler.leave_combat(session, combat)
 
         return self.create_success_result(
             message=f"전투 {combat.id} 가 종료 되었습니다.",
