@@ -7,11 +7,11 @@ from datetime import datetime
 
 from ..types import SessionType
 
-from ...commands import (
+from ...commands.Basic import (
     SayCommand, WhisperCommand, WhoCommand,
     LookCommand, QuitCommand, HelpCommand, StatsCommand,
     MoveCommand, EnterCommand
-)  # 명령어가 늘어날 수 있으니 이렇게 하자. 근데 * 이런 건 안되나?
+)
 
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ class CommandManager:
     def _setup_command_processor(self) -> None:
         """명령어 처리기 초기화"""
         try:
-            from ...commands import CommandProcessor
+            from ...commands.processor import CommandProcessor
             self.command_processor = CommandProcessor(self.game_engine.event_bus)
             logger.info("CommandProcessor 초기화 완료")
 
