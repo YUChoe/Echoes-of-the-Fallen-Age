@@ -327,6 +327,7 @@ def run(result: ScenarioResult, port: int = DEFAULT_PORT) -> None:
             _check_read(result, client)
             _check_container_cycle(result, client)
 
+            _check_dialogue_cycle(result, client)
             _check_move(result, client, room_info)
 
             # 전투는 마지막에 검사한다. 전투 진입이 세션 상태를 크게 바꾼다.
@@ -720,3 +721,90 @@ def _check_combat_cycle(result: ScenarioResult, client: HarnessClient) -> None:
             return
 
     result.skip("전투 왕복", "도주가 연속 실패해 이탈을 확인하지 못했다")
+
+
+# 대화 --------------------------------------------------------------------
+
+
+def _check_dialogue_cycle(result: ScenarioResult, client: HarnessClient) -> None:
+    """대화 시작, 선택지 선택, 종료를 확인한다."""
+    npc = _find_room_entity(
+        client, lambda e: e.get("kind") == "monster" and e.get("can_talk")
+    )
+    if npc is None:
+        result.skip("대화 왕복", "방에 대화 가능한 NPC가 없다")
+        return
+
+    npc_id = npc["id"]
+
+    # 대화 시작
+    seq = _send_action(client, "talk", target=npc_id)
+    try:
+        dialogue = client.wait_for("dialogue", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("대화 왕복", f"talk 후 dialogue 없음: {exc}")
+        return
+
+    problems: list[str] = []
+    for field in ("dialogue_id", "speaker", "lines", "choices", "is_active"):
+        if field not in dialogue:
+            problems.append(f"{field} 누락")
+
+    if problems:
+        result.fail("대화 왕복", "; ".join(problems))
+        return
+
+    if dialogue["is_active"] is not True:
+        result.fail("대화 왕복", "시작 직후 is_active 가 참이 아니다")
+        return
+
+    choices = dialogue["choices"]
+    if not choices:
+        result.fail("대화 왕복", "선택지가 비어 있다. 종료 선택지가 항상 있어야 한다")
+        return
+
+    if not all(isinstance(c.get("index"), int) for c in choices):
+        result.fail("대화 왕복", f"index 가 정수가 아니다: {choices}")
+        return
+
+    # 없는 선택지는 거절한다
+    missing_index = max(c["index"] for c in choices) + 10
+    seq = _send_action(client, "dialogue_choice", params={"choice": missing_index})
+    try:
+        rejection = client.wait_for("action_rejected", seq=seq, timeout_ms=3000)
+        if rejection.get("reason_code") != "INVALID_PARAMS":
+            result.fail(
+                "대화 선택지 검증",
+                f"reason_code 가 {rejection.get('reason_code')!r}",
+            )
+        else:
+            result.ok("대화 선택지 검증", "없는 번호를 INVALID_PARAMS 로 거절")
+    except HarnessError as exc:
+        result.fail("대화 선택지 검증", str(exc))
+
+    # 명시적 종료
+    seq = _send_action(client, "dialogue_end")
+    try:
+        closed = client.wait_for("dialogue", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("대화 왕복", f"dialogue_end 응답 없음: {exc}")
+        return
+
+    if closed.get("is_active") is not False:
+        result.fail("대화 왕복", "종료 후에도 is_active 가 참이다")
+        return
+
+    # 대화 밖에서 선택지를 보내면 거절한다
+    _expect_rejection(
+        result,
+        client,
+        "대화 밖 선택지 거절",
+        "dialogue_choice",
+        "WRONG_STATE",
+        params={"choice": 1},
+    )
+
+    result.ok(
+        "대화 왕복",
+        f"{npc['name'].get('ko', '')} 와 대화 시작·종료 확인 (선택지 {len(choices)}개)",
+    )

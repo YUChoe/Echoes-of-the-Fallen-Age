@@ -86,16 +86,25 @@ class DialogueManager:
     # def get_dialogue_by_interlocutor
 
     async def end_dialogue(self, dialogue_id: str) -> None:
+        """대화를 종료하고 세션 상태를 되돌린다.
+
+        종료 통보를 보내지 않는다. 계약은 `is_active: false` 인 `dialogue`
+        메시지로 종료를 표현하므로 호출부가 그 메시지를 보낸다.
+        """
         logger.info(f"end_dialogue invoked dlg.id[{dialogue_id}]")
         dlg = self.dialogue_instances.get(dialogue_id)
-        session = dlg.session
-        locale = session.locale
-        await session.send_message({"type":"dialogue", "message": I18N.get_message("npc.talk.finished", locale)})
 
-        session.current_room_id = session.original_room_id
-        session.in_dialogue = False
-        session.original_room_id = None
-        session.dialogue_id = None
+        if dlg is None:
+            logger.warning(f"종료할 대화를 찾을 수 없다: {dialogue_id}")
+            return
+
+        session = dlg.session
+        if session is not None:
+            session.current_room_id = session.original_room_id
+            session.in_dialogue = False
+            session.original_room_id = None
+            session.dialogue_id = None
+
         self.dialogue_instances.pop(dialogue_id, None)
 
     async def send_dialogue_message(

@@ -8,6 +8,7 @@
 """
 
 from .combat import build_combat_state, serialize_combatant
+from .dialogue import build_dialogue, ensure_farewell_choice, serialize_choices
 from .entity import (
     coerce_properties,
     is_container,
@@ -50,18 +51,21 @@ __all__ = [
     "build",
     "build_combat_state",
     "build_container_contents",
+    "build_dialogue",
     "build_inventory",
     "build_player_state",
     "build_room_info",
     "coerce_properties",
     "encode",
     "encode_line",
+    "ensure_farewell_choice",
     "error",
     "is_container",
     "is_readable",
     "is_usable",
     "localized_dict",
     "message_payload",
+    "serialize_choices",
     "serialize_combatant",
     "serialize_equipped_slots",
     "serialize_monster",

@@ -173,6 +173,21 @@
   - `main.py:219`의 시그널 핸들러가 종료 진행 중 재진입을 막지 않아 SIGINT 한 번에 3회 호출되고 종료 시 `KeyboardInterrupt`가 처리되지 않은 채 남는다. 종료 플래그를 두어 중복 처리를 방지한다.
   - _Requirements: 10.6_
 
+- [ ] 10. 대화 대사의 번역 키 전환
+  - 선행 조건: Task 4.4(대화 핸들러)와 Task 6(번역 키 송출 전환) 완료
+- [ ] 10.1 대사 번역 키 체계 설계
+  - `configs/dialogues/*.lua` 19개 스크립트의 대사와 선택지에 부여할 키 규칙을 정한다. NPC id 가 인스턴스 id 이므로 키를 인스턴스에 묶으면 재생성 시 깨진다. 템플릿 id 기반 키 체계를 검토한다.
+  - _Requirements: 3.1, 3.2_
+- [ ] 10.2 Lua 스크립트 대사를 키로 교체
+  - 각 스크립트가 언어별 완성 문장 대신 번역 키와 파라미터를 반환하도록 바꾼다. `lua_script_loader.py`의 `execute_get_dialogue`, `execute_on_choice` 반환 규약을 함께 갱신한다.
+  - _Requirements: 3.1_
+- [ ] 10.3 대사를 클라이언트 번역 파일로 이관
+  - 추출한 대사를 Godot 저장소의 번역 파일에 넣는다. Task 6.5의 번역 파일 이관과 같은 경로를 쓴다.
+  - _Requirements: 3.3_
+- [ ] 10.4 dialogue 페이로드를 키 방식으로 전환
+  - `serialization/dialogue.py`의 `lines[]`와 `choices[].text`가 언어별 dict 대신 `{key, params}`를 담도록 바꾼다. 과도기 주석을 제거한다.
+  - _Requirements: 3.1, 3.2_
+
 ## Task Dependency Graph
 
 ```mermaid
