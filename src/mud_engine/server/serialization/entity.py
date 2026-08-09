@@ -129,12 +129,30 @@ def serialize_monster(
     }
 
 
-def serialize_object(obj: GameObject, stack_count: int = 1) -> dict[str, Any]:
+def stack_count(properties: Any) -> int:
+    """이 레코드가 나타내는 수량.
+
+    `properties.quantity` 값이며 없으면 1이다. 현재 이 키를 사용하는 것은
+    화폐(골드, 은화)뿐이고 `CurrencyManager` 가 관리한다.
+
+    같은 종류 아이템이 여럿이면 개별 레코드로 존재하며 서버가 묶지 않는다.
+    """
+    raw = coerce_properties(properties).get("quantity", 1)
+    if isinstance(raw, bool):
+        return 1
+    if isinstance(raw, (int, float)):
+        return max(1, int(raw))
+    return 1
+
+
+def serialize_object(obj: GameObject) -> dict[str, Any]:
     """게임 오브젝트를 엔티티 페이로드로 변환한다.
+
+    `max_stack` 은 담지 않는다. DB 에 값이 있으나 서버가 그에 따라 아무 동작도
+    하지 않으므로(스택 병합이 화폐에만 구현됨) 클라이언트가 쓸 수 없다.
 
     Args:
         obj: 대상 오브젝트
-        stack_count: 이 항목이 대표하는 수량. 스택 그룹의 대표일 때 1보다 크다
 
     Returns:
         엔티티 페이로드
@@ -150,8 +168,7 @@ def serialize_object(obj: GameObject, stack_count: int = 1) -> dict[str, Any]:
         # GameObject.from_dict 가 DB 의 category 컬럼을 버린다.
         "category": str(properties.get("category", "misc")),
         "weight": float(obj.weight),
-        "stack_count": int(stack_count),
-        "max_stack": int(obj.max_stack),
+        "stack_count": stack_count(properties),
         "equipment_slot": obj.equipment_slot,
         "is_equipped": bool(obj.is_equipped),
         "is_container": is_container(properties),

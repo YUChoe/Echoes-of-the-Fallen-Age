@@ -196,16 +196,45 @@ class TestSerializeObject:
     """오브젝트 페이로드"""
 
     def test_contains_contract_fields(self):
-        payload = ser.serialize_object(_make_object(), stack_count=2)
+        payload = ser.serialize_object(_make_object())
 
         assert payload["kind"] == "object"
         assert payload["name"] == {"en": "Health Potion", "ko": "체력 물약"}
         assert payload["weight"] == 0.3
-        assert payload["stack_count"] == 2
-        assert payload["max_stack"] == 10
+        assert payload["stack_count"] == 1
         assert payload["is_usable"] is True
         assert payload["is_container"] is False
         assert payload["template_id"] == "health_potion"
+
+    def test_omits_max_stack(self):
+        """max_stack은 서버가 그에 따라 동작하지 않으므로 보내지 않는다"""
+        payload = ser.serialize_object(_make_object())
+        assert "max_stack" not in payload
+
+    def test_stack_count_from_quantity(self):
+        """stack_count는 properties.quantity를 반영한다. 현재 화폐만 1을 초과한다"""
+        currency = _make_object(
+            name={"en": "Silver Coin", "ko": "은화"},
+            properties={"category": "currency", "quantity": 500},
+            max_stack=9999,
+        )
+        assert ser.serialize_object(currency)["stack_count"] == 500
+
+    @pytest.mark.parametrize(
+        ("properties", "expected"),
+        [
+            ({}, 1),
+            ({"quantity": 1}, 1),
+            ({"quantity": 500}, 500),
+            ({"quantity": 0}, 1),
+            ({"quantity": -5}, 1),
+            ({"quantity": True}, 1),
+            ({"quantity": "많음"}, 1),
+            ('{"quantity": 300}', 300),
+        ],
+    )
+    def test_stack_count_edge_cases(self, properties, expected):
+        assert ser.stack_count(properties) == expected
 
     def test_category_comes_from_properties(self):
         """category는 모델 필드가 아니라 properties에서 온다"""

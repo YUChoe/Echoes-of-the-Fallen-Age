@@ -237,7 +237,7 @@
 
 `items`는 인벤토리와 장착 중인 아이템을 모두 포함한다. 장착 여부는 각 아이템의 `is_equipped`로 판별한다. `equipped`는 슬롯별 uuid 매핑이며 빈 슬롯은 `null`이다.
 
-스택 가능한 아이템은 서버가 그룹으로 묶어 하나의 항목으로 보내고 `stack_count`에 수량을 담는다. 그룹의 uuid는 대표 아이템의 uuid이며, 수량을 지정하는 액션(`drop`, `put`, `shop_sell`)은 이 uuid와 `quantity`로 처리된다.
+서버는 아이템을 묶지 않고 개별 엔티티로 보낸다. 같은 종류가 여럿이면 uuid가 다른 항목 여러 개가 온다. `stack_count`는 `properties.quantity` 값이며 현재 화폐만 1을 초과한다. 클라이언트가 표시할 때 같은 `template_id`끼리 묶을 수 있으나 액션의 `target`은 개별 uuid를 사용한다.
 
 ## container_contents
 

@@ -16,6 +16,7 @@ from .entity import (
     serialize_monster,
     serialize_object,
     serialize_player,
+    stack_count,
 )
 from .envelope import (
     MAX_LINE_BYTES,
@@ -43,4 +44,5 @@ __all__ = [
     "serialize_monster",
     "serialize_object",
     "serialize_player",
+    "stack_count",
 ]

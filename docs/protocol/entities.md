@@ -81,8 +81,7 @@ NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 
   "description": { "en": "Restores 25 health.", "ko": "체력을 25 회복한다." },
   "category": "consumable",
   "weight": 0.3,
-  "stack_count": 2,
-  "max_stack": 10,
+  "stack_count": 1,
   "equipment_slot": null,
   "is_equipped": false,
   "is_container": false,
@@ -96,9 +95,8 @@ NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 
 |---|---|---|
 | `category` | string | `weapon`, `armor`, `consumable`, `misc`. 모델에는 필드가 없고 `properties.category`에서 읽는다 |
 | `weight` | number | 개당 무게 |
-| `stack_count` | integer | 이 항목이 대표하는 수량. 스택 불가 아이템은 1 |
-| `max_stack` | integer | 최대 스택. 1이면 스택 불가 |
-| `equipment_slot` | string 또는 null | `HEAD`, `BODY`, `WEAPON`, `SHIELD`, `FEET` 등. null이면 장착 불가 |
+| `stack_count` | integer | 이 레코드가 나타내는 수량. `properties.quantity` 값이며 없으면 1 |
+| `equipment_slot` | string 또는 null | `head`, `chest`, `right_hand`, `left_hand`, `feet` 등. null이면 장착 불가 |
 | `is_equipped` | boolean | 장착 여부 |
 | `is_container` | boolean | 다른 아이템을 담을 수 있는지 |
 | `is_readable` | boolean | 읽을 수 있는지 |
@@ -106,6 +104,16 @@ NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 
 | `template_id` | string 또는 null | 템플릿 식별자. 상점 가격 조회 기준 |
 
 `weight`는 개당 무게이므로 총 무게는 `weight × stack_count`다. 인벤토리의 `total_weight`는 서버가 계산한 값이다.
+
+### 수량과 스택
+
+`stack_count`는 `properties.quantity` 값이다. 현재 이 키를 사용하는 것은 화폐(골드, 은화)뿐이며 `CurrencyManager`가 관리한다. 그 밖의 아이템은 `quantity`를 갖지 않으므로 `stack_count`가 1이다.
+
+같은 종류 아이템이 여럿 있으면 서버는 개별 엔티티로 보낸다. 체력 물약 4개는 uuid가 다른 엔티티 4개다. 클라이언트가 표시할 때 같은 `template_id`끼리 묶어 수량을 보여줄 수 있으나, 액션의 `target`은 개별 uuid를 사용한다.
+
+`max_stack`은 제공하지 않는다. DB에 컬럼이 있고 값이 설정되어 있지만 서버가 그에 따라 아무 동작도 하지 않는다. 스택 병합 로직이 `CurrencyManager`에만 있고 일반 아이템에는 없으며 `_group_stackable_objects`도 무력화된 상태다. 클라이언트가 이 값으로 판단할 수 있는 것이 없으므로 전달하지 않는다.
+
+수량 지정 액션(`drop`, `put`, `shop_sell`)의 `quantity` params는 화폐처럼 `stack_count`가 1을 초과하는 경우에만 의미가 있다. 그 밖의 아이템은 개별 uuid로 처리한다.
 
 파생 boolean(`is_container`, `is_readable`, `is_usable`)은 `properties` JSON과 `category`에서 서버가 계산해 내보낸다. 클라이언트가 `properties` 원본을 해석하지 않도록 하기 위한 것이다. 이는 가용 동사 목록을 서버가 결정하는 것과는 다르다. 서버는 대상의 성질만 알려주고, 그 성질로 어떤 버튼을 만들지는 클라이언트가 판단한다.
 

@@ -133,7 +133,9 @@
 5. WHEN `target`이 현재 컨텍스트에 존재하지 않으면, THE Codebase SHALL `NOT_FOUND`로 거절한다.
 6. WHEN verb가 대상의 성질에 적용될 수 없으면, THE Codebase SHALL `NOT_APPLICABLE`로 거절한다.
 7. THE Codebase SHALL 클라이언트가 부적절한 verb를 보내는 것을 오류로 취급하지 않는다. 클라이언트는 엔티티 속성으로 버튼을 추론하므로 이는 정상 동작 범위다.
-8. THE Codebase SHALL 엔티티 페이로드에 클라이언트가 버튼을 구성하기에 충분한 속성을 포함한다. 몬스터는 Disposition, `can_talk`, `is_alive`, `hp`, `max_hp`, `armor_class`, `attack_power`를, 오브젝트는 `category`, `equipment_slot`, `is_container`, `is_readable`, `is_usable`, `max_stack`, `is_equipped`를 포함한다.
+8. THE Codebase SHALL 엔티티 페이로드에 클라이언트가 버튼을 구성하기에 충분한 속성을 포함한다. 몬스터는 Disposition, `can_talk`, `is_alive`, `hp`, `max_hp`, `armor_class`, `attack_power`를, 오브젝트는 `category`, `equipment_slot`, `is_container`, `is_readable`, `is_usable`, `stack_count`, `is_equipped`를 포함한다.
+13. THE Codebase SHALL `max_stack`을 페이로드에 포함하지 않는다. DB에 값이 있으나 서버가 그에 따라 동작하지 않는다. 스택 병합이 `CurrencyManager`에만 구현되어 있고 `_group_stackable_objects`는 무력화된 상태다.
+14. THE Codebase SHALL `stack_count`를 `properties.quantity` 에서 산출하며 없으면 1로 한다. 같은 종류 아이템이 여럿이면 묶지 않고 개별 엔티티로 송신한다.
 10. THE Codebase SHALL 레벨 개념을 페이로드에 포함하지 않는다. 서버 코드에서 제거된 개념이며 모델과 DB에 해당 필드가 없다.
 11. THE Codebase SHALL 상인 여부를 페이로드에 포함하지 않는다. 모든 캐릭터와 거래할 수 있으므로 구분이 불필요하다.
 12. THE Codebase SHALL 오브젝트의 `category`를 `properties.category`에서 읽는다. `game_objects.category` 컬럼은 모델이 사용하지 않는다.

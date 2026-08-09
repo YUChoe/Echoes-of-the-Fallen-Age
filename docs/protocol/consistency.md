@@ -215,6 +215,7 @@ flowchart TD
 | monster에 `is_merchant` 정의 | `Monster.is_merchant()`는 없다. 유일한 판정식은 deprecated·미등록 `shop_command.py`에 있고, `ExchangeManager.buy_from_npc`는 상인 여부를 검사하지 않는다 | `is_merchant` 제거. 모든 캐릭터와 거래 가능하므로 구분이 불필요하다 |
 | object의 `category` 출처 | DB에 `category` 컬럼이 있으나 `GameObject.from_dict`이 명시적으로 버리고 실제로는 `properties['category']`를 쓴다 | 출처를 `properties.category`로 명시 |
 | `can_talk` 판정 근거 | `talk_command.py`는 `type == 'monster'`만 확인하고 스크립트 존재를 보지 않는다. 조회용 API가 없다 | `LuaScriptLoader`에 스크립트 존재 확인 메서드를 추가해 산출한다. 거짓이어도 서버는 침묵 응답을 주므로 버튼 우선순위 판단용으로 정의 |
+| `max_stack` 제공과 스택 그룹 전제 | DB에 값이 있으나 서버가 그에 따라 동작하지 않는다. 스택 병합은 `CurrencyManager`에만 있고 `_group_stackable_objects`는 `return []`로 무력화됐다. 프로덕션 데이터에서 `properties.quantity`를 가진 25건은 전부 화폐이며 모두 `max_stack=9999`, `max_stack>1`인 나머지 22건은 `quantity`가 없다. 두 필드가 함께 쓰이는 사례가 없다 | `max_stack` 제거. `stack_count`는 `properties.quantity`에서 산출하며 화폐만 1을 초과한다. 같은 종류 아이템은 개별 엔티티로 송신하고 묶음 표시는 클라이언트 책임으로 정의 |
 
 ## 미해결 사항
 
@@ -230,6 +231,9 @@ flowchart TD
 | GDScript 테스트 프레임워크 선택 | Godot Task 12.3 |
 | 대상 선택 UI 방식(팝오버 vs 고정 패널) | Godot Task 6 |
 | faction_relations 기반 동적 disposition 판정 | 범위 외. 우호도 기능 개발 시. 현재는 하드코딩 규칙 보존 |
+| 일반 아이템 스택 병합 구현 | 범위 외. 아이템 시스템 전반(get/drop/put/give, 무게 계산)에 영향이 크다. 페이즈2 이후 별도 작업 |
+| max_stack 데이터 정리 | 범위 외. 부피 있는 물건에 스택이 붙어 있다(건초 더미 5kg=3, 밧줄 1.5kg=5, 횃불 0.5kg=10, 빈 병 5, 말굽 5). 체력 물약은 5와 20으로 불일치하고 무게도 0.30/0.60으로 갈린다. 어드민 기능 준비 후 정리 |
+| category 분류 정리 | 범위 외. 101건 중 97건이 `misc`이며 `consumable` 1건, `currency` 2건, `readable` 1건뿐이다. 클라이언트 카테고리 필터가 실질적으로 동작하려면 분류가 필요하다 |
 | 역할 기반 어드민 권한 | 범위 외. 향후 확장 |
 | 한국어 조사 자동 선택 | 범위 외. 향후 개선 |
 | Telnet IAC 협상 제거 | 범위 외. 향후 후보 |
