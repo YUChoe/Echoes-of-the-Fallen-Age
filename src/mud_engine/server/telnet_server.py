@@ -3,20 +3,29 @@
 
 import asyncio
 import logging
+import os
+from datetime import datetime
 from typing import Optional, Dict, Any
 
 from ..game.managers import PlayerManager
 from ..utils.exceptions import AuthenticationError
 from .telnet_session import TelnetSession
-from .ansi_colors import ANSIColors
+from .serialization import PROTOCOL_VERSION, build, message_payload
 from ..core.game_engine import GameEngine
 from ..core.event_bus import initialize_event_bus, shutdown_event_bus
-from ..core.localization import get_localization_manager
 from ..utils.version_manager import get_version_manager
-from ..utils.discord_webhook import notify_new_registration
 from .player_session_logger import PlayerSessionLogger
 
 logger = logging.getLogger(__name__)
+
+# 인증 대기 시간 (초)
+AUTH_TIMEOUT = 60.0
+
+# 인증 후 메시지 수신 대기 시간 (초)
+SESSION_TIMEOUT = 300.0
+
+# 같은 연결에서 허용하는 연속 로그인 실패 횟수
+MAX_LOGIN_ATTEMPTS = 5
 
 
 class TelnetServer:
@@ -79,7 +88,9 @@ class TelnetServer:
 
             # 모든 세션에 종료 알림 전송
             for session in list(self.sessions.values()):
-                await session.send_text("서버가 종료됩니다. 연결이 곧 끊어집니다.")
+                await session.send_event(
+                    "서버가 종료됩니다. 연결이 곧 끊어집니다.", category="system"
+                )
                 await session.close("서버 종료")
 
             # 세션 정리
@@ -145,404 +156,282 @@ class TelnetServer:
             await self.remove_session(session.session_id, "연결 종료")
 
     async def send_welcome_message(self, session: TelnetSession) -> None:
-        """환영 메시지 전송
+        """접속 직후 서버 정보를 전송한다.
 
         Args:
             session: Telnet 세션
         """
-        # 버전 정보 가져오기
         version_manager = get_version_manager()
-        version_string = version_manager.get_version_string()
 
-        welcome_text = f"""
-{ANSIColors.BOLD}{ANSIColors.BRIGHT_CYAN}
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║        {ANSIColors.BRIGHT_YELLOW}The Chronicles of Karnas{ANSIColors.BRIGHT_CYAN}                            ║
-║        {ANSIColors.WHITE}: Divided Dominion{ANSIColors.BRIGHT_CYAN}                                    ║
-║        {ANSIColors.WHITE}카르나스 연대기: 분할된 지배권 {ANSIColors.BRIGHT_CYAN}        ║
-║                                                               ║
-║        {ANSIColors.DIM}Version: {version_string}{ANSIColors.BRIGHT_CYAN}                           ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
-{ANSIColors.RESET}
+        await session.send_message(
+            build(
+                "welcome",
+                protocol_version=PROTOCOL_VERSION,
+                server_version=version_manager.get_version_string(),
+                supported_locales=["en", "ko"],
+                title={
+                    "en": "The Chronicles of Karnas: Divided Dominion",
+                    "ko": "카르나스 연대기: 분할된 지배권",
+                },
+            )
+        )
 
-{ANSIColors.CYAN}Your adventure begins in a world turned to ruins and monster-infested wastelands,
-after suffering a crushing defeat in a war against an enigmatic sorcerer.
-
-정체를 알 수 없는 마법사와의 전쟁에서 대 패 한 후
-폐허와 괴물의 소굴로 변한 세상에서 당신의 모험이 시작됩니다.{ANSIColors.RESET}
-
-"""
-        await session.send_text(welcome_text)
-
-        # 공지사항 읽기 및 표시
         await self._send_announcements(session)
 
     async def _send_announcements(self, session: TelnetSession) -> None:
-        """공지사항 파일을 읽어서 표시
+        """공지사항 파일이 있으면 알림으로 전송한다.
 
         Args:
             session: Telnet 세션
         """
         try:
-            import os
             announcements_path = os.path.join("data", "announcements.txt")
 
-            if os.path.exists(announcements_path):
-                with open(announcements_path, 'r', encoding='utf-8') as f:
-                    announcements = f.read().strip()
-
-                if announcements:
-                    # 공지사항을 박스로 감싸서 표시
-                    announcement_text = f"""
-{ANSIColors.BRIGHT_YELLOW}
-╔═══════════════════════════════════════════════════════════════╗
-║                         공지사항 / NOTICE                      ║
-╚═══════════════════════════════════════════════════════════════╝
-{ANSIColors.RESET}
-
-{ANSIColors.WHITE}{announcements}{ANSIColors.RESET}
-
-{ANSIColors.BRIGHT_YELLOW}═══════════════════════════════════════════════════════════════{ANSIColors.RESET}
-
-"""
-                    await session.send_text(announcement_text)
-                else:
-                    logger.debug("공지사항 파일이 비어있습니다")
-            else:
+            if not os.path.exists(announcements_path):
                 logger.debug(f"공지사항 파일을 찾을 수 없습니다: {announcements_path}")
+                return
+
+            with open(announcements_path, "r", encoding="utf-8") as f:
+                announcements = f.read().strip()
+
+            if not announcements:
+                logger.debug("공지사항 파일이 비어있습니다")
+                return
+
+            # 본문의 개행은 json.dumps 가 \n 으로 이스케이프하므로 라인 경계를
+            # 깨뜨리지 않는다. 줄바꿈 표시는 클라이언트가 판단한다.
+            await session.send_event(announcements, category="system")
 
         except Exception as e:
             logger.error(f"공지사항 읽기 실패: {e}")
-            # 공지사항 읽기 실패해도 게임 진행에는 영향 없음
+            # 공지사항 실패는 접속 흐름에 영향을 주지 않는다
 
     async def handle_authentication(self, session: TelnetSession) -> bool:
-        """인증 처리
+        """login 메시지를 받아 인증을 처리한다.
+
+        같은 연결에서 연속 실패가 상한에 도달하면 연결을 종료한다.
 
         Args:
             session: Telnet 세션
 
         Returns:
-            bool: 인증 성공 여부
+            인증 성공 여부
         """
-        max_attempts = 3
         attempts = 0
 
-        while attempts < max_attempts:
+        while attempts < MAX_LOGIN_ATTEMPTS:
             try:
-                await session.send_text("")
-                await session.send_info("1. Login / 로그인")
-                await session.send_info("2. Register / 회원가입")
-                await session.send_info("3. Quit / 종료")
-                await session.send_text("")
-                await session.send_prompt("Choice / 선택> ")
-
-                choice = await session.read_line(timeout=60.0)
-
-                if not choice:
-                    localization = get_localization_manager()
-                    # 로그인 전이므로 기본 언어 사용
-                    timeout_msg = localization.get_message("system.input_timeout", "en")
-                    await session.send_error(timeout_msg)
-                    return False
-
-                choice = choice.lower().strip()
-
-                if choice in ['3', 'quit', 'exit', 'q']:
-                    await session.send_text("Goodbye! / 안녕히 가세요!")
-                    return False
-
-                if choice in ['1', 'login', 'l']:
-                    if await self.handle_login(session):
-                        return True
-                elif choice in ['2', 'register', 'r']:
-                    if await self.handle_register(session):
-                        # 회원가입 후 자동 로그인
-                        return True
-                else:
-                    await session.send_error("Invalid choice. Please enter 1, 2, or 3. / 잘못된 선택입니다. 1, 2, 또는 3을 입력하세요.")
-
-                attempts += 1
-
-            except AuthenticationError as e:
-                await session.send_error(str(e))
-                attempts += 1
+                message = await session.read_message(timeout=AUTH_TIMEOUT)
             except Exception as e:
-                logger.error(f"인증 처리 중 오류: {e}", exc_info=True)
-                localization = get_localization_manager()
-                auth_error_msg = localization.get_message("system.auth_error", "ko")
-                await session.send_error(auth_error_msg)
+                logger.error(f"인증 메시지 수신 오류: {e}", exc_info=True)
                 return False
 
-        localization = get_localization_manager()
-        max_attempts_msg = localization.get_message("system.max_attempts_exceeded", "ko")
-        await session.send_error(max_attempts_msg)
+            if message is None:
+                logger.debug(f"세션 {session.session_id}: 인증 대기 중 연결 종료")
+                return False
+
+            msg_type = message["type"]
+            seq = message.get("seq")
+
+            if msg_type == "ping":
+                await self._send_pong(session, seq)
+                continue
+
+            if msg_type == "client_info":
+                logger.info(f"클라이언트 정보: {message.get('client')}")
+                continue
+
+            if msg_type != "login":
+                # 인증 전에는 login 외의 메시지를 허용하지 않는다
+                await session.send_protocol_error(
+                    "NOT_AUTHENTICATED",
+                    f"{msg_type} requires authentication",
+                    seq,
+                )
+                continue
+
+            if await self.handle_login(session, message):
+                return True
+
+            attempts += 1
+
+        logger.warning(
+            f"세션 {session.session_id}: 로그인 실패 {MAX_LOGIN_ATTEMPTS}회로 연결 종료"
+        )
         return False
 
-    async def handle_login(self, session: TelnetSession) -> bool:
-        """로그인 처리
+    async def handle_login(
+        self, session: TelnetSession, message: Dict[str, Any]
+    ) -> bool:
+        """login 메시지를 처리하고 login_result 를 응답한다.
 
         Args:
             session: Telnet 세션
+            message: login 메시지
 
         Returns:
-            bool: 로그인 성공 여부
+            로그인 성공 여부
         """
-        await session.send_text("")
-        await session.send_info("=== Login / 로그인 ===")
-        await session.send_prompt("Username / 사용자명: ")
-        username = await session.read_line(timeout=60.0)
+        seq = message.get("seq")
+        username = message.get("username")
+        password = message.get("password")
 
-        if not username:
-            await session.send_error("Username not entered. / 사용자명을 입력하지 않았습니다.")
-            return False
-
-        # 패스워드 입력 시 에코 비활성화
-        await session.disable_echo()
-        await session.send_prompt("Password / 비밀번호: ")
-        password = await session.read_line(timeout=60.0)
-        await session.enable_echo()
-        await session.send_text("")  # 줄바꿈 추가
-
-        if not password:
-            await session.send_error("Password not entered. / 비밀번호를 입력하지 않았습니다.")
+        if not isinstance(username, str) or not isinstance(password, str):
+            await self._send_login_failure(session, seq)
             return False
 
         try:
-            logger.info(f"🔐 Telnet 로그인 시도: 사용자명='{username}', IP={session.ip_address}")
+            logger.info(
+                f"🔐 로그인 시도: 사용자명='{username}', IP={session.ip_address}"
+            )
             player = await self.player_manager.authenticate(username, password)
-
-            # 기존 세션이 있다면 종료
-            if player.id in self.player_sessions:
-                old_session_id = self.player_sessions[player.id]
-                if old_session_id in self.sessions:
-                    old_session = self.sessions[old_session_id]
-                    await old_session.send_text("다른 위치에서 로그인하여 연결이 종료됩니다.")
-                    await self.remove_session(old_session_id, "중복 로그인")
-
-            # 세션 인증
-            session.authenticate(player)
-            self.player_sessions[player.id] = session.session_id
-
-            # 세션의 locale을 플레이어의 preferred_locale로 설정
-            session.locale = player.preferred_locale
-
-            # 다국어 환영 메시지
-            from ..core.localization import get_localization_manager
-            localization = get_localization_manager()
-            welcome_msg = localization.get_message("auth.login_success", session.locale, username=player.get_display_name())
-
-            await session.send_success(welcome_msg)
-
-            # 선호 언어 설정 표시
-            language_name = "English" if session.locale == "en" else "한국어"
-            language_info = localization.get_message("auth.language_preference", session.locale, language=language_name)
-            await session.send_message({
-                "type": "system_message",
-                "message": language_info
-            })
-
-            logger.info(f"✅ Telnet 로그인 성공: 사용자명='{username}', 플레이어ID={player.id}")
-
-            # 플레이어 세션 로그 설정
-            self.player_session_logger.setup_player_logger(
-                player_id=player.id,
-                player_username=player.username,
-                session_id=session.session_id,
-                ip_address=session.ip_address or "unknown",
-            )
-
-            # 게임 엔진에 세션 추가
-            if self.game_engine:
-                await self.game_engine.add_player_session(session, player)
-
-                # 전투 복귀 시도
-                if await self.game_engine.try_rejoin_combat(session):
-                    logger.info(f"플레이어 {username} 전투 복귀 성공")
-
-
-            return True
-
         except AuthenticationError as e:
-            logger.warning(f"❌ Telnet 인증 실패: IP={session.ip_address}, 오류='{str(e)}'")
-            await session.send_error(str(e))
+            # 사용자명 존재 여부를 구분하지 않는다. 계정 열거 공격을 막기 위한 조치다.
+            logger.warning(f"❌ 인증 실패: IP={session.ip_address}, 오류='{e}'")
+            await self._send_login_failure(session, seq)
             return False
 
-    async def handle_register(self, session: TelnetSession) -> bool:
-        """회원가입 처리
-
-        Args:
-            session: Telnet 세션
-
-        Returns:
-            bool: 회원가입 성공 여부
-        """
-        await session.send_text("")
-        await session.send_info("=== Register / 회원가입 ===")
-        await session.send_prompt("Username (3-20 chars, no spaces) / 사용자명 (3-20자, 공백 불가): ")
-        username = await session.read_line(timeout=60.0)
-
-        if not username:
-            await session.send_error("Username not entered. / 사용자명을 입력하지 않았습니다.")
-            return False
-
-        # 사용자명 검증: 공백 불허
-        if ' ' in username:
-            await session.send_error("Username cannot contain spaces. / 사용자명에 공백을 사용할 수 없습니다.")
-            return False
-
-        # 사용자명 길이 검증
-        if len(username) < 3 or len(username) > 20:
-            await session.send_error("Username must be 3-20 characters. / 사용자명은 3-20자여야 합니다.")
-            return False
-
-        # 금지 단어 검증
-        forbidden_words = ['test', 'player', 'admin', 'gm', 'moderator', 'system', 'server', 'npc', 'bot']
-        username_lower = username.lower()
-        for word in forbidden_words:
-            if word in username_lower:
-                await session.send_error(
-                    f"Username cannot contain '{word}'. / 사용자명에 '{word}'을(를) 포함할 수 없습니다."
+        # 같은 계정의 기존 세션이 있으면 종료한다
+        if player.id in self.player_sessions:
+            old_session_id = self.player_sessions[player.id]
+            old_session = self.sessions.get(old_session_id)
+            if old_session:
+                await old_session.send_event(
+                    "다른 위치에서 로그인하여 연결이 종료됩니다.", category="system"
                 )
-                return False
+                await self.remove_session(old_session_id, "중복 로그인")
 
-        # 패스워드 입력 시 에코 비활성화
-        await session.disable_echo()
-        await session.send_prompt("Password (min 6 chars) / 비밀번호 (최소 6자): ")
-        password = await session.read_line(timeout=60.0)
-        await session.send_text("")  # 줄바꿈 추가
+        session.authenticate(player)
+        self.player_sessions[player.id] = session.session_id
+        session.locale = player.preferred_locale
 
-        if not password:
-            await session.enable_echo()
-            await session.send_error("Password not entered. / 비밀번호를 입력하지 않았습니다.")
-            return False
-
-        await session.send_prompt("Confirm password / 비밀번호 확인: ")
-        password_confirm = await session.read_line(timeout=60.0)
-        await session.enable_echo()
-        await session.send_text("")  # 줄바꿈 추가
-
-        if password != password_confirm:
-            await session.send_error("비밀번호가 일치하지 않습니다.")
-            return False
-
-        try:
-            logger.info(f"🆕 Telnet 회원가입 시도: 사용자명='{username}', IP={session.ip_address}")
-            player = await self.player_manager.create_account(username, password)
-
-            # 자동 로그인
-            session.authenticate(player)
-            self.player_sessions[player.id] = session.session_id
-
-            # 게임 엔진에 세션 추가
-            if self.game_engine:
-                await self.game_engine.add_player_session(session, player)
-
-            await session.send_success(f"계정 '{username}'이(가) 생성되었습니다!")
-            await session.send_success("자동으로 로그인되었습니다.")
-            logger.info(f"✅ Telnet 회원가입 성공: 사용자명='{username}', 플레이어ID={player.id}")
-
-            # Discord 웹훅 알림 (실패해도 가입 흐름에 영향 없음)
-            asyncio.create_task(
-                notify_new_registration(username, session.ip_address or "unknown")
+        await session.send_message(
+            build(
+                "login_result",
+                seq=seq,
+                success=True,
+                player={
+                    "id": player.id,
+                    "username": player.username,
+                    "display_name": player.get_display_name(),
+                    # SQLite 는 boolean 을 정수로 저장하므로 계약대로 bool 로 맞춘다
+                    "is_admin": bool(player.is_admin),
+                    "faction_id": player.faction_id,
+                },
             )
+        )
 
-            # 플레이어 세션 로그 설정
-            self.player_session_logger.setup_player_logger(
-                player_id=player.id,
-                player_username=player.username,
-                session_id=session.session_id,
-                ip_address=session.ip_address or "unknown",
+        logger.info(
+            f"✅ 로그인 성공: 사용자명='{username}', 플레이어ID={player.id}"
+        )
+
+        self.player_session_logger.setup_player_logger(
+            player_id=player.id,
+            player_username=player.username,
+            session_id=session.session_id,
+            ip_address=session.ip_address or "unknown",
+        )
+
+        if self.game_engine:
+            await self.game_engine.add_player_session(session, player)
+
+            if await self.game_engine.try_rejoin_combat(session):
+                logger.info(f"플레이어 {username} 전투 복귀 성공")
+
+        return True
+
+    async def _send_login_failure(
+        self, session: TelnetSession, seq: Optional[int]
+    ) -> None:
+        """로그인 실패 응답. 사유를 세분화하지 않는다."""
+        await session.send_message(
+            build(
+                "login_result",
+                seq=seq,
+                success=False,
+                reason_code="INVALID_CREDENTIALS",
+                message=message_payload("auth.login_failed"),
             )
+        )
 
-            return True
-
-        except Exception as e:
-            logger.error(f"❌ Telnet 회원가입 실패: {e}", exc_info=True)
-            await session.send_error(f"회원가입 실패: {e}")
-            return False
+    async def _send_pong(
+        self, session: TelnetSession, seq: Optional[int]
+    ) -> None:
+        """ping 에 응답한다."""
+        await session.send_message(
+            build("pong", seq=seq, server_time=datetime.now().isoformat())
+        )
 
     async def game_loop(self, session: TelnetSession) -> None:
-        """게임 메인 루프
+        """인증된 세션의 메시지 수신 루프
 
         Args:
             session: Telnet 세션
         """
-        # 다국어 게임 입장 메시지
-        from ..core.localization import get_localization_manager
-        localization = get_localization_manager()
-
-        await session.send_text("")
-        game_entered_msg = localization.get_message("game.entered", session.locale)
-        await session.send_info(game_entered_msg)
-        await session.send_text("")
-
         while session.is_active():
             try:
-                # 프롬프트 표시
-                await session.send_prompt("> ")
+                message = await session.read_message(timeout=SESSION_TIMEOUT)
 
-                # 명령어 입력 대기
-                command = await session.read_line(timeout=300.0)
-
-                if command is None:
-                    # 타임아웃 또는 연결 종료
-                    logger.debug(f"Telnet 세션 {session.session_id}: read_line returned None")
+                if message is None:
+                    logger.debug(
+                        f"세션 {session.session_id}: 연결 종료 또는 수신 타임아웃"
+                    )
                     break
 
-                # 빈 문자열인 경우 (Telnet 프로토콜 바이트만 있었던 경우) 무시하고 계속
-                if command == "":
-                    continue
-
-                # 명령어 처리
-                await self.handle_game_command(session, command)
+                if not await self.handle_client_message(session, message):
+                    break
 
             except asyncio.CancelledError:
                 logger.info(f"Telnet 세션 {session.session_id} 게임 루프 취소됨")
                 break
             except Exception as e:
-                logger.error(f"Telnet 세션 {session.session_id} 게임 루프 오류: {e}", exc_info=True)
-                await session.send_error("명령어 처리 중 오류가 발생했습니다.")
+                logger.error(
+                    f"Telnet 세션 {session.session_id} 게임 루프 오류: {e}",
+                    exc_info=True,
+                )
+                await session.send_protocol_error(
+                    "INTERNAL_ERROR", "message handling failed"
+                )
 
-    async def handle_game_command(self, session: TelnetSession, command: str) -> None:
-        """게임 명령어 처리
+    async def handle_client_message(
+        self, session: TelnetSession, message: Dict[str, Any]
+    ) -> bool:
+        """인증된 세션의 메시지 한 건을 처리한다.
 
         Args:
             session: Telnet 세션
-            command: 명령어 문자열
+            message: 봉투 검증을 통과한 메시지
+
+        Returns:
+            연결을 유지하면 True, 종료해야 하면 False
         """
-        command = command.strip()
+        msg_type = message["type"]
+        seq = message.get("seq")
 
-        if not command:
-            return
+        if msg_type == "ping":
+            await self._send_pong(session, seq)
+            return True
 
-        logger.info(f"🎮 Telnet 명령어 입력: 플레이어='{session.player.username}', 명령어='{command}'")
+        if msg_type == "logout":
+            await session.send_message(
+                build("logout_result", seq=seq, success=True)
+            )
+            await session.close("클라이언트 요청으로 로그아웃")
+            return False
 
-        # 플레이어 세션 로그에 명령어 기록
-        if session.player:
-            self.player_session_logger.log_command(session.player.id, command)
+        if msg_type == "client_info":
+            logger.info(f"클라이언트 정보: {message.get('client')}")
+            return True
 
-        # 종료 명령어
-        if command.lower() in ['quit', 'exit', 'logout']:
-            from ..core.localization import get_localization_manager
+        if msg_type in ("action", "chat"):
+            # 액션 디스패처는 server-json-protocol Task 4에서 도입한다.
+            # 그때까지 게임 액션은 처리되지 않는다.
+            logger.warning(f"아직 디스패처가 없는 메시지 무시: {msg_type}")
+            return True
 
-            localization = get_localization_manager()
-            locale = getattr(session.player, 'preferred_locale', 'en') if session.player else 'en'
-
-            message = localization.get_message("quit.message", locale)
-            await session.send_success(message)
-            await session.close("플레이어 요청으로 종료")
-            return
-
-        # 게임 엔진에 명령어 처리 위임
-        if self.game_engine:
-            result = await self.game_engine.handle_player_command(session, command)
-
-            # 결과 메시지 전송 (게임 엔진에서 이미 전송했을 수 있음)
-            # 필요시 추가 처리
-        else:
-            await session.send_error("게임 엔진이 초기화되지 않았습니다.")
+        # 계약에 없는 type 은 무시한다. 상위 버전 클라이언트와의 호환을 위한 규칙이다.
+        logger.warning(f"알 수 없는 메시지 타입 무시: {msg_type}")
+        return True
 
     async def remove_session(self, session_id: str, reason: str = "세션 종료") -> bool:
         """세션 제거

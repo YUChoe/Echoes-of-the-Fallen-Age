@@ -32,8 +32,18 @@ class TelnetTransport:
     def is_closing(self) -> bool:
         return self.writer.is_closing()
 
-    async def send_text(self, text: str, newline: bool = True) -> bool:
-        """클라이언트에게 텍스트 전송."""
+    async def send_line(self, payload: bytes) -> bool:
+        """개행으로 종결된 JSON 라인을 그대로 전송한다.
+
+        페이로드를 가공하지 않는다. 개행 치환이나 프롬프트 개념은 라인 프로토콜에서
+        라인 경계를 깨뜨리므로 존재하지 않는다.
+
+        Args:
+            payload: `serialization.encode_line()` 이 만든 바이트열
+
+        Returns:
+            전송 성공 여부
+        """
         try:
             if self.writer.is_closing():
                 logger.warning(
@@ -41,44 +51,13 @@ class TelnetTransport:
                 )
                 return False
 
-            # 텍스트 인코딩 및 전송 (중간에 들어간 행변환 처리)
-            text = text.replace("\r", "\n").replace("\n\n", "\n")
-            if newline:
-                text += "\n"
-
-            self.writer.write(text.encode("utf-8"))
+            self.writer.write(payload)
             await self.writer.drain()
             self._on_activity()
             return True
         except Exception as e:
-            logger.error(f"Telnet 세션 {self.session_id} 텍스트 전송 실패: {e}")
+            logger.error(f"Telnet 세션 {self.session_id} 라인 전송 실패: {e}")
             return False
-
-    async def send_prompt(self, prompt: str = "> ") -> bool:
-        """프롬프트 전송 (줄바꿈 없음)."""
-        return await self.send_text(prompt, newline=False)
-
-    async def disable_echo(self) -> None:
-        """클라이언트 에코 비활성화 (패스워드 입력용)."""
-        IAC = bytes([255])
-        WILL = bytes([251])
-        ECHO = bytes([1])
-        try:
-            self.writer.write(IAC + WILL + ECHO)
-            await self.writer.drain()
-        except Exception as e:
-            logger.debug(f"에코 비활성화 오류 (무시됨): {e}")
-
-    async def enable_echo(self) -> None:
-        """클라이언트 에코 활성화 (일반 입력용)."""
-        IAC = bytes([255])
-        WONT = bytes([252])
-        ECHO = bytes([1])
-        try:
-            self.writer.write(IAC + WONT + ECHO)
-            await self.writer.drain()
-        except Exception as e:
-            logger.debug(f"에코 활성화 오류 (무시됨): {e}")
 
     async def read_line(self, timeout: Optional[float] = None) -> Optional[str]:
         """클라이언트로부터 한 줄 읽기 (백스페이스/IAC 처리 포함)."""
@@ -165,10 +144,13 @@ class TelnetTransport:
             return None
 
     async def close(self, message: str = "Connection closed") -> None:
-        """Telnet 연결 종료."""
+        """Telnet 연결 종료.
+
+        종료 사유를 소켓에 쓰지 않는다. 자유 텍스트는 라인 프로토콜의 계약을
+        위반하므로, 사유를 알려야 하는 경우 호출자가 먼저 구조화 메시지를 보낸다.
+        """
         try:
             if not self.writer.is_closing():
-                await self.send_text(f"\r\n{message}\r\n")
                 self.writer.close()
                 await self.writer.wait_closed()
                 logger.info(

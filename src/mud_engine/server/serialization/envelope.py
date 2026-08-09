@@ -13,6 +13,9 @@ from typing import Any, Optional
 # 라인 하나의 최대 길이. 계약과 하니스가 같은 값을 쓴다.
 MAX_LINE_BYTES = 256 * 1024
 
+# 프로토콜 계약 버전. welcome 메시지로 클라이언트에 알린다.
+PROTOCOL_VERSION = 1
+
 
 def build(message_type: str, seq: Optional[int] = None, **fields: Any) -> dict[str, Any]:
     """봉투를 만든다.

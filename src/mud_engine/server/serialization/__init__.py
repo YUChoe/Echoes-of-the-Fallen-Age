@@ -21,6 +21,7 @@ from .entity import (
 )
 from .envelope import (
     MAX_LINE_BYTES,
+    PROTOCOL_VERSION,
     action_rejected,
     build,
     encode,
@@ -43,6 +44,7 @@ from .room import (
 
 __all__ = [
     "MAX_LINE_BYTES",
+    "PROTOCOL_VERSION",
     "UNKNOWN_ROOM_TYPE",
     "action_rejected",
     "build",

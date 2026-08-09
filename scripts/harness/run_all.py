@@ -19,7 +19,7 @@ import argparse
 import socket
 import sys
 
-from . import scenario_framing
+from . import scenario_auth, scenario_framing
 from .client import DEFAULT_PORT
 from .result import RunSummary, ScenarioResult
 
@@ -83,8 +83,22 @@ def main() -> int:
         scenario_framing.run_roundtrip(framing_net, port=args.port)
     summary.add(framing_net)
 
-    # 3. 프로토콜 전환 후 추가될 시나리오
-    #    auth, room, action 시나리오는 server-json-protocol Task 9.3에서 작성한다.
+    # 3. 인증과 봉투 검증
+    print()
+    print("[인증 시나리오]")
+    auth = ScenarioResult("auth")
+    if args.unit_only:
+        auth.skip("인증 시나리오", "--unit-only 지정")
+    elif not server_up:
+        auth.skip(
+            "인증 시나리오",
+            f"{args.host}:{args.port} 에 접속할 수 없다. 서버를 먼저 기동하십시오",
+        )
+    else:
+        scenario_auth.run(auth, port=args.port)
+    summary.add(auth)
+
+    # 4. 액션 시나리오는 server-json-protocol Task 4 이후에 추가한다.
 
     summary.report()
     return summary.exit_code

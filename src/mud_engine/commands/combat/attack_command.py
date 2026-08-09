@@ -11,7 +11,6 @@ from ...core.localization import get_localization_manager
 from ...game.monster import Monster
 from ...game.combat import CombatAction, CombatInstance, Combatant
 from ...game.combat_handler import CombatHandler
-from ...server.ansi_colors import ANSIColors
 from ..Basic import LookCommand
 
 logger = logging.getLogger(__name__)
@@ -137,7 +136,7 @@ class AttackCommand(BaseCommand):
         monster_name = target_monster.get_localized_name(locale)
         msg = "\n".join([
             "",
-            f"{ANSIColors.RED}{self.I18N.get_message('combat.start', locale, monster=monster_name)}{ANSIColors.RESET}",
+            self.I18N.get_message('combat.start', locale, monster=monster_name),
             "",
         ])
         await self.combat_handler.send_broadcast_combat_message(combat, msg)

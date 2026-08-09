@@ -235,6 +235,8 @@ flowchart TD
 | max_stack 데이터 정리 | 범위 외. 부피 있는 물건에 스택이 붙어 있다(건초 더미 5kg=3, 밧줄 1.5kg=5, 횃불 0.5kg=10, 빈 병 5, 말굽 5). 체력 물약은 5와 20으로 불일치하고 무게도 0.30/0.60으로 갈린다. 어드민 기능 준비 후 정리 |
 | category 분류 정리 | 범위 외. 101건 중 97건이 `misc`이며 `consumable` 1건, `currency` 2건, `readable` 1건뿐이다. 클라이언트 카테고리 필터가 실질적으로 동작하려면 분류가 필요하다 |
 | room_connections 조회를 매니저로 이전 | 차후 개발. 현재 `commands/Basic/enter.py::_get_room_connection()`이 매니저를 거치지 않고 `SELECT to_x, to_y FROM room_connections`를 직접 실행한다. `has_passage` 산출에도 같은 조회가 필요해 중복이 생긴다. `RoomManager`에 조회 메서드를 만들어 양쪽이 공유하는 것이 구조상 맞으며, 명령어를 액션 핸들러로 옮기는 Task 4 시점에 함께 정리한다. 그때까지는 호출부가 조회해 직렬화 계층에 인자로 전달한다 |
+| 계약 밖 메시지 타입 정리 | 서버 Task 4·6. JSON 송신 전환(Task 3) 이후에도 계약에 없는 `type` 25종이 남아 있다: `system_message`(11), `room_message`(8), `combat_message`(4), `object_update`, `info`, `success`, `whisper_received`, `tutorial_announcement`, `room_updated`, `room_players_update`, `room_chat_message`, `private_message`, `object_created`, `moving message`, `movement`, `kicked`, `item_received`, `inventory_update`, `follow_stopped`, `combat_rejoin`, `chat_message`, `broadcast_message`, `being_followed`, `admin_action`. 계약의 "알 수 없는 type은 무시" 규칙에 의해 클라이언트가 버리므로 통신은 깨지지 않으나 해당 알림이 전달되지 않는다. 액션 응답은 Task 4, 알림은 Task 6에서 `event`·`entity_update`로 흡수한다 |
+| `event` 과도기 필드 제거 | 서버 Task 6. `TelnetSession.send_event()`가 계약에 없는 `text`와 `severity`를 싣는다. 번역 키 전환 전까지 완성 문장을 전달하기 위한 조치이며, 483곳 번역 호출을 키 방식으로 바꿀 때 `message.key`/`params`로 대체하고 두 필드를 제거한다 |
 | 역할 기반 어드민 권한 | 범위 외. 향후 확장 |
 | 한국어 조사 자동 선택 | 범위 외. 향후 개선 |
 | Telnet IAC 협상 제거 | 범위 외. 향후 후보 |

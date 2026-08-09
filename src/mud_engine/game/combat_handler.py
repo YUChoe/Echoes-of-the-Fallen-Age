@@ -16,7 +16,6 @@ from .combat import (
 from .combat_manager import CombatManager
 from .monster import Monster, MonsterType
 from .models import Player, GameObject
-from ..server.ansi_colors import ANSIColors
 from ..core.localization import get_localization_manager
 from uuid import uuid4
 
@@ -262,9 +261,9 @@ class CombatHandler:
                 a_name = self._get_combatant_name(actor, loc)
                 t_name = self._get_combatant_name(target, loc)
                 w_name = _weapon_name_cache.get(loc, _weapon_name_cache.get("en", ""))
-                msg = f"{ANSIColors.RED}{I18N.get_message('combat.attack_swing', loc, actor=a_name, target=t_name, weapon=w_name)}\n"
+                msg = f"{I18N.get_message('combat.attack_swing', loc, actor=a_name, target=t_name, weapon=w_name)}\n"
                 msg += f"{I18N.get_message('combat.roll_info', loc, roll=attack_roll, ac=target_ac)}\n"
-                msg += f"{I18N.get_message('combat.miss', loc)}{ANSIColors.RESET}"
+                msg += I18N.get_message('combat.miss', loc)
                 return msg
 
             await self.send_broadcast_combat_message_localized(combat, build_miss_msg)
@@ -309,7 +308,7 @@ class CombatHandler:
             a_name = self._get_combatant_name(actor, loc)
             t_name = self._get_combatant_name(target, loc)
             w_name = _weapon_name_cache2.get(loc, _weapon_name_cache2.get("en", ""))
-            msg = f"{ANSIColors.RED}{I18N.get_message('combat.attack_swing', loc, actor=a_name, target=t_name, weapon=w_name)}\n"
+            msg = f"{I18N.get_message('combat.attack_swing', loc, actor=a_name, target=t_name, weapon=w_name)}\n"
             msg += f"{I18N.get_message('combat.roll_info_dice', loc, dice=damage_dice, roll=attack_roll, ac=target_ac)}\n"
             if is_critical:
                 msg += I18N.get_message("combat.critical_hit", loc, target=t_name, damage=actual_damage)
@@ -317,7 +316,6 @@ class CombatHandler:
                 msg += I18N.get_message("combat.hit", loc, target=t_name, damage=actual_damage)
             if _is_defending:
                 msg += I18N.get_message("combat.defending_reduction", loc)
-            msg += ANSIColors.RESET
             return msg
 
         await self.send_broadcast_combat_message_localized(combat, build_hit_msg)
@@ -326,7 +324,7 @@ class CombatHandler:
         if not target.is_alive():
             def build_death_msg(loc: str) -> str:
                 t_name = self._get_combatant_name(target, loc)
-                return f"{ANSIColors.RED}{I18N.get_message('combat.death', loc, name=t_name)}{ANSIColors.RESET}"
+                return I18N.get_message('combat.death', loc, name=t_name)
 
             await self.send_broadcast_combat_message_localized(combat, build_death_msg)
             await self._handle_death(combat, target)
@@ -534,7 +532,7 @@ class CombatHandler:
 
             return {
                 "success": True,
-                "message": f"{ANSIColors.RED}{message}{ANSIColors.RESET}",
+                "message": message,
                 "fled": True,
             }
         else:
@@ -542,7 +540,7 @@ class CombatHandler:
 
             return {
                 "success": True,
-                "message": f"{ANSIColors.RED}{message}{ANSIColors.RESET}",
+                "message": message,
                 "fled": False,
             }
 
@@ -571,7 +569,6 @@ class CombatHandler:
 
         return {
             "success": True,
-            # "message": f"{ANSIColors.RED}{message}{ANSIColors.RESET}",
             "message": ""
         }
 

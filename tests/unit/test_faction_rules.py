@@ -2,13 +2,13 @@
 종족 관계 판정 규칙 단위 테스트
 
 faction_rules 모듈은 telnet_session.py 의 _is_friendly_faction 과
-_is_neutral_faction 규칙을 옮긴 것이다. 이동 전후 동작이 같아야 한다.
+_is_neutral_faction 규칙을 옮긴 것이다. 원본 메서드는 프레젠터 제거 단계에서
+사라졌으므로, 여기서는 옮겨온 규칙의 기대값을 명시해 고정한다.
 """
 
 import pytest
 
 from src.mud_engine.game import faction_rules
-from src.mud_engine.server.telnet_session import TelnetSession
 
 # (player_faction, target_faction) 조합
 _CASES = [
@@ -25,26 +25,39 @@ _CASES = [
     ("unknown_faction", "unknown_faction"),
 ]
 
+# (player_faction, target_faction, is_friendly, is_neutral)
+# 원본 규칙: 같은 종족이면 우호, ash_knights 에게 animals 만 중립, 그 밖은 모두 거짓
+_EXPECTED = [
+    ("ash_knights", "ash_knights", True, False),
+    ("ash_knights", "animals", False, True),
+    ("ash_knights", "wild", False, False),
+    ("ash_knights", None, False, False),
+    ("ash_knights", "", False, False),
+    ("wild", "wild", True, False),
+    ("wild", "ash_knights", False, False),
+    ("wild", "animals", False, False),
+    ("wild", None, False, False),
+    ("unknown_faction", "animals", False, False),
+    ("unknown_faction", "unknown_faction", True, False),
+]
 
-class TestBehaviourPreservation:
-    """기존 세션 계층 구현과 동일한 결과를 내는지 확인"""
 
-    @pytest.mark.parametrize(("player_faction", "target_faction"), _CASES)
-    def test_friendly_matches_session_implementation(self, player_faction, target_faction):
-        """우호 판정이 기존 구현과 일치한다"""
-        # 두 메서드는 self 를 사용하지 않으므로 언바운드로 호출할 수 있다
-        expected = TelnetSession._is_friendly_faction(None, player_faction, target_faction)
-        actual = faction_rules.is_friendly(player_faction, target_faction)
+class TestPreservedRules:
+    """세션 계층에서 옮겨온 판정 규칙"""
 
-        assert actual == expected
+    @pytest.mark.parametrize(
+        ("player_faction", "target_faction", "expected", "_unused"), _EXPECTED
+    )
+    def test_friendly(self, player_faction, target_faction, expected, _unused):
+        """우호 판정이 원본 규칙과 같다"""
+        assert faction_rules.is_friendly(player_faction, target_faction) is expected
 
-    @pytest.mark.parametrize(("player_faction", "target_faction"), _CASES)
-    def test_neutral_matches_session_implementation(self, player_faction, target_faction):
-        """중립 판정이 기존 구현과 일치한다"""
-        expected = TelnetSession._is_neutral_faction(None, player_faction, target_faction)
-        actual = faction_rules.is_neutral(player_faction, target_faction)
-
-        assert actual == expected
+    @pytest.mark.parametrize(
+        ("player_faction", "target_faction", "_unused", "expected"), _EXPECTED
+    )
+    def test_neutral(self, player_faction, target_faction, _unused, expected):
+        """중립 판정이 원본 규칙과 같다"""
+        assert faction_rules.is_neutral(player_faction, target_faction) is expected
 
 
 class TestGetDisposition:

@@ -49,20 +49,20 @@
   - `room_info`에 `has_passage`를 포함한다. 현재 좌표에 `room_connections` 항목이 있는지 조회한 결과이며, 클라이언트가 진입 버튼 표시 여부를 판단하는 근거다. `commands/Basic/enter.py`가 사용하는 조회를 재사용한다.
   - _Requirements: 2.3, 2.4_
 
-- [ ] 3. JSON 송신 전환 및 프레젠터 제거
-- [ ] 3.1 send_message를 JSON 라인 송신으로 교체
+- [x] 3. JSON 송신 전환 및 프레젠터 제거
+- [x] 3.1 send_message를 JSON 라인 송신으로 교체
   - `telnet_session.py::send_message()`가 직렬화 계층을 통해 JSON 라인을 내보내도록 바꾼다. `send_text()` 자유 텍스트 경로를 제거한다.
   - _Requirements: 1.1, 1.2, 1.3_
-- [ ] 3.2 프레젠터 제거
+- [x] 3.2 프레젠터 제거
   - `_format_message()`, `_format_room_info()`, `_is_friendly_faction()`, `_is_neutral_faction()`을 제거한다. `server/ansi_colors.py`를 제거하고 참조 임포트를 정리한다.
   - _Requirements: 2.1, 2.2, 2.7_
-- [ ] 3.3 미니맵 텍스트 조립 제거
+- [x] 3.3 미니맵 텍스트 조립 제거
   - `player_movement_manager.py::_generate_minimap()`을 제거하고 `room_info`의 `nearby_rooms`로 대체한다.
   - _Requirements: 2.4_
-- [ ] 3.4 수신 경로에 JSON 파싱 도입
+- [x] 3.4 수신 경로에 JSON 파싱 도입
   - 라인 → UTF-8 디코딩 → `json.loads` → 봉투 검증 순서를 구현한다. 파싱 실패 시 `error(MALFORMED_MESSAGE)`, 알 수 없는 `type`은 무시 + 경고 로그로 처리한다.
   - _Requirements: 1.4, 1.5, 1.7_
-- [ ] 3.5 인증 흐름을 메시지 기반으로 전환
+- [x] 3.5 인증 흐름을 메시지 기반으로 전환
   - 텍스트 메뉴(1 로그인 / 2 회원가입 / 3 종료) 대화형 인증을 제거하고 `login` 메시지로 대체한다. `welcome` 송신을 추가한다. 회원가입 흐름을 제거한다. 로그인 실패 응답에서 사용자명 존재 여부를 구분하지 않는다.
   - _Requirements: 8.6, 8.7_
 

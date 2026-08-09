@@ -7,6 +7,15 @@ from datetime import datetime
 
 from ..event_bus import Event, EventType
 from ..types import SessionType
+from ...server.serialization import (
+    build_room_info,
+    serialize_monster,
+    serialize_object,
+    serialize_player,
+)
+
+# 미니맵 렌더링용 주변 방 조회 반경 (칸)
+MINIMAP_RADIUS = 2
 
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
@@ -211,110 +220,79 @@ class PlayerMovementManager:
                 for num, info in entity_map.items():
                     logger.info(f"entity_map {num}: {info['type']} - {info['name']} (ID: {info['id'][-12:]})")
 
-                room_data = {
-                    "id": room_info['room'].id,
-                    "description": room_info['room'].get_localized_description(locale),
-                    "exits": room_info['exits'],
-                    "objects": [
-                        {
-                            "id": obj.id,
-                            "name": obj.get_localized_name(locale),
-                            "type": "item"  # object_type 제거됨, 기본값 사용
-                        }
-                        for obj in room_info['objects']
-                    ],
-                    "grouped_objects": room_info.get('grouped_objects', []),  # 그룹화된 오브젝트 추가
-                    "monsters": [
-                        {
-                            "id": monster.id,
-                            "name": monster.get_localized_name(locale),
-                            "current_hp": monster.current_hp,
-                            "max_hp": monster.max_hp,
-                            "faction_id": monster.faction_id,
-                            "monster_type": monster.monster_type.value if hasattr(monster.monster_type, 'value') else str(monster.monster_type),
-                            "behavior": monster.behavior.value if hasattr(monster.behavior, 'value') else str(monster.behavior),
-                            "is_aggressive": monster.is_aggressive(),
-                            "is_passive": monster.is_passive(),
-                            "is_neutral": monster.is_neutral()
-                        }
-                        for monster in room_info.get('monsters', [])
-                    # ],
-                    # "npcs": [
-                    #     {
-                    #         "id": npc.id,
-                    #         "name": npc.get_localized_name(locale),
-                    #         "description": npc.get_localized_description(locale),
-                    #         "npc_type": npc.npc_type,
-                    #         "is_merchant": npc.is_merchant()
-                    #     }
-                    #     for npc in room_info.get('npcs', [])
-                    ]
-                }
+                room = room_info['room']
+                exits = room_info.get('exits', {})
 
-                await session.send_message({
-                    "type": "room_info",
-                    "room": room_data,
-                    "entity_map": entity_map
-                })
+                # 좌표 기반 출구 계산은 room_connections 연결을 'enter' 키로 함께
+                # 담는다. 계약은 방향 출구와 통로 유무를 분리하므로 나눠서 담는다.
+                has_passage = 'enter' in exits
+                directions = [d for d in exits if d != 'enter']
 
-                # 미니맵 전송
-                minimap = await self._generate_minimap(session, room_id)
-                if minimap:
-                    await session.send_text(minimap)
+                nearby_rooms = []
+                if room.x is not None and room.y is not None:
+                    nearby_rooms = await self.game_engine.world_manager.get_rooms_in_area(
+                        room.x, room.y, MINIMAP_RADIUS
+                    )
 
-                # UI 업데이트 정보 전송
-                # await self.game_engine.ui_manager.send_ui_update(session, room_info)
+                time_of_day = "day"
+                if hasattr(self.game_engine, 'time_manager'):
+                    time_of_day = self.game_engine.time_manager.get_current_time().value
+
+                await session.send_message(
+                    build_room_info(
+                        room,
+                        directions,
+                        self._serialize_room_entities(session, room_info, room_id),
+                        nearby_rooms,
+                        time_of_day,
+                        has_passage=has_passage,
+                    )
+                )
 
                 logger.debug(f"방 정보 전송 완료: {session.player.username} -> 방 {room_id}")
 
         except Exception as e:
             logger.error(f"방 정보 전송 실패 ({session.player.username}, {room_id}): {e}")
 
-    # room_type → 미니맵 기호 매핑
-    _MINIMAP_SYMBOLS = {
-        "forest": "🌲", "grassland": "🌿", "coast": "🏖️", "road": "🛤️",
-        "castle": "🏰", "field": "🌾", "pasture": "🐄", "wilderness": "🌳",
-        "town": "🏘️", "water": "💧", "hedge": "🌿", "trail": "🚶",
-        "cave": "🕳️", "crypt": "💀", "building": "🏛️", "harbour": "⚓",
-        "cliff": "🧗", "stable": "🐴", "ruins": "🏚️", "gate": "🚪",
-        "farmland": "🌱", "unknown": "❓",
-    }
+    def _serialize_room_entities(
+        self, session: SessionType, room_info: dict[str, Any], room_id: str
+    ) -> list[dict[str, Any]]:
+        """방 안의 몬스터, 오브젝트, 다른 플레이어를 엔티티 배열로 만든다.
 
-    async def _generate_minimap(self, session: SessionType, room_id: str) -> str:
-        """현재 위치 중심 5x5 미니맵 생성"""
-        try:
-            room = await self.game_engine.world_manager.get_room(room_id)
-            if not room or room.x is None or room.y is None:
-                return ""
+        Args:
+            session: 방 정보를 받는 세션. 우호도 판정의 관찰자다
+            room_info: `get_location_summary` 결과
+            room_id: 방 ID
 
-            cx, cy = room.x, room.y
-            nearby_rooms = await self.game_engine.world_manager.get_rooms_in_area(cx, cy, 2)
+        Returns:
+            엔티티 페이로드 배열
+        """
+        viewer_faction = session.player.faction_id if session.player else None
+        lua_loader = self.game_engine.dialogue_manager.lua_loader
 
-            # 좌표 → room_type 매핑
-            room_map = {}
-            for r in nearby_rooms:
-                if r.x is not None and r.y is not None:
-                    room_map[(r.x, r.y)] = getattr(r, 'room_type', 'unknown')
+        entities: list[dict[str, Any]] = [
+            serialize_monster(
+                monster,
+                viewer_faction=viewer_faction,
+                can_talk=lua_loader.has_dialogue_script(monster.id),
+            )
+            for monster in room_info.get('monsters', [])
+        ]
 
-            # 5x5 그리드 생성 (y축: 위가 north = +y)
-            lines = ["🗺️ Minimap:"]
-            for dy in range(2, -3, -1):
-                row = ""
-                for dx in range(-2, 3):
-                    tx, ty = cx + dx, cy + dy
-                    if dx == 0 and dy == 0:
-                        row += "📍"
-                    elif (tx, ty) in room_map:
-                        room_type = room_map[(tx, ty)]
-                        row += self._MINIMAP_SYMBOLS.get(room_type, "❓")
-                    else:
-                        row += "⬛"
-                lines.append(row)
+        entities.extend(
+            serialize_object(obj) for obj in room_info.get('objects', [])
+        )
 
-            return "\n".join(lines)
-        except Exception as e:
-            logger.error(f"미니맵 생성 오류: {e}")
-            return ""
+        # 같은 방의 다른 플레이어. 활력은 본인에게만 보이므로 제외한다.
+        for other in self.game_engine.session_manager.get_authenticated_sessions():
+            if (
+                other.player
+                and other.session_id != session.session_id
+                and getattr(other, 'current_room_id', None) == room_id
+            ):
+                entities.append(serialize_player(other.player, include_vitals=False))
+
+        return entities
 
     async def update_room_player_list(self, room_id: str) -> None:
         """

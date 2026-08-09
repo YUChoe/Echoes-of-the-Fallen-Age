@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from ..core.localization import get_localization_manager
-from ..server.ansi_colors import ANSIColors
 from .combatant import CombatAction, CombatantType, Combatant  # noqa: F401
 
 logger = logging.getLogger(__name__)
@@ -343,7 +342,7 @@ class CombatInstance:
         # monster_name = target_monster.get_localized_name(locale)
         # 다른 플레이어 이거나 몹인 경우 이렇게 처리 해도 됨
         name = combatant.get_display_name(locale)
-        message = f"{ANSIColors.RED}{self.I18N.get_message('combat.whos_turn', locale, name=name)}{ANSIColors.RESET}"
+        message = self.I18N.get_message('combat.whos_turn', locale, name=name)
 
         logger.info(message)
         return message
@@ -352,7 +351,7 @@ class CombatInstance:
         """전투 상태 메시지 생성"""
         lines = [
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-            f"{ANSIColors.RED}{self.I18N.get_message('combat.round', locale, round=self.turn_number)}{ANSIColors.RESET}",
+            self.I18N.get_message('combat.round', locale, round=self.turn_number),
             "",
         ]
 
