@@ -143,7 +143,6 @@ def _make_ctx(
         original_room_id="room-1",
         stamina=stamina,
         max_stamina=5.0,
-        locale="ko",
         send_message=_send_message,
     )
 

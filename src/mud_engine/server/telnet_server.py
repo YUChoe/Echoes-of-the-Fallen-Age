@@ -305,7 +305,6 @@ class TelnetServer:
 
         session.authenticate(player)
         self.player_sessions[player.id] = session.session_id
-        session.locale = player.preferred_locale
 
         await session.send_message(
             build(

@@ -22,7 +22,6 @@ class SessionState:
     # 위치
     current_room_id: Optional[str] = None
     current_room_type: str = "unknown"
-    locale: str = "en"
     following_player: Optional[str] = None
 
     # 전투

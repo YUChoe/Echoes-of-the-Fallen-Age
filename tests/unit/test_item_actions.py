@@ -38,7 +38,6 @@ def _make_ctx(params: dict | None = None, entity=None) -> ActionContext:
         in_combat=False,
         combat_id=None,
         current_room_id="room-1",
-        locale="ko",
         stamina=5.0,
         max_stamina=5.0,
     )

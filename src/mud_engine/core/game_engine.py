@@ -86,10 +86,6 @@ class GameEngine:
             self.scheduler_manager = SchedulerManager(self)
             self.global_tick_manager = GlobalTickManager(self)
 
-            # 튜토리얼 안내 시스템 초기화  # TODO: 퀘스트 만들면 지울 내용
-            from ..game.tutorial_announcer import get_tutorial_announcer
-            self.tutorial_announcer = get_tutorial_announcer(self)
-
             logger.info("모든 매니저 초기화 완료")
         except Exception as e:
             logger.error(f"매니저 초기화 실패: {e}", exc_info=True)
@@ -173,13 +169,6 @@ class GameEngine:
         except Exception as e:
             logger.error(f"글로벌 Tick 매니저 시작 실패: {e}")
 
-        # 튜토리얼 안내 시스템 시작
-        try:
-            await self.tutorial_announcer.start()
-            logger.info("튜토리얼 안내 시스템 시작 완료")
-        except Exception as e:
-            logger.error(f"튜토리얼 안내 시스템 시작 실패: {e}")
-
         logger.info("GameEngine 시작 완료")
 
     async def stop(self) -> None:
@@ -190,13 +179,6 @@ class GameEngine:
         logger.info("GameEngine 중지 중...")
 
         self._running = False
-
-        # 튜토리얼 안내 시스템 중지
-        try:
-            await self.tutorial_announcer.stop()
-            logger.info("튜토리얼 안내 시스템 중지 완료")
-        except Exception as e:
-            logger.error(f"튜토리얼 안내 시스템 중지 실패: {e}")
 
         # 글로벌 스케줄러 중지
         try:
@@ -272,7 +254,6 @@ class GameEngine:
 
         # 세션에 게임 엔진 참조 설정
         session.game_engine = self
-        session.locale = player.preferred_locale
 
         # 플레이어를 마지막 위치(좌표 기반) 또는 기본 방으로 이동
         target_room = await self.world_manager.get_room_at_coordinates(
@@ -446,20 +427,19 @@ class GameEngine:
 
     # === 월드 관리 위임 메서드들 ===
 
-    async def get_room_info(self, room_id: str, locale: str = 'en') -> Optional[Dict[str, Any]]:
+    async def get_room_info(self, room_id: str) -> Optional[Dict[str, Any]]:
         """
         방 정보를 조회합니다.
 
         Args:
             room_id: 방 ID
-            locale: 언어 설정
 
         Returns:
             Dict: 방 정보 (방, 객체, 출구 포함)
         """
         try:
-            logger.debug(f"방 정보 조회 시작: room_id={room_id}, locale={locale}")
-            location_summary = await self.world_manager.get_location_summary(room_id, locale)
+            logger.debug(f"방 정보 조회 시작: room_id={room_id}")
+            location_summary = await self.world_manager.get_location_summary(room_id)
             logger.debug(f"방 정보 조회 완료: room_id={room_id}")
             return location_summary
         except Exception as e:

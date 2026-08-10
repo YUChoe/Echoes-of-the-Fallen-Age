@@ -96,20 +96,19 @@ class GlobalTickManager:
             raise  # 반드시 re-raise
         # ===== ===== ===== ===== ===== =====
         try:
-            locale = 'en' # 서버내부처리를 위해서는 디폴트 값 이용
             for s in self.session_manager.get_all_sessions():
                 logger.debug(f"session_id[{s.session_id}]")
                 if s.in_combat: continue
-                room_info = await self.game_engine.get_room_info(s.current_room_id, locale)
+                room_info = await self.game_engine.get_room_info(s.current_room_id)
                 if not room_info or not room_info.get('monsters'):
                     return
                 aggressive_monsters = []
                 for monster in room_info['monsters']:
-                    logger.debug(f"몬스터 체크: {monster.get_localized_name(locale)}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
+                    logger.debug(f"몬스터 체크: {monster.get_localized_name()}, 타입: {monster.monster_type}, 선공형: {monster.is_aggressive()}, 살아있음: {monster.is_alive}")
                     # 선공형이고 살아있는 몬스터만
                     if monster.is_aggressive() and monster.is_alive:
                         aggressive_monsters.append(monster)
-                        logger.info(f"선공형 몬스터 발견: {monster.get_localized_name(locale)}")
+                        logger.info(f"선공형 몬스터 발견: {monster.get_localized_name()}")
                 if not aggressive_monsters:
                     logger.debug(f"방 {s.current_room_id[-12:]}에 선공형 몬스터 없음")
                     return

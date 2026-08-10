@@ -237,7 +237,7 @@ class WorldManager:
             logger.error(f"객체 위치 추적 실패 ({object_id}): {e}")
             raise
 
-    async def get_location_summary(self, room_id: str, locale: str = 'en') -> Dict[str, Any]:
+    async def get_location_summary(self, room_id: str) -> Dict[str, Any]:
         """특정 방의 위치 요약 정보를 제공합니다."""
         try:
             if room_id.startswith('dialogue_') or room_id.startswith('combat_'):

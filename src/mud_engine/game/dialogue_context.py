@@ -199,10 +199,15 @@ class DialogueContext:
 
     @staticmethod
     def _build_session_context(session: TelnetSession) -> dict[str, Any]:
-        """세션 정보를 순수 dict로 변환"""
+        """세션 정보를 순수 dict로 변환
+
+        `locale` 은 세션 상태가 아니라 플레이어 설정에서 읽는다. Lua 대사
+        스크립트가 아직 언어별 완성 문장을 만들기 때문에 남아 있으며,
+        Task 10 에서 대사가 번역 키로 바뀌면 함께 사라진다.
+        """
         return {
             "session_id": str(session.session_id),
-            "locale": str(session.locale),
+            "locale": str(session.player.preferred_locale) if session.player else "en",
             "current_room_id": str(session.current_room_id or ""),
             "room_type": str(getattr(session, 'current_room_type', 'unknown')),
             "stamina": float(session.stamina),

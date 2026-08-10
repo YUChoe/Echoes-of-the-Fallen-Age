@@ -50,11 +50,6 @@ class TelnetSession:
         self.metadata: Dict[str, Any] = {}
         self.game_engine: Optional[Any] = None  # GameEngine 참조
 
-        # Telnet 관련 속성
-        self.use_ansi_colors: bool = True  # ANSI 색상 코드 사용 여부
-        self.terminal_width: int = 80  # 터미널 너비
-        self.terminal_height: int = 24  # 터미널 높이
-
         # IP 주소 추출
         peername = writer.get_extra_info("peername")
         if peername:
@@ -103,14 +98,6 @@ class TelnetSession:
     @current_room_type.setter
     def current_room_type(self, value: str) -> None:
         self.state.current_room_type = value
-
-    @property
-    def locale(self) -> str:
-        return self.state.locale
-
-    @locale.setter
-    def locale(self, value: str) -> None:
-        self.state.locale = value
 
     @property
     def following_player(self) -> Optional[str]:
@@ -199,7 +186,6 @@ class TelnetSession:
         """
         self.player = player
         self.is_authenticated = True
-        self.locale = player.preferred_locale
         self.update_activity()
         short_session_id = _short_id(self.session_id)
         logger.info(
@@ -209,12 +195,6 @@ class TelnetSession:
     def update_activity(self) -> None:
         """마지막 활동 시간 업데이트"""
         self.last_activity = datetime.now()
-
-    def update_locale(self) -> None:
-        """플레이어의 선호 언어로 세션 locale 업데이트"""
-        if self.player:
-            self.locale = self.player.preferred_locale
-            logger.debug(f"세션 {self.session_id} 언어 업데이트: {self.locale}")
 
     async def send_message(self, message: Dict[str, Any]) -> bool:
         """구조화 메시지를 JSON 라인으로 전송한다.
@@ -414,8 +394,6 @@ class TelnetSession:
             "ip_address": self.ip_address,
             "is_active": self.is_active(),
             "connection_closed": self.writer.is_closing(),
-            "locale": self.locale,
-            "use_ansi_colors": self.use_ansi_colors,
         }
 
     def __str__(self) -> str:

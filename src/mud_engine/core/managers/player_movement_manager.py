@@ -153,8 +153,7 @@ class PlayerMovementManager:
             room_id: 방 ID
         """
         try:
-            locale = session.player.preferred_locale if session.player else "en"
-            room_info = await self.game_engine.get_room_info(room_id, locale)
+            room_info = await self.game_engine.get_room_info(room_id)
             if room_info:
                 room = room_info['room']
                 exits = room_info.get('exits', {})
