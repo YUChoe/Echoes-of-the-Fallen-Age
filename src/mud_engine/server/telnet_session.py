@@ -184,22 +184,6 @@ class TelnetSession:
     def last_command(self, value: Optional[str]) -> None:
         self.state.last_command = value
 
-    @property
-    def room_entity_map(self) -> Dict[int, Dict[str, Any]]:
-        return self.state.room_entity_map
-
-    @room_entity_map.setter
-    def room_entity_map(self, value: Dict[int, Dict[str, Any]]) -> None:
-        self.state.room_entity_map = value
-
-    @property
-    def inventory_entity_map(self) -> Dict[int, Dict[str, Any]]:
-        return self.state.inventory_entity_map
-
-    @inventory_entity_map.setter
-    def inventory_entity_map(self, value: Dict[int, Dict[str, Any]]) -> None:
-        self.state.inventory_entity_map = value
-
     async def initialize_telnet(self) -> None:
         """
         Telnet 프로토콜 초기화 및 협상 (Protocol 위임)

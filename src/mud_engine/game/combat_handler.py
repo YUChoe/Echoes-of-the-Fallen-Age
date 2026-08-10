@@ -174,14 +174,19 @@ class CombatHandler:
                 msg = build_msg(player_locale)
                 await session.send_message({"type": "combat_message", "message": msg})
 
-    async def send_battle_command_menu(self, combat: CombatInstance):
+    async def broadcast_combat_state(self, combat: CombatInstance) -> None:
+        """참가자 전원에게 전투 상태를 보낸다.
+
+        `is_my_turn` 이 보는 사람에 따라 달라지므로 참가자별로 만든다.
+        텍스트 전투 UI(상태표, 턴 안내, 행동 메뉴)를 대체한다. 표시는
+        클라이언트가 `combat_state` 로 직접 구성한다.
+        """
+        from ..server.serialization import build_combat_state
+
         for combatant in combat.get_alive_players():
-            if combatant.combatant_type != CombatantType.PLAYER: continue
-            if combatant.id != combat.get_current_combatant().id: continue
             session = self.session_manager.get_player_session(combatant.id)
             if session:
-                message = combat.get_player_turn_message(session.locale)
-                await session.send_message({"type": "combat_message", "message": message})
+                await session.send_message(build_combat_state(combat, combatant.id))
 
     async def _execute_action(
         self,
@@ -558,14 +563,8 @@ class CombatHandler:
 
         # message = "" # localization.get_message("combat.wait_action", locale, actor=actor.name)
 
-        # 턴을 종료 합니다.
-        await self.send_broadcast_combat_message(combat, f"{actor.name} passed the turn.")
         combat.advance_turn()
-
-        # 전투 참가자들에게 다음 턴 브로드캐스트
-        logger.info("get_combat_status_message by process_monster_turn# 전투 참가자들에게 다음 턴 브로드캐스트")
-        msg = combat.get_combat_status_message(locale="en")
-        await self.send_broadcast_combat_message(combat, msg)
+        await self.broadcast_combat_state(combat)
 
         return {
             "success": True,
@@ -614,19 +613,8 @@ class CombatHandler:
         if combat.is_combat_over():
             return result
 
-        # 전투 참가자들에게 다음 턴 브로드캐스트
-        logger.info("get_combat_status_message by process_monster_turn# 전투 참가자들에게 다음 턴 브로드캐스트")
-        msg = combat.get_combat_status_message(locale="en")
-        await self.send_broadcast_combat_message(combat, msg)
-        # # 전투 종료 확인
-        # if combat.is_combat_over():
-        #     rewards = await self._end_combat(combat)
-        #     result["combat_over"] = True
-        #     result["winners"] = [c.to_dict() for c in combat.get_winners()]
-        #     result["rewards"] = rewards
-        msg = combat.get_whos_turn(locale="en")
-        await self.send_broadcast_combat_message(combat, msg)
-        await self.send_battle_command_menu(combat)
+        # 전투 참가자들에게 갱신된 상태 브로드캐스트
+        await self.broadcast_combat_state(combat)
 
         return result
 

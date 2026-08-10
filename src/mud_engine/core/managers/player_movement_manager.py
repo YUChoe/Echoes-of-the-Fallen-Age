@@ -19,7 +19,6 @@ MINIMAP_RADIUS = 2
 
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
-    from ...game.combat import CombatInstance
 
 logger = logging.getLogger(__name__)
 
@@ -158,68 +157,6 @@ class PlayerMovementManager:
             locale = session.player.preferred_locale if session.player else "en"
             room_info = await self.game_engine.get_room_info(room_id, locale)
             if room_info:
-                # 디버깅: 몬스터 정보 로깅
-                monsters = room_info.get('monsters', [])
-                logger.debug(f"방 {room_id}에서 {len(monsters)}마리 몬스터 발견")
-                for i, monster in enumerate(monsters):
-                    logger.debug(f"몬스터 {i+1}: {monster.get_localized_name(locale)}, 타입: {monster.monster_type}, 행동: {monster.behavior}")
-
-                # 세션에 엔티티 번호 매핑 저장
-                entity_map = {}
-                entity_index = 1
-
-                # 몬스터 번호 매핑 (1-9번)
-                for monster in room_info.get('monsters', []):
-                    if entity_index <= 9:  # 최대 9번까지
-                        entity_map[entity_index] = {
-                            'type': 'monster',
-                            'id': monster.id,
-                            'name': monster.get_localized_name(locale),
-                            'entity': monster
-                        }
-                        entity_index += 1
-                # TODO: 우후도 계산은 어떻게?
-
-                # 아이템 번호 매핑 (11번부터 시작)
-                item_index = 11
-                # grouped_objects가 있으면 그것을 사용, 없으면 일반 objects 사용 WorldManager._group_stackable_objects 에서 생성
-                grouped_objects = room_info.get('grouped_objects', [])
-                logger.info(f"grouped_objects[{grouped_objects}]")
-                if grouped_objects:
-                    for group in grouped_objects:
-                        # 그룹의 첫 번째 객체 ID를 사용
-                        first_obj = group.get('objects', [])[0] if group.get('objects') else None
-                        if first_obj:
-                            entity_map[item_index] = {
-                                'type': 'object',
-                                'id': first_obj.id,
-                                'name': group.get('display_name_ko' if locale == 'ko' else 'display_name_en', ''),
-                                'entity': first_obj,
-                                'group': group  # 그룹 정보도 저장
-                            }
-                            item_index += 1
-                else:
-                    for obj in room_info.get('objects', []):
-                        entity_map[item_index] = {
-                            'type': 'object',
-                            'id': obj.id,
-                            'name': obj.get_localized_name(locale),
-                            'entity': obj
-                        }
-                        item_index += 1
-
-                # 세션에 저장
-                session.room_entity_map = entity_map
-                # 세션이 전투중이면 combatInst 에 entity_map 저장
-                if session.in_combat:
-                    combat_inst: CombatInstance = self.game_engine.combat_manager.get_combat(session.combat_id)
-                    combat_inst.set_entity_map(entity_map)
-
-                # 디버깅: entity_map 로깅
-                logger.debug(f"entity_map created: {entity_map}")
-                for num, info in entity_map.items():
-                    logger.info(f"entity_map {num}: {info['type']} - {info['name']} (ID: {info['id'][-12:]})")
-
                 room = room_info['room']
                 exits = room_info.get('exits', {})
 

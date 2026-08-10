@@ -61,7 +61,6 @@ class CombatInstance:
     timeout_ticks: int = 0
     max_timeout_ticks: int = 8  # 8 * 15초 = 2분  # TODO: 이건 또 뭐야
     I18N = get_localization_manager()
-    _entity_map: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """초기화 후 턴 순서 결정"""
@@ -116,12 +115,6 @@ class CombatInstance:
 
         current_id = self.turn_order[self.current_turn_index]
         return self.get_combatant(current_id)
-
-    def get_entity_map(self):
-        return self._entity_map
-
-    def set_entity_map(self, new_entity_map):
-        self._entity_map = new_entity_map
 
     def get_alive_combatants(self) -> List[Combatant]:
         """생존한 참가자 목록 반환"""
@@ -309,9 +302,10 @@ class CombatInstance:
         }
 
     def to_simple(self) -> str:
-        r = f'CombatInstance[{self.id} room_id[{self.room_id}] is_active[{self.is_active}]'
-        r += f'_entity_map[{self._entity_map}]'
-        return r
+        return (
+            f'CombatInstance[{self.id} room_id[{self.room_id}] '
+            f'is_active[{self.is_active}]'
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리로 변환"""
@@ -328,85 +322,3 @@ class CombatInstance:
             "started_at": self.started_at.isoformat(),
             "ended_at": self.ended_at.isoformat() if self.ended_at else None,
         }
-
-    def get_whos_turn(self, locale="en") -> str:
-        logger.info("get_whos_turn invoked")
-        # 현재 전투 턴 combatant 로 이름 구하기
-        combatant = self.get_current_combatant()
-        # next_turn_id = combatant.id
-
-        # if self.get_current_combatant().id == next_turn_id:
-        #     logger.info(f"player turn")
-        # start_message += f"{self._get_turn_message(next_turn_id, locale)}"
-
-        # monster_name = target_monster.get_localized_name(locale)
-        # 다른 플레이어 이거나 몹인 경우 이렇게 처리 해도 됨
-        name = combatant.get_display_name(locale)
-        message = self.I18N.get_message('combat.whos_turn', locale, name=name)
-
-        logger.info(message)
-        return message
-
-    def get_combat_status_message(self, locale: str = "en") -> str:
-        """전투 상태 메시지 생성"""
-        lines = [
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-            self.I18N.get_message('combat.round', locale, round=self.turn_number),
-            "",
-        ]
-
-        # 플레이어 정보
-        players = self.get_alive_players()
-        if players:
-            player = players[0]
-            lines.append(f"[0] 👤 {player.name} HP: {player.current_hp}/{player.max_hp}")
-
-        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-        # 몬스터 정보
-        monsters = self.get_alive_monsters()
-        # room_entity_map = getattr(session, "room_entity_map", {})  # ???? 이게 왜 getattr 에 ?
-        room_entity_map = self.get_entity_map()
-        logger.info(room_entity_map)  # 왜 못찾음? 왜 {} 임?
-        for monster in monsters:
-            monster_name = monster.name  # monster.name 은 id
-            if monster.data and "monster" in monster.data:
-                monster_obj = monster.data["monster"]
-                monster_name = monster_obj.get_localized_name(locale)
-            for num in room_entity_map:
-                if "id" in room_entity_map[num] and room_entity_map[num]["id"] == monster.name:
-                    logger.info(f"found id[{monster.name}] {room_entity_map[num]}")
-                    break
-            else:
-                num = "?"
-            lines.append(f"[{num}] 👹 {monster_name}: HP: {monster.current_hp}/{monster.max_hp}")
-        lines.append(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        logger.info(lines)
-        """
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚔️ Turn 2
-[0] 👤 SUPERADMIN HP: 62/62
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-[1] 👹 Small Rat: HP: 4/17
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"""
-        return "\n".join(lines) + "\n"
-
-    def get_player_turn_message(self, locale: str = "en") -> str:
-        """플레이어 턴 메시지 생성"""
-        turn_message = "\n".join(
-            [
-                self.I18N.get_message("combat.your_turn", locale),
-                "",
-                f"{self.I18N.get_message('combat.action_attack', locale)}",
-                f"{self.I18N.get_message('combat.action_flee', locale)}",
-                f"[4] Item  ",
-                f"[7] Spell",
-                f"[9] {self.I18N.get_message('combat.action_endturn', locale)}",
-                self.I18N.get_message("combat.enter_command", locale),
-            ]
-        )
-        logger.info(turn_message)
-        return turn_message
-
-
-

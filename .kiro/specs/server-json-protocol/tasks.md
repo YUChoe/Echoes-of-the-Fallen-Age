@@ -86,26 +86,28 @@
   - `help`, `language`를 제거한다. `commands/language_commands.py`(동작하지 않는 language + 데드 HelpCommand)와 `commands/Basic/help.py`를 삭제한다. `quit`을 `logout` 메시지로, `stats`/`inventory`/`combat`을 `request_*` verb로 대체한다.
   - _Requirements: 4.7_
 
-- [ ] 5. uuid 대상 지정 전환
-- [ ] 5.1 target 해석 경로 구현
+- [x] 5. uuid 대상 지정 전환
+- [x] 5.1 target 해석 경로 구현
   - 디스패처의 target 해석을 구현한다. 탐색 순서는 전투 참가자 → 방 몬스터 → 방 오브젝트 → 인벤토리 → 열린 컨테이너 → 같은 방 플레이어다. 미발견 시 `NOT_FOUND`.
   - _Requirements: 3.4, 6.5_
-- [ ] 5.2 entity_map 생성과 저장 제거
+- [x] 5.2 entity_map 생성과 저장 제거
   - `send_room_info_to_player()`의 번호 부여 로직을 제거한다. `session/state.py`의 `room_entity_map`/`inventory_entity_map` 필드와 `telnet_session.py`의 4개 property를 제거한다.
   - _Requirements: 3.1, 3.2_
-- [ ] 5.3 전투 entity_map 캐시 제거
+- [x] 5.3 전투 entity_map 캐시 제거
   - `game/combat.py`의 `_entity_map` 필드와 `get_entity_map`/`set_entity_map`, `get_combat_status_message`의 번호 렌더링, `global_tick_manager.py:124`의 맵 복사, `attack_command.py`의 `set_entity_map` 호출을 제거한다.
   - _Requirements: 3.3_
-- [ ] 5.4 숫자 해석 경로 전환
+- [x] 5.4 숫자 해석 경로 전환
   - 조사에서 확인된 8개 파일의 `isdigit()` → `int()` → 맵 조회 패턴을 제거한다. 대상은 attack, talk, look, get, use, container, read, terminate 경로다. `read`의 페이지 번호는 params로 분리한다.
+  - 해당 파일들이 Task 4.6에서 삭제되어 함께 사라졌다. `read`의 페이지는 `params.page`로 분리됐다.
   - _Requirements: 3.5_
-- [ ] 5.5 매니저 시그니처 변경
+- [x] 5.5 매니저 시그니처 변경
   - `world_manager.py`의 `take_item_from_container()`와 `put_item_in_container()`가 번호와 entity_map 대신 uuid를 받도록 변경한다. 컨테이너 내부 배열 인덱스 참조(`use_command.py`의 `int(x)-1`)를 uuid로 대체한다.
+  - 변경 대신 제거했다. 두 메서드는 호출자가 없었고, 핸들러가 `move_item_to_container()`와 `move_item_from_container()`를 uuid로 직접 호출한다.
   - _Requirements: 3.6, 3.7_
-- [ ] 5.6 이름 기반 매칭 제거
+- [x] 5.6 이름 기반 매칭 제거
   - `give_command.py` 등의 `get_localized_name(locale).lower()` 비교 경로를 제거한다. 엔티티 수 제한(9개)이 사라졌음을 확인한다.
   - _Requirements: 3.8, 3.9_
-- [ ] 5.7 대화 선택지 params 전환
+- [x] 5.7 대화 선택지 params 전환
   - 대화 선택지 번호를 `dialogue_choice` 액션의 `params.choice`로 수신한다. 대상 지정과 선택지 번호의 의미 충돌이 해소됐음을 확인한다.
   - _Requirements: 3.10_
 

@@ -119,8 +119,6 @@ class GlobalTickManager:
                 combat = await self.combat_handler.start_combat(s.player, aggressive_monsters[0], s.current_room_id, aggresive=True)
 
                 # 인스턴스에 엔티티 기록
-                combat.set_entity_map(getattr(s, "room_entity_map", {}))
-
                 # 세션 상태 업데이트
                 self.combat_handler.enter_combat(s, combat, s.current_room_id)
                 logger.debug(s)

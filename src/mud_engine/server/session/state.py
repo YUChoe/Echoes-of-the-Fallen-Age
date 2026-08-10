@@ -38,7 +38,5 @@ class SessionState:
     stamina: float = 5.0
     max_stamina: float = 5.0
 
-    # 명령/엔티티 매핑
+    # 마지막 명령. 텍스트 프로토콜의 "." 반복에 쓰였고 현재는 참조되지 않는다
     last_command: Optional[str] = None
-    room_entity_map: Dict[int, Dict[str, Any]] = field(default_factory=dict)
-    inventory_entity_map: Dict[int, Dict[str, Any]] = field(default_factory=dict)
