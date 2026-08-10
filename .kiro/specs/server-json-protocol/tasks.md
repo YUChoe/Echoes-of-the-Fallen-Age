@@ -66,23 +66,23 @@
   - 텍스트 메뉴(1 로그인 / 2 회원가입 / 3 종료) 대화형 인증을 제거하고 `login` 메시지로 대체한다. `welcome` 송신을 추가한다. 회원가입 흐름을 제거한다. 로그인 실패 응답에서 사용자명 존재 여부를 구분하지 않는다.
   - _Requirements: 8.6, 8.7_
 
-- [ ] 4. 액션 디스패처 도입
-- [ ] 4.1 ActionContext와 ActionResult 정의
+- [x] 4. 액션 디스패처 도입
+- [x] 4.1 ActionContext와 ActionResult 정의
   - `commands/context.py`에 `ActionContext`(session, game_engine, verb, target, params, seq)와 `ActionResult`(result_type, message_key, params, rejection_code, broadcast, data)를 정의한다. 과도기에 `message: str`을 선택적으로 남긴다.
   - _Requirements: 4.1, 5.2_
-- [ ] 4.2 ActionDispatcher 구현
+- [x] 4.2 ActionDispatcher 구현
   - `commands/dispatcher.py`에 인증 검사 → verb 조회 → 상태 게이팅 → target 해석 → 핸들러 실행 순서를 구현한다. `commands/processor.py`를 대체한다.
   - _Requirements: 4.1, 4.2, 6.1, 6.4_
-- [ ] 4.3 숫자 변환과 별칭 체계 제거
+- [x] 4.3 숫자 변환과 별칭 체계 제거
   - `_convert_combat_number_to_command()`, `_convert_dialogue_number_to_command()`를 제거한다. 별칭 등록과 예약 별칭 보호 로직, `command.unknown` 오타 응답을 제거한다. 방향 별칭을 `move` verb의 params로 통합한다.
   - _Requirements: 4.3, 4.4, 4.5, 4.6_
-- [ ] 4.4 핸들러 인터페이스 전환 및 디렉터리 재배치
+- [x] 4.4 핸들러 인터페이스 전환 및 디렉터리 재배치
   - `BaseCommand.execute(session, game_engine, args)`를 `ActionHandler.handle(ctx)`로 전환한다. `commands/actions/` 아래 카테고리별로 재배치한다(movement, inspection, items, containers, combat, dialogue, shop, social, state, account). 중복 정의(object_commands와 평면 파일, combat과 combat_commands)를 단일화하고 사문화된 `npc_commands.py`, `npc/`를 제거한다.
   - _Requirements: 4.2, 10.6_
-- [ ] 4.5 채팅 분리
+- [x] 4.5 채팅 분리
   - `chat` 메시지를 별도 경로로 처리하고 `say`/`whisper` 명령어를 제거한다. `whisper` 대상을 플레이어 uuid로 해석한다. 길이 검증과 제어문자 제거만 수행한다.
   - _Requirements: 4.9, 4.10_
-- [ ] 4.6 폐기 명령어 제거
+- [x] 4.6 폐기 명령어 제거
   - `help`, `language`를 제거한다. `commands/language_commands.py`(동작하지 않는 language + 데드 HelpCommand)와 `commands/Basic/help.py`를 삭제한다. `quit`을 `logout` 메시지로, `stats`/`inventory`/`combat`을 `request_*` verb로 대체한다.
   - _Requirements: 4.7_
 

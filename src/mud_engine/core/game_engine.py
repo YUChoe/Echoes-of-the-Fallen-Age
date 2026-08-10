@@ -444,21 +444,6 @@ class GameEngine:
         """
         return await self.session_manager.broadcast_to_all(message, authenticated_only)
 
-    # === 명령어 처리 ===
-
-    async def handle_player_command(self, session: SessionType, command: str):
-        """
-        플레이어 명령어 처리
-
-        Args:
-            session: 세션 객체 (Session 또는 TelnetSession)
-            command: 명령어
-
-        Returns:
-            명령어 실행 결과
-        """
-        return await self.command_manager.handle_player_command(session, command)
-
     # === 월드 관리 위임 메서드들 ===
 
     async def get_room_info(self, room_id: str, locale: str = 'en') -> Optional[Dict[str, Any]]:

@@ -242,6 +242,7 @@ flowchart TD
 | 대화 대사의 번역 키 전환 | 서버 Task 10(신규). 계약은 `dialogue.lines[]`와 `choices[].text`가 `{key, params}`를 담도록 규정하지만, 대사 원본이 `configs/dialogues/*.lua` 19개 스크립트의 언어별 완성 문장이라 키가 존재하지 않는다. 결정: 키 방식으로 전환한다. 다만 Lua 스크립트 대사를 키로 바꾸고 클라이언트 번역 파일로 옮기는 작업이 커서 별도 태스크로 분리했다. 그때까지 `lines[]`와 `choices[].text`는 언어별 dict를 그대로 싣는다 |
 | 상점 verb 미구현 | 범위 외. `shop_open`/`shop_buy`/`shop_sell`을 등록하지 않는다. 계약이 요구하는 `item_prices` 기반 상점이 서버에 없다. `shop_command.py`는 폐기 표시가 붙어 있고 등록되지 않으며 `item_prices`가 아니라 몬스터 properties의 `shop_items`를 쓴다. 살아 있는 거래 경로는 대화 안의 Lua exchange API뿐이므로 기능 손실이 없다. 계약을 만족시키려면 세 가지가 필요하다: `shop_buy`의 `template_id`를 NPC 인벤토리 실물 uuid로 해석하는 계층(현재 Lua 래퍼에만 존재), `ExchangeManager`의 수량 처리(현재 없음), `stock` 의미 재정의(`exchange_config`에 판매 목록이 없고 `initial_silver`와 `buy_margin`만 있어 실제 재고는 NPC 인벤토리 실물 개수다). 데이터 스키마 변경을 수반하므로 페이즈2 이후 별도 작업 |
 | `town_merchant.json` 중복 키 | 데이터 정리. `configs/monsters/town_merchant.json`에 `exchange_config` 키가 두 번 있다. JSON 중복 키라 뒤의 것이 이기고 값이 같아 동작에는 영향이 없다 |
+| 어드민 명령어 재작성 | 서버 Task 7. Task 4.6에서 `commands/admin/` 15개 파일을 삭제했다. 텍스트 프로토콜과 번호 기반 대상 지정에 묶여 있어 어드민 채널에서 재사용할 수 없었고, 삭제 시점에 이미 도달 불가 상태였다. `core/managers/admin_manager.py`는 남겼으며 어드민 채널이 그것을 호출한다. 그때까지 `admin_manager`의 메서드는 호출자가 없다. 필요하면 커밋 91790e3에서 삭제된 파일을 참고할 수 있다 |
 | 역할 기반 어드민 권한 | 범위 외. 향후 확장 |
 | 한국어 조사 자동 선택 | 범위 외. 향후 개선 |
 | Telnet IAC 협상 제거 | 범위 외. 향후 후보 |
