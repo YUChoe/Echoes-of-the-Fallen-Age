@@ -150,8 +150,16 @@
   - _Requirements: 5.1, 5.9_
 
 - [ ] 7. 어드민 채널 신설
-- [ ] 7.1 어드민 서버와 인증
+- [x] 7.1 어드민 서버와 인증
   - `server/admin/admin_server.py`(TCP 4001, IAC 협상 없음), `admin_session.py`(만료 2시간), `auth.py`(bcrypt 관리자 인증, 서비스 토큰 인증)를 만든다. `is_admin`이 거짓이면 `PERMISSION_DENIED`로 거절한다. 게임 세션 인증 상태가 전이되지 않음을 확인한다.
+  - 관리자 인증은 `PlayerManager.authenticate()` 를 재사용한다. bcrypt 검증 경로가 게임 채널과 같아야 계정 체계가 이중화되지 않는다. `is_admin` 이 거짓이면 `PermissionError` 로 구분해 `PERMISSION_DENIED` 를 응답한다. 자격이 틀린 경우는 계정 열거를 막기 위해 사용자명 존재 여부를 구분하지 않는다.
+  - 서비스 토큰은 환경변수 `{서비스명 대문자}_SERVICE_TOKEN` 에서 읽고 `hmac.compare_digest` 로 비교한다. 허용 서비스는 `landing` 하나다. 토큰 미설정 시 빈 문자열과 일치하지 않도록 먼저 거절한다.
+  - 어드민 세션은 `readuntil(b"\n")` 로 라인을 읽는다. 게임 채널의 바이트 단위 IAC·백스페이스 처리가 없다. `start_server(limit=MAX_LINE_BYTES)` 로 라인 상한을 계약값에 맞췄다.
+  - 두 채널을 클라이언트가 즉시 구별하도록 `server/channels.py` 를 두고 양쪽에 적용했다. `welcome` 에 `channel`(`game`/`admin`)을 싣고, 타 채널 전용 메시지는 조용히 무시하지 않고 `NOT_APPLICABLE` 로 거절하며 `detail` 에 기대 채널과 현재 채널을 모두 담는다. `ping` 은 두 채널 공용이다. 어드민 `welcome` 은 `supported_locales` 와 `title` 을 담지 않는다.
+  - 세션 만료는 별도 태스크 없이 읽기 타임아웃으로 처리한다. 남은 유효 시간을 `read_message` 의 timeout 으로 넘겨 유휴 상태에서도 만료가 성립한다.
+  - `admin_login_result`, `service_login_result`, `admin_rejected` 봉투를 `serialization/admin.py` 에 추가했다. `service_login_result` 는 계약에 응답 형식이 없어 `admin.md` 에 함께 기록했다.
+  - 인증 후 메시지는 `AdminServer.register()` 로 붙인다. Task 7.2~7.5 의 확장 지점이며, 미등록 타입은 `NOT_APPLICABLE` 로 거절한다.
+  - 검증: `tests/unit/test_admin_auth.py` 19건, 하니스 `scenario_admin` 9건(welcome·인증 전 거절·게임 메시지 거절·ping·잘못된 자격·잘못된 토큰·관리자 인증·미등록 거절·게임 세션 비전이). `scenario_auth` 에 `channel` 검증과 어드민 메시지 거절 확인을 추가했다.
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 - [ ] 7.2 리소스 CRUD
   - `resources.py`와 `queries.py`에 8개 리소스(players, rooms, room_connections, monsters, objects, item_prices, factions, faction_relations)의 목록·상세·생성·수정·삭제를 구현한다. SQL을 새로 쓰지 않고 기존 리포지토리를 재사용한다. 페이지네이션, 필터, 정렬을 지원한다.

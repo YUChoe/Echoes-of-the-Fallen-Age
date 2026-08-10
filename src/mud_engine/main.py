@@ -14,6 +14,7 @@ from .database import get_database_manager, close_database_manager
 from .game.managers import PlayerManager
 from .game.repositories import PlayerRepository
 from .server.telnet_server import TelnetServer
+from .server.admin.admin_server import AdminServer
 from .core.game_engine import GameEngine
 from .server.session_manager import SessionManager
 
@@ -226,6 +227,7 @@ async def main():
         signal.signal(signal.SIGINT, signal_handler)
 
     telnet_server = None
+    admin_server = None
     game_engine = None
     try:
         # 데이터베이스 초기화
@@ -261,7 +263,15 @@ async def main():
 
         await telnet_server.start()
 
+        # 어드민 서버 초기화 및 시작. 기본 바인드가 루프백인 것은 의도적이며,
+        # 게이트웨이와 랜딩 백엔드만 도달할 수 있어야 한다
+        admin_host = os.getenv("ADMIN_HOST", "127.0.0.1")
+        admin_port = int(os.getenv("ADMIN_PORT", "4001"))
+        admin_server = AdminServer(admin_host, admin_port, player_manager)
+        await admin_server.start()
+
         print(f"📡 Telnet 서버가 telnet://{telnet_host}:{telnet_port} 에서 실행 중입니다.")
+        print(f"🔧 어드민 서버가 {admin_host}:{admin_port} 에서 실행 중입니다.")
         print("Ctrl+C를 눌러 서버를 종료할 수 있습니다.")
 
         # 서버가 계속 실행되도록 유지 (shutdown_event 대기)
@@ -279,6 +289,10 @@ async def main():
         print(f"❌ 치명적인 오류 발생: {e}")
     finally:
         logger.info("MUD Engine 종료 절차 시작...")
+
+        # 어드민 서버 종료
+        if admin_server:
+            await admin_server.stop()
 
         # Telnet 서버 종료
         if telnet_server:

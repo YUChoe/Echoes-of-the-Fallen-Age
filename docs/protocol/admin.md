@@ -68,7 +68,50 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
 }
 ```
 
+```json
+{
+  "type": "service_login_result",
+  "seq": 1,
+  "success": true,
+  "service": "landing",
+  "expires_at": "2026-08-08T18:45:00"
+}
+```
+
 랜딩 백엔드가 계정 생성을 위해 사용한다. 인증에 성공하면 `account_create`만 호출할 수 있고 다른 어드민 메시지는 `PERMISSION_DENIED`로 거절된다.
+
+서비스 이름은 서버가 보유한 허용 목록에 있어야 하며, 토큰은 환경변수 `{서비스명 대문자}_SERVICE_TOKEN`에서 읽는다. 토큰이 설정되지 않은 서비스는 어떤 값으로도 인증되지 않는다. 비교는 상수 시간으로 수행한다.
+
+## 접속과 인증 전 상태
+
+어드민 채널은 IAC 협상을 하지 않고 접속 직후 `welcome`을 보낸다.
+
+```json
+{
+  "type": "welcome",
+  "protocol_version": 1,
+  "channel": "admin",
+  "server_version": "development@dev"
+}
+```
+
+게임 채널의 `welcome`과 같은 타입이지만 `channel`이 `admin`이고 `supported_locales`와 `title`이 없다. 어드민은 번역을 하지 않고 도구가 소비하므로 표시용 정보를 담지 않는다. 클라이언트는 이 값으로 자신이 붙은 채널을 확인하고, 기대와 다르면 연결을 끊는다.
+
+게임 채널 전용 메시지(`login`, `logout`, `action`, `chat`, `client_info`)를 받으면 `admin_rejected`에 `NOT_APPLICABLE`로 거절하고 `detail`에 두 채널을 모두 밝힌다. 조용히 무시하면 잘못된 포트에 붙은 사실이 드러나지 않는다.
+
+인증 전에 허용되는 메시지는 `admin_login`, `service_login`, `ping`뿐이다. 그 외는 `admin_rejected`에 `NOT_AUTHENTICATED`로 응답하며 연결은 유지한다. 인증 시도 없이 60초가 지나면 연결이 끊어진다.
+
+`ping`은 인증 전후 모두 허용되며 게임 채널과 같은 형식의 `pong`으로 응답한다.
+
+세션 만료 시각은 인증 성공 시각 기준 2시간이다. 만료되면 서버가 `admin_rejected`에 `SESSION_EXPIRED`를 보내고 연결을 끊는다.
+
+### 환경변수
+
+| 변수 | 기본값 | 용도 |
+|---|---|---|
+| `ADMIN_HOST` | `127.0.0.1` | 어드민 서버 바인드 주소. 루프백이 기본인 것은 의도적이다 |
+| `ADMIN_PORT` | `4001` | 어드민 서버 포트 |
+| `LANDING_SERVICE_TOKEN` | 없음 | 랜딩 백엔드의 서비스 토큰. 없으면 서비스 인증이 불가능하다 |
 
 ## 계정 생성
 

@@ -7,6 +7,7 @@
 프로토콜 계약: docs/protocol/
 """
 
+from .admin import admin_login_result, admin_rejected, service_login_result
 from .combat import build_combat_state, serialize_combatant
 from .dialogue import build_dialogue, ensure_farewell_choice, serialize_choices
 from .entity import (
@@ -50,6 +51,8 @@ __all__ = [
     "PROTOCOL_VERSION",
     "UNKNOWN_ROOM_TYPE",
     "action_rejected",
+    "admin_login_result",
+    "admin_rejected",
     "build",
     "build_chat",
     "build_combat_state",
@@ -80,5 +83,6 @@ __all__ = [
     "serialize_player_summary",
     "serialize_room",
     "serialize_stats",
+    "service_login_result",
     "stack_count",
 ]

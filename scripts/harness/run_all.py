@@ -19,8 +19,8 @@ import argparse
 import socket
 import sys
 
-from . import scenario_action, scenario_auth, scenario_framing
-from .client import DEFAULT_PORT
+from . import scenario_action, scenario_admin, scenario_auth, scenario_framing
+from .client import DEFAULT_ADMIN_PORT, DEFAULT_PORT
 from .result import RunSummary, ScenarioResult
 
 
@@ -40,6 +40,12 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--port", type=int, default=DEFAULT_PORT, help=f"서버 포트 (기본 {DEFAULT_PORT})"
+    )
+    parser.add_argument(
+        "--admin-port",
+        type=int,
+        default=DEFAULT_ADMIN_PORT,
+        help=f"어드민 서버 포트 (기본 {DEFAULT_ADMIN_PORT})",
     )
     parser.add_argument(
         "--unit-only",
@@ -112,6 +118,22 @@ def main() -> int:
     else:
         scenario_action.run(action, port=args.port)
     summary.add(action)
+
+    # 5. 어드민 채널
+    print()
+    print("[어드민 채널 시나리오]")
+    admin = ScenarioResult("admin")
+    admin_up = not args.unit_only and _is_port_open(args.host, args.admin_port)
+    if args.unit_only:
+        admin.skip("어드민 채널 시나리오", "--unit-only 지정")
+    elif not admin_up:
+        admin.skip(
+            "어드민 채널 시나리오",
+            f"{args.host}:{args.admin_port} 에 접속할 수 없다. 서버를 먼저 기동하십시오",
+        )
+    else:
+        scenario_admin.run(admin, port=args.admin_port, game_port=args.port)
+    summary.add(admin)
 
     summary.report()
     return summary.exit_code

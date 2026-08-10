@@ -32,6 +32,9 @@ def _check_welcome(result: ScenarioResult, client: HarnessClient) -> None:
 
     problems: list[str] = []
 
+    if welcome.get("channel") != "game":
+        problems.append(f"channel 이 {welcome.get('channel')!r} (기대 'game')")
+
     if welcome.get("protocol_version") != EXPECTED_PROTOCOL_VERSION:
         problems.append(
             f"protocol_version 이 {welcome.get('protocol_version')!r} "
@@ -121,6 +124,32 @@ def _check_action_before_login(result: ScenarioResult, client: HarnessClient) ->
         return
 
     result.ok("인증 전 액션 거부", "NOT_AUTHENTICATED 응답")
+
+
+def _check_admin_message_rejected(
+    result: ScenarioResult, client: HarnessClient
+) -> None:
+    """어드민 메시지를 게임 채널에서 보내면 채널을 알려주는지 확인한다."""
+    seq = client.send_json(
+        {"type": "admin_login", "username": TEST_USERNAME, "password": TEST_PASSWORD}
+    )
+
+    try:
+        error = client.wait_for("error", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("어드민 메시지 거절", str(exc))
+        return
+
+    if error.get("reason_code") != "NOT_APPLICABLE":
+        result.fail("어드민 메시지 거절", f"reason_code 가 {error.get('reason_code')!r}")
+        return
+
+    detail = error.get("detail", "")
+    if "admin channel" not in detail:
+        result.fail("어드민 메시지 거절", f"detail 이 채널을 알리지 않는다: {detail!r}")
+        return
+
+    result.ok("어드민 메시지 거절", "admin_login 을 NOT_APPLICABLE 로 거절하고 채널을 알린다")
 
 
 def _check_login_failure(result: ScenarioResult, client: HarnessClient) -> None:
@@ -276,6 +305,7 @@ def run(result: ScenarioResult, port: int = DEFAULT_PORT) -> None:
             _check_malformed_line(result, client)
             _check_type_required(result, client)
             _check_action_before_login(result, client)
+            _check_admin_message_rejected(result, client)
             _check_login_failure(result, client)
 
             if _check_login_success(result, client) is None:

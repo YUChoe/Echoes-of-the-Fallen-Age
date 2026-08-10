@@ -32,6 +32,7 @@
 {
   "type": "welcome",
   "protocol_version": 1,
+  "channel": "game",
   "server_version": "development@dev",
   "supported_locales": ["en", "ko"],
   "title": {
@@ -41,7 +42,22 @@
 }
 ```
 
+`channel`은 이 연결이 어느 채널인지 알린다. 값은 `game` 또는 `admin`이다. 두 채널은 프레이밍 규약이 같고 포트만 다르므로, 클라이언트가 잘못된 포트에 붙었을 때 조용히 실패하지 않도록 서버가 접속 직후 채널을 밝힌다. 어드민 채널의 `welcome`은 `supported_locales`와 `title`을 담지 않는다. 어드민은 번역을 하지 않고 도구가 소비하기 때문이다.
+
+클라이언트는 기대한 `channel`이 아니면 연결을 끊고 접속 설정 오류를 알린다.
+
 `supported_locales`는 DB의 이중언어 컬럼이 제공하는 언어를 알린다. 클라이언트의 UI 번역 범위와는 별개다. 클라이언트가 서버보다 많은 언어를 지원하면 엔티티 이름은 폴백 언어로 표시된다.
+
+### 타 채널 메시지 거절
+
+각 채널은 상대 채널 전용 메시지를 조용히 무시하지 않고 사유를 붙여 거절한다.
+
+| 수신 채널 | 대상 메시지 | 응답 |
+|---|---|---|
+| game | `admin_login`, `service_login`, `account_create`, `admin_*` | `error`, `reason_code: NOT_APPLICABLE` |
+| admin | `login`, `logout`, `action`, `chat`, `client_info` | `admin_rejected`, `reason_code: NOT_APPLICABLE` |
+
+`detail`에 기대 채널과 현재 채널을 모두 담는다. `ping`은 두 채널 모두에서 허용된다.
 
 ## login_result
 

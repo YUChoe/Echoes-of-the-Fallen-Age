@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any
 from ..game.managers import PlayerManager
 from ..utils.exceptions import AuthenticationError
 from .telnet_session import TelnetSession
+from .channels import ADMIN_ONLY_TYPES, CHANNEL_GAME, wrong_channel_detail
 from .chat import ChatRouter
 from .serialization import PROTOCOL_VERSION, build, message_payload
 from ..core.game_engine import GameEngine
@@ -166,6 +167,7 @@ class TelnetServer:
             build(
                 "welcome",
                 protocol_version=PROTOCOL_VERSION,
+                channel=CHANNEL_GAME,
                 server_version=version_manager.get_version_string(),
                 supported_locales=["en", "ko"],
                 title={
@@ -208,6 +210,10 @@ class TelnetServer:
 
             if msg_type == "client_info":
                 logger.info(f"클라이언트 정보: {message.get('client')}")
+                continue
+
+            if msg_type in ADMIN_ONLY_TYPES:
+                await self._reject_wrong_channel(session, msg_type, seq)
                 continue
 
             if msg_type != "login":
@@ -326,6 +332,21 @@ class TelnetServer:
             self._chat = ChatRouter(game_engine)
         return self._chat
 
+    async def _reject_wrong_channel(
+        self, session: TelnetSession, msg_type: str, seq: Optional[int]
+    ) -> None:
+        """어드민 채널 메시지를 게임 채널에서 받았을 때 거절한다.
+
+        조용히 무시하면 클라이언트가 잘못된 포트에 붙은 사실을 알 수 없다.
+        """
+        logger.warning(
+            f"게임 채널에서 어드민 메시지 수신: {msg_type} "
+            f"(세션 {session.session_id})"
+        )
+        await session.send_protocol_error(
+            "NOT_APPLICABLE", wrong_channel_detail(msg_type, CHANNEL_GAME), seq
+        )
+
     async def _send_pong(
         self, session: TelnetSession, seq: Optional[int]
     ) -> None:
@@ -382,6 +403,10 @@ class TelnetServer:
 
         if msg_type == "ping":
             await self._send_pong(session, seq)
+            return True
+
+        if msg_type in ADMIN_ONLY_TYPES:
+            await self._reject_wrong_channel(session, msg_type, seq)
             return True
 
         if msg_type == "logout":
