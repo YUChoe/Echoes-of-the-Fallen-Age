@@ -16,7 +16,7 @@ from .combat import (
 from .combat_manager import CombatManager
 from .monster import Monster, MonsterType
 from .models import Player, GameObject
-from ..core.localization import get_localization_manager
+from .corpse_naming import corpse_description, corpse_name
 from uuid import uuid4
 
 # D&D 전투 엔진 import
@@ -158,21 +158,39 @@ class CombatHandler:
 
         return result
 
-    # 전투 참가자들에게 브로드캐스트
-    async def send_broadcast_combat_message(self, combat: CombatInstance, message: str):
-        for combatant in combat.get_alive_players():
-            session = self.session_manager.get_player_session(combatant.id)
-            if session:
-                await session.send_message({"type": "combat_message", "message": message})
+    async def broadcast_combat_event(
+        self,
+        combat: CombatInstance,
+        key: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """전투 참가자에게 번역 키 알림을 보낸다.
 
-    async def send_broadcast_combat_message_localized(self, combat: CombatInstance, build_msg) -> None:
-        """각 플레이어의 locale에 맞게 개별 메시지를 전송"""
+        키를 전달하므로 수신자가 각자의 언어로 번역한다. 기존에는 참가자별로
+        문장을 만들어 보냈고, 그러지 않는 경로에서는 발신자 언어가 전파됐다.
+        """
+        from ..server.serialization import build_event
+
+        payload = build_event(key, params, category="combat")
+
         for combatant in combat.get_alive_players():
             session = self.session_manager.get_player_session(combatant.id)
             if session:
-                player_locale = getattr(session, 'locale', 'en')
-                msg = build_msg(player_locale)
-                await session.send_message({"type": "combat_message", "message": msg})
+                await session.send_message(payload)
+
+    def _combatant_name_dict(self, combatant: Combatant) -> Dict[str, str]:
+        """전투 참가자 이름을 언어별 dict 로 만든다."""
+        return {
+            "en": self._get_combatant_name(combatant, "en"),
+            "ko": self._get_combatant_name(combatant, "ko"),
+        }
+
+    async def _weapon_name_dict(self, actor: Combatant) -> Dict[str, str]:
+        """무기 이름을 언어별 dict 로 만든다."""
+        return {
+            "en": await self._get_weapon_name(actor, "en"),
+            "ko": await self._get_weapon_name(actor, "ko"),
+        }
 
     async def broadcast_combat_state(self, combat: CombatInstance) -> None:
         """참가자 전원에게 전투 상태를 보낸다.
@@ -208,17 +226,17 @@ class CombatHandler:
 
     async def _execute_attack(self, combat: CombatInstance, actor: Combatant, target_id: Optional[str]) -> Dict[str, Any]:
         """공격 실행 (D&D 5e 룰 적용) - 메시지는 즉시 전송"""
-        I18N = get_localization_manager()
-        locale = "en"
+        # 아래 message 는 개발자용 사유이며 사용자에게 표시하지 않는다.
+        # 핸들러가 이를 보고 거절 코드를 정한다.
         if not target_id:
-            return {"success": False, "message": I18N.get_message("combat.no_target_specified", locale)}
+            return {"success": False, "message": "no target specified"}
 
         target = combat.get_combatant(target_id)
         if not target:
-            return {"success": False, "message": I18N.get_message("combat.target_not_found", locale)}
+            return {"success": False, "message": "target not found"}
 
         if not target.is_alive():
-            return {"success": False, "message": I18N.get_message("combat.target_already_dead", locale)}
+            return {"success": False, "message": "target already dead"}
 
         _actor_is_superadmin = False
         if actor.get_display_name() == 'SUPERADMIN':
@@ -251,27 +269,19 @@ class CombatHandler:
 
         # 빗나감 - 참가자별 locale로 전송
         if not hit and not is_critical and not _actor_is_superadmin:
-            _weapon_name_cache: Dict[str, str] = {}
-
-            async def _get_weapon_cached(loc: str) -> str:
-                if loc not in _weapon_name_cache:
-                    _weapon_name_cache[loc] = await self._get_weapon_name(actor, loc)
-                return _weapon_name_cache[loc]
-
-            # 첫 호출로 캐시 채우기
-            await _get_weapon_cached("en")
-            await _get_weapon_cached("ko")
-
-            def build_miss_msg(loc: str) -> str:
-                a_name = self._get_combatant_name(actor, loc)
-                t_name = self._get_combatant_name(target, loc)
-                w_name = _weapon_name_cache.get(loc, _weapon_name_cache.get("en", ""))
-                msg = f"{I18N.get_message('combat.attack_swing', loc, actor=a_name, target=t_name, weapon=w_name)}\n"
-                msg += f"{I18N.get_message('combat.roll_info', loc, roll=attack_roll, ac=target_ac)}\n"
-                msg += I18N.get_message('combat.miss', loc)
-                return msg
-
-            await self.send_broadcast_combat_message_localized(combat, build_miss_msg)
+            await self.broadcast_combat_event(
+                combat,
+                "combat.attack_swing",
+                {
+                    "actor": self._combatant_name_dict(actor),
+                    "target": self._combatant_name_dict(target),
+                    "weapon": await self._weapon_name_dict(actor),
+                },
+            )
+            await self.broadcast_combat_event(
+                combat, "combat.roll_info", {"roll": attack_roll, "ac": target_ac}
+            )
+            await self.broadcast_combat_event(combat, "combat.miss")
 
             return {
                 "success": True, "hit": False, "damage_dealt": 0,
@@ -297,41 +307,37 @@ class CombatHandler:
         target.current_hp = max(0, target.current_hp - actual_damage)
         logger.info(f"actual_damage[{actual_damage}] target.current_hp[{target.current_hp}]")
 
-        # 공격 결과 메시지 - 참가자별 locale로 전송
-        _is_defending = target.is_defending
-        _weapon_name_cache2: Dict[str, str] = {}
+        # 공격 결과 알림
+        target_name = self._combatant_name_dict(target)
 
-        async def _get_weapon_cached2(loc: str) -> str:
-            if loc not in _weapon_name_cache2:
-                _weapon_name_cache2[loc] = await self._get_weapon_name(actor, loc)
-            return _weapon_name_cache2[loc]
+        await self.broadcast_combat_event(
+            combat,
+            "combat.attack_swing",
+            {
+                "actor": self._combatant_name_dict(actor),
+                "target": target_name,
+                "weapon": await self._weapon_name_dict(actor),
+            },
+        )
+        await self.broadcast_combat_event(
+            combat,
+            "combat.roll_info_dice",
+            {"dice": damage_dice, "roll": attack_roll, "ac": target_ac},
+        )
+        await self.broadcast_combat_event(
+            combat,
+            "combat.critical_hit" if is_critical else "combat.hit",
+            {"target": target_name, "damage": actual_damage},
+        )
 
-        await _get_weapon_cached2("en")
-        await _get_weapon_cached2("ko")
+        if target.is_defending:
+            await self.broadcast_combat_event(combat, "combat.defending_reduction")
 
-        def build_hit_msg(loc: str) -> str:
-            a_name = self._get_combatant_name(actor, loc)
-            t_name = self._get_combatant_name(target, loc)
-            w_name = _weapon_name_cache2.get(loc, _weapon_name_cache2.get("en", ""))
-            msg = f"{I18N.get_message('combat.attack_swing', loc, actor=a_name, target=t_name, weapon=w_name)}\n"
-            msg += f"{I18N.get_message('combat.roll_info_dice', loc, dice=damage_dice, roll=attack_roll, ac=target_ac)}\n"
-            if is_critical:
-                msg += I18N.get_message("combat.critical_hit", loc, target=t_name, damage=actual_damage)
-            else:
-                msg += I18N.get_message("combat.hit", loc, target=t_name, damage=actual_damage)
-            if _is_defending:
-                msg += I18N.get_message("combat.defending_reduction", loc)
-            return msg
-
-        await self.send_broadcast_combat_message_localized(combat, build_hit_msg)
-
-        # 사망 처리 - 참가자별 locale로 전송
+        # 사망 처리
         if not target.is_alive():
-            def build_death_msg(loc: str) -> str:
-                t_name = self._get_combatant_name(target, loc)
-                return I18N.get_message('combat.death', loc, name=t_name)
-
-            await self.send_broadcast_combat_message_localized(combat, build_death_msg)
+            await self.broadcast_combat_event(
+                combat, "combat.death", {"name": target_name}
+            )
             await self._handle_death(combat, target)
 
         # player stat 저장 (메모리 + DB)
@@ -384,25 +390,21 @@ class CombatHandler:
 
     async def _handle_death(self, combat: CombatInstance, dead_combatant: Combatant) -> None:
         """사망 처리 - corpse 컨테이너를 원래 방에 생성 (전투 종료 여부와 무관)"""
-        I18N = get_localization_manager()
         try:
             if not self.world_manager:
                 logger.warning("world_manager 없음 - corpse 생성 불가")
                 return
 
             # 사망한 대상의 이름 결정
-            name_en = dead_combatant.name
-            name_ko = dead_combatant.name
-            desc_en = ""
-            desc_ko = ""
+            dead_names = {"en": dead_combatant.name, "ko": dead_combatant.name}
 
             if dead_combatant.combatant_type == CombatantType.MONSTER:
                 if dead_combatant.data and "monster" in dead_combatant.data:
                     monster_obj: Monster = dead_combatant.data["monster"]
-                    name_en = monster_obj.get_localized_name("en")
-                    name_ko = monster_obj.get_localized_name("ko")
-                    desc_en = I18N.get_message("combat.corpse_desc", "en", name=name_en)
-                    desc_ko = I18N.get_message("combat.corpse_desc", "ko", name=name_ko)
+                    dead_names = {
+                        "en": monster_obj.get_localized_name("en"),
+                        "ko": monster_obj.get_localized_name("ko"),
+                    }
 
                     # 몬스터 DB 사망 처리
                     monster = await self.world_manager.get_monster(dead_combatant.id)
@@ -410,18 +412,14 @@ class CombatHandler:
                         monster.die()
                         await self.world_manager.update_monster(monster)
                         logger.info(f"몬스터 {dead_combatant.id} DB 사망 처리 완료")
-            else:
-                # 플레이어 사망
-                desc_en = I18N.get_message("combat.corpse_desc", "en", name=name_en)
-                desc_ko = I18N.get_message("combat.corpse_desc", "ko", name=name_ko)
 
             # corpse 컨테이너 생성 - 원래 방(인스턴스 아님)에 배치
             room_id = combat.room_id
             corpse_id = str(uuid4())
             corpse_data = {
                 "id": corpse_id,
-                "name": {"en": I18N.get_message("combat.corpse_name", "en", name=name_en), "ko": I18N.get_message("combat.corpse_name", "ko", name=name_ko)},
-                "description": {"en": desc_en, "ko": desc_ko},
+                "name": corpse_name(dead_names),
+                "description": corpse_description(dead_names),
                 "location_type": "room",
                 "location_id": room_id,
                 "properties": {
@@ -434,17 +432,18 @@ class CombatHandler:
                 "max_stack": 1,
             }
             await self.world_manager.create_game_object(corpse_data)
-            logger.info(f"Corpse 생성 완료: {corpse_id} (room: {room_id}, target: {name_en})")
+            logger.info(
+                f"Corpse 생성 완료: {corpse_id} (room: {room_id}, "
+                f"target: {dead_names['en']})"
+            )
 
             # 사망자의 인벤토리 아이템을 corpse 컨테이너로 이동
             await self._move_inventory_to_corpse(dead_combatant.id, corpse_id)
 
             # 전투 참가자들에게 corpse 생성 알림
-            def build_corpse_msg(loc: str) -> str:
-                c_name = dead_combatant.get_display_name(loc)
-                return I18N.get_message("combat.corpse_dropped", loc, name=c_name)
-
-            await self.send_broadcast_combat_message_localized(combat, build_corpse_msg)
+            await self.broadcast_combat_event(
+                combat, "combat.corpse_dropped", {"name": dead_names}
+            )
 
         except Exception as e:
             logger.error(f"사망 처리(corpse 생성) 실패: {e}", exc_info=True)
@@ -522,46 +521,28 @@ class CombatHandler:
         if actor.name == "SUPERADMIN":
             logger.warning("SUPERADMIN flee")
             success = True
-        from ..core.localization import get_localization_manager
-
-        localization = get_localization_manager()
-
-        # 기본 언어는 영어로 설정 (세션 정보가 없는 경우)
-        locale = "en"
+        actor_name = self._combatant_name_dict(actor)
 
         if success:
             # 전투에서 제거
             combat.remove_combatant(actor.id)
 
-            message = localization.get_message("combat.fled_from_combat", locale, actor=actor.name)
+            await self.broadcast_combat_event(
+                combat, "combat.fled_from_combat", {"actor": actor_name}
+            )
 
-            return {
-                "success": True,
-                "message": message,
-                "fled": True,
-            }
-        else:
-            message = localization.get_message("combat.flee_failed", locale, actor=actor.name)
+            return {"success": True, "fled": True}
 
-            return {
-                "success": True,
-                "message": message,
-                "fled": False,
-            }
+        await self.broadcast_combat_event(
+            combat, "combat.flee_failed", {"actor": actor_name}
+        )
+
+        return {"success": True, "fled": False}
 
     async def _execute_endturn(self, combat:CombatInstance, actor: Combatant) -> Dict[str, Any]:
         """턴넘김"""
         # 방어 상태 해제
         actor.is_defending = False  # TODO: 방어 하고 턴넘김이 될 수 있게 되어야 함
-
-        # from ..core.localization import get_localization_manager
-
-        # localization = get_localization_manager()
-
-        # 기본 언어는 영어로 설정 (세션 정보가 없는 경우)
-        # locale = "en"
-
-        # message = "" # localization.get_message("combat.wait_action", locale, actor=actor.name)
 
         combat.advance_turn()
         await self.broadcast_combat_state(combat)

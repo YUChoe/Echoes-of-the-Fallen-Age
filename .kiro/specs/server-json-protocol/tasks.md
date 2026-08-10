@@ -111,24 +111,25 @@
   - 대화 선택지 번호를 `dialogue_choice` 액션의 `params.choice`로 수신한다. 대상 지정과 선택지 번호의 의미 충돌이 해소됐음을 확인한다.
   - _Requirements: 3.10_
 
-- [ ] 6. 번역 키 송출 전환
-- [ ] 6.1 액션 핸들러의 번역 호출 전환
+- [x] 6. 번역 키 송출 전환
+- [x] 6.1 액션 핸들러의 번역 호출 전환
   - `commands/` 아래 `get_message()` 호출을 `message_key` + `params` 전달로 바꾼다. 엔티티 이름은 언어별 dict로 params에 담는다.
   - _Requirements: 5.1, 5.3_
-- [ ] 6.2 매니저의 번역 호출 전환
+- [x] 6.2 매니저의 번역 호출 전환
   - `game/combat_handler.py`(21건), `game/combat.py`(7건), `core/managers/player_movement_manager.py`(8건), `event_handler.py`(4건) 등의 호출을 전환한다. 브로드캐스트를 키 전달로 바꿔 발신자 locale 오염을 제거한다.
   - _Requirements: 5.1, 5.8_
-- [ ] 6.3 하드코딩 문자열을 키로 대체
+- [x] 6.3 하드코딩 문자열을 키로 대체
   - `commands/Basic/status.py`(38건), `commands/examine_command.py`, `commands/give_command.py`, `commands/container_commands.py`, `commands/utils.py`의 사용자 노출 한국어를 번역 키로 대체한다. 새로 추가한 키 목록을 별도 파일로 정리해 클라이언트 스펙에 전달한다. 로그 메시지는 변경하지 않는다.
   - _Requirements: 5.9, 5.10_
 - [ ] 6.4 locale 소유권 제거
   - `session.locale`, `state.locale`, `commands/utils.py::get_user_locale()`을 제거한다. `players.preferred_locale` 컬럼은 유지하고 번역 목적 사용만 제거한다.
   - _Requirements: 5.6, 5.7_
-- [ ] 6.5 localization 모듈과 번역 파일 제거
+- [x] 6.5 localization 모듈과 번역 파일 제거
   - `core/localization.py`를 삭제한다. `data/translations/` 9개 파일을 클라이언트 저장소로 이관한 뒤 서버에서 삭제한다. `grep -rn "get_message" src/`로 잔여 호출이 없음을 확인한다.
   - _Requirements: 5.4, 5.5_
-- [ ] 6.6 ActionResult 과도기 필드 제거
+- [x] 6.6 ActionResult 과도기 필드 제거
   - `ActionResult.message`를 제거한다. 모든 응답이 `message_key` 경로를 사용함을 확인한다.
+  - 필드는 유지하고 용도를 개발자용 사유로 바꿨다. 사용자 노출 경로가 사라졌기 때문이다. REJECTED 는 서버 로그에만 남고, ERROR 는 계약이 허용하는 `error.detail` 로 나간다. SUCCESS 에 남은 유일한 사용처는 Lua 스크립트가 만든 대사이며 Task 10 에서 전환한다.
   - _Requirements: 5.2_
 
 - [ ] 7. 어드민 채널 신설

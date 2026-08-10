@@ -2,10 +2,11 @@
 """이벤트 핸들러"""
 
 import logging
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING, Dict, Any, Optional
 from datetime import datetime
 
 from ..event_bus import Event, EventType
+from ...server.serialization import build_event
 
 if TYPE_CHECKING:
     from ..game_engine import GameEngine
@@ -65,51 +66,38 @@ class EventHandler:
 
     async def _on_player_login(self, event: Event) -> None:
         """플레이어 로그인 이벤트 핸들러"""
-        from ..localization import get_message
-        
-        data = event.data
-        username = data.get('username')
+        username = event.data.get('username')
 
-        # 모든 세션에 각자의 언어로 로그인 알림 전송
-        for session in self.game_engine.session_manager.sessions.values():
-            if session.player and session.player.username != username:
-                # 각 세션의 언어 설정에 맞는 메시지 생성
-                locale = getattr(session, 'language', 'en')
-                message = get_message("game.player_joined", locale, username=username)
-                
-                login_message = {
-                    "type": "system_message",
-                    "message": message,
-                    "timestamp": event.timestamp.isoformat()
-                }
-                
-                await session.send_message(login_message)
+        await self._announce_to_others(
+            username, "game.player_joined", category="social"
+        )
 
         logger.info(f"플레이어 로그인 알림 브로드캐스트: {username}")
 
     async def _on_player_logout(self, event: Event) -> None:
         """플레이어 로그아웃 이벤트 핸들러"""
-        from ..localization import get_message
-        
-        data = event.data
-        username = data.get('username')
+        username = event.data.get('username')
 
-        # 모든 세션에 각자의 언어로 로그아웃 알림 전송
-        for session in self.game_engine.session_manager.sessions.values():
-            if session.player and session.player.username != username:
-                # 각 세션의 언어 설정에 맞는 메시지 생성
-                locale = getattr(session, 'language', 'en')
-                message = get_message("game.player_left", locale, username=username)
-                
-                logout_message = {
-                    "type": "system_message",
-                    "message": message,
-                    "timestamp": event.timestamp.isoformat()
-                }
-                
-                await session.send_message(logout_message)
+        await self._announce_to_others(
+            username, "game.player_left", category="social"
+        )
 
         logger.info(f"플레이어 로그아웃 알림 브로드캐스트: {username}")
+
+    async def _announce_to_others(
+        self, username: Optional[str], key: str, category: str = "system"
+    ) -> None:
+        """본인을 제외한 모든 세션에 번역 키 알림을 보낸다.
+
+        키를 전달하므로 수신자가 각자의 언어로 번역한다. 기존에는 발신 시점에
+        문장을 만들어 보내며 세션 속성 `language` 를 참조했는데, 그 속성은
+        존재하지 않아 항상 영어로 나갔다.
+        """
+        payload = build_event(key, {"username": username}, category=category)
+
+        for session in self.game_engine.session_manager.sessions.values():
+            if session.player and session.player.username != username:
+                await session.send_message(payload)
 
     async def _on_player_command(self, event: Event) -> None:
         """플레이어 명령어 이벤트 핸들러"""

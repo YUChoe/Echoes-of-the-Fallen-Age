@@ -8,6 +8,7 @@ from datetime import datetime
 from ..event_bus import Event, EventType
 from ..types import SessionType
 from ...server.serialization import (
+    build_event,
     build_room_info,
     serialize_monster,
     serialize_object,
@@ -138,11 +139,9 @@ class PlayerMovementManager:
 
         except Exception as e:
             logger.error(f"플레이어 방 이동 실패 ({session.player.username} -> {room_id}): {e}")
-            from ..localization import get_localization_manager
-            localization = get_localization_manager()
-            locale = session.player.preferred_locale if session.player else "en"
-            message = localization.get_message("movement.error", locale)
-            await session.send_error(message)
+            await session.send_message(
+                build_event("movement.error", category="movement")
+            )
             return False
 
     async def send_room_info_to_player(self, session: SessionType, room_id: str) -> None:
@@ -361,22 +360,25 @@ class PlayerMovementManager:
 
         # 스태미나 체크 (전투 밖 액션)
         if getattr(session, 'stamina', 5.0) < 1.0:
-            from ..localization import get_localization_manager
-            localization = get_localization_manager()
-            locale = session.player.preferred_locale if session.player else "en"
-            await session.send_error(localization.get_message("system.stamina_exhausted", locale))
+            await session.send_message(
+                build_event("system.stamina_exhausted", category="movement")
+            )
             return False
 
         try:
             # 현재 위치 확인
             current_room_id = getattr(session, 'current_room_id', None)
             if not current_room_id:
-                await session.send_error("현재 위치를 확인할 수 없습니다.")
+                await session.send_message(
+                    build_event("movement.no_location", category="movement")
+                )
                 return False
 
             current_room = await self.game_engine.world_manager.get_room(current_room_id)
             if not current_room or current_room.x is None or current_room.y is None:
-                await session.send_error("현재 방의 좌표 정보가 없습니다.")
+                await session.send_message(
+                    build_event("movement.error", category="movement")
+                )
                 return False
 
             # 목적지 좌표 계산
@@ -384,40 +386,29 @@ class PlayerMovementManager:
 
             direction_enum = get_direction_from_string(direction)
             if not direction_enum:
-                from ..localization import get_localization_manager
-                localization = get_localization_manager()
-                locale = session.player.preferred_locale if session.player else "en"
-                message = localization.get_message("go.invalid_direction", locale, direction=direction)
-                await session.send_error(message)
+                await session.send_message(
+                    build_event(
+                        "go.invalid_direction",
+                        {"direction": direction},
+                        category="movement",
+                    )
+                )
                 return False
 
             new_x, new_y = calculate_new_coordinates(current_room.x, current_room.y, direction_enum)
 
             # 막힌 출구 확인
             if hasattr(current_room, 'blocked_exits') and direction.lower() in (current_room.blocked_exits or []):
-                from ..localization import get_localization_manager
-                localization = get_localization_manager()
-                locale = session.player.preferred_locale if session.player else "en"
-                message = localization.get_message("movement.no_exit", locale, direction=direction)
-                await session.send_error(message)
+                await self._notify_no_exit(session, direction)
                 return False
 
             # 목적지 방 확인
             target_room = await self.game_engine.world_manager.get_room_at_coordinates(new_x, new_y)
             if not target_room:
-                from ..localization import get_localization_manager
-                localization = get_localization_manager()
-                locale = session.player.preferred_locale if session.player else "en"
-                message = localization.get_message("movement.no_exit", locale, direction=direction)
-                await session.send_error(message)
+                await self._notify_no_exit(session, direction)
                 return False
 
-            # 이동 성공 메시지를 먼저 전송
-            from ..localization import get_localization_manager
-            localization = get_localization_manager()
-            locale = session.player.preferred_locale if session.player else "en"
-            move_message = localization.get_message("movement.success", locale, direction=direction)
-            await session.send_success(move_message)
+            # 이동 성공 알림은 보내지 않는다. 이어지는 room_info 가 이동을 알린다.
 
             # 스태미나 소모
             session.stamina = max(0.0, session.stamina - 1.0)
@@ -427,12 +418,18 @@ class PlayerMovementManager:
 
         except Exception as e:
             logger.error(f"방향 기반 이동 실패 ({session.player.username}, {direction}): {e}")
-            from ..localization import get_localization_manager
-            localization = get_localization_manager()
-            locale = session.player.preferred_locale if session.player else "en"
-            message = localization.get_message("movement.error", locale)
-            await session.send_error(message)
+            await session.send_message(
+                build_event("movement.error", category="movement")
+            )
             return False
+
+    async def _notify_no_exit(self, session: SessionType, direction: str) -> None:
+        """해당 방향으로 갈 수 없음을 알린다."""
+        await session.send_message(
+            build_event(
+                "movement.no_exit", {"direction": direction}, category="movement"
+            )
+        )
 
     async def move_player_to_coordinates(self, session: SessionType, x: int, y: int, skip_followers: bool = False) -> bool:
         """
@@ -454,7 +451,13 @@ class PlayerMovementManager:
             # 목적지 방 확인
             target_room = await self.game_engine.world_manager.get_room_at_coordinates(x, y)
             if not target_room:
-                await session.send_error(f"좌표 ({x}, {y})에 방이 없습니다.")
+                await session.send_message(
+                    build_event(
+                        "movement.no_room_at",
+                        {"x": x, "y": y},
+                        category="movement",
+                    )
+                )
                 return False
 
             # 기존 이동 메서드 사용
@@ -462,9 +465,7 @@ class PlayerMovementManager:
 
         except Exception as e:
             logger.error(f"좌표 기반 이동 실패 ({session.player.username}, {x}, {y}): {e}")
-            from ..localization import get_localization_manager
-            localization = get_localization_manager()
-            locale = session.player.preferred_locale if session.player else "en"
-            message = localization.get_message("movement.error", locale)
-            await session.send_error(message)
+            await session.send_message(
+                build_event("movement.error", category="movement")
+            )
             return False

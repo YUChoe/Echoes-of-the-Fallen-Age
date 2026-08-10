@@ -104,6 +104,28 @@ def action_rejected(
     return build("action_rejected", seq=seq, **payload)
 
 
+def build_event(
+    key: str,
+    params: Optional[dict[str, Any]] = None,
+    category: str = "system",
+    seq: Optional[int] = None,
+) -> dict[str, Any]:
+    """번역 키 기반 알림을 만든다.
+
+    완성된 문장을 만들지 않는다. 수신 클라이언트가 각자의 언어로 번역하므로
+    브로드캐스트에서 발신자 언어가 전파되는 문제가 구조적으로 사라진다.
+
+    Args:
+        key: 번역 키
+        params: 치환 파라미터. 값이 언어별 dict 이면 클라이언트가 골라 쓴다
+        category: 로그 채널 분류 (combat/movement/item/social/system/dialogue)
+        seq: 요청에 대한 응답이면 그 번호
+    """
+    return build(
+        "event", seq=seq, category=category, message=message_payload(key, params)
+    )
+
+
 def message_payload(key: str, params: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """번역 키 페이로드를 만든다.
 

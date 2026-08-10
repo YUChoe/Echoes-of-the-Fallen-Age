@@ -222,14 +222,11 @@ class TimeManager:
             logger.info(f"시간대 변경 없음 (이미 {self.current_time.value})")
 
     async def _notify_time_change(self) -> None:
-        """모든 접속 유저에게 시간 변경 알림"""
-        from ..localization import get_localization_manager
-        localization = get_localization_manager()
-        
-        if self.current_time == TimeOfDay.DAY:
-            color = "\033[93m"  # 노란색
-        else:
-            color = "\033[94m"  # 파란색
+        """모든 접속 유저에게 시간 변경 알림
+
+        색상은 클라이언트가 결정한다. 서버는 번역 키만 보낸다.
+        """
+        from ...server.serialization import build_event
 
         # 모든 활성 세션에 알림
         from typing import Any, List
@@ -244,18 +241,12 @@ class TimeManager:
         for session in all_sessions:
             if hasattr(session, 'is_authenticated') and session.is_authenticated:
                 try:
-                    # 세션의 언어 설정에 따라 메시지 선택
-                    session_locale = getattr(session, 'locale', 'en')
-                    
-                    if self.current_time == TimeOfDay.DAY:
-                        message = localization.get_message("time.dawn", session_locale)
-                    else:
-                        message = localization.get_message("time.dusk", session_locale)
-                    
-                    await session.send_message({
-                        "type": "system_message",
-                        "message": f"{color}{message}\033[0m"
-                    })
+                    key = (
+                        "time.dawn"
+                        if self.current_time == TimeOfDay.DAY
+                        else "time.dusk"
+                    )
+                    await session.send_message(build_event(key, category="system"))
                     sent_count += 1
                 except Exception as e:
                     session_id = getattr(session, 'session_id', 'unknown')

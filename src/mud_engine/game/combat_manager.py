@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Optional
 from .combat import CombatInstance, CombatantType, Combatant
 from .monster import Monster
 from .models import Player
-from ..core.localization import get_localization_manager
 
 logger = logging.getLogger(__name__)
 
@@ -32,25 +31,19 @@ class CombatManager:
         logger.info(f"방 {room_id}에 전투 인스턴스 {combat.id} 생성")
         return combat
 
-    def _build_turn_order_message(self, combat: CombatInstance, locale: str) -> str:
-        """참가자의 locale에 맞는 턴 순서 메시지 생성"""
-        I18N = get_localization_manager()
-        parts = [I18N.get_message("combat.turn_order", locale)]
-        for combatant_id in combat.turn_order:
-            combatant = combat.get_combatant(combatant_id)
-            name = combatant.get_display_name(locale)
-            parts.append(f"[{name}]")
-        return " ".join(parts)
+    async def _broadcast_turn_order(self, combat: CombatInstance) -> None:
+        """참가자에게 전투 상태를 보낸다.
 
-    async def _broadcast_per_player_locale(self, combat: CombatInstance, build_msg) -> None:
-        """각 플레이어의 locale에 맞게 개별 메시지를 전송"""
+        턴 순서는 `combat_state.turn_order` 가 담으므로 별도 텍스트를 만들지 않는다.
+        `is_my_turn` 이 보는 사람에 따라 달라져 참가자별로 만든다.
+        """
+        from ..server.serialization import build_combat_state
+
         for c in combat.combatants:
             if c.combatant_type == CombatantType.PLAYER:
                 session = self.session_manager.get_player_session(c.id)
                 if session:
-                    player_locale = getattr(session, 'locale', 'en')
-                    msg = build_msg(player_locale)
-                    await session.send_message({"type": "combat_message", "message": msg})
+                    await session.send_message(build_combat_state(combat, c.id))
 
     async def turn_boardcast_for_new_instance(self, combat: CombatInstance, locale: str = "en") -> None:
         """전투 참가자들에게 결정된 턴 순서 브로드캐스트 (참가자별 locale)"""
@@ -66,20 +59,14 @@ class CombatManager:
             combat.turn_order.insert(0, combat.turn_order.pop(combat.turn_order.index(superadmin_id)))
             logger.info(f"after {combat.turn_order}")
 
-        # 참가자별 locale로 개별 전송
-        await self._broadcast_per_player_locale(
-            combat, lambda loc: self._build_turn_order_message(combat, loc)
-        )
+        await self._broadcast_turn_order(combat)
 
     async def turn_boardcast_for_new_instance_with_aggresive_mob(self, combat: CombatInstance, monster: Monster) -> None:
         """선공 몬스터 전투 시작 시 턴 순서 브로드캐스트 (참가자별 locale)"""
         combat.turn_order.insert(0, combat.turn_order.pop(combat.turn_order.index(monster.id)))
         logger.info(f"after {combat.turn_order}")
 
-        # 참가자별 locale로 개별 전송
-        await self._broadcast_per_player_locale(
-            combat, lambda loc: self._build_turn_order_message(combat, loc)
-        )
+        await self._broadcast_turn_order(combat)
 
     def get_combat_instances(self) -> Dict[str, CombatInstance]:
         return self.combat_instances

@@ -74,6 +74,13 @@ class CommandManager:
         from ...server.serialization import action_rejected, message_payload
 
         if result.result_type is ActionResultType.REJECTED:
+            # 거절 사유는 계약에 담을 자리가 없으므로 서버 로그에만 남긴다
+            if result.message:
+                logger.info(
+                    f"액션 거절: {ctx.verb} -> "
+                    f"{result.rejection_code} ({result.message})"
+                )
+
             await session.send_message(
                 action_rejected(
                     ctx.seq,

@@ -243,6 +243,8 @@ flowchart TD
 | 상점 verb 미구현 | 범위 외. `shop_open`/`shop_buy`/`shop_sell`을 등록하지 않는다. 계약이 요구하는 `item_prices` 기반 상점이 서버에 없다. `shop_command.py`는 폐기 표시가 붙어 있고 등록되지 않으며 `item_prices`가 아니라 몬스터 properties의 `shop_items`를 쓴다. 살아 있는 거래 경로는 대화 안의 Lua exchange API뿐이므로 기능 손실이 없다. 계약을 만족시키려면 세 가지가 필요하다: `shop_buy`의 `template_id`를 NPC 인벤토리 실물 uuid로 해석하는 계층(현재 Lua 래퍼에만 존재), `ExchangeManager`의 수량 처리(현재 없음), `stock` 의미 재정의(`exchange_config`에 판매 목록이 없고 `initial_silver`와 `buy_margin`만 있어 실제 재고는 NPC 인벤토리 실물 개수다). 데이터 스키마 변경을 수반하므로 페이즈2 이후 별도 작업 |
 | `town_merchant.json` 중복 키 | 데이터 정리. `configs/monsters/town_merchant.json`에 `exchange_config` 키가 두 번 있다. JSON 중복 키라 뒤의 것이 이기고 값이 같아 동작에는 영향이 없다 |
 | 어드민 명령어 재작성 | 서버 Task 7. Task 4.6에서 `commands/admin/` 15개 파일을 삭제했다. 텍스트 프로토콜과 번호 기반 대상 지정에 묶여 있어 어드민 채널에서 재사용할 수 없었고, 삭제 시점에 이미 도달 불가 상태였다. `core/managers/admin_manager.py`는 남겼으며 어드민 채널이 그것을 호출한다. 그때까지 `admin_manager`의 메서드는 호출자가 없다. 필요하면 커밋 91790e3에서 삭제된 파일을 참고할 수 있다 |
+| NPC 침묵 폴백 문구 | 서버 Task 10. Lua 스크립트가 없는 NPC 와 대화하면 `lines` 에 `"..."` 가 담긴다. 기존에는 `npc.talk.silent_stare` 키로 "아무 말 없이 바라봅니다"를 렌더링했으나, 대화 대사가 언어별 dict 인 과도기에는 키를 실을 자리가 없다. 대화 대사가 키 방식으로 전환되면 이 센티널을 해당 키로 바꾼다 |
+| 이관된 번역 파일의 사용처 없는 키 | Godot Task 5.2. 서버에서 이관한 9개 파일에는 명령어 도움말, 어드민 명령어 안내처럼 페이즈2 에서 사라진 기능의 키가 남아 있다. 클라이언트가 i18n 계층을 만들 때 실제 사용 키만 남기고 정리한다 |
 | `SessionState.last_command` 제거 | 서버 Task 9. 텍스트 프로토콜의 `.` 반복 입력에 쓰였고 참조하는 코드가 사라졌다. 필드만 남아 있으며 잔여 정리 단계에서 제거한다 |
 | 전투 알림의 번역 키 전환 | 서버 Task 6. `combat_handler`의 공격·명중·사망·시체 생성 알림이 아직 완성 문장을 `combat_message` 타입으로 보낸다. 전투 상태표와 턴 안내, 행동 메뉴는 Task 5에서 `combat_state` 브로드캐스트로 대체해 제거했다 |
 | 역할 기반 어드민 권한 | 범위 외. 향후 확장 |

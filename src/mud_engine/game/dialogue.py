@@ -6,7 +6,6 @@ from uuid import uuid4
 
 from .dialogue_context import DialogueContext
 from .monster import Monster
-from ..core.localization import get_localization_manager
 from .models import Player
 from ..core.types import SessionType
 
@@ -26,7 +25,6 @@ class DialogueInstance:
     is_active: bool = True
     started_at: datetime = field(default_factory=datetime.now)
     ended_at: datetime | None = None
-    I18N: ClassVar = get_localization_manager()
     choice_entity: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:

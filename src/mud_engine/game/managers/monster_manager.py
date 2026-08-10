@@ -753,10 +753,12 @@ class MonsterManager:
         except Exception as e:
             logger.error(f"기본 스폰 포인트 설정 실패: {e}")
     async def _send_localized_monster_message(self, game_engine, old_room_id: str, new_room_id: str, monster) -> None:
-        """각 플레이어의 언어 설정에 따라 몬스터 이동 메시지를 전송합니다."""
+        """몬스터 이동 알림을 번역 키로 전송합니다.
+
+        이름을 언어별 dict 로 담아 보내므로 수신자가 자기 언어로 표시한다.
+        """
         try:
-            from ...core.localization import get_localization_manager
-            localization = get_localization_manager()
+            from ...server.serialization import build_event, localized_dict
 
             # 이전 방의 플레이어들에게 퇴장 알림
             if old_room_id and old_room_id != new_room_id:
@@ -765,18 +767,14 @@ class MonsterManager:
                     if hasattr(session, 'current_room_id') and session.current_room_id == old_room_id:
                         sessions_in_old_room.append(session)
 
+                leave_payload = build_event(
+                    "monster.leaves",
+                    {"monster_name": localized_dict(monster.name)},
+                    category="movement",
+                )
                 for session in sessions_in_old_room:
                     if session.player:
-                        locale = getattr(session.player, 'preferred_locale', 'en')
-                        monster_name = monster.get_localized_name(locale)
-
-                        message = localization.get_message("monster.leaves", locale, monster_name=monster_name)
-
-                        await session.send_message({
-                            "type": "room_message",
-                            "message": message,
-                            "timestamp": datetime.now().isoformat()
-                        })
+                        await session.send_message(leave_payload)
 
             # 새 방의 플레이어들에게 입장 알림
             sessions_in_new_room = []
@@ -784,18 +782,14 @@ class MonsterManager:
                 if hasattr(session, 'current_room_id') and session.current_room_id == new_room_id:
                     sessions_in_new_room.append(session)
 
+            appear_payload = build_event(
+                "monster.appears",
+                {"monster_name": localized_dict(monster.name)},
+                category="movement",
+            )
             for session in sessions_in_new_room:
                 if session.player:
-                    locale = getattr(session.player, 'preferred_locale', 'en')
-                    monster_name = monster.get_localized_name(locale)
-
-                    message = localization.get_message("monster.appears", locale, monster_name=monster_name)
-
-                    await session.send_message({
-                        "type": "room_message",
-                        "message": message,
-                        "timestamp": datetime.now().isoformat()
-                    })
+                    await session.send_message(appear_payload)
 
         except Exception as e:
             logger.error(f"다국어 몬스터 메시지 전송 실패: {e}")

@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from ..core.localization import get_localization_manager
 from .combatant import CombatAction, CombatantType, Combatant  # noqa: F401
 
 logger = logging.getLogger(__name__)
@@ -60,7 +59,6 @@ class CombatInstance:
     # 타임아웃 tick 카운트 (8회 = 2분, 15초 간격)
     timeout_ticks: int = 0
     max_timeout_ticks: int = 8  # 8 * 15초 = 2분  # TODO: 이건 또 뭐야
-    I18N = get_localization_manager()
 
     def __post_init__(self):
         """초기화 후 턴 순서 결정"""

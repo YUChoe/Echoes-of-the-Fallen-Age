@@ -98,7 +98,10 @@ class ActionResult:
         rejection_code: REJECTED 인 경우의 사유 코드
         broadcast: 주변에 알릴 내용
         data: 응답에 실을 부가 데이터
-        message: 과도기 완성 문장. 번역 키 전환(Task 6) 후 제거한다
+        message: 개발자용 영문 사유. 사용자에게 표시하지 않는다.
+            REJECTED 는 서버 로그에만 남고, ERROR 는 `error.detail` 로 나간다.
+            SUCCESS 에 쓰이는 경우는 Lua 스크립트가 만든 대사뿐이며
+            그 전환은 Task 10 에서 다룬다
     """
 
     result_type: ActionResultType
@@ -145,7 +148,7 @@ def rejected(
         rejection_code: entities.md 에 정의된 사유 코드
         message_key: 사용자에게 표시할 번역 키
         params: 번역 치환 파라미터
-        message: 과도기 완성 문장
+        message: 개발자용 영문 사유. 서버 로그에만 남는다
     """
     return ActionResult(
         result_type=ActionResultType.REJECTED,
