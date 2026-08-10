@@ -36,8 +36,8 @@ class AdminManager:
             new_room = await self.game_engine.world_manager.create_room(room_data)
 
             # 관리자에게 성공 알림
-            await admin_session.send_success(
-                f"새 방이 생성되었습니다 (ID: {new_room.id})"
+            await admin_session.send_admin_notice(
+                f"새 방이 생성되었습니다 (ID: {new_room.id})", "success"
             )
 
             # 세계 변경 이벤트 발행
@@ -56,7 +56,7 @@ class AdminManager:
 
         except Exception as e:
             logger.error(f"실시간 방 생성 실패: {e}")
-            await admin_session.send_error(f"방 생성 실패: {str(e)}")
+            await admin_session.send_admin_notice(f"방 생성 실패: {str(e)}", "error")
             return False
 
     async def update_room_realtime(self, room_id: str, updates: Dict[str, Any], admin_session: SessionType) -> bool:
@@ -75,12 +75,12 @@ class AdminManager:
             # 방 수정
             updated_room = await self.game_engine.world_manager.update_room(room_id, updates)
             if not updated_room:
-                await admin_session.send_error("존재하지 않는 방입니다.")
+                await admin_session.send_admin_notice("존재하지 않는 방입니다.", "error")
                 return False
 
             # 관리자에게 성공 알림
-            await admin_session.send_success(
-                f"방이 수정되었습니다 (ID: {room_id})"
+            await admin_session.send_admin_notice(
+                f"방이 수정되었습니다 (ID: {room_id})", "success"
             )
 
             # 해당 방에 있는 모든 플레이어에게 변경사항 알림
@@ -111,7 +111,7 @@ class AdminManager:
 
         except Exception as e:
             logger.error(f"실시간 방 수정 실패 ({room_id}): {e}")
-            await admin_session.send_error(f"방 수정 실패: {str(e)}")
+            await admin_session.send_admin_notice(f"방 수정 실패: {str(e)}", "error")
             return False
 
     async def create_object_realtime(self, object_data: Dict[str, Any], admin_session: SessionType) -> bool:
@@ -130,8 +130,9 @@ class AdminManager:
             new_object = await self.game_engine.world_manager.create_game_object(object_data)
 
             # 관리자에게 성공 알림
-            await admin_session.send_success(
-                f"새 객체가 생성되었습니다: {new_object.get_localized_name('ko')} (ID: {new_object.id})"
+            await admin_session.send_admin_notice(
+                f"새 객체가 생성되었습니다: {new_object.get_localized_name('ko')} (ID: {new_object.id})",
+                "success",
             )
 
             # 객체가 생성된 방에 있는 플레이어들에게 알림
@@ -163,7 +164,7 @@ class AdminManager:
 
         except Exception as e:
             logger.error(f"실시간 객체 생성 실패: {e}")
-            await admin_session.send_error(f"객체 생성 실패: {str(e)}")
+            await admin_session.send_admin_notice(f"객체 생성 실패: {str(e)}", "error")
             return False
 
     async def validate_and_repair_world(self, admin_session: SessionType = None) -> Dict[str, Any]:
@@ -197,10 +198,11 @@ class AdminManager:
                 total_fixed = sum(repair_result.values())
 
                 if total_issues == 0:
-                    await admin_session.send_success("게임 세계 무결성 검증 완료: 문제 없음")
+                    await admin_session.send_admin_notice("게임 세계 무결성 검증 완료: 문제 없음", "success")
                 else:
-                    await admin_session.send_success(
-                        f"게임 세계 무결성 검증 및 수정 완료: {total_issues}개 문제 발견, {total_fixed}개 수정"
+                    await admin_session.send_admin_notice(
+                        f"게임 세계 무결성 검증 및 수정 완료: {total_issues}개 문제 발견, {total_fixed}개 수정",
+                        "success",
                     )
 
             logger.info(f"게임 세계 무결성 검증 및 수정 완료: {result}")
@@ -209,7 +211,7 @@ class AdminManager:
         except Exception as e:
             logger.error(f"게임 세계 무결성 검증 실패: {e}")
             if admin_session:
-                await admin_session.send_error(f"무결성 검증 실패: {str(e)}")
+                await admin_session.send_admin_notice(f"무결성 검증 실패: {str(e)}", "error")
             raise
 
     async def kick_player(self, target_username: str, admin_session: SessionType, reason: str = "관리자에 의해 추방") -> bool:
@@ -233,7 +235,7 @@ class AdminManager:
                     break
 
             if not target_session:
-                await admin_session.send_error(f"플레이어 '{target_username}'을(를) 찾을 수 없습니다.")
+                await admin_session.send_admin_notice(f"플레이어 '{target_username}'을(를) 찾을 수 없습니다.", "error")
                 return False
 
             # 추방 알림 전송
@@ -256,14 +258,14 @@ class AdminManager:
             await self.game_engine.remove_player_session(target_session, f"관리자 추방: {reason}")
 
             # 관리자에게 성공 알림
-            await admin_session.send_success(f"플레이어 '{target_username}'을(를) 추방했습니다.")
+            await admin_session.send_admin_notice(f"플레이어 '{target_username}'을(를) 추방했습니다.", "success")
 
             logger.info(f"플레이어 추방: {target_username} (관리자: {admin_session.player.username if admin_session.player else 'Unknown'}, 사유: {reason})")
             return True
 
         except Exception as e:
             logger.error(f"플레이어 추방 실패 ({target_username}): {e}")
-            await admin_session.send_error(f"플레이어 추방 실패: {str(e)}")
+            await admin_session.send_admin_notice(f"플레이어 추방 실패: {str(e)}", "error")
             return False
 
     async def get_admin_stats(self, admin_session: SessionType) -> Dict[str, Any]:
@@ -316,7 +318,7 @@ class AdminManager:
 
         except Exception as e:
             logger.error(f"관리자 통계 조회 실패: {e}")
-            await admin_session.send_error(f"통계 조회 실패: {str(e)}")
+            await admin_session.send_admin_notice(f"통계 조회 실패: {str(e)}", "error")
             return {}
 
     async def _get_room_statistics(self) -> Dict[str, Any]:

@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 from ..game.models import Player
-from .serialization import build, encode_line
+from .serialization import build, build_event, encode_line
 from .serialization import error as protocol_error
 from .session.util import short_session_id as _short_id
 from .session.transport import TelnetTransport
@@ -226,47 +226,44 @@ class TelnetSession:
             return False
 
     async def send_event(
-        self, text: str, category: str = "system", severity: str = "info"
+        self,
+        key: str,
+        params: Optional[Dict[str, Any]] = None,
+        category: str = "system",
+        seq: Optional[int] = None,
     ) -> bool:
-        """과도기 알림을 event 메시지로 전송한다.
+        """번역 키 기반 알림을 전송한다.
 
-        프로토콜 계약은 `event` 가 번역 키를 담도록 규정한다. 번역 키 전환은
-        Task 6에서 일괄 처리하므로 그때까지 완성 문장을 `text` 에 실어 보낸다.
-        `text` 와 `severity` 는 과도기 필드이며 Task 6에서 제거된다.
+        서버는 완성된 문장을 만들지 않는다. 수신 클라이언트가 각자의 언어로
+        번역하므로 브로드캐스트에서 발신자 언어가 전파되지 않는다.
 
         Args:
-            text: 표시할 문장
+            key: 번역 키
+            params: 치환 파라미터. 값이 언어별 dict 이면 클라이언트가 골라 쓴다
             category: 로그 채널 분류 (combat/movement/item/social/system/dialogue)
-            severity: info / success / error
+            seq: 요청에 대한 응답이면 그 번호
 
         Returns:
             전송 성공 여부
         """
         return await self.send_message(
-            build("event", category=category, text=text, severity=severity)
+            build_event(key, params, category=category, seq=seq)
         )
 
-    async def send_error(self, error_message: str) -> bool:
-        """오류 알림 전송
+    async def send_admin_notice(self, text: str, severity: str = "info") -> bool:
+        """어드민 전용 과도기 알림을 전송한다.
 
-        게임 로직의 거절이다. 프로토콜 계약 위반은 `send_protocol_error` 를 쓴다.
-        """
-        return await self.send_event(error_message, severity="error")
-
-    async def send_success(
-        self, message: str, data: Optional[Dict[str, Any]] = None
-    ) -> bool:
-        """성공 알림 전송
+        완성된 문장을 그대로 보내므로 계약을 따르지 않는다. `AdminManager` 만
+        사용하며, 어드민 채널(TCP 4001)로 이전하는 Task 7.6 에서 사라진다.
+        게임 채널에서는 쓰지 않는다.
 
         Args:
-            message: 표시할 문장
-            data: 과거 WebSocket 인터페이스의 잔재. 사용하지 않는다
+            text: 표시할 문장
+            severity: info / success / error
         """
-        return await self.send_event(message, severity="success")
-
-    async def send_info(self, message: str) -> bool:
-        """정보 알림 전송"""
-        return await self.send_event(message)
+        return await self.send_message(
+            build("event", category="admin", text=text, severity=severity)
+        )
 
     async def send_protocol_error(
         self, reason_code: str, detail: str = "", seq: Optional[int] = None
@@ -274,7 +271,7 @@ class TelnetSession:
         """프로토콜 계약 위반을 알린다.
 
         JSON 파싱 실패, 필수 필드 누락처럼 계약 위반에만 사용한다. 게임 로직의
-        거절에는 `send_error` 또는 `action_rejected` 를 쓴다.
+        거절에는 `action_rejected` 를 쓴다.
         """
         return await self.send_message(protocol_error(reason_code, detail, seq))
 

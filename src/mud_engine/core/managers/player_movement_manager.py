@@ -52,7 +52,7 @@ class PlayerMovementManager:
             room = await self.game_engine.world_manager.get_room(room_id)
             if not room:
                 logger.warning(f"존재하지 않는 방으로 이동 시도: {room_id} (플레이어: {session.player.username})")
-                await session.send_error("존재하지 않는 방입니다.")
+                await session.send_event("movement.room_not_found", category="movement")
                 return False
 
             # 이전 방 ID 저장

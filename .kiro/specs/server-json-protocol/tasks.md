@@ -134,10 +134,17 @@
   - `ActionResult.message`를 제거한다. 모든 응답이 `message_key` 경로를 사용함을 확인한다.
   - 필드는 유지하고 용도를 개발자용 사유로 바꿨다. 사용자 노출 경로가 사라졌기 때문이다. REJECTED 는 서버 로그에만 남고, ERROR 는 계약이 허용하는 `error.detail` 로 나간다. SUCCESS 에 남은 유일한 사용처는 Lua 스크립트가 만든 대사이며 Task 10 에서 전환한다.
   - _Requirements: 5.2_
-- [ ] 6.7 생문장 송신 경로 제거
+- [x] 6.7 생문장 송신 경로 제거
   - Task 6.4 작업 중 발견한 잔여다. 게임 채널이 아직 완성된 한국어 문장을 그대로 보낸다.
   - `server/telnet_session.py`의 `send_event(text)`/`send_error`/`send_success`/`send_info`가 자유 문자열을 받는다. 시그니처를 `message_key` + `params` 로 바꾼다.
   - 호출처: `telnet_server.py`(서버 종료 알림, 중복 로그인 종료, 서버 오류, 공지 방송), `player_movement_manager.py:55`("존재하지 않는 방입니다."), `command_manager.py:110`(`result.message` 를 그대로 송신 — Task 6.6 결정에 따라 사용자에게 보내지 않아야 한다).
+  - `send_event(key, params, category, seq)` 로 바꾸고 `build_event()` 에 위임했다. 계약 밖 필드 `text`·`severity` 가 게임 채널에서 사라졌다. `send_error`·`send_success`·`send_info` 는 삭제했다(`send_info` 는 호출처가 없었다).
+  - 서버 종료·중복 로그인은 신규 키 `system.server_shutdown`, `system.duplicate_login` 으로 보낸다. 세션 핸들러의 미처리 예외는 `send_protocol_error("INTERNAL_ERROR", str(e))` 로 바꿨다. `command_manager` 의 ERROR 경로와 같은 처리다.
+  - 공지 방송은 기능째 제거했다. `_send_announcements()` 와 `data/announcements.txt` 경로가 사라졌다. 파일이 존재하지 않았고 계약의 어떤 메시지 타입에도 대응되지 않았다.
+  - `player_movement_manager` 의 "존재하지 않는 방입니다."는 신규 키 `movement.room_not_found` 다.
+  - `command_manager` 의 `result.message` 직송은 제거하고 로그로 대체했다. 유일한 공급처는 Lua `use`/`consume` 콜백(`actions/items.py:395`·`479`)이며, 그 번역 키 전환은 Task 10 이다. 그때까지 아이템 사용 결과 문장은 클라이언트에 표시되지 않는다.
+  - `admin_manager` 14건은 `TelnetSession.send_admin_notice(text, severity)` 로 옮겼다. 어드민 전용임이 이름에 드러나고 Task 7.6 에서 통째로 사라진다.
+  - 신규 키 3종을 클라이언트 저장소 `godot/resources/translations/` 에 추가했다(`system.json` 2건, `moving.json` 1건).
   - `game/tutorial_announcer.py`는 제거했다. `preferred_locale` 로 분기해 완성 문장과 이모지를 만들고, 계약에 없는 `tutorial_announcement` 타입으로 보내며, 사라진 텍스트 명령어(`east`, `go east`)를 안내했다. 트리거 조건인 `current_room_id == 'town_square'` 도 방 id가 uuid이므로 성립하지 않았다. 튜토리얼 안내는 Lua 스크립트로 NPC에 주입한다.
   - `core/managers/admin_manager.py`의 14건은 Task 7.6에서 어드민 채널로 옮기며 함께 정리한다.
   - _Requirements: 5.1, 5.9_

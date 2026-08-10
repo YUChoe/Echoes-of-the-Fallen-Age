@@ -3,7 +3,6 @@
 
 import asyncio
 import logging
-import os
 from datetime import datetime
 from typing import Optional, Dict, Any
 
@@ -90,9 +89,7 @@ class TelnetServer:
 
             # 모든 세션에 종료 알림 전송
             for session in list(self.sessions.values()):
-                await session.send_event(
-                    "서버가 종료됩니다. 연결이 곧 끊어집니다.", category="system"
-                )
+                await session.send_event("system.server_shutdown")
                 await session.close("서버 종료")
 
             # 세션 정리
@@ -148,7 +145,7 @@ class TelnetServer:
             logger.info(f"Telnet 세션 {session.session_id} 핸들러 취소됨")
         except Exception as e:
             logger.error(f"Telnet 세션 {session.session_id} 처리 중 오류: {e}", exc_info=True)
-            await session.send_error(f"서버 오류가 발생했습니다: {e}")
+            await session.send_protocol_error("INTERNAL_ERROR", str(e))
         finally:
             # 게임 엔진에서 세션 제거
             if self.game_engine and session.is_authenticated:
@@ -177,36 +174,6 @@ class TelnetServer:
                 },
             )
         )
-
-        await self._send_announcements(session)
-
-    async def _send_announcements(self, session: TelnetSession) -> None:
-        """공지사항 파일이 있으면 알림으로 전송한다.
-
-        Args:
-            session: Telnet 세션
-        """
-        try:
-            announcements_path = os.path.join("data", "announcements.txt")
-
-            if not os.path.exists(announcements_path):
-                logger.debug(f"공지사항 파일을 찾을 수 없습니다: {announcements_path}")
-                return
-
-            with open(announcements_path, "r", encoding="utf-8") as f:
-                announcements = f.read().strip()
-
-            if not announcements:
-                logger.debug("공지사항 파일이 비어있습니다")
-                return
-
-            # 본문의 개행은 json.dumps 가 \n 으로 이스케이프하므로 라인 경계를
-            # 깨뜨리지 않는다. 줄바꿈 표시는 클라이언트가 판단한다.
-            await session.send_event(announcements, category="system")
-
-        except Exception as e:
-            logger.error(f"공지사항 읽기 실패: {e}")
-            # 공지사항 실패는 접속 흐름에 영향을 주지 않는다
 
     async def handle_authentication(self, session: TelnetSession) -> bool:
         """login 메시지를 받아 인증을 처리한다.
@@ -298,9 +265,7 @@ class TelnetServer:
             old_session_id = self.player_sessions[player.id]
             old_session = self.sessions.get(old_session_id)
             if old_session:
-                await old_session.send_event(
-                    "다른 위치에서 로그인하여 연결이 종료됩니다.", category="system"
-                )
+                await old_session.send_event("system.duplicate_login")
                 await self.remove_session(old_session_id, "중복 로그인")
 
         session.authenticate(player)
