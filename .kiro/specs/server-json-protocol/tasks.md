@@ -198,8 +198,15 @@
   - `admin_stats` 는 이 태스크에 없다. 계약의 "통계와 맵" 절에 속하므로 Task 7.5 에서 `admin_map` 과 함께 등록한다.
   - 검증: `tests/unit/test_admin_actions.py` 20건, 하니스에 6건 추가(알 수 없는 액션·파라미터 검증·미접속 goto·템플릿 목록·방 조회·세계 검증). 하니스는 데이터를 바꾸지 않는 액션만 호출한다.
   - _Requirements: 7.10_
-- [ ] 7.5 맵 데이터 JSON 전환
+- [x] 7.5 맵 데이터 JSON 전환
   - `utils/map_exporter.py`의 HTML 생성을 제거하고 좌표·지형·막힌 출구·방별 종족 분포를 담은 JSON 응답으로 대체한다. `scripts/export_unified_map.py`와 `export_map.sh`, `time_manager`의 자동 생성 스케줄을 정리한다.
+  - `map_exporter.py` 를 1026행에서 175행으로 다시 썼다. HTML 렌더링, 종족 색상표, 방 상세 조회, 파일 출력이 모두 사라졌다. 남은 것은 방 목록과 네 개의 집계 쿼리다.
+  - `scripts/export_unified_map.py` 와 `export_map.sh` 를 삭제하고 `data/world_map_unified.html` 산출물도 지웠다. `time_manager` 가 15초마다 등록하던 `map_export` 스케줄과 기동 시 즉시 생성도 제거했다. 맵은 요청 시점에 만들며 파일로 남기지 않는다.
+  - `admin/insights.py` 에 `admin_stats` 와 `admin_map` 을 등록했다. Task 7.4 에서 미룬 통계가 여기 포함된다.
+  - 통계는 `get_admin_stats()` 반환값을 그대로 전달하고 `counts` 만 서버가 채운다. 매니저가 테이블별 행 수를 세지 않기 때문이다.
+  - 응답 크기 문제를 발견해 대응했다. 방 520개에 설명을 담으면 248KB 로 한 라인 상한 256KB 의 94.6% 다. 설명을 제외하면 82KB(31.4%)다. 설명을 기본 제외로 바꾸고 `include_descriptions` 로 선택할 수 있게 했다. 상세 설명은 `admin_get` 으로 읽는 것을 권한다.
+  - `AdminSession.send_message` 에 라인 길이 가드를 넣었다. 상한을 넘는 응답은 보내지 않고 `INTERNAL_ERROR` 로 알린다. 어드민 응답은 행 수에 비례해 커지므로 조용히 버려지는 것보다 드러나는 편이 낫다.
+  - 검증: `tests/unit/test_admin_insights.py` 21건, 하니스에 2건 추가(서버 통계·맵 데이터). 실측으로 기본 82KB, 설명 포함 248KB 를 확인했다.
   - _Requirements: 7.11_
 - [ ] 7.6 관리자 명령어 제거
   - `commands/admin/` 디렉터리 전체와 `commands/admin_commands.py`, `AdminCommand` 기반 클래스를 제거한다. 게임 채널에서 관리자 명령어가 사라졌음을 확인한다.

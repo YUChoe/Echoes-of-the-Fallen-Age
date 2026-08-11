@@ -65,7 +65,23 @@ class AdminSession:
                 logger.warning(f"어드민 세션 {self.short_id}: 연결이 이미 닫혀있음")
                 return False
 
-            self.writer.write(encode_line(message))
+            payload = encode_line(message)
+
+            # 상한을 넘는 라인은 수신 쪽이 버리므로 보내지 않고 오류로 알린다.
+            # 어드민 응답은 행 수에 비례해 커진다
+            if len(payload) > MAX_LINE_BYTES:
+                logger.error(
+                    f"어드민 세션 {self.short_id}: "
+                    f"{message.get('type')} 응답이 상한을 초과 "
+                    f"({len(payload)} > {MAX_LINE_BYTES})"
+                )
+                return await self.send_error(
+                    "INTERNAL_ERROR",
+                    f"response exceeds {MAX_LINE_BYTES} bytes; narrow the request",
+                    message.get("seq"),
+                )
+
+            self.writer.write(payload)
             await self.writer.drain()
             self.last_activity = datetime.now()
             return True

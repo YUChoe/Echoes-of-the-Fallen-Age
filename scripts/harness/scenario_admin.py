@@ -221,12 +221,8 @@ def _check_admin_login(result: ScenarioResult, client: HarnessClient) -> bool:
 
 
 def _check_unimplemented(result: ScenarioResult, client: HarnessClient) -> None:
-    """인증 후 미등록 메시지가 NOT_APPLICABLE 로 거절되는지 확인한다.
-
-    통계와 맵은 Task 7.5 에서 등록한다. 그때까지는 처리기가 없다는 사실이
-    거절로 드러나야 한다.
-    """
-    seq = client.send_json({"type": "admin_stats"})
+    """계약에 없는 메시지 타입이 NOT_APPLICABLE 로 거절되는지 확인한다."""
+    seq = client.send_json({"type": "admin_purge_everything"})
 
     try:
         rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
@@ -238,7 +234,92 @@ def _check_unimplemented(result: ScenarioResult, client: HarnessClient) -> None:
         result.fail("미등록 메시지 거절", f"reason_code 가 {rejected.get('reason_code')!r}")
         return
 
-    result.ok("미등록 메시지 거절", "admin_stats 는 Task 7.5 에서 등록된다")
+    result.ok("미등록 메시지 거절", "등록된 타입만 처리한다")
+
+
+def _check_stats(result: ScenarioResult, client: HarnessClient) -> None:
+    """admin_stats 가 테이블별 행 수와 접속자 수를 담는지 확인한다."""
+    seq = client.send_json({"type": "admin_stats"})
+
+    try:
+        stats = client.wait_for("admin_stats_result", seq=seq, timeout_ms=10000)
+    except HarnessError as exc:
+        result.fail("서버 통계", str(exc))
+        return
+
+    counts = stats.get("counts")
+
+    if not isinstance(counts, dict):
+        result.fail("서버 통계", f"counts 가 {counts!r}")
+        return
+
+    missing = [
+        field
+        for field in ("rooms", "monsters", "players", "objects", "factions", "players_online")
+        if field not in counts
+    ]
+
+    if missing:
+        result.fail("서버 통계", f"counts 필드 누락: {missing}")
+        return
+
+    if not isinstance(counts["rooms"], int) or counts["rooms"] < 1:
+        result.fail("서버 통계", f"rooms 가 {counts['rooms']!r}")
+        return
+
+    result.ok(
+        "서버 통계",
+        f"방 {counts['rooms']}, 몬스터 {counts['monsters']}, 접속 {counts['players_online']}",
+    )
+
+
+def _check_map(result: ScenarioResult, client: HarnessClient) -> None:
+    """admin_map 이 HTML 대신 좌표·종족 분포를 담은 JSON 을 주는지 확인한다."""
+    seq = client.send_json({"type": "admin_map"})
+
+    try:
+        world_map = client.wait_for("admin_map_result", seq=seq, timeout_ms=15000)
+    except HarnessError as exc:
+        result.fail("맵 데이터", str(exc))
+        return
+
+    problems: list[str] = []
+
+    bounds = world_map.get("bounds")
+    if not isinstance(bounds, dict) or not all(
+        field in bounds for field in ("min_x", "max_x", "min_y", "max_y")
+    ):
+        problems.append(f"bounds 가 {bounds!r}")
+
+    rooms = world_map.get("rooms")
+    if not isinstance(rooms, list) or not rooms:
+        problems.append(f"rooms 가 {type(rooms).__name__}")
+    else:
+        required = (
+            "id",
+            "x",
+            "y",
+            "room_type",
+            "blocked_exits",
+            "creature_count",
+            "player_count",
+            "item_count",
+            "factions",
+        )
+        missing = [field for field in required if field not in rooms[0]]
+        if missing:
+            problems.append(f"방 필드 누락: {missing}")
+        elif not isinstance(rooms[0]["blocked_exits"], list):
+            problems.append("blocked_exits 가 리스트가 아니다")
+
+    if problems:
+        result.fail("맵 데이터", "; ".join(problems))
+        return
+
+    with_creatures = sum(1 for room in rooms if room["creature_count"] > 0)
+    result.ok(
+        "맵 데이터", f"방 {len(rooms)}개, 몬스터 있는 방 {with_creatures}개"
+    )
 
 
 def _check_unknown_action(result: ScenarioResult, client: HarnessClient) -> None:
@@ -810,6 +891,8 @@ def run(
                 _check_template_listing(result, client)
                 _check_room_info_action(result, client)
                 _check_validate_world(result, client)
+                _check_stats(result, client)
+                _check_map(result, client)
             else:
                 result.skip("리소스 CRUD", "관리자 인증에 실패해 확인할 수 없다")
     except HarnessError as exc:

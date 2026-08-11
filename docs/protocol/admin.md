@@ -353,7 +353,18 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
 }
 ```
 
-`AdminManager.get_admin_stats()`, `_get_room_statistics()`, `_get_object_statistics()`의 반환값을 그대로 전달한다. 이미 dict를 반환하므로 구조화 전송에 추가 작업이 거의 없다.
+`AdminManager.get_admin_stats()`의 반환값을 그대로 전달하고 `counts`만 서버가 채운다. 매니저는 테이블별 행 수를 세지 않기 때문이다.
+
+응답에 담기는 항목은 다음과 같다.
+
+| 필드 | 출처 |
+|---|---|
+| `counts` | 테이블별 `COUNT(*)`와 인증된 세션 수(`players_online`) |
+| `rooms` | `_get_room_statistics()` |
+| `objects` | `_get_object_statistics()` |
+| `players` | 접속 중인 플레이어 목록과 위치 |
+| `engine` | `GameEngine.get_stats()`. 가동 시간과 세션·이벤트 버스 통계 |
+| `timestamp` | 조회 시각 |
 
 ### admin_map
 
@@ -380,9 +391,17 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
 }
 ```
 
-`utils/map_exporter.py`가 생성하던 `world_map_unified.html`을 대체한다. HTML 렌더링을 제거하고 쿼리 결과만 내보내며, 렌더링은 Godot 어드민 패널이 담당한다.
+`utils/map_exporter.py`가 생성하던 `world_map_unified.html`을 대체한다. HTML 렌더링을 제거하고 쿼리 결과만 내보내며, 렌더링은 Godot 어드민 패널이 담당한다. 파일로 남기지 않으며 요청 시점에 만든다.
 
 이 데이터는 좌표, 막힌 출구, 종족별 분포를 노출하므로 플레이어에게 제공하지 않는다. 어드민 채널 전용이다.
+
+`description_ko`와 `description_en`은 기본으로 담지 않는다. 방 520개 기준으로 설명이 응답의 3분의 2를 차지해 전체가 248KB에 이르고, 한 라인의 상한인 256KB에 육박한다. 설명을 제외하면 82KB다. 요청에 `include_descriptions: true`를 넣으면 담지만, 방이 늘어나면 상한을 넘는다. 상세 설명은 `admin_get`으로 방 하나씩 읽는 것을 권한다.
+
+`player_count`는 `players.last_room_x/y` 기준이므로 접속 중이 아닌 계정도 포함된다. 실시간 접속자는 `admin_stats`의 `players`를 본다.
+
+`creature_count`와 `factions`는 생존 몬스터만 센다. 몬스터는 방 id가 아니라 좌표로 방과 이어진다.
+
+어드민 응답은 행 수에 비례해 커지므로, 서버는 전송 전에 라인 길이를 확인한다. 상한을 넘으면 응답 대신 `error`에 `INTERNAL_ERROR`를 보낸다. 수신 쪽이 조용히 버리는 것보다 드러나는 편이 낫다.
 
 ## 실시간 액션
 

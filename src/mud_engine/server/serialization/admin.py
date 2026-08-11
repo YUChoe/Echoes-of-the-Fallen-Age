@@ -126,6 +126,27 @@ def admin_mutate_result(
     return build("admin_mutate_result", seq=seq, **payload)
 
 
+def admin_stats_result(
+    seq: Optional[int], stats: dict[str, Any]
+) -> dict[str, Any]:
+    """서버 통계 응답을 만든다.
+
+    `AdminManager` 의 반환값을 그대로 전달한다. 어드민은 데이터를 보는 도구이므로
+    가공하지 않는다.
+    """
+    return build("admin_stats_result", seq=seq, **stats)
+
+
+def admin_map_result(
+    seq: Optional[int], bounds: dict[str, int], rooms: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """맵 데이터 응답을 만든다.
+
+    좌표와 종족 분포를 노출하므로 어드민 채널 전용이다.
+    """
+    return build("admin_map_result", seq=seq, bounds=bounds, rooms=rooms)
+
+
 def admin_action_result(
     seq: Optional[int],
     action: str,

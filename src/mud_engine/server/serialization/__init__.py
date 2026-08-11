@@ -12,8 +12,10 @@ from .admin import (
     admin_get_result,
     admin_list_result,
     admin_login_result,
+    admin_map_result,
     admin_mutate_result,
     admin_rejected,
+    admin_stats_result,
     service_login_result,
 )
 from .combat import build_combat_state, serialize_combatant
@@ -63,8 +65,10 @@ __all__ = [
     "admin_get_result",
     "admin_list_result",
     "admin_login_result",
+    "admin_map_result",
     "admin_mutate_result",
     "admin_rejected",
+    "admin_stats_result",
     "build",
     "build_chat",
     "build_combat_state",
