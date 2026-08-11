@@ -410,7 +410,7 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
 | `terminate` | `target_id`, `reason` | terminate. 객체나 몬스터 완전 삭제 |
 | `create_room` | `x`, `y`, `room_type`, 설명 | `create_room_realtime()` |
 | `update_room` | `id`, 변경 값 | `update_room_realtime()` |
-| `create_exit` | `from_id`, `direction`, `to_id` | createexit |
+| `create_exit` | `from_id`, `direction`, `to_id` | createexit. 방향 출구 개방 |
 | `validate_world` | 없음 | `validate_and_repair_world()`. 기존에 명령어로 노출되지 않았음 |
 | `list_monster_templates` | 없음 | templates |
 | `list_item_templates` | 없음 | itemtemplates |
@@ -428,7 +428,21 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
 }
 ```
 
-`goto`의 `target_player`는 자기 자신도 지정할 수 있다. 어드민 채널이 게임 세션 상태를 변경하는 유일한 경로이므로, 서버는 대상 플레이어의 게임 세션이 활성인지 확인하고 없으면 `reason_code: PLAYER_NOT_ONLINE`으로 거절한다.
+`goto`의 `target_player`는 자기 자신도 지정할 수 있다. 어드민 채널이 게임 세션 상태를 변경하는 유일한 경로이므로, 서버는 대상 플레이어의 게임 세션이 활성인지 확인하고 없으면 `reason_code: PLAYER_NOT_ONLINE`으로 거절한다. `kick`도 같다.
+
+`change_display_name`은 DB 값을 바꾸므로 대상이 접속 중이 아니어도 된다.
+
+`data`의 내용은 액션마다 다르다. `AdminManager`에 위임하는 액션(`kick`, `create_room`, `update_room`)은 매니저가 만든 한국어 문장을 `notices`에 담아 함께 돌려준다. 매니저를 어드민 채널에 맞게 정리하는 Task 7.6에서 사라진다.
+
+### 방향과 출구
+
+이 세계의 방향 이동은 좌표로 결정된다. 방은 인접 좌표를 가리키는 출구 목록을 갖지 않고 `blocked_exits`로 막힌 방향만 기록한다. 따라서 `create_exit`는 새 연결을 만드는 것이 아니라 `from_id` 방의 `blocked_exits`에서 `direction`을 빼는 것이다.
+
+서버는 `direction`이 가리키는 인접 좌표의 방을 찾아 `to_id`와 대조하고, 다르면 `VALIDATION_FAILED`로 거절한다. 이미 열려 있으면 `data.changed`를 `false`로 응답한다.
+
+`direction`은 `north`, `south`, `east`, `west`뿐이다. 대각선과 상하 방향은 이 세계에 없다.
+
+삭제된 `createexit` 명령어는 `rooms`에 존재하지 않는 `exits` 컬럼을 수정하려 해서 동작하지 않았다.
 
 ## 거절과 오류
 

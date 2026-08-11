@@ -46,11 +46,6 @@ class AdminQueryHandlers:
         self._references = ReferenceChecker(db_manager)
         self._refresher = GameStateRefresher(game_engine)
 
-    @property
-    def refresher(self) -> GameStateRefresher:
-        """게임 상태 재동기화기. main.py 가 게임 엔진을 나중에 배선한다."""
-        return self._refresher
-
     def register_all(self, server: Any) -> None:
         """어드민 서버에 처리기를 등록한다."""
         server.register("admin_list", self.handle_list)

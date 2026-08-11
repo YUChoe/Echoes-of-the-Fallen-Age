@@ -223,10 +223,10 @@ def _check_admin_login(result: ScenarioResult, client: HarnessClient) -> bool:
 def _check_unimplemented(result: ScenarioResult, client: HarnessClient) -> None:
     """인증 후 미등록 메시지가 NOT_APPLICABLE 로 거절되는지 확인한다.
 
-    통계, 맵, 액션은 Task 7.4~7.5 에서 등록한다. 그때까지는 처리기가 없다는
-    사실이 거절로 드러나야 한다.
+    통계와 맵은 Task 7.5 에서 등록한다. 그때까지는 처리기가 없다는 사실이
+    거절로 드러나야 한다.
     """
-    seq = client.send_json({"type": "admin_action", "action": "validate_world"})
+    seq = client.send_json({"type": "admin_stats"})
 
     try:
         rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
@@ -238,7 +238,135 @@ def _check_unimplemented(result: ScenarioResult, client: HarnessClient) -> None:
         result.fail("미등록 메시지 거절", f"reason_code 가 {rejected.get('reason_code')!r}")
         return
 
-    result.ok("미등록 메시지 거절", "admin_action 은 Task 7.4 에서 등록된다")
+    result.ok("미등록 메시지 거절", "admin_stats 는 Task 7.5 에서 등록된다")
+
+
+def _check_unknown_action(result: ScenarioResult, client: HarnessClient) -> None:
+    """계약에 없는 액션이 거절되는지 확인한다."""
+    seq = client.send_json({"type": "admin_action", "action": "drop_database"})
+
+    try:
+        rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("알 수 없는 액션 거절", str(exc))
+        return
+
+    if rejected.get("reason_code") != "NOT_APPLICABLE":
+        result.fail("알 수 없는 액션 거절", f"reason_code 가 {rejected.get('reason_code')!r}")
+        return
+
+    result.ok("알 수 없는 액션 거절", "계약의 14종만 수행한다")
+
+
+def _check_template_listing(result: ScenarioResult, client: HarnessClient) -> None:
+    """템플릿 목록 액션이 동작하는지 확인한다."""
+    seq = client.send_json(
+        {"type": "admin_action", "action": "list_monster_templates"}
+    )
+
+    try:
+        listed = client.wait_for("admin_action_result", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("몬스터 템플릿 목록", str(exc))
+        return
+
+    templates = (listed.get("data") or {}).get("templates")
+
+    if not isinstance(templates, list) or not templates:
+        result.fail("몬스터 템플릿 목록", f"templates 가 {templates!r}")
+        return
+
+    result.ok("몬스터 템플릿 목록", f"{len(templates)}종")
+
+
+def _check_validate_world(result: ScenarioResult, client: HarnessClient) -> None:
+    """기존에 명령어로 노출되지 않았던 세계 검증이 동작하는지 확인한다."""
+    seq = client.send_json({"type": "admin_action", "action": "validate_world"})
+
+    try:
+        validated = client.wait_for("admin_action_result", seq=seq, timeout_ms=10000)
+    except HarnessError as exc:
+        result.fail("세계 무결성 검증", str(exc))
+        return
+
+    data = validated.get("data") or {}
+
+    if "validation" not in data:
+        result.fail("세계 무결성 검증", f"data 가 {sorted(data)}")
+        return
+
+    issues = data["validation"]
+    total = sum(len(v) for v in issues.values()) if isinstance(issues, dict) else -1
+
+    result.ok("세계 무결성 검증", f"발견 {total}건")
+
+
+def _check_room_info_action(result: ScenarioResult, client: HarnessClient) -> None:
+    """좌표로 방을 조회하는 액션이 동작하는지 확인한다."""
+    seq = client.send_json(
+        {"type": "admin_action", "action": "room_info", "params": {"x": 0, "y": 0}}
+    )
+
+    try:
+        info = client.wait_for("admin_action_result", seq=seq, timeout_ms=5000)
+    except HarnessError:
+        # (0,0) 에 방이 없는 배포도 있다. 그때는 거절이 정상이다
+        result.skip("방 조회 액션", "(0,0) 에 방이 없다")
+        return
+
+    room = (info.get("data") or {}).get("room") or {}
+
+    if room.get("x") != 0 or room.get("y") != 0:
+        result.fail("방 조회 액션", f"room 이 {room!r}")
+        return
+
+    result.ok("방 조회 액션", f"{room.get('id', '')[:8]} 조회")
+
+
+def _check_offline_goto(result: ScenarioResult, client: HarnessClient) -> None:
+    """접속하지 않은 플레이어로의 goto 가 거절되는지 확인한다."""
+    seq = client.send_json(
+        {
+            "type": "admin_action",
+            "action": "goto",
+            "params": {"target_player": "no-such-player", "x": 0, "y": 0},
+        }
+    )
+
+    try:
+        rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("미접속 goto 거절", str(exc))
+        return
+
+    if rejected.get("reason_code") != "PLAYER_NOT_ONLINE":
+        result.fail("미접속 goto 거절", f"reason_code 가 {rejected.get('reason_code')!r}")
+        return
+
+    result.ok("미접속 goto 거절", "게임 세션이 있어야 이동시킬 수 있다")
+
+
+def _check_bad_action_params(result: ScenarioResult, client: HarnessClient) -> None:
+    """액션 파라미터 형식 오류가 거절되는지 확인한다."""
+    seq = client.send_json(
+        {
+            "type": "admin_action",
+            "action": "spawn_monster",
+            "params": {"template_id": "template_small_rat", "x": True, "y": 0},
+        }
+    )
+
+    try:
+        rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("액션 파라미터 검증", str(exc))
+        return
+
+    if rejected.get("reason_code") != "INVALID_PARAMS":
+        result.fail("액션 파라미터 검증", f"reason_code 가 {rejected.get('reason_code')!r}")
+        return
+
+    result.ok("액션 파라미터 검증", "bool 은 정수로 받지 않는다")
 
 
 def _check_list(result: ScenarioResult, client: HarnessClient) -> None:
@@ -676,6 +804,12 @@ def run(
                 _check_crud_roundtrip(result, client)
                 _check_referenced_delete(result, client)
                 _check_unreferenced_delete(result, client)
+                _check_unknown_action(result, client)
+                _check_bad_action_params(result, client)
+                _check_offline_goto(result, client)
+                _check_template_listing(result, client)
+                _check_room_info_action(result, client)
+                _check_validate_world(result, client)
             else:
                 result.skip("리소스 CRUD", "관리자 인증에 실패해 확인할 수 없다")
     except HarnessError as exc:

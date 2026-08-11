@@ -126,6 +126,28 @@ def admin_mutate_result(
     return build("admin_mutate_result", seq=seq, **payload)
 
 
+def admin_action_result(
+    seq: Optional[int],
+    action: str,
+    success: bool,
+    data: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    """실시간 액션 결과를 만든다.
+
+    Args:
+        action: 수행한 액션 이름
+        success: 수행 성공 여부
+        data: 액션별 결과 데이터
+    """
+    return build(
+        "admin_action_result",
+        seq=seq,
+        action=action,
+        success=success,
+        data=data or {},
+    )
+
+
 def admin_rejected(
     seq: Optional[int],
     action: str,

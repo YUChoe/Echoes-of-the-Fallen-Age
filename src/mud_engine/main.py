@@ -15,6 +15,7 @@ from .game.managers import PlayerManager
 from .game.repositories import PlayerRepository
 from .server.telnet_server import TelnetServer
 from .server.admin.admin_server import AdminServer
+from .server.admin.actions import AdminActionHandlers
 from .server.admin.queries import AdminQueryHandlers
 from .core.game_engine import GameEngine
 from .server.session_manager import SessionManager
@@ -259,8 +260,8 @@ async def main():
         admin_host = os.getenv("ADMIN_HOST", "127.0.0.1")
         admin_port = int(os.getenv("ADMIN_PORT", "4001"))
         admin_server = AdminServer(admin_host, admin_port, player_manager)
-        admin_queries = AdminQueryHandlers(db_manager, game_engine)
-        admin_queries.register_all(admin_server)
+        AdminQueryHandlers(db_manager, game_engine).register_all(admin_server)
+        AdminActionHandlers(game_engine).register_all(admin_server)
         await admin_server.start()
 
         # Telnet 서버 초기화 및 시작

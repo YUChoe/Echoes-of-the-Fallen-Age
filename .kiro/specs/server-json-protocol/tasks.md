@@ -187,8 +187,16 @@
   - `scripts/dump_admin_references.py` 를 추가했다. 참조 관계는 문서가 아니라 실제 데이터에서 확인해야 한다.
   - 검증: `tests/unit/test_admin_references.py` 18건, 하니스에 2건 추가(참조 삭제 거절·비참조 삭제 허용). 참조 삭제 거절은 프로덕션 종족을 대상으로 하므로 거절이 성립해야 데이터가 보존된다.
   - _Requirements: 7.8, 7.9_
-- [ ] 7.4 admin_action 구현
+- [x] 7.4 admin_action 구현
   - `actions.py`에 14종 액션을 구현하고 `AdminManager`에 위임한다. 기존에 노출되지 않았던 `validate_and_repair_world()`를 포함한다. `goto`는 대상 플레이어의 게임 세션이 없으면 `PLAYER_NOT_ONLINE`으로 거절한다.
+  - `actions.py`(디스패치, 플레이어·방 레코드 액션)와 `world_actions.py`(세계 콘텐츠 액션)로 나눴다. 한 파일 500행 제한 때문이다.
+  - `AdminManager` 는 게임 채널 `TelnetSession` 을 받아 완성 문장을 보내도록 만들어져 있다. `manager_bridge.py` 의 어댑터가 `session_id`·`player`·`send_admin_notice` 를 흉내내고, 매니저가 보내려던 문장을 모아 `data.notices` 로 돌려준다. Task 7.6 에서 매니저를 정리하며 사라진다.
+  - `create_exit` 는 계약 그대로 구현할 수 없었다. 이 세계의 방향 이동은 좌표로 결정되고 `rooms` 에 `exits` 컬럼이 없다. 삭제된 `createexit` 명령어는 없는 컬럼을 수정하려 해서 동작하지 않았다. 대신 `blocked_exits` 에서 방향을 빼는 동작으로 구현하고, 인접 좌표의 방과 `to_id` 를 대조해 다르면 거절한다. 방향은 north/south/east/west 넷뿐이다.
+  - `spawn_monster` 와 `spawn_item` 은 좌표로 방을 찾은 뒤 템플릿 존재를 먼저 확인한다. 없는 템플릿은 `NOT_FOUND` 다.
+  - `terminate` 는 몬스터를 먼저 찾고 없으면 오브젝트를 찾는다. 둘 다 없으면 `NOT_FOUND` 다.
+  - `change_display_name` 은 DB 값을 바꾸므로 대상이 접속 중이 아니어도 된다. `goto` 와 `kick` 만 게임 세션을 요구한다.
+  - `admin_stats` 는 이 태스크에 없다. 계약의 "통계와 맵" 절에 속하므로 Task 7.5 에서 `admin_map` 과 함께 등록한다.
+  - 검증: `tests/unit/test_admin_actions.py` 20건, 하니스에 6건 추가(알 수 없는 액션·파라미터 검증·미접속 goto·템플릿 목록·방 조회·세계 검증). 하니스는 데이터를 바꾸지 않는 액션만 호출한다.
   - _Requirements: 7.10_
 - [ ] 7.5 맵 데이터 JSON 전환
   - `utils/map_exporter.py`의 HTML 생성을 제거하고 좌표·지형·막힌 출구·방별 종족 분포를 담은 JSON 응답으로 대체한다. `scripts/export_unified_map.py`와 `export_map.sh`, `time_manager`의 자동 생성 스케줄을 정리한다.

@@ -8,6 +8,7 @@
 """
 
 from .admin import (
+    admin_action_result,
     admin_get_result,
     admin_list_result,
     admin_login_result,
@@ -58,6 +59,7 @@ __all__ = [
     "PROTOCOL_VERSION",
     "UNKNOWN_ROOM_TYPE",
     "action_rejected",
+    "admin_action_result",
     "admin_get_result",
     "admin_list_result",
     "admin_login_result",
