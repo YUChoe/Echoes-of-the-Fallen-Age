@@ -497,4 +497,35 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
 
 ## 감사 로그
 
-모든 `admin_action`과 `admin_create` / `admin_update` / `admin_delete`는 실행 주체, 대상, 변경 내용, 시각을 로그에 남긴다. 로그 형식은 프로젝트 로깅 규칙을 따른다. 감사 로그를 DB 테이블로 저장할지는 서버 스펙의 설계 단계에서 결정한다.
+모든 `admin_action`과 `admin_create` / `admin_update` / `admin_delete`는 실행 주체, 대상, 변경 내용, 시각을 남긴다.
+
+DB 테이블로 저장하지 않고 파일 로그로 남기기로 결정했다. 전용 파일 `logs/admin_audit.log`에 쓰고 자정마다 로테이션하며 90일 보관한다. 일반 서버 로그와 파일을 분리한다.
+
+한 건이 한 줄의 JSON이다.
+
+```json
+{
+  "ts": "2026-08-11T17:24:01.256549",
+  "actor": "player5426",
+  "operation": "update",
+  "result": "ok",
+  "resource": "rooms",
+  "target": { "id": "7e32506b-..." },
+  "changes": { "description_ko": "성문 앞 넓은 광장이다." }
+}
+```
+
+| 필드 | 의미 |
+|---|---|
+| `ts` | 시각 |
+| `actor` | 실행 주체. 관리자 사용자명 또는 서비스 이름 |
+| `operation` | `create`, `update`, `delete` 또는 액션 이름 |
+| `result` | `ok` 또는 `rejected` |
+| `resource` | 리소스 이름. 액션에는 없을 수 있다 |
+| `target` | 대상 기본키 |
+| `changes` | 변경 내용 또는 액션 파라미터 |
+| `reason_code`, `detail` | 거절된 경우의 사유 |
+
+거절된 시도도 남긴다. 무엇을 시도했는지가 감사 대상이기 때문이다. 조회(`admin_list`, `admin_get`, `admin_stats`, `admin_map`)는 남기지 않는다.
+
+값은 그대로 쓰지 않는다. 비밀번호와 토큰, 리소스가 노출을 막은 컬럼은 `<redacted>`로 가린다. 200자를 넘는 값은 자르고, 중첩 구조는 길이만 남긴다. 컬럼 이름은 가리지 않는다. 쓰기가 막힌 컬럼을 시도한 사실 자체가 기록되어야 한다.

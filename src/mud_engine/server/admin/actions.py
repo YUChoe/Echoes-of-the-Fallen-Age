@@ -16,6 +16,7 @@ from typing import Any, Awaitable, Callable, Optional
 from ...database.table_gateway import TableGateway, TableGatewayError
 from ...utils.exceptions import AdminOperationError
 from ..serialization import admin_action_result
+from . import audit
 from .admin_session import AdminSession
 from .resources import RESOURCES
 from .world_actions import ActionError, WorldActions, optional_str
@@ -50,42 +51,73 @@ class AdminActionHandlers:
             return
 
         if params is not None and not isinstance(params, dict):
-            await session.send_rejected(
-                action, "INVALID_PARAMS", "params must be an object", seq
+            await self._deny(
+                session, action, {}, "INVALID_PARAMS", "params must be an object", seq
             )
             return
 
+        params = params or {}
+
         if self.game_engine is None:
-            await session.send_rejected(
-                action, "INTERNAL_ERROR", "game engine not initialised", seq
+            await self._deny(
+                session, action, params, "INTERNAL_ERROR",
+                "game engine not initialised", seq,
             )
             return
 
         impl = self._resolve(action, session)
 
         if impl is None:
-            await session.send_rejected(
-                action, "NOT_APPLICABLE", f"unknown action: {action}", seq
+            await self._deny(
+                session, action, params, "NOT_APPLICABLE",
+                f"unknown action: {action}", seq,
             )
             return
 
         try:
-            data = await impl(params or {})
+            data = await impl(params)
         except AdminOperationError as e:
             # `ActionError` 와 `AdminManager` 의 실패가 같은 계열이다
-            await session.send_rejected(action, e.reason_code, e.detail, seq)
+            await self._deny(session, action, params, e.reason_code, e.detail, seq)
             return
         except TableGatewayError as e:
-            await session.send_rejected(action, "VALIDATION_FAILED", str(e), seq)
+            await self._deny(
+                session, action, params, "VALIDATION_FAILED", str(e), seq
+            )
             return
         except Exception as e:
             logger.error(f"어드민 액션 실패: {action}: {e}", exc_info=True)
-            await session.send_rejected(action, "INTERNAL_ERROR", str(e), seq)
+            await self._deny(session, action, params, "INTERNAL_ERROR", str(e), seq)
             return
 
-        self._audit(session, action, params or {})
+        audit.record(
+            actor=_actor(session), operation=action, changes=params
+        )
 
         await session.send_message(admin_action_result(seq, action, True, data))
+
+    @staticmethod
+    async def _deny(
+        session: AdminSession,
+        action: str,
+        params: dict[str, Any],
+        reason_code: str,
+        detail: str,
+        seq: Optional[int],
+    ) -> None:
+        """액션을 거절하고 감사 로그에 남긴다.
+
+        무엇을 시도했는지도 감사 대상이다.
+        """
+        audit.record(
+            actor=_actor(session),
+            operation=action,
+            changes=params,
+            result="rejected",
+            reason_code=reason_code,
+            detail=detail,
+        )
+        await session.send_rejected(action, reason_code, detail, seq)
 
     # 라우팅 ------------------------------------------------------------------
 
@@ -237,16 +269,6 @@ class AdminActionHandlers:
         기존에 명령어로 노출되지 않았던 기능이다.
         """
         return await self.game_engine.admin_manager.validate_and_repair_world()
-
-    @staticmethod
-    def _audit(
-        session: AdminSession, action: str, params: dict[str, Any]
-    ) -> None:
-        """액션 수행을 로그에 남긴다. DB 저장 여부는 Task 7.7 이다."""
-        logger.info(
-            f"어드민 액션: {action} 주체={_actor(session)} params={sorted(params)}"
-        )
-
 
 def _actor(session: AdminSession) -> str:
     """실행 주체 이름. `AdminManager` 의 로그와 이벤트에 남는다."""

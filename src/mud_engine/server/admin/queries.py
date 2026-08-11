@@ -12,7 +12,6 @@
 프로토콜 계약: docs/protocol/admin.md
 """
 
-import logging
 import uuid
 from typing import Any, Optional
 
@@ -22,12 +21,11 @@ from ..serialization import (
     admin_list_result,
     admin_mutate_result,
 )
+from . import audit
 from .admin_session import AdminSession
 from .references import ReferenceChecker
 from .refresh import GameStateRefresher
 from .resources import AdminResource, get_resource, redact
-
-logger = logging.getLogger(__name__)
 
 # 목록 요청의 기본 페이지 크기와 상한. 한 라인의 최대 길이가 256KB 이므로
 # 상한 없이 열어두면 응답이 프레이밍 한계를 넘을 수 있다
@@ -161,13 +159,17 @@ class AdminQueryHandlers:
         resource = get_resource(message.get("resource"))
 
         if resource is None:
-            await self._reject_resource(session, "admin_create", message, seq)
+            await self._reject_resource(
+                session, "admin_create", message, seq, "create"
+            )
             return
 
         values = message.get("values")
         if not isinstance(values, dict) or not values:
-            await session.send_rejected(
-                "admin_create",
+            await self._deny(
+                session,
+                message,
+                "create",
                 "VALIDATION_FAILED",
                 "values must be a non-empty object",
                 seq,
@@ -183,8 +185,10 @@ class AdminQueryHandlers:
 
         missing = [column for column in resource.primary_key if column not in values]
         if missing:
-            await session.send_rejected(
-                "admin_create",
+            await self._deny(
+                session,
+                message,
+                "create",
                 "VALIDATION_FAILED",
                 f"missing primary key column(s): {', '.join(missing)}",
                 seq,
@@ -193,8 +197,10 @@ class AdminQueryHandlers:
 
         forbidden = self._forbidden_columns(resource, values, allow_primary_key=True)
         if forbidden:
-            await session.send_rejected(
-                "admin_create",
+            await self._deny(
+                session,
+                message,
+                "create",
                 "VALIDATION_FAILED",
                 f"column(s) not writable: {', '.join(forbidden)}",
                 seq,
@@ -206,8 +212,8 @@ class AdminQueryHandlers:
         try:
             row = await self._gateway(resource).insert_row(values)
         except TableGatewayError as e:
-            await session.send_rejected(
-                "admin_create", "VALIDATION_FAILED", str(e), seq
+            await self._deny(
+                session, message, "create", "VALIDATION_FAILED", str(e), seq
             )
             return
 
@@ -228,18 +234,24 @@ class AdminQueryHandlers:
         resource = get_resource(message.get("resource"))
 
         if resource is None:
-            await self._reject_resource(session, "admin_update", message, seq)
+            await self._reject_resource(
+                session, "admin_update", message, seq, "update"
+            )
             return
 
         key = self._resolve_key(resource, message)
         if key is None:
-            await self._reject_key(session, "admin_update", resource, seq)
+            await self._reject_key(
+                session, "admin_update", resource, seq, message, "update"
+            )
             return
 
         values = message.get("values")
         if not isinstance(values, dict) or not values:
-            await session.send_rejected(
-                "admin_update",
+            await self._deny(
+                session,
+                message,
+                "update",
                 "VALIDATION_FAILED",
                 "values must be a non-empty object",
                 seq,
@@ -248,8 +260,10 @@ class AdminQueryHandlers:
 
         forbidden = self._forbidden_columns(resource, values)
         if forbidden:
-            await session.send_rejected(
-                "admin_update",
+            await self._deny(
+                session,
+                message,
+                "update",
                 "VALIDATION_FAILED",
                 f"column(s) not writable: {', '.join(forbidden)}",
                 seq,
@@ -264,14 +278,19 @@ class AdminQueryHandlers:
         try:
             row = await gateway.update_row(key, dict(values))
         except TableGatewayError as e:
-            await session.send_rejected(
-                "admin_update", "VALIDATION_FAILED", str(e), seq
+            await self._deny(
+                session, message, "update", "VALIDATION_FAILED", str(e), seq
             )
             return
 
         if row is None:
-            await session.send_rejected(
-                "admin_update", "NOT_FOUND", f"{resource.name} not found: {key}", seq
+            await self._deny(
+                session,
+                message,
+                "update",
+                "NOT_FOUND",
+                f"{resource.name} not found: {key}",
+                seq,
             )
             return
 
@@ -297,12 +316,16 @@ class AdminQueryHandlers:
         resource = get_resource(message.get("resource"))
 
         if resource is None:
-            await self._reject_resource(session, "admin_delete", message, seq)
+            await self._reject_resource(
+                session, "admin_delete", message, seq, "delete"
+            )
             return
 
         key = self._resolve_key(resource, message)
         if key is None:
-            await self._reject_key(session, "admin_delete", resource, seq)
+            await self._reject_key(
+                session, "admin_delete", resource, seq, message, "delete"
+            )
             return
 
         gateway = self._gateway(resource)
@@ -310,12 +333,19 @@ class AdminQueryHandlers:
         try:
             row = await gateway.get_row(key)
         except TableGatewayError as e:
-            await session.send_rejected("admin_delete", "INVALID_PARAMS", str(e), seq)
+            await self._deny(
+                session, message, "delete", "INVALID_PARAMS", str(e), seq
+            )
             return
 
         if row is None:
-            await session.send_rejected(
-                "admin_delete", "NOT_FOUND", f"{resource.name} not found: {key}", seq
+            await self._deny(
+                session,
+                message,
+                "delete",
+                "NOT_FOUND",
+                f"{resource.name} not found: {key}",
+                seq,
             )
             return
 
@@ -323,8 +353,10 @@ class AdminQueryHandlers:
 
         if references:
             total = sum(item["count"] for item in references)
-            await session.send_rejected(
-                "admin_delete",
+            await self._deny(
+                session,
+                message,
+                "delete",
                 "REFERENCED",
                 f"{resource.name} is referenced by {total} row(s)",
                 seq,
@@ -335,12 +367,19 @@ class AdminQueryHandlers:
         try:
             deleted = await gateway.delete_row(key)
         except TableGatewayError as e:
-            await session.send_rejected("admin_delete", "INVALID_PARAMS", str(e), seq)
+            await self._deny(
+                session, message, "delete", "INVALID_PARAMS", str(e), seq
+            )
             return
 
         if not deleted:
-            await session.send_rejected(
-                "admin_delete", "NOT_FOUND", f"{resource.name} not found: {key}", seq
+            await self._deny(
+                session,
+                message,
+                "delete",
+                "NOT_FOUND",
+                f"{resource.name} not found: {key}",
+                seq,
             )
             return
 
@@ -392,27 +431,57 @@ class AdminQueryHandlers:
 
         return sorted(column for column in values if column in blocked)
 
-    @staticmethod
+    async def _deny(
+        self,
+        session: AdminSession,
+        message: dict[str, Any],
+        operation: str,
+        reason_code: str,
+        detail: str,
+        seq: Optional[int],
+        references: Optional[list[dict[str, Any]]] = None,
+    ) -> None:
+        """변경 시도를 거절하고 감사 로그에 남긴다.
+
+        Args:
+            operation: `create`, `update`, `delete`
+        """
+        self._audit_rejection(session, operation, message, reason_code, detail)
+        await session.send_rejected(
+            f"admin_{operation}", reason_code, detail, seq, references
+        )
+
     async def _reject_resource(
+        self,
         session: AdminSession,
         action: str,
         message: dict[str, Any],
         seq: Optional[int],
+        operation: Optional[str] = None,
     ) -> None:
-        """알 수 없는 리소스를 거절한다."""
-        await session.send_rejected(
-            action,
-            "INVALID_PARAMS",
-            f"unknown resource: {message.get('resource')!r}",
-            seq,
-        )
+        """알 수 없는 리소스를 거절한다.
 
-    @staticmethod
+        Args:
+            operation: 변경 작업이면 지정해 감사 로그에 남긴다
+        """
+        detail = f"unknown resource: {message.get('resource')!r}"
+
+        if operation is not None:
+            await self._deny(
+                session, message, operation, "INVALID_PARAMS", detail, seq
+            )
+            return
+
+        await session.send_rejected(action, "INVALID_PARAMS", detail, seq)
+
     async def _reject_key(
+        self,
         session: AdminSession,
         action: str,
         resource: AdminResource,
         seq: Optional[int],
+        message: Optional[dict[str, Any]] = None,
+        operation: Optional[str] = None,
     ) -> None:
         """기본키 표현이 올바르지 않음을 알린다."""
         columns = ", ".join(resource.primary_key)
@@ -421,6 +490,12 @@ class AdminQueryHandlers:
             detail = f"{resource.name} requires key object with: {columns}"
         else:
             detail = f"{resource.name} requires id or key object with: {columns}"
+
+        if operation is not None and message is not None:
+            await self._deny(
+                session, message, operation, "INVALID_PARAMS", detail, seq
+            )
+            return
 
         await session.send_rejected(action, "INVALID_PARAMS", detail, seq)
 
@@ -432,18 +507,53 @@ class AdminQueryHandlers:
         key: dict[str, Any],
         values: Optional[dict[str, Any]],
     ) -> None:
-        """변경 작업을 로그에 남긴다.
-
-        DB 테이블 저장 여부는 Task 7.7 에서 결정한다. 그때까지는 실행 주체,
-        대상, 변경 내용, 시각을 로그로만 남긴다.
-        """
-        principal = session.principal.name if session.principal else "unknown"
-        changed = sorted(values) if values else []
-
-        logger.info(
-            f"어드민 변경: {operation} {resource.name} {key} "
-            f"주체={principal} 컬럼={changed}"
+        """변경 작업을 감사 로그에 남긴다."""
+        audit.record(
+            actor=_actor(session),
+            operation=operation,
+            resource=resource.name,
+            target=key,
+            changes=audit.redact_values(values, resource.hidden_columns) if values else None,
         )
+
+    @staticmethod
+    def _audit_rejection(
+        session: AdminSession,
+        operation: str,
+        message: dict[str, Any],
+        reason_code: str,
+        detail: str,
+    ) -> None:
+        """거절된 변경 시도를 감사 로그에 남긴다.
+
+        무엇을 시도했는지도 감사 대상이다. 조회는 남기지 않는다.
+        """
+        audit.record(
+            actor=_actor(session),
+            operation=operation,
+            resource=str(message.get("resource") or "unknown"),
+            target=_attempted_target(message),
+            result="rejected",
+            reason_code=reason_code,
+            detail=detail,
+        )
+
+
+def _actor(session: AdminSession) -> str:
+    """실행 주체 이름. 관리자 사용자명 또는 서비스 이름이다."""
+    return session.principal.name if session.principal else "unknown"
+
+
+def _attempted_target(message: dict[str, Any]) -> dict[str, Any]:
+    """거절된 요청이 가리키던 대상. 표현이 잘못됐을 수도 있으므로 그대로 남긴다."""
+    target: dict[str, Any] = {}
+
+    if "id" in message:
+        target["id"] = message["id"]
+    if isinstance(message.get("key"), dict):
+        target["key"] = message["key"]
+
+    return target
 
 
 def _positive_int(value: Any, default: int) -> int:

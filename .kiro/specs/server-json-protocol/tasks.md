@@ -149,7 +149,7 @@
   - `core/managers/admin_manager.py`의 14건은 Task 7.6에서 어드민 채널로 옮기며 함께 정리한다.
   - _Requirements: 5.1, 5.9_
 
-- [ ] 7. 어드민 채널 신설
+- [x] 7. 어드민 채널 신설
 - [x] 7.1 어드민 서버와 인증
   - `server/admin/admin_server.py`(TCP 4001, IAC 협상 없음), `admin_session.py`(만료 2시간), `auth.py`(bcrypt 관리자 인증, 서비스 토큰 인증)를 만든다. `is_admin`이 거짓이면 `PERMISSION_DENIED`로 거절한다. 게임 세션 인증 상태가 전이되지 않음을 확인한다.
   - 관리자 인증은 `PlayerManager.authenticate()` 를 재사용한다. bcrypt 검증 경로가 게임 채널과 같아야 계정 체계가 이중화되지 않는다. `is_admin` 이 거짓이면 `PermissionError` 로 구분해 `PERMISSION_DENIED` 를 응답한다. 자격이 틀린 경우는 계정 열거를 막기 위해 사용자명 존재 여부를 구분하지 않는다.
@@ -220,8 +220,15 @@
   - `get_admin_stats` 의 `players.players` 를 `players.online` 으로, 객체 통계의 `by_type`(항상 `item` 하나였다)을 `by_location_type` 으로 바꿨다.
   - 검증: `tests/unit/test_admin_actions.py` 22건(어댑터 검증을 예외 계열·실행 주체 검증으로 교체), 하니스 26건. 실측으로 `update_room` 없는 방 → `NOT_FOUND`, `kick` 미접속 → `PLAYER_NOT_ONLINE`, 응답에서 `notices` 소멸을 확인했다.
   - _Requirements: 7.12, 4.8_
-- [ ] 7.7 감사 로그
+- [x] 7.7 감사 로그
   - 모든 어드민 변경 작업에 실행 주체, 대상, 변경 내용, 시각을 기록한다. DB 테이블 저장 여부를 결정하고 구현한다.
+  - DB 테이블에 저장하지 않고 파일 로그로 결정했다(사용자 지시). 전용 파일 `logs/admin_audit.log` 에 쓰고 자정마다 로테이션하며 90일 보관한다. 일반 서버 로그(30일, 200MB)보다 오래 남긴다.
+  - `admin/audit.py` 를 만들었다. 한 건이 한 줄의 JSON 이다. 사람이 읽을 수 있고 `grep`·`jq` 로 걸러낼 수 있으며 포맷이 고정되어 나중에 DB 로 옮기기도 쉽다.
+  - 전용 파일에 쓰면서 상위 로거로도 전파한다. 설정을 거치지 않는 실행 경로(테스트, 스크립트)에서 기록이 사라지지 않게 하기 위해서다.
+  - 거절된 시도도 남긴다. 무엇을 시도했는지가 감사 대상이다. `queries.py` 에 `_deny()`, `actions.py` 에 `_deny()` 를 두어 변경 처리기의 모든 거절 경로가 한곳을 지난다. 조회는 남기지 않는다.
+  - 값을 그대로 쓰지 않는다. 비밀번호·토큰과 리소스의 `hidden_columns` 는 `<redacted>`, 200자 초과는 절단, 중첩 구조는 길이만 남긴다. 컬럼 이름은 가리지 않는다. 쓰기가 막힌 컬럼을 시도한 사실이 기록되어야 한다.
+  - `_audit` 정리 과정에서 `queries.py` 의 모듈 로거가 미사용이 되어 제거했다. ruff 가 `F401`·`F841` 을 무시하도록 설정돼 있어 린트로는 드러나지 않는다.
+  - 검증: `tests/unit/test_admin_audit.py` 17건, 하니스 실행 후 감사 파일 실측. 13건(성공 7, 거절 6)이 기록되고 `test1234`·bcrypt 해시·서비스 토큰이 파일에 없음을 확인했다. `password_hash` 는 거절 사유의 컬럼명으로만 나타난다.
   - _Requirements: 7.13_
 
 - [ ] 8. 계정 생성 경로

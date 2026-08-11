@@ -16,6 +16,7 @@ from .game.repositories import PlayerRepository
 from .server.telnet_server import TelnetServer
 from .server.admin.admin_server import AdminServer
 from .server.admin.actions import AdminActionHandlers
+from .server.admin.audit import setup_audit_log
 from .server.admin.insights import AdminInsightHandlers
 from .server.admin.queries import AdminQueryHandlers
 from .core.game_engine import GameEngine
@@ -208,6 +209,8 @@ async def main():
     """메인 함수"""
     load_dotenv()
     setup_logging()
+    # 어드민 감사 로그는 일반 서버 로그와 파일을 분리한다
+    setup_audit_log()
     logger = logging.getLogger(__name__)
 
     logger.info("MUD Engine 시작 중...")
