@@ -159,7 +159,8 @@
   - 세션 만료는 별도 태스크 없이 읽기 타임아웃으로 처리한다. 남은 유효 시간을 `read_message` 의 timeout 으로 넘겨 유휴 상태에서도 만료가 성립한다.
   - `admin_login_result`, `service_login_result`, `admin_rejected` 봉투를 `serialization/admin.py` 에 추가했다. `service_login_result` 는 계약에 응답 형식이 없어 `admin.md` 에 함께 기록했다.
   - 인증 후 메시지는 `AdminServer.register()` 로 붙인다. Task 7.2~7.5 의 확장 지점이며, 미등록 타입은 `NOT_APPLICABLE` 로 거절한다.
-  - 검증: `tests/unit/test_admin_auth.py` 19건, 하니스 `scenario_admin` 9건(welcome·인증 전 거절·게임 메시지 거절·ping·잘못된 자격·잘못된 토큰·관리자 인증·미등록 거절·게임 세션 비전이). `scenario_auth` 에 `channel` 검증과 어드민 메시지 거절 확인을 추가했다.
+  - 진입 안내를 추가했다. 어드민 권한 계정이 게임 채널에 로그인하면 `login_result` 에 `admin_channel`(`available`, `channel`, `requires_reauth`)을 담는다. `available` 은 권한만이 아니라 어드민 서버가 실제로 떠 있는지를 반영하므로, 어드민 채널 없이 띄운 배포에서 클라이언트가 진입 버튼을 노출하지 않는다. `is_admin` 이 거짓이면 필드를 담지 않는다. `main.py` 는 어드민 서버를 먼저 띄우고 `telnet_server.admin_server` 에 배선한다.
+  - 검증: `tests/unit/test_admin_auth.py` 19건, `test_admin_channel_info.py` 5건, 하니스 `scenario_admin` 9건(welcome·인증 전 거절·게임 메시지 거절·ping·잘못된 자격·잘못된 토큰·관리자 인증·미등록 거절·게임 세션 비전이). `scenario_auth` 에 `channel` 검증, 어드민 메시지 거절, 어드민 채널 안내 확인을 추가했다.
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 - [ ] 7.2 리소스 CRUD
   - `resources.py`와 `queries.py`에 8개 리소스(players, rooms, room_connections, monsters, objects, item_prices, factions, faction_relations)의 목록·상세·생성·수정·삭제를 구현한다. SQL을 새로 쓰지 않고 기존 리포지토리를 재사용한다. 페이지네이션, 필터, 정렬을 지원한다.

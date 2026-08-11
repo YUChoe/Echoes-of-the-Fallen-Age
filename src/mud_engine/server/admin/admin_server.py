@@ -63,6 +63,14 @@ class AdminServer:
         self.handlers: dict[str, AdminHandler] = {}
         self.server: Optional[asyncio.AbstractServer] = None
 
+    @property
+    def is_running(self) -> bool:
+        """어드민 채널이 접속을 받고 있는지
+
+        게임 채널이 로그인 응답에 사용 가능 여부를 담을 때 확인한다.
+        """
+        return self.server is not None
+
     def register(self, message_type: str, handler: AdminHandler) -> None:
         """인증 후 메시지 처리기를 등록한다.
 

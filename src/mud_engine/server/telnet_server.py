@@ -4,18 +4,26 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import TYPE_CHECKING, Optional, Dict, Any
 
 from ..game.managers import PlayerManager
 from ..utils.exceptions import AuthenticationError
 from .telnet_session import TelnetSession
-from .channels import ADMIN_ONLY_TYPES, CHANNEL_GAME, wrong_channel_detail
+from .channels import (
+    ADMIN_ONLY_TYPES,
+    CHANNEL_ADMIN,
+    CHANNEL_GAME,
+    wrong_channel_detail,
+)
 from .chat import ChatRouter
 from .serialization import PROTOCOL_VERSION, build, message_payload
 from ..core.game_engine import GameEngine
 from ..core.event_bus import initialize_event_bus, shutdown_event_bus
 from ..utils.version_manager import get_version_manager
 from .player_session_logger import PlayerSessionLogger
+
+if TYPE_CHECKING:
+    from .admin.admin_server import AdminServer
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +58,9 @@ class TelnetServer:
         self.sessions: Dict[str, TelnetSession] = {}
         self.player_sessions: Dict[str, str] = {}  # player_id -> session_id 매핑
         self.game_engine: Optional[GameEngine] = None
+        # 어드민 채널 참조. 로그인 응답에 사용 가능 여부를 담기 위해서만 쓴다.
+        # main.py 가 배선하며 어드민 서버가 없는 배포도 성립한다
+        self.admin_server: Optional["AdminServer"] = None
         self.server: Optional[asyncio.Server] = None
         self._is_running: bool = False
         self._cleanup_task: Optional[asyncio.Task] = None
@@ -277,21 +288,23 @@ class TelnetServer:
         session.authenticate(player)
         self.player_sessions[player.id] = session.session_id
 
-        await session.send_message(
-            build(
-                "login_result",
-                seq=seq,
-                success=True,
-                player={
-                    "id": player.id,
-                    "username": player.username,
-                    "display_name": player.get_display_name(),
-                    # SQLite 는 boolean 을 정수로 저장하므로 계약대로 bool 로 맞춘다
-                    "is_admin": bool(player.is_admin),
-                    "faction_id": player.faction_id,
-                },
-            )
-        )
+        payload: Dict[str, Any] = {
+            "success": True,
+            "player": {
+                "id": player.id,
+                "username": player.username,
+                "display_name": player.get_display_name(),
+                # SQLite 는 boolean 을 정수로 저장하므로 계약대로 bool 로 맞춘다
+                "is_admin": bool(player.is_admin),
+                "faction_id": player.faction_id,
+            },
+        }
+
+        admin_channel = self._admin_channel_info(player)
+        if admin_channel is not None:
+            payload["admin_channel"] = admin_channel
+
+        await session.send_message(build("login_result", seq=seq, **payload))
 
         logger.info(
             f"✅ 로그인 성공: 사용자명='{username}', 플레이어ID={player.id}"
@@ -311,6 +324,28 @@ class TelnetServer:
                 logger.info(f"플레이어 {username} 전투 복귀 성공")
 
         return True
+
+    def _admin_channel_info(self, player: Any) -> Optional[Dict[str, Any]]:
+        """어드민 권한 계정에게 어드민 채널 사용 가능 여부를 알린다.
+
+        `is_admin` 이 거짓이면 필드를 아예 담지 않는다. `available` 은 권한만이
+        아니라 어드민 서버가 실제로 떠 있는지를 반영한다. 권한이 있어도 이
+        배포에 어드민 채널이 없으면 클라이언트가 진입 버튼을 노출해서는 안 된다.
+
+        Returns:
+            어드민 계정이면 채널 정보, 그 밖에는 None
+        """
+        if not player.is_admin:
+            return None
+
+        available = self.admin_server is not None and self.admin_server.is_running
+
+        return {
+            "available": available,
+            "channel": CHANNEL_ADMIN,
+            # 게임 세션 인증은 어드민 채널로 전이되지 않는다. 항상 참이다
+            "requires_reauth": True,
+        }
 
     async def _send_login_failure(
         self, session: TelnetSession, seq: Optional[int]

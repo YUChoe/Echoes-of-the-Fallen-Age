@@ -252,23 +252,25 @@ async def main():
         await game_engine.start()
         logger.info("게임 엔진 시작 완료.")
 
+        # 어드민 서버 초기화 및 시작. 기본 바인드가 루프백인 것은 의도적이며,
+        # 게이트웨이와 랜딩 백엔드만 도달할 수 있어야 한다.
+        # 게임 채널이 로그인 응답에 사용 가능 여부를 담으므로 먼저 띄운다
+        admin_host = os.getenv("ADMIN_HOST", "127.0.0.1")
+        admin_port = int(os.getenv("ADMIN_PORT", "4001"))
+        admin_server = AdminServer(admin_host, admin_port, player_manager)
+        await admin_server.start()
+
         # Telnet 서버 초기화 및 시작
         telnet_host = os.getenv("TELNET_HOST", "0.0.0.0")
         telnet_port = int(os.getenv("TELNET_PORT", "4000"))
         telnet_server = TelnetServer(telnet_host, telnet_port, player_manager, db_manager)
+        telnet_server.admin_server = admin_server
 
         # 게임 엔진을 Telnet 서버에 연결
         telnet_server.game_engine = game_engine
         game_engine.telnet_server = telnet_server
 
         await telnet_server.start()
-
-        # 어드민 서버 초기화 및 시작. 기본 바인드가 루프백인 것은 의도적이며,
-        # 게이트웨이와 랜딩 백엔드만 도달할 수 있어야 한다
-        admin_host = os.getenv("ADMIN_HOST", "127.0.0.1")
-        admin_port = int(os.getenv("ADMIN_PORT", "4001"))
-        admin_server = AdminServer(admin_host, admin_port, player_manager)
-        await admin_server.start()
 
         print(f"📡 Telnet 서버가 telnet://{telnet_host}:{telnet_port} 에서 실행 중입니다.")
         print(f"🔧 어드민 서버가 {admin_host}:{admin_port} 에서 실행 중입니다.")

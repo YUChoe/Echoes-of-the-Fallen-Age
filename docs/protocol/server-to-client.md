@@ -74,6 +74,11 @@
     "display_name": "SUPERADMIN",
     "is_admin": true,
     "faction_id": "ash_knights"
+  },
+  "admin_channel": {
+    "available": true,
+    "channel": "admin",
+    "requires_reauth": true
   }
 }
 ```
@@ -92,7 +97,28 @@
 
 실패 사유 코드는 `INVALID_CREDENTIALS`, `ALREADY_LOGGED_IN`, `ACCOUNT_LOCKED`뿐이다. 사용자명 존재 여부를 구분해서 알려주지 않는다. 계정 열거 공격을 막기 위한 조치다.
 
-`is_admin`이 true여도 게임 세션에서 어드민 기능을 쓸 수 없다. 어드민은 별도 채널에서 별도 인증을 거친다. 이 플래그는 클라이언트가 어드민 패널 진입 버튼을 노출할지 결정하는 데만 쓰인다.
+`is_admin`이 true여도 게임 세션에서 어드민 기능을 쓸 수 없다. 어드민은 별도 채널에서 별도 인증을 거친다.
+
+### admin_channel
+
+`is_admin`이 true인 계정에만 담긴다. 거짓이면 필드가 아예 없다.
+
+| 필드 | 의미 |
+|---|---|
+| `available` | 어드민 채널에 실제로 진입할 수 있는지. 권한만이 아니라 서버가 어드민 포트를 열고 있는지를 반영한다 |
+| `channel` | 진입 대상 채널. 항상 `admin` |
+| `requires_reauth` | 어드민 채널에서 다시 인증해야 하는지. 게임 세션 인증이 전이되지 않으므로 항상 true |
+
+`is_admin`만으로는 진입 가능 여부를 알 수 없다. 권한이 있어도 어드민 채널을 띄우지 않은 배포가 있으므로, 클라이언트는 `available`이 true일 때만 어드민 패널 진입 버튼을 노출한다.
+
+진입 단계는 다음과 같다.
+
+1. 게임 채널에 로그인한다. `login_result`의 `admin_channel.available`을 확인한다.
+2. true이면 어드민 패널 진입 버튼을 노출한다. false 또는 필드가 없으면 노출하지 않는다.
+3. 사용자가 버튼을 누르면 어드민 채널로 별도 연결을 맺는다. 게임 연결은 유지한다.
+4. `welcome`의 `channel`이 `admin`인지 확인한다.
+5. `admin_login`으로 다시 인증한다. 게임 로그인 자격을 재사용해도 되지만 인증 자체는 생략할 수 없다.
+6. `admin_login_result`의 `expires_at`을 보관한다. 2시간이 지나면 서버가 `SESSION_EXPIRED`로 거절하므로 재인증한다.
 
 ## logout_result
 

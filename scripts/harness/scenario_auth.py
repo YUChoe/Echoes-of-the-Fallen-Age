@@ -226,7 +226,50 @@ def _check_login_success(
         return None
 
     result.ok("로그인 성공 응답", f"{player['username']} (admin={player['is_admin']})")
+    _check_admin_channel_info(result, login_result, player)
     return login_result
+
+
+def _check_admin_channel_info(
+    result: ScenarioResult,
+    login_result: dict[str, Any],
+    player: dict[str, Any],
+) -> None:
+    """어드민 계정에게 어드민 채널 사용 가능 여부를 알리는지 확인한다.
+
+    is_admin 이 거짓이면 필드가 없어야 한다. 계약: server-to-client.md
+    """
+    info = login_result.get("admin_channel")
+
+    if not player["is_admin"]:
+        if info is not None:
+            result.fail("어드민 채널 안내", "비관리자 응답에 admin_channel 이 담겼다")
+            return
+        result.ok("어드민 채널 안내", "비관리자에게는 담지 않는다")
+        return
+
+    if not isinstance(info, dict):
+        result.fail("어드민 채널 안내", f"admin_channel 이 {info!r}")
+        return
+
+    problems: list[str] = []
+
+    if info.get("available") is not True:
+        problems.append(
+            f"available 이 {info.get('available')!r}. 어드민 서버가 떠 있지 않다"
+        )
+
+    if info.get("channel") != "admin":
+        problems.append(f"channel 이 {info.get('channel')!r}")
+
+    if info.get("requires_reauth") is not True:
+        problems.append(f"requires_reauth 가 {info.get('requires_reauth')!r}")
+
+    if problems:
+        result.fail("어드민 채널 안내", "; ".join(problems))
+        return
+
+    result.ok("어드민 채널 안내", "available=true, 재인증 필요")
 
 
 def _check_room_info(result: ScenarioResult, client: HarnessClient) -> None:
