@@ -21,6 +21,8 @@ from .admin import (
 from .combat import build_combat_state, serialize_combatant
 from .dialogue import build_dialogue, ensure_farewell_choice, serialize_choices
 from .entity import (
+    build_entity_enter,
+    build_entity_leave,
     coerce_properties,
     is_container,
     is_readable,
@@ -74,6 +76,8 @@ __all__ = [
     "build_combat_state",
     "build_container_contents",
     "build_dialogue",
+    "build_entity_enter",
+    "build_entity_leave",
     "build_event",
     "build_inventory",
     "build_player_state",

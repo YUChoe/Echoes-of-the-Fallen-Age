@@ -7,6 +7,7 @@ from datetime import datetime
 
 from .telnet_session import TelnetSession
 from ..game.models import Player
+from .serialization import build_event
 from .session.util import short_session_id as _short_id
 
 logger = logging.getLogger(__name__)
@@ -76,10 +77,9 @@ class SessionManager:
                 logger.info(f"중복 로그인 감지 - 기존 세션 종료: {existing_session_id}, 플레이어: {player.username}")
                 # 기존 세션에 종료 메시지 전송 후 연결 종료
                 try:
-                    await existing_session.send_message({
-                        "type": "system_message",
-                        "message": "다른 곳에서 로그인하여 연결이 종료됩니다."
-                    })
+                    await existing_session.send_message(
+                        build_event("system.duplicate_login")
+                    )
                     await existing_session.close("다른 곳에서 로그인하여 연결이 종료됩니다.")
                 except Exception as e:
                     logger.warning(f"기존 세션 종료 처리 실패: {e}")

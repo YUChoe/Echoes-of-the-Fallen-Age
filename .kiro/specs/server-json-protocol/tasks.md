@@ -244,20 +244,38 @@
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7_
 
 - [ ] 9. 잔여 제거 및 최종 검증
-- [ ] 9.1 텔넷 테스트 자산 폐기
+- [x] 9.1 텔넷 테스트 자산 폐기
   - `telnet/telnet_client.py`(telnetlib 의존으로 이미 동작하지 않음), `telnet/capture_baseline.py`, `telnet_test.sh`를 제거한다. `docs/telnet_test_guide.md`를 하니스 기준으로 갱신하거나 폐기한다.
+  - `telnet/` 디렉터리 전체(`telnet_client.py`, `capture_baseline.py`), `telnet_test.sh`, `docs/telnet_test_guide.md` 를 삭제했다. 가이드는 갱신 대신 폐기했다. 대상 프로토콜이 텍스트 명령어에서 JSON 라인으로 바뀌어 내용이 전부 무효였다. 절차는 `.kiro/steering/harness-test.md` 로 옮겼다.
   - _Requirements: 9.8_
-- [ ] 9.2 스티어링 문서 갱신
+- [x] 9.2 스티어링 문서 갱신
   - `.kiro/steering/dev-environment.md`의 가상환경(`mud_engine_env` → `.venv`), Python 버전(3.13 → 3.14), 웹 포트 8080(존재하지 않음) 기술을 정정한다. `telnet-mcp-test.md`를 하니스 절차로 대체한다. `script-execution.md`의 가상환경 경로를 갱신한다.
+  - `dev-environment.md` 를 다시 썼다. `.venv`, Python 3.14.6, 게임 4000 / 어드민 4001, 웹 포트 8080 부재, ruff 가 `F401`·`F841` 을 무시한다는 사실, 정상 종료 절차를 담았다.
+  - `telnet-mcp-test.md`(756행) 를 `harness-test.md` 로 대체했다. 내용 전부가 폐기된 텍스트 메뉴와 ANSI 색상, 텍스트 명령어 기준이었다.
+  - `script-execution.md` 를 다시 썼다. `script_test.sh` 자체가 `mud_engine_env` 를 활성화해 동작하지 않았으므로 스크립트도 함께 고쳤다.
+  - `work-best-practice.md` 의 `mud_engine_env`, 8080 브라우저 테스트, `sqlite3` CLI, `black`/`flake8` 기술을 정정했다.
   - _Requirements: 10.1, 10.2, 10.3_
 - [ ] 9.3 하니스 전체 시나리오 확장
   - 인증, 방 정보, 액션, 거절, 프레이밍 시나리오를 완성한다. 액션 verb 전체와 거절 코드 전체를 커버한다.
   - _Requirements: 9.2, 9.3, 9.4_
-- [ ] 9.4 최종 정합성 검증
+- [x] 9.4 최종 정합성 검증
   - `docs/protocol/`의 계약과 구현이 일치하는지 확인한다. 서버가 송신하는 모든 메시지 타입이 계약에 정의되어 있고, 계약의 모든 클라이언트 메시지가 처리되는지 점검한다. mypy + ruff + 하니스 전체 통과.
+  - `scripts/check_protocol_consistency.py` 를 만들어 계약 문서와 구현을 대조한다. 계약의 타입 표와 JSON 예시에서 타입을 뽑고, 구현의 `build()` 와 `"type"` 리터럴, 처리기 등록을 긁어 세 방향으로 비교한다.
+  - 점검 결과 계약 밖 송신 타입이 11종 있었고 전부 전환했다. 핸드오버에 기록된 24종에서 0종이 됐다.
+  - 계약이 정의했으나 서버가 보내지 않던 `entity_enter`·`entity_leave` 를 구현했다. 플레이어 이동과 몬스터 로밍 양쪽에 적용했다. 두 문제는 같은 사안의 양면이었다. 서버는 방 인원 변화를 계약 밖 `room_players_update` 로 전체 목록을 매번 다시 보내고 있었다.
+  - 제거한 것: `event_handler.py` 의 죽은 채팅 핸들러 3개(호출처 없음, 존재하지 않는 `chat_manager` 참조)와 `_on_player_give`(발행자 없음), `object_update` 중복 브로드캐스트 2곳(액션 핸들러가 이미 보낸다), `update_room_player_list()`, `broadcast_to_room_by_detection_ability()`.
+  - 전환한 것: `system_message` 2곳 → `system.server_shutdown`/`system.duplicate_login`, `combat_rejoin` → `combat.rejoined`, `kicked` → `system.kicked`, `follow_stopped` → `follow.stopped_disconnected`.
+  - 점검 스크립트의 사각지대를 발견해 고쳤다. 타입 정규식이 `[a-z_]+` 라 공백이 든 `"moving message"` 를 놓쳤다. 실측으로 드러나 `[^"]+` 로 넓혔다.
+  - 감지 능력에 따라 몬스터 이동을 알아채지 못하는 규칙은 구현되지 않은 상태였다. 지능·민첩을 로그로만 찍고 모두에게 보냈다. 규칙째 제거했다.
+  - 신규 키 3종을 클라이언트 저장소에 추가했다.
+  - 검증: 정합성 점검 판정 일치(계약 밖 0종, 미처리 0종, `shop` 만 미구현). 임시 계정으로 두 세션을 붙여 `entity_enter`·`entity_leave` 도달을 실측했고, 20초 관찰로 몬스터 로밍이 `entity_enter` 를 보내며 계약 밖 타입이 하나도 오지 않음을 확인했다.
   - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
-- [ ] 9.5 시그널 핸들러 재진입 방지
+- [x] 9.5 시그널 핸들러 재진입 방지
   - `main.py:219`의 시그널 핸들러가 종료 진행 중 재진입을 막지 않아 SIGINT 한 번에 3회 호출되고 종료 시 `KeyboardInterrupt`가 처리되지 않은 채 남는다. 종료 플래그를 두어 중복 처리를 방지한다.
+  - `utils/shutdown.py` 의 `ShutdownSignal` 로 분리했다. 예외를 던지지 않고 종료 이벤트를 루프에 넘기며, 두 번째 신호는 무시한다. 기존 구현은 `raise KeyboardInterrupt()` 뒤에 도달 불가 코드가 있었다.
+  - Windows 에서 SIGBREAK 도 등록한다. MSYS 의 `kill` 과 `taskkill` 로는 정상 종료를 유도할 수 없어 `scripts/run_server.py` 런처를 추가했다. 서버를 새 프로세스 그룹으로 띄우고 `CTRL_BREAK_EVENT` 를 보낸다.
+  - 실측으로 정상 종료를 확인했다. WAL 체크포인트까지 수행하고 0.6초에 종료 코드 0, 핸들러 호출 1회다. 이전에는 강제 종료뿐이어서 WAL 정리와 세션 종료 알림이 빠졌다.
+  - 검증: `tests/unit/test_shutdown_signal.py` 8건.
   - _Requirements: 10.6_
 
 - [ ] 10. 대화 대사의 번역 키 전환

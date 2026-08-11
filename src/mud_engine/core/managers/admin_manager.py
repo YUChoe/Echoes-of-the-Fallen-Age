@@ -13,6 +13,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Dict
 
 from ..event_bus import Event, EventType
+from ...server.serialization import build_event
 from ...utils.exceptions import AdminOperationError
 
 if TYPE_CHECKING:
@@ -158,12 +159,11 @@ class AdminManager:
             )
 
         try:
-            # 계약 밖 타입이다. 추방 통보를 담을 메시지가 계약에 없어 유지한다
-            await target_session.send_message({
-                "type": "kicked",
-                "reason": reason,
-                "admin": actor,
-            })
+            # 추방 통보. 계약에 전용 타입이 없어 event 로 보낸다. 연결이 곧
+            # 끊어지므로 클라이언트는 이 키로 사유를 표시한다
+            await target_session.send_message(
+                build_event("system.kicked", {"reason": reason, "admin": actor})
+            )
 
             await self.game_engine.remove_player_session(
                 target_session, f"관리자 추방: {reason}"

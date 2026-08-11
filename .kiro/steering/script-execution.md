@@ -2,90 +2,55 @@
 
 ## 기본 원칙
 
-- **script_test.sh 사용**: scripts/ 디렉토리의 Python 스크립트 실행 시 반드시 사용
-- **telnet_test.sh 사용**: telnet/ 디렉토리의 테스트 스크립트 실행 시 반드시 사용
-- **직접 python 명령어 금지**: 가상환경과 PYTHONPATH 설정 누락으로 인한 오류 방지
-- telnet_test.sh는 telnet-mcp 사용 불가인 경우에만 사용한다.
+- **script_test.sh 사용**: `scripts/` 디렉토리의 Python 스크립트 실행 시 사용
+- **`PYTHONPATH=.` 필수**: src-layout 구조라 없으면 임포트가 실패한다
+- **`PYTHONIOENCODING=utf-8` 필수**: 없으면 한국어 출력이 cp949로 깨진다
+- **가상환경은 활성화하지 않고 인터프리터를 직접 지정**: `.venv/Scripts/python.exe`
+
+`telnet/` 디렉토리와 `telnet_test.sh` 는 제거됐다. `telnetlib` 가 표준
+라이브러리에서 빠져 동작하지 않았고, 대상 프로토콜도 텍스트 명령어에서 JSON
+라인으로 바뀌었다. 서버 검증은 `scripts/harness/` 를 쓴다. `harness-test.md` 참고.
 
 ## script_test.sh 사용법
-
-### 기본 사용법
 
 ```bash
 # scripts/ 디렉토리의 Python 스크립트 실행
 ./script_test.sh <스크립트명>
 
 # 예시
-./script_test.sh check_monk_name.py
-./script_test.sh update_monk_name
+./script_test.sh dump_admin_schema.py
+./script_test.sh cleanup_wal
 ```
 
 ### 특징
 
-- 자동으로 가상환경 활성화 (`mud_engine_env`)
-- PYTHONPATH=. 자동 설정
-- .py 확장자 자동 추가 (생략 가능)
+- `.venv/Scripts/python.exe` 직접 호출
+- `PYTHONPATH=.`, `PYTHONIOENCODING=utf-8` 자동 설정
+- `.py` 확장자 자동 추가 (생략 가능)
 - 실행 결과 및 종료 코드 표시
 - 사용 가능한 스크립트 목록 표시 (인자 없이 실행 시)
 
 ### 사용 시나리오
 
-- 데이터베이스 스키마 확인
-- 몬스터/플레이어 데이터 조회/수정
+- 데이터베이스 스키마와 참조 관계 확인
+- 몬스터/플레이어 데이터 조회·수정
 - 게임 데이터 초기화 및 설정
 - 디버깅 및 검증 스크립트
 
-## telnet_test.sh 사용법
+## 직접 실행
 
-### 기본 사용법
-
-```bash
-# telnet/ 디렉토리의 테스트 스크립트 실행
-./telnet_test.sh <테스트파일명>
-
-# 예시
-./telnet_test.sh test_monk_debug.py
-./telnet_test.sh telnet_client
-```
-
-### 특징
-
-- Telnet 서버 테스트 전용
-- 자동으로 가상환경 활성화
-- .py 확장자 자동 추가 (생략 가능)
-- 실행 결과 및 종료 코드 표시
-- 사용 가능한 테스트 파일 목록 표시
-
-### 사용 시나리오
-
-- Telnet 서버 연결 테스트
-- 명령어 실행 및 응답 확인
-- 게임 기능 통합 테스트
-- 사용자 시나리오 검증
-
-## 금지사항
-
-### 직접 python 명령어 사용 금지
+`script_test.sh` 를 거치지 않고 실행할 때는 세 가지를 모두 붙인다.
 
 ```bash
-# ❌ 금지 - 가상환경 및 PYTHONPATH 누락
-python scripts/check_monk_name.py
-source mud_engine_env/Scripts/activate && python scripts/check_monk_name.py
-
-# ✅ 올바른 방법
-./script_test.sh check_monk_name
+PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe scripts/dump_admin_schema.py
 ```
 
-### 이유
-
-- 가상환경 활성화 누락으로 인한 모듈 import 오류
-- PYTHONPATH 설정 누락으로 인한 경로 오류
-- 일관되지 않은 실행 환경
-- 무한루프 및 프로세스 종료 문제
+`python -c` 는 쓰지 않는다. 인용 처리가 셸마다 달라 깨지고 재실행이 어렵다.
+한 번만 쓸 조회라도 스크립트 파일로 만든다.
 
 ## 스크립트 작성 가이드
 
-### Python 스크립트 템플릿 (scripts/)
+### 템플릿
 
 ```python
 #!/usr/bin/env python3
@@ -94,10 +59,11 @@ source mud_engine_env/Scripts/activate && python scripts/check_monk_name.py
 
 import asyncio
 import sys
+
 from src.mud_engine.database import get_database_manager
 
 
-async def main():
+async def main() -> int:
     """메인 함수"""
     print("=== 스크립트 시작 ===\n")
 
@@ -125,97 +91,58 @@ async def main():
 
 
 if __name__ == '__main__':
-    exit_code = asyncio.run(main())
-    sys.exit(exit_code)
+    sys.exit(asyncio.run(main()))
 ```
 
-### Telnet 테스트 스크립트 템플릿 (telnet/)
+### DB 를 읽기만 할 때
+
+게임 엔진을 띄우지 않고 `sqlite3` 로 직접 읽어도 된다. 서버가 실행 중일 때도
+안전하다. `scripts/dump_admin_schema.py` 가 이 방식이다.
 
 ```python
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Telnet 테스트 설명"""
+import sqlite3
 
-import sys
-import time
-from telnet_client import TelnetClient
-
-
-def main():
-    """메인 함수"""
-    print("=== Telnet 테스트 시작 ===\n")
-
-    client = TelnetClient()
-
-    try:
-        # 연결
-        result = client.connect("127.0.0.1", 4000, 5)
-        if not result["success"]:
-            print(f"❌ 연결 실패: {result.get('error')}")
-            return 1
-
-        session_id = result["sessionId"]
-
-        # 테스트 수행
-
-        # 종료
-        client.disconnect(session_id)
-        print("\n✅ 테스트 완료")
-        return 0
-
-    except Exception as e:
-        print(f"❌ 오류 발생: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
-
-
-if __name__ == '__main__':
-    exit_code = main()
-    sys.exit(exit_code)
+conn = sqlite3.connect("data/mud_engine.db")
+conn.row_factory = sqlite3.Row
 ```
 
-## 무한루프 방지
+`sqlite3` CLI 는 이 환경에 없다.
 
-### 필수 사항
+### 스키마
+
+DB 스키마는 추측하지 않는다. `data/DATABASE_SCHEMA.md` 를 확인하거나
+`scripts/dump_admin_schema.py` 로 실제 테이블을 읽는다. 문서와 실제가 어긋난
+경우가 있었다.
+
+## 무한루프 방지
 
 - 모든 스크립트는 명시적으로 `sys.exit(exit_code)` 호출
 - 데이터베이스 연결은 `finally` 블록에서 확실히 종료
 - 예외 처리 시 적절한 exit code 반환 (0: 성공, 1: 실패)
 
-### 데이터베이스 연결 안전 종료 패턴
+## git 추적
 
-```python
-db_manager = None
-try:
-    db_manager = await get_database_manager()
-    # 작업 수행
-finally:
-    if db_manager:
-        try:
-            await db_manager.close()
-        except Exception:
-            pass
-```
+`.gitignore` 가 `scripts/*.py`(직하만)와 `test_*.py` 를 제외한다. 새 스크립트를
+커밋에 넣으려면 `git add -f` 가 필요하다. `scripts/harness/` 아래는 하위
+디렉터리라 정상 추적된다.
 
 ## 체크리스트
 
-### 스크립트 실행 전
+### 실행 전
 
-- [ ] script_test.sh 또는 telnet_test.sh 사용 확인
-- [ ] 서버 실행 상태 확인 (Telnet 테스트 시)
-- [ ] 스크립트 파일 존재 여부 확인
+- [ ] `PYTHONPATH=.`, `PYTHONIOENCODING=utf-8` 확인
+- [ ] DB 를 수정하는 스크립트인지 확인. 프로덕션 데이터가 올라가 있다
+- [ ] 서버 실행 상태 확인 (서버가 필요한 스크립트인 경우)
 
-### 스크립트 작성 시
+### 작성 시
 
-- [ ] 적절한 템플릿 사용
+- [ ] 템플릿 사용
 - [ ] 데이터베이스 연결 안전 종료 패턴 적용
 - [ ] 명시적 exit code 반환
-- [ ] 예외 처리 및 로깅 포함
-- [ ] 무한루프 방지 코드 포함
+- [ ] 스키마를 추측하지 않고 확인
 
 ### 실행 후
 
 - [ ] 정상 종료 확인 (exit code 0)
 - [ ] 오류 발생 시 로그 확인
-- [ ] 데이터베이스 연결 정리 확인
+- [ ] 임시 데이터를 만들었으면 정리 확인

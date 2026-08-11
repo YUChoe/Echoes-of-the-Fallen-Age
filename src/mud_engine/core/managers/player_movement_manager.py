@@ -8,6 +8,8 @@ from datetime import datetime
 from ..event_bus import Event, EventType
 from ..types import SessionType
 from ...server.serialization import (
+    build_entity_enter,
+    build_entity_leave,
     build_event,
     build_room_info,
     serialize_monster,
@@ -91,31 +93,27 @@ class PlayerMovementManager:
                 }
             ))
 
-            # 이전 방의 다른 플레이어들에게 퇴장 알림
+            # 이전 방의 다른 플레이어들에게 퇴장 알림. 계약의 증분 갱신 메시지다
             if old_room_id:
-                leave_message = {
-                    "type": "room_message",
-                    "message": f"🚶 {session.player.get_display_name()}님이 떠났습니다.",
-                    "timestamp": datetime.now().isoformat()
-                }
-                await self.game_engine.broadcast_to_room(old_room_id, leave_message, exclude_session=session.session_id)
+                await self.game_engine.broadcast_to_room(
+                    old_room_id,
+                    build_entity_leave(old_room_id, str(session.player.id)),
+                    exclude_session=session.session_id,
+                )
 
             # 새 방의 다른 플레이어들에게 입장 알림
-            enter_message = {
-                "type": "room_message",
-                "message": f"🚶 {session.player.get_display_name()}님이 도착했습니다.",
-                "timestamp": datetime.now().isoformat()
-            }
-            await self.game_engine.broadcast_to_room(room_id, enter_message, exclude_session=session.session_id)
+            await self.game_engine.broadcast_to_room(
+                room_id,
+                build_entity_enter(room_id, serialize_player(session.player)),
+                exclude_session=session.session_id,
+            )
 
             # 따라가는 플레이어들도 함께 이동 - 현재 미구현
             # if not skip_followers:
             #     await self.handle_player_movement_with_followers(session, room_id, old_room_id)
 
-            # 방 플레이어 목록 업데이트 (이전 방과 새 방 모두)
-            if old_room_id:
-                await self.update_room_player_list(old_room_id)
-            await self.update_room_player_list(room_id)
+            # 방 인원 변화는 위의 entity_enter / entity_leave 로 이미 알렸다.
+            # 전체 목록을 다시 보내지 않는다
 
             # 방 정보를 플레이어에게 전송 (follower든 아니든 항상 전송)
             await self.send_room_info_to_player(session, room_id)
@@ -229,41 +227,9 @@ class PlayerMovementManager:
 
         return entities
 
-    async def update_room_player_list(self, room_id: str) -> None:
-        """
-        방의 플레이어 목록을 실시간으로 업데이트합니다.
-
-        Args:
-            room_id: 업데이트할 방 ID
-        """
-        try:
-            # 방에 있는 모든 플레이어들 찾기
-            players_in_room = []
-            for session in self.game_engine.session_manager.get_authenticated_sessions():
-                if (session.player and
-                    getattr(session, 'current_room_id', None) == room_id):
-
-                    player_info = {
-                        "id": session.player.id,
-                        "name": session.player.username,
-                        "session_id": session.session_id,
-                        "following": getattr(session, 'following_player', None)
-                    }
-                    players_in_room.append(player_info)
-
-            # 방에 있는 모든 플레이어들에게 업데이트된 목록 전송
-            update_message = {
-                "type": "room_players_update",
-                "room_id": room_id,
-                "players": players_in_room,
-                "player_count": len(players_in_room)
-            }
-
-            await self.game_engine.broadcast_to_room(room_id, update_message)
-            logger.debug(f"방 {room_id} 플레이어 목록 업데이트: {len(players_in_room)}명")
-
-        except Exception as e:
-            logger.error(f"방 플레이어 목록 업데이트 실패 ({room_id}): {e}")
+    # `update_room_player_list()` 를 제거했다. 호출처가 없었고 계약 밖 타입
+    # `room_players_update` 로 방 인원 전체를 매번 다시 보내는 방식이었다.
+    # 계약은 증분 갱신(`entity_enter` / `entity_leave`)을 규정한다.
 
     async def handle_player_disconnect_cleanup(self, session: SessionType) -> None:
         """
@@ -302,11 +268,13 @@ class PlayerMovementManager:
                     delattr(other_session, 'following_player')
 
                     # 알림 전송
-                    await other_session.send_message({
-                        "type": "follow_stopped",
-                        "message": f"👥 {disconnected_player}님이 연결을 해제하여 따라가기가 중지되었습니다.",
-                        "reason": "player_disconnected"
-                    })
+                    await other_session.send_message(
+                        build_event(
+                            "follow.stopped_disconnected",
+                            {"username": disconnected_player},
+                            category="social",
+                        )
+                    )
 
             logger.info(f"플레이어 연결 해제 정리 완료: {disconnected_player}")
 

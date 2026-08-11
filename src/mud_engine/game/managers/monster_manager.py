@@ -676,8 +676,24 @@ class MonsterManager:
                     logger.info(f"{monster_name} {short_id} ({current_x}, {current_y}) -> ({target_x}, {target_y}) 로밍 (확률: {random_value:.2f})")
 
                     target_room = await room_manager.get_room_at_coordinates(target_x, target_y)  # 그래서 여기서 다시 room을 가져 옴
-                    await self._game_engine.broadcast_to_room_by_detection_ability(priv_room.id, f"{monster_name} leaves the room.")
-                    await self._game_engine.broadcast_to_room_by_detection_ability(target_room.id, f"{monster_name} enters this room.")
+
+                    # 계약의 증분 갱신으로 알린다. 완성 문장을 보내던 경로는
+                    # 계약 밖 타입이라 클라이언트가 버렸다.
+                    # 함수 안에서 임포트한다. `serialization/entity.py` 가
+                    # `game.monster` 를 임포트하므로 모듈 수준에서는 순환이 된다
+                    from ...server.serialization import (
+                        build_entity_enter,
+                        build_entity_leave,
+                        serialize_monster,
+                    )
+
+                    await self._game_engine.broadcast_to_room(
+                        priv_room.id, build_entity_leave(priv_room.id, monster.id)
+                    )
+                    await self._game_engine.broadcast_to_room(
+                        target_room.id,
+                        build_entity_enter(target_room.id, serialize_monster(monster)),
+                    )
 
         except Exception as e:
             logger.error(f"몬스터 로밍 실패 ({monster.id}): {e}")

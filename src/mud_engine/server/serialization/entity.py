@@ -18,6 +18,7 @@ from ...game import faction_rules
 from ...game.models.gameobject import GameObject
 from ...game.models.player import Player
 from ...game.monster import Monster
+from .envelope import build
 
 # 사용 가능 판정에 쓰이는 properties 키.
 # commands/use_command.py 의 usable_keys 와 같은 목록이다.
@@ -176,6 +177,28 @@ def serialize_object(obj: GameObject) -> dict[str, Any]:
         "is_usable": is_usable(properties),
         "template_id": properties.get("template_id"),
     }
+
+
+def build_entity_enter(room_id: str, entity: dict[str, Any]) -> dict[str, Any]:
+    """엔티티 입장 알림을 만든다.
+
+    스냅샷이 아니라 변화만 알린다. 클라이언트는 `room_info` 로 만든 방 사본에
+    이 엔티티를 더한다.
+    """
+    return build("entity_enter", room_id=room_id, entity=entity)
+
+
+def build_entity_leave(
+    room_id: str, entity_id: str, direction: Optional[str] = None
+) -> dict[str, Any]:
+    """엔티티 퇴장 알림을 만든다.
+
+    Args:
+        direction: 이동 방향. 사망이나 소멸처럼 이동이 아니면 None
+    """
+    return build(
+        "entity_leave", room_id=room_id, entity_id=entity_id, direction=direction
+    )
 
 
 def serialize_player(player: Player, include_vitals: bool = True) -> dict[str, Any]:

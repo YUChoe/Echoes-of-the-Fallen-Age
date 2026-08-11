@@ -29,58 +29,59 @@ find . -name "*.py" -exec grep -Hn "def method_name" {} \;
 ```bash
 # ✅ 올바른 bash 명령어
 ps aux | grep python
-kill -9 <PID>
+netstat -an | grep -E '4000|4001'
 
 # ❌ Windows CMD 명령어 (GitBash에서 사용 금지)
-netstat -ano | findstr :8080
 tasklist | findstr python
 ```
 
+MSYS 의 `kill` 은 네이티브 Windows 프로세스에 시그널을 전달하지 못한다.
+정상 종료가 필요하면 런처를 쓴다. `01-python-dev/dev-environment.md` 참고.
+
 ### 데이터베이스 스키마 확인
+
+`sqlite3` CLI 는 이 환경에 없다. Python 스크립트로 읽는다.
+
 ```bash
-# SQLite 스키마 확인
-sqlite3 data/mud_engine.db ".schema"
-sqlite3 data/mud_engine.db "PRAGMA table_info(table_name)"
-sqlite3 data/mud_engine.db "SELECT * FROM table_name LIMIT 5"
+# 어드민 리소스 8종의 실제 스키마
+PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe scripts/dump_admin_schema.py
 
-# 테이블 목록 확인
-sqlite3 data/mud_engine.db ".tables"
-
-# 특정 패턴 데이터 검색
-sqlite3 data/mud_engine.db "SELECT id FROM rooms WHERE id LIKE 'forest%'"
+# 실제 참조 관계
+PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe scripts/dump_admin_references.py
 ```
+
+스키마는 추측하지 않는다. `data/DATABASE_SCHEMA.md` 와 실제 테이블이 어긋난
+경우가 있었다.
 
 ## 개발 환경 설정 및 관리
 
 ### Python 가상환경 관리
 ```bash
-# 가상환경 생성 및 활성화
-python -m venv mud_engine_env
-source mud_engine_env/Scripts/activate  # Git Bash에서
-
+# 가상환경은 .venv 다. 이미 만들어져 있다
 # 의존성 설치
-pip install -r requirements.txt
+.venv/Scripts/python.exe -m pip install -r requirements.txt
 
-# 타입 검사 및 코드 품질
-mypy src/
-black src/
-flake8 src/
+# 타입 검사 및 린트 (서버 실행 전 필수)
+PYTHONPATH=. .venv/Scripts/mypy.exe src/
+.venv/Scripts/ruff.exe check src/ scripts/ tests/
 
 # 테스트 실행
-pytest
+PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe -m pytest tests/ -q
 ```
+
+`black` 과 `flake8` 은 쓰지 않는다. 린트는 ruff 하나로 통일했다.
 
 ### 서버 실행 및 관리
 ```bash
 # 서버 시작
-source mud_engine_env/Scripts/activate && PYTHONPATH=. python -m src.mud_engine.main
+PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe -m src.mud_engine.main
 
-# 서버 상태 확인
+# 서버 상태 확인 (게임 4000, 어드민 4001)
 ps aux | grep python
-netstat -tulpn | grep 8080
+netstat -an | grep -E '4000|4001'
 
-# 서버 중지
-kill -9 <PID>
+# 정상 종료가 필요하면 런처로 띄운다
+PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe scripts/run_server.py --seconds 30
 ```
 
 ## 개발 프로세스 및 문제 해결 방법론
@@ -151,24 +152,27 @@ mypy src/mud_engine/game/models.py
 
 ## 테스트 및 검증 방법론
 
-### 브라우저 테스트 모범 사례
+### 프로토콜 하니스 검증
 
-#### 테스트 환경 준비
+브라우저 테스트는 없다. 레거시 웹서버가 제거되어 접속할 곳이 없고, Godot
+클라이언트는 아직 만들지 않았다. `scripts/harness/` 가 유일한 검증 수단이다.
+
 ```bash
 # 서버 실행
-source mud_engine_env/Scripts/activate && PYTHONPATH=. python -m src.mud_engine.main
+PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe -m src.mud_engine.main
 
-# 브라우저에서 접속
-# http://localhost:8080
-
-# 테스트 계정 (aa / aaaabbbb) 사용
+# 하니스 (별도 셸에서)
+PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe -m scripts.harness.run_all
 ```
 
-#### 단계별 테스트 진행
-1. **로그인 테스트**: 기본 인증 기능 확인
-2. **이동 테스트**: 방 이동 및 출구 생성 기능 확인
-3. **기능 테스트**: 전투, 명령어 시스템 전체 기능 확인
-4. **상태 테스트**: 플레이어 상태 변화 확인
+테스트 계정은 `player5426` / `test1234` (관리자)다. 절차와 시나리오 구성은
+`harness-test.md` 에 있다.
+
+#### 단계별 검증 순서
+1. **정적 검사**: mypy + ruff 통과. 실패하면 서버를 띄우지 않는다
+2. **단위 테스트**: pytest
+3. **하니스**: 서버를 띄우고 실패 0 확인
+4. **감사 로그**: 어드민 작업을 했으면 `logs/admin_audit.log` 확인
 
 ### 하위 호환성 및 베이스라인 관리
 - 기존 기능 파기 방지를 위해 업데이트 전후 테스트

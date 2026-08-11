@@ -5,7 +5,6 @@ MUD Engine 메인 실행 파일
 import asyncio
 import logging
 import os
-import signal
 import sys
 
 from dotenv import load_dotenv
@@ -22,6 +21,7 @@ from .server.admin.insights import AdminInsightHandlers
 from .server.admin.queries import AdminQueryHandlers
 from .core.game_engine import GameEngine
 from .server.session_manager import SessionManager
+from .utils.shutdown import ShutdownSignal
 
 
 def setup_logging():
@@ -217,21 +217,10 @@ async def main():
     logger.info("MUD Engine 시작 중...")
     print("🎮 Python MUD Engine v0.1.0")
 
-    # 종료 이벤트 생성
+    # 종료 이벤트와 시그널 핸들러. 핸들러는 예외를 던지지 않고 재진입을 막는다
     shutdown_event = asyncio.Event()
-
-    # Signal 핸들러 설정
-    def signal_handler(signum, frame):
-        logger.info(f"Signal {signum} 수신됨. 서버 종료 절차 시작...")
-        print(f"\n🛑 Signal {signum} 수신됨. 서버 종료 중...")
-        raise KeyboardInterrupt()
-        shutdown_event.set()
-
-    # Windows와 Unix 모두 지원
-    if hasattr(signal, 'SIGTERM'):
-        signal.signal(signal.SIGTERM, signal_handler)
-    if hasattr(signal, 'SIGINT'):
-        signal.signal(signal.SIGINT, signal_handler)
+    shutdown = ShutdownSignal(asyncio.get_running_loop(), shutdown_event)
+    logger.info(f"종료 시그널 등록: {', '.join(shutdown.install())}")
 
     telnet_server = None
     admin_server = None

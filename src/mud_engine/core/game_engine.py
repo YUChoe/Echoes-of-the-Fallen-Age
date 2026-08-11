@@ -15,11 +15,11 @@ from ..game.repositories import RoomRepository, GameObjectRepository
 from ..database.connection import DatabaseManager
 from ..game.managers.dialogue_manager import DialogueManager
 from ..game.item_lua_callback_handler import ItemLuaCallbackHandler
+from ..server.serialization import build_event
 
 if TYPE_CHECKING:
     from ..server.session_manager import SessionManager
     from ..game.models import Player
-    from ..game.stats import PlayerStats
 
 logger = logging.getLogger(__name__)
 
@@ -386,30 +386,11 @@ class GameEngine:
 
         return count
 
-    async def broadcast_to_room_by_detection_ability(self,
-            room_id: str, message: str, exclude_session: Optional[str] = None) -> None:
-        """
-        특정 방의 이동 메시지 브로드캐스트 플레이어가 센스가 떨어지면 못 알아챌 수도 있음
-
-        Args:
-            room_id: 방 ID
-            message: 브로드캐스트할 메시지
-            exclude_session: 제외할 세션 ID (선택사항)
-
-        Returns:
-            None
-        """
-        message = {
-            "type": "moving message",
-            "message": message
-        }
-        for session in self.session_manager.iter_authenticated_sessions():
-            if (session.player and session.session_id != exclude_session) and (getattr(session, 'current_room_id', None) == room_id):
-                logger.info(f"현재 방[{room_id}]에 플레이어 발견 ")
-                s: PlayerStats = session.player.stats
-                logger.info(f"int[{s.intelligence}] dex[{s.dexterity}]")
-                await session.send_message(message)
-        return
+    # `broadcast_to_room_by_detection_ability()` 를 제거했다. 계약 밖 타입
+    # `"moving message"`(공백 포함)로 완성된 영어 문장을 보내 클라이언트가 버렸다.
+    # 감지 능력에 따라 알아채지 못하는 규칙은 지능·민첩을 로그로만 찍고 실제로는
+    # 모두에게 보냈으므로 구현되지 않은 상태였다. 몬스터 로밍은 이제 계약의
+    # `entity_enter` / `entity_leave` 로 알린다.
 
     async def broadcast_to_all(self, message: Dict[str, Any],
                               authenticated_only: bool = True) -> int:
@@ -455,10 +436,6 @@ class GameEngine:
         """플레이어를 특정 방으로 이동시킵니다."""
         return await self.movement_manager.move_player_to_room(session, room_id, skip_followers)
 
-    async def update_room_player_list(self, room_id: str) -> None:
-        """방의 플레이어 목록을 실시간으로 업데이트합니다."""
-        await self.movement_manager.update_room_player_list(room_id)
-
     async def handle_player_disconnect_cleanup(self, session: SessionType) -> None:
         """플레이어 연결 해제 시 따라가기 관련 정리 작업"""
         await self.movement_manager.handle_player_disconnect_cleanup(session)
@@ -467,13 +444,7 @@ class GameEngine:
 
     async def _notify_all_players_shutdown(self) -> None:
         """모든 플레이어에게 서버 종료 알림"""
-        shutdown_message = {
-            "type": "system_message",
-            "message": "🛑 서버가 곧 종료됩니다. 연결이 끊어집니다.",
-            "timestamp": datetime.now().isoformat()
-        }
-
-        count = await self.broadcast_to_all(shutdown_message)
+        count = await self.broadcast_to_all(build_event("system.server_shutdown"))
         logger.info(f"서버 종료 알림 전송: {count}명의 플레이어")
 
     def _find_session_by_player_id(self, player_id: str) -> Optional[SessionType]:
@@ -527,13 +498,10 @@ class GameEngine:
             session.current_room_id = f"combat_{combat.id}"
             session.original_room_id = combat.room_id
 
-            # 전투 복귀 메시지 전송
-            await session.send_message({
-                "type": "combat_rejoin",
-                "message": "⚔️ 진행 중인 전투에 복귀했습니다!",
-                "combat_id": combat.id,
-                "combat_status": combat.to_dict()
-            })
+            # 전투 복귀 알림. 전투 상태 자체는 combat_state 로 따로 나간다
+            await session.send_message(
+                build_event("combat.rejoined", category="combat")
+            )
 
             logger.info(f"플레이어 {session.player.username} 전투 {combat.id}에 복귀")
             return True

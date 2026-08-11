@@ -37,10 +37,12 @@ fi
 echo "🚀 스크립트 실행: $SCRIPT_FILE"
 echo "============================================"
 
-# 가상환경 활성화 및 스크립트 실행
-# 첫 번째 인자를 제외한 나머지 인자들을 스크립트에 전달
+# 스크립트 실행. 첫 번째 인자를 제외한 나머지 인자들을 스크립트에 전달
+# 가상환경을 활성화하지 않고 인터프리터를 직접 지정한다. 활성화는 셸 상태를
+# 바꾸는데 이 스크립트는 매번 새 셸에서 실행된다
+# PYTHONIOENCODING 이 없으면 한국어 출력이 cp949 로 깨진다
 shift
-source mud_engine_env/Scripts/activate && PYTHONPATH=. python "$SCRIPT_PATH" "$@"
+PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe "$SCRIPT_PATH" "$@"
 
 # 실행 결과 확인
 EXIT_CODE=$?
