@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 from ..game.models import Player
-from .serialization import build, build_event, encode_line
+from .serialization import build_event, encode_line
 from .serialization import error as protocol_error
 from .session.util import short_session_id as _short_id
 from .session.transport import TelnetTransport
@@ -248,21 +248,6 @@ class TelnetSession:
         """
         return await self.send_message(
             build_event(key, params, category=category, seq=seq)
-        )
-
-    async def send_admin_notice(self, text: str, severity: str = "info") -> bool:
-        """어드민 전용 과도기 알림을 전송한다.
-
-        완성된 문장을 그대로 보내므로 계약을 따르지 않는다. `AdminManager` 만
-        사용하며, 어드민 채널(TCP 4001)로 이전하는 Task 7.6 에서 사라진다.
-        게임 채널에서는 쓰지 않는다.
-
-        Args:
-            text: 표시할 문장
-            severity: info / success / error
-        """
-        return await self.send_message(
-            build("event", category="admin", text=text, severity=severity)
         )
 
     async def send_protocol_error(

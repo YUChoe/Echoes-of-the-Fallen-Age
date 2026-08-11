@@ -14,9 +14,9 @@ import logging
 from typing import Any, Awaitable, Callable, Optional
 
 from ...database.table_gateway import TableGateway, TableGatewayError
+from ...utils.exceptions import AdminOperationError
 from ..serialization import admin_action_result
 from .admin_session import AdminSession
-from .manager_bridge import AdminManagerSession
 from .resources import RESOURCES
 from .world_actions import ActionError, WorldActions, optional_str
 
@@ -71,7 +71,8 @@ class AdminActionHandlers:
 
         try:
             data = await impl(params or {})
-        except ActionError as e:
+        except AdminOperationError as e:
+            # `ActionError` 와 `AdminManager` 의 실패가 같은 계열이다
             await session.send_rejected(action, e.reason_code, e.detail, seq)
             return
         except TableGatewayError as e:
@@ -90,7 +91,7 @@ class AdminActionHandlers:
 
     def _resolve(self, action: str, session: AdminSession) -> Optional[ActionImpl]:
         """액션 이름을 구현으로 바꾼다."""
-        world = self._world_actions()
+        world = self._world_actions(_actor(session))
 
         table: dict[str, ActionImpl] = {
             "goto": self._goto,
@@ -111,10 +112,15 @@ class AdminActionHandlers:
 
         return table.get(action)
 
-    def _world_actions(self) -> WorldActions:
-        """세계 콘텐츠 액션 구현을 만들어 재사용한다."""
+    def _world_actions(self, actor: str = "unknown") -> WorldActions:
+        """세계 콘텐츠 액션 구현을 만들어 재사용한다.
+
+        실행 주체는 요청마다 달라질 수 있으므로 매번 갱신한다.
+        """
         if self._world is None:
-            self._world = WorldActions(self.game_engine)
+            self._world = WorldActions(self.game_engine, actor)
+        else:
+            self._world.actor = actor
         return self._world
 
     def _player_gateway(self) -> TableGateway:
@@ -164,19 +170,11 @@ class AdminActionHandlers:
     ) -> dict[str, Any]:
         """대상 플레이어를 서버에서 추방한다."""
         username = _require_str(params, "target_player")
-        self._find_game_session(username)
-
         reason = optional_str(params, "reason", "관리자에 의해 추방")
-        bridge = AdminManagerSession(session)
 
-        kicked = await self.game_engine.admin_manager.kick_player(
-            username, bridge, reason
+        return await self.game_engine.admin_manager.kick_player(
+            username, _actor(session), reason
         )
-
-        if not kicked:
-            raise ActionError("INTERNAL_ERROR", f"kick failed: {username}")
-
-        return {"target_player": username, "reason": reason, "notices": bridge.notices}
 
     async def _change_display_name(self, params: dict[str, Any]) -> dict[str, Any]:
         """대상 플레이어의 표시 이름을 바꾼다.
@@ -213,15 +211,9 @@ class AdminActionHandlers:
             "description_ko": optional_str(params, "description_ko"),
         }
 
-        bridge = AdminManagerSession(session)
-        created = await self.game_engine.admin_manager.create_room_realtime(
-            room_data, bridge
+        return await self.game_engine.admin_manager.create_room_realtime(
+            room_data, _actor(session)
         )
-
-        if not created:
-            raise ActionError("INTERNAL_ERROR", "room creation failed")
-
-        return {"notices": bridge.notices}
 
     async def _update_room(
         self, session: AdminSession, params: dict[str, Any]
@@ -235,15 +227,9 @@ class AdminActionHandlers:
                 "VALIDATION_FAILED", "params.values must be a non-empty object"
             )
 
-        bridge = AdminManagerSession(session)
-        updated = await self.game_engine.admin_manager.update_room_realtime(
-            room_id, dict(updates), bridge
+        return await self.game_engine.admin_manager.update_room_realtime(
+            room_id, dict(updates), _actor(session)
         )
-
-        if not updated:
-            raise ActionError("INTERNAL_ERROR", f"room update failed: {room_id}")
-
-        return {"id": room_id, "notices": bridge.notices}
 
     async def _validate_world(self, _params: dict[str, Any]) -> dict[str, Any]:
         """세계 무결성을 검증하고 자동 수정한다.
@@ -257,8 +243,14 @@ class AdminActionHandlers:
         session: AdminSession, action: str, params: dict[str, Any]
     ) -> None:
         """액션 수행을 로그에 남긴다. DB 저장 여부는 Task 7.7 이다."""
-        principal = session.principal.name if session.principal else "unknown"
-        logger.info(f"어드민 액션: {action} 주체={principal} params={sorted(params)}")
+        logger.info(
+            f"어드민 액션: {action} 주체={_actor(session)} params={sorted(params)}"
+        )
+
+
+def _actor(session: AdminSession) -> str:
+    """실행 주체 이름. `AdminManager` 의 로그와 이벤트에 남는다."""
+    return session.principal.name if session.principal else "unknown"
 
 
 def _sync(impl: Callable[[dict[str, Any]], dict[str, Any]]) -> ActionImpl:

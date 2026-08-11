@@ -208,8 +208,17 @@
   - `AdminSession.send_message` 에 라인 길이 가드를 넣었다. 상한을 넘는 응답은 보내지 않고 `INTERNAL_ERROR` 로 알린다. 어드민 응답은 행 수에 비례해 커지므로 조용히 버려지는 것보다 드러나는 편이 낫다.
   - 검증: `tests/unit/test_admin_insights.py` 21건, 하니스에 2건 추가(서버 통계·맵 데이터). 실측으로 기본 82KB, 설명 포함 248KB 를 확인했다.
   - _Requirements: 7.11_
-- [ ] 7.6 관리자 명령어 제거
+- [x] 7.6 관리자 명령어 제거
   - `commands/admin/` 디렉터리 전체와 `commands/admin_commands.py`, `AdminCommand` 기반 클래스를 제거한다. 게임 채널에서 관리자 명령어가 사라졌음을 확인한다.
+  - 명시된 대상은 Task 4.6(커밋 `2bf4973`)에서 이미 사라졌다. 확인 결과 `commands/` 아래에 `admin` 관련 파일과 심볼이 없다. 실제로 남아 있던 잔여를 정리했다.
+  - `AdminManager` 를 구조화 결과 방식으로 다시 썼다. 세션을 인자로 받지 않고 결과 dict 를 반환하며 실패는 `AdminOperationError(reason_code, detail)` 로 알린다. 완성된 한국어 문장 14건이 사라졌다. 거절 사유가 코드로 드러나 없는 방 수정은 `NOT_FOUND`, 미접속 추방은 `PLAYER_NOT_ONLINE` 이 된다. 전에는 둘 다 `INTERNAL_ERROR` 였다.
+  - `AdminOperationError` 를 `utils/exceptions.py` 에 두고 `world_actions.ActionError` 가 이를 상속하게 했다. 처리기가 매니저 실패와 액션 거절을 한 번에 잡는다. 계층 방향도 맞다.
+  - `TelnetSession.send_admin_notice()` 를 삭제했다. 게임 채널에 남아 있던 마지막 생문장 경로다. `admin/manager_bridge.py` 와 `world_actions._NullSession` 도 함께 삭제했다.
+  - `game_engine` 의 관리자 위임 래퍼 4개(`create_room_realtime`, `update_room_realtime`, `create_object_realtime`, `validate_and_repair_world`)를 제거했다. 호출처가 없었다. 텍스트 명령어가 거쳐 가던 계층이며 어드민 채널은 매니저를 직접 호출한다.
+  - `AdminManager.create_object_realtime()` 을 삭제했다. 유일한 호출처였던 `create_object_command` 가 커밋 `087f4e5` 에서 사라진 뒤 도달 불가였다. 계약 밖 타입 `object_created` 브로드캐스트도 함께 없어졌다.
+  - `kick_player` 의 계약 밖 타입은 `kicked` 하나만 남겼다. 추방 통보를 담을 메시지가 계약에 없어 유지한다. 전체 공지였던 `system_message` 브로드캐스트는 제거했다.
+  - `get_admin_stats` 의 `players.players` 를 `players.online` 으로, 객체 통계의 `by_type`(항상 `item` 하나였다)을 `by_location_type` 으로 바꿨다.
+  - 검증: `tests/unit/test_admin_actions.py` 22건(어댑터 검증을 예외 계열·실행 주체 검증으로 교체), 하니스 26건. 실측으로 `update_room` 없는 방 → `NOT_FOUND`, `kick` 미접속 → `PLAYER_NOT_ONLINE`, 응답에서 `notices` 소멸을 확인했다.
   - _Requirements: 7.12, 4.8_
 - [ ] 7.7 감사 로그
   - 모든 어드민 변경 작업에 실행 주체, 대상, 변경 내용, 시각을 기록한다. DB 테이블 저장 여부를 결정하고 구현한다.

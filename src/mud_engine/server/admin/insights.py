@@ -13,10 +13,10 @@ Godot 어드민 패널이 담당한다.
 import logging
 from typing import Any, Optional
 
+from ...utils.exceptions import AdminOperationError
 from ...utils.map_exporter import MapExporter
 from ..serialization import admin_map_result, admin_stats_result
 from .admin_session import AdminSession
-from .manager_bridge import AdminManagerSession
 
 logger = logging.getLogger(__name__)
 
@@ -54,23 +54,16 @@ class AdminInsightHandlers:
             )
             return
 
-        bridge = AdminManagerSession(session)
-
         try:
-            stats = await self.game_engine.admin_manager.get_admin_stats(bridge)
-            stats = dict(stats)
+            stats = dict(await self.game_engine.admin_manager.get_admin_stats())
             stats["counts"] = await self._counts()
+        except AdminOperationError as e:
+            await session.send_rejected("admin_stats", e.reason_code, e.detail, seq)
+            return
         except Exception as e:
             logger.error(f"어드민 통계 조회 실패: {e}", exc_info=True)
             await session.send_rejected(
                 "admin_stats", "INTERNAL_ERROR", str(e), seq
-            )
-            return
-
-        if bridge.failed:
-            detail = "; ".join(notice["text"] for notice in bridge.notices)
-            await session.send_rejected(
-                "admin_stats", "INTERNAL_ERROR", detail, seq
             )
             return
 

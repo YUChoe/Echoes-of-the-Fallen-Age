@@ -11,6 +11,8 @@ import logging
 import uuid
 from typing import Any, Optional
 
+from ...utils.exceptions import AdminOperationError
+
 logger = logging.getLogger(__name__)
 
 # 좌표 이동이 성립하는 방향과 좌표 증분
@@ -22,25 +24,20 @@ DIRECTION_OFFSETS: dict[str, tuple[int, int]] = {
 }
 
 
-class ActionError(Exception):
+class ActionError(AdminOperationError):
     """액션 수행을 중단시키는 거절
 
-    Attributes:
-        reason_code: 계약의 사유 코드
-        detail: 개발자용 영문 설명
+    `AdminManager` 가 던지는 예외와 같은 계열이므로 처리기가 한 번에 잡는다.
     """
-
-    def __init__(self, reason_code: str, detail: str) -> None:
-        super().__init__(detail)
-        self.reason_code = reason_code
-        self.detail = detail
 
 
 class WorldActions:
     """세계 콘텐츠 액션 구현"""
 
-    def __init__(self, game_engine: Any) -> None:
+    def __init__(self, game_engine: Any, actor: str = "unknown") -> None:
         self._engine = game_engine
+        # 실행 주체. `AdminManager` 의 로그와 세계 변경 이벤트에 남는다
+        self.actor = actor
 
     # 위치 해석 ---------------------------------------------------------------
 
@@ -170,12 +167,9 @@ class WorldActions:
         if len(blocked) == len(from_room.blocked_exits or []):
             return {"from_id": from_id, "direction": direction, "changed": False}
 
-        updated = await self._engine.admin_manager.update_room_realtime(
-            from_id, {"blocked_exits": blocked}, _NullSession()
+        await self._engine.admin_manager.update_room_realtime(
+            from_id, {"blocked_exits": blocked}, self.actor
         )
-
-        if not updated:
-            raise ActionError("INTERNAL_ERROR", f"room update failed: {from_id}")
 
         return {"from_id": from_id, "direction": direction, "changed": True}
 
@@ -245,19 +239,6 @@ class WorldActions:
             raise ActionError("NOT_FOUND", f"event not found: {event_name}")
 
         return {"event_name": event_name, "operation": operation}
-
-
-class _NullSession:
-    """`AdminManager` 가 알림을 보내려 할 때 삼키는 최소 세션.
-
-    `create_exit` 는 방 수정 결과를 반환값으로 판정하므로 문장이 필요 없다.
-    """
-
-    session_id = "admin-channel"
-    player = None
-
-    async def send_admin_notice(self, text: str, severity: str = "info") -> bool:
-        return True
 
 
 def _require_str(params: dict[str, Any], name: str) -> str:

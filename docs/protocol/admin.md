@@ -451,7 +451,7 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
 
 `change_display_name`은 DB 값을 바꾸므로 대상이 접속 중이 아니어도 된다.
 
-`data`의 내용은 액션마다 다르다. `AdminManager`에 위임하는 액션(`kick`, `create_room`, `update_room`)은 매니저가 만든 한국어 문장을 `notices`에 담아 함께 돌려준다. 매니저를 어드민 채널에 맞게 정리하는 Task 7.6에서 사라진다.
+`data`의 내용은 액션마다 다르다. 서버는 완성된 문장을 담지 않는다. `AdminManager`는 결과 데이터를 반환하고 실패는 사유 코드로 알리므로, 거절 사유가 `admin_rejected`의 `reason_code`에 그대로 나타난다. 없는 방을 수정하면 `NOT_FOUND`, 접속하지 않은 플레이어를 추방하면 `PLAYER_NOT_ONLINE`이다.
 
 ### 방향과 출구
 

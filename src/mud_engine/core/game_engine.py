@@ -446,23 +446,8 @@ class GameEngine:
             logger.error(f"방 정보 조회 실패 ({room_id}): {e}", exc_info=True)
             return None
 
-    # === 관리자 기능 위임 메서드들 ===
-
-    async def create_room_realtime(self, room_data: Dict[str, Any], admin_session: SessionType) -> bool:
-        """실시간으로 새로운 방을 생성합니다."""
-        return await self.admin_manager.create_room_realtime(room_data, admin_session)
-
-    async def update_room_realtime(self, room_id: str, updates: Dict[str, Any], admin_session: SessionType) -> bool:
-        """실시간으로 방 정보를 수정합니다."""
-        return await self.admin_manager.update_room_realtime(room_id, updates, admin_session)
-
-    async def create_object_realtime(self, object_data: Dict[str, Any], admin_session: SessionType) -> bool:
-        """실시간으로 새로운 게임 객체를 생성합니다."""
-        return await self.admin_manager.create_object_realtime(object_data, admin_session)
-
-    async def validate_and_repair_world(self, admin_session: Optional[SessionType] = None) -> Dict[str, Any]:
-        """게임 세계의 무결성을 검증하고 자동으로 수정합니다."""
-        return await self.admin_manager.validate_and_repair_world(admin_session)
+    # 관리자 기능 위임 메서드는 제거했다. 텍스트 명령어가 거쳐 가던 계층이며
+    # 어드민 채널은 `admin_manager` 를 직접 호출한다.
 
     # === 이동 관리 위임 메서드들 ===
 

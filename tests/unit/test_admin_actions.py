@@ -8,14 +8,14 @@
 import pytest
 
 from src.mud_engine.server import serialization as ser
-from src.mud_engine.server.admin.actions import AdminActionHandlers
-from src.mud_engine.server.admin.manager_bridge import AdminManagerSession
+from src.mud_engine.server.admin.actions import AdminActionHandlers, _actor
 from src.mud_engine.server.admin.world_actions import (
     DIRECTION_OFFSETS,
     ActionError,
     WorldActions,
     optional_str,
 )
+from src.mud_engine.utils.exceptions import AdminOperationError
 
 # 계약이 규정한 14종
 CONTRACT_ACTIONS = {
@@ -265,36 +265,51 @@ def test_scheduler_rejects_unknown_operation():
     assert exc.value.reason_code == "INVALID_PARAMS"
 
 
-# 매니저 어댑터 --------------------------------------------------------------
+# 예외 계열과 실행 주체 ------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_bridge_collects_notices_instead_of_sending():
-    """AdminManager 의 완성 문장은 소켓으로 나가지 않고 결과에 담긴다"""
-    bridge = AdminManagerSession(_StubAdminSession())
+def test_action_error_shares_manager_exception_family():
+    """처리기가 매니저 실패와 액션 거절을 한 번에 잡을 수 있어야 한다"""
+    assert issubclass(ActionError, AdminOperationError)
 
-    await bridge.send_admin_notice("방이 생성되었습니다", "success")
+    error = ActionError("NOT_FOUND", "no room at (9, 9)")
 
-    assert bridge.notices == [{"severity": "success", "text": "방이 생성되었습니다"}]
-    assert bridge.failed is False
-
-
-@pytest.mark.asyncio
-async def test_bridge_reports_failure_on_error_notice():
-    """오류 문장이 있으면 실패로 판정할 수 있다"""
-    bridge = AdminManagerSession(_StubAdminSession())
-
-    await bridge.send_admin_notice("방 생성 실패", "error")
-
-    assert bridge.failed is True
+    assert isinstance(error, AdminOperationError)
+    assert error.reason_code == "NOT_FOUND"
+    assert error.detail == "no room at (9, 9)"
 
 
-def test_bridge_has_no_game_player():
-    """어드민 주체는 게임 플레이어가 아니다"""
-    bridge = AdminManagerSession(_StubAdminSession())
+def test_actor_comes_from_admin_principal():
+    """실행 주체는 어드민 주체 이름이다. 게임 플레이어가 아니다"""
+    assert _actor(_StubAdminSession()) == "player5426"
 
-    assert bridge.player is None
-    assert bridge.session_id == "s-1"
+
+def test_actor_falls_back_when_unauthenticated():
+    """주체가 없으면 알 수 없음으로 남긴다"""
+
+    class _NoPrincipal:
+        session_id = "s-2"
+        principal = None
+
+    assert _actor(_NoPrincipal()) == "unknown"
+
+
+def test_world_actions_carry_actor():
+    """세계 액션은 매니저에 실행 주체를 넘긴다"""
+    world = WorldActions(_StubEngine(), "player5426")
+
+    assert world.actor == "player5426"
+
+
+def test_actor_is_refreshed_per_request():
+    """세션마다 주체가 다르므로 요청 때마다 갱신한다"""
+    handlers = AdminActionHandlers(_StubEngine())
+
+    handlers._resolve("spawn_monster", _StubAdminSession())
+    assert handlers._world_actions().actor == "unknown"
+
+    handlers._resolve("spawn_monster", _StubAdminSession())
+    assert handlers._world_actions("player5426").actor == "player5426"
 
 
 # 응답 봉투 ------------------------------------------------------------------
