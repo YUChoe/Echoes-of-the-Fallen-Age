@@ -10,6 +10,8 @@ IAC 협상 없는 프레이밍, 인증 전 거절, 관리자 인증, 서비스 �
 그대로 적는다.
 """
 
+import os
+
 from .client import (
     DEFAULT_ADMIN_PORT,
     DEFAULT_PORT,
@@ -811,6 +813,110 @@ def _delete_room(client: HarnessClient, room_id: str) -> None:
         pass
 
 
+def _check_service_scope(result: ScenarioResult, port: int) -> None:
+    """서비스 주체가 계정 생성만 할 수 있는지 확인한다.
+
+    토큰은 하니스가 알 수 없으므로 환경변수에서 읽는다. 없으면 건너뛴다.
+    """
+    token = os.getenv("LANDING_SERVICE_TOKEN")
+
+    if not token:
+        result.skip("서비스 권한 범위", "LANDING_SERVICE_TOKEN 이 설정되지 않았다")
+        return
+
+    try:
+        with _admin_client(port) as client:
+            client.connect()
+            client.wait_for("welcome", timeout_ms=3000)
+
+            seq = client.send_json(
+                {"type": "service_login", "service": "landing", "token": token}
+            )
+            login = client.wait_for("service_login_result", seq=seq, timeout_ms=5000)
+
+            if login.get("success") is not True:
+                result.fail("서비스 권한 범위", f"서비스 인증 실패: {login!r}")
+                return
+
+            # 서비스 주체는 리소스 조회를 할 수 없다
+            seq = client.send_json({"type": "admin_list", "resource": "players"})
+            rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
+
+            if rejected.get("reason_code") != "PERMISSION_DENIED":
+                result.fail(
+                    "서비스 권한 범위",
+                    f"admin_list reason_code 가 {rejected.get('reason_code')!r}",
+                )
+                return
+
+            result.ok("서비스 권한 범위", "서비스는 계정 생성만 호출할 수 있다")
+
+            _check_account_validation(result, client)
+    except HarnessError as exc:
+        result.fail("서비스 권한 범위", str(exc))
+
+
+def _check_account_validation(
+    result: ScenarioResult, client: HarnessClient
+) -> None:
+    """계정 생성 검증이 동작하는지 확인한다.
+
+    계정을 실제로 만들지 않는다. 거절 경로만 확인해 DB 를 바꾸지 않는다.
+    """
+    cases = (
+        ("짧은 비밀번호", {"username": "harnessnew", "password": "short"}),
+        ("한국어 사용자명", {"username": "나그네", "password": "test1234"}),
+        (
+            "잘못된 이메일",
+            {
+                "username": "harnessnew",
+                "password": "test1234",
+                "email": "not-an-email",
+            },
+        ),
+    )
+
+    for label, payload in cases:
+        seq = client.send_json({"type": "account_create", **payload})
+
+        try:
+            reply = client.wait_for(
+                "account_create_result", seq=seq, timeout_ms=5000
+            )
+        except HarnessError as exc:
+            result.fail(f"계정 생성 검증 - {label}", str(exc))
+            return
+
+        if reply.get("success") is not False:
+            result.fail(f"계정 생성 검증 - {label}", f"success 가 {reply.get('success')!r}")
+            return
+
+        if reply.get("reason_code") != "VALIDATION_FAILED":
+            result.fail(
+                f"계정 생성 검증 - {label}",
+                f"reason_code 가 {reply.get('reason_code')!r}",
+            )
+            return
+
+    # 이미 존재하는 계정으로 중복 판정을 확인한다
+    seq = client.send_json(
+        {"type": "account_create", "username": ADMIN_USERNAME, "password": "test1234"}
+    )
+
+    try:
+        reply = client.wait_for("account_create_result", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("계정 생성 중복 거절", str(exc))
+        return
+
+    if reply.get("reason_code") != "USERNAME_TAKEN":
+        result.fail("계정 생성 중복 거절", f"reason_code 가 {reply.get('reason_code')!r}")
+        return
+
+    result.ok("계정 생성 검증", "길이·문자·이메일 3건 거절")
+    result.ok("계정 생성 중복 거절", f"{ADMIN_USERNAME} 은 USERNAME_TAKEN")
+
+
 def _check_no_session_transfer(
     result: ScenarioResult, admin_port: int, game_port: int
 ) -> None:
@@ -899,4 +1005,5 @@ def run(
         result.fail("어드민 채널 접속", str(exc))
         return
 
+    _check_service_scope(result, port)
     _check_no_session_transfer(result, port, game_port)

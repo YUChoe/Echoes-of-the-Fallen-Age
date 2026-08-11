@@ -15,6 +15,7 @@ from .game.managers import PlayerManager
 from .game.repositories import PlayerRepository
 from .server.telnet_server import TelnetServer
 from .server.admin.admin_server import AdminServer
+from .server.admin.account import AccountHandlers
 from .server.admin.actions import AdminActionHandlers
 from .server.admin.audit import setup_audit_log
 from .server.admin.insights import AdminInsightHandlers
@@ -267,6 +268,7 @@ async def main():
         AdminQueryHandlers(db_manager, game_engine).register_all(admin_server)
         AdminActionHandlers(game_engine).register_all(admin_server)
         AdminInsightHandlers(game_engine).register_all(admin_server)
+        AccountHandlers(player_manager).register_all(admin_server)
         await admin_server.start()
 
         # Telnet 서버 초기화 및 시작

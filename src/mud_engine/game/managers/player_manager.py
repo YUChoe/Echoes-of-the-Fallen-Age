@@ -18,12 +18,20 @@ class PlayerManager:
         self._player_repo: PlayerRepository = player_repo
         self._auth_service: AuthService = AuthService(player_repo)
 
-    async def create_account(self, username: str, password: str) -> Player:
+    async def create_account(
+        self,
+        username: str,
+        password: str,
+        email: Optional[str] = None,
+        preferred_locale: Optional[str] = None,
+    ) -> Player:
         """새로운 플레이어 계정을 생성합니다.
 
         AuthService를 통해 계정 생성 로직을 위임받아 처리합니다.
         """
-        return await self._auth_service.create_account(username, password)
+        return await self._auth_service.create_account(
+            username, password, email, preferred_locale
+        )
 
     async def authenticate(self, username: str, password: str) -> Player:
         """사용자를 인증합니다.

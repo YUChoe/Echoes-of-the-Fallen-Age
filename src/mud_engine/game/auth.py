@@ -32,12 +32,20 @@ class AuthService:
             plain_password.encode('utf-8'), hashed_password.encode('utf-8')
         )
 
-    async def create_account(self, username: str, password: str) -> Player:
+    async def create_account(
+        self,
+        username: str,
+        password: str,
+        email: Optional[str] = None,
+        preferred_locale: Optional[str] = None,
+    ) -> Player:
         """새로운 플레이어 계정을 생성합니다.
 
         Args:
             username: 생성할 사용자 이름
             password: 생성할 계정의 비밀번호
+            email: 이메일. 선택 항목이다
+            preferred_locale: 선호 언어. 저장만 하고 서버는 번역에 쓰지 않는다
 
         Returns:
             생성된 Player 객체
@@ -55,6 +63,8 @@ class AuthService:
         player_data = {
             'username': username,
             'password_hash': hashed_password,
+            # 신규 계정은 항상 일반 계정이다. DB DEFAULT 에 의존하지 않고 명시한다
+            'is_admin': False,
             # stat 초기값 명시 (DB DEFAULT 10 문제 우회)
             'stat_strength': 1,
             'stat_dexterity': 1,
@@ -63,6 +73,12 @@ class AuthService:
             'stat_constitution': 1,
             'stat_charisma': 1,
         }
+
+        if email:
+            player_data['email'] = email
+        if preferred_locale:
+            player_data['preferred_locale'] = preferred_locale
+
         new_player: Player = await self._player_repo.create(player_data)
         return new_player
 

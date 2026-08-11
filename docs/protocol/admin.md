@@ -137,16 +137,37 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
 }
 ```
 
+실패:
+
+```json
+{
+  "type": "account_create_result",
+  "seq": 2,
+  "success": false,
+  "reason_code": "USERNAME_TAKEN"
+}
+```
+
+실패 응답에는 `player_id`를 담지 않는다. 사유는 `USERNAME_TAKEN`, `VALIDATION_FAILED`, `INTERNAL_ERROR`뿐이다. 어느 항목이 문제인지는 응답에 담지 않고 서버 로그와 감사 로그에만 남긴다.
+
 서버가 수행하는 검증:
 
-- `username` 중복 여부. 중복이면 `reason_code: USERNAME_TAKEN`
-- `username` 길이와 허용 문자
-- `password` 최소 길이
-- `email` 형식. 선택 항목이므로 비어 있어도 된다
+| 항목 | 규칙 |
+|---|---|
+| `username` 중복 | 중복이면 `USERNAME_TAKEN` |
+| `username` 길이 | 3~20자 |
+| `username` 문자 | 영문, 숫자, 밑줄만. 로그인 식별자이므로 한국어를 허용하지 않는다. 키보드 배열이 다른 환경에서 자기 계정에 접속할 수 없는 경우를 막기 위한 제한이다 |
+| `password` 길이 | 8자 이상, UTF-8 72바이트 이하. `bcrypt`가 72바이트를 넘는 입력을 조용히 잘라내므로 상한을 둔다. 잘린 채 저장되면 뒷부분이 다른 비밀번호로도 인증에 성공한다 |
+| `email` | 선택 항목. 있으면 형식을 확인하고 254자 이하여야 한다. 도달 가능성은 검증하지 않는다 |
+| `preferred_locale` | 선택 항목. `en` 또는 `ko` |
 
 비밀번호는 서버가 `bcrypt`로 해시해 저장한다. 랜딩 백엔드는 평문을 보관하지 않는다.
 
-신규 계정의 기본값은 `players` 테이블의 DEFAULT를 따른다. `preferred_locale`은 저장되지만 서버가 번역에 사용하지 않으며 통계 목적이다. 관리자 여부는 항상 거짓이다.
+`preferred_locale`은 저장되지만 서버가 번역에 사용하지 않으며 통계 목적이다. 관리자 여부는 항상 거짓이며 DB DEFAULT에 의존하지 않고 명시적으로 설정한다.
+
+서비스 토큰이 설정되지 않은 배포에서는 이 경로를 등록하지 않는다. 계정 생성을 쓰지 않는 배포가 환경변수를 비워 두는 것만으로 경로를 닫을 수 있다. 닫힌 경우 `NOT_APPLICABLE`로 거절된다.
+
+관리자 주체도 이 경로를 호출할 수 있다. 서비스 주체는 이 경로만 호출할 수 있다.
 
 ## 리소스 조회와 변경
 
