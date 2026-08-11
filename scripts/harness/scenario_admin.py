@@ -223,10 +223,10 @@ def _check_admin_login(result: ScenarioResult, client: HarnessClient) -> bool:
 def _check_unimplemented(result: ScenarioResult, client: HarnessClient) -> None:
     """인증 후 미등록 메시지가 NOT_APPLICABLE 로 거절되는지 확인한다.
 
-    리소스 CRUD 와 액션은 Task 7.2~7.5 에서 등록한다. 그때까지는 처리기가
-    없다는 사실이 거절로 드러나야 한다.
+    통계, 맵, 액션은 Task 7.4~7.5 에서 등록한다. 그때까지는 처리기가 없다는
+    사실이 거절로 드러나야 한다.
     """
-    seq = client.send_json({"type": "admin_list", "resource": "monsters"})
+    seq = client.send_json({"type": "admin_action", "action": "validate_world"})
 
     try:
         rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
@@ -238,7 +238,280 @@ def _check_unimplemented(result: ScenarioResult, client: HarnessClient) -> None:
         result.fail("미등록 메시지 거절", f"reason_code 가 {rejected.get('reason_code')!r}")
         return
 
-    result.ok("미등록 메시지 거절", "admin_list 는 Task 7.2 에서 등록된다")
+    result.ok("미등록 메시지 거절", "admin_action 은 Task 7.4 에서 등록된다")
+
+
+def _check_list(result: ScenarioResult, client: HarnessClient) -> None:
+    """admin_list 가 페이지네이션과 원본 컬럼명을 담는지 확인한다."""
+    seq = client.send_json(
+        {
+            "type": "admin_list",
+            "resource": "monsters",
+            "page": 1,
+            "page_size": 5,
+            "sort": {"field": "name_en", "order": "asc"},
+        }
+    )
+
+    try:
+        listed = client.wait_for("admin_list_result", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("리소스 목록", str(exc))
+        return
+
+    problems: list[str] = []
+
+    if listed.get("resource") != "monsters":
+        problems.append(f"resource 가 {listed.get('resource')!r}")
+
+    if listed.get("page_size") != 5:
+        problems.append(f"page_size 가 {listed.get('page_size')!r}")
+
+    total = listed.get("total")
+    if not isinstance(total, int) or total < 1:
+        problems.append(f"total 이 {total!r}")
+
+    rows = listed.get("rows")
+    if not isinstance(rows, list):
+        problems.append(f"rows 가 {rows!r}")
+    elif len(rows) > 5:
+        problems.append(f"page_size 를 초과한 {len(rows)}행")
+    elif rows:
+        # 어드민은 언어별 dict 로 묶지 않고 원본 컬럼명을 유지한다
+        if "name_en" not in rows[0] or "name_ko" not in rows[0]:
+            problems.append(f"원본 컬럼명이 아니다: {sorted(rows[0])[:6]}")
+
+    if problems:
+        result.fail("리소스 목록", "; ".join(problems))
+        return
+
+    result.ok("리소스 목록", f"monsters {len(rows)}/{total}행, 원본 컬럼명 유지")
+
+
+def _check_password_hash_hidden(
+    result: ScenarioResult, client: HarnessClient
+) -> None:
+    """players 응답에 비밀번호 해시가 실리지 않는지 확인한다."""
+    seq = client.send_json(
+        {"type": "admin_list", "resource": "players", "page_size": 10}
+    )
+
+    try:
+        listed = client.wait_for("admin_list_result", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("비밀번호 해시 비노출", str(exc))
+        return
+
+    rows = listed.get("rows") or []
+
+    if not rows:
+        result.skip("비밀번호 해시 비노출", "players 행이 없다")
+        return
+
+    leaked = [row for row in rows if "password_hash" in row]
+
+    if leaked:
+        result.fail("비밀번호 해시 비노출", f"{len(leaked)}행에 password_hash 가 있다")
+        return
+
+    if "username" not in rows[0]:
+        result.fail("비밀번호 해시 비노출", f"username 이 없다: {sorted(rows[0])[:6]}")
+        return
+
+    result.ok("비밀번호 해시 비노출", f"players {len(rows)}행에서 제거됨")
+
+
+def _check_composite_key(result: ScenarioResult, client: HarnessClient) -> None:
+    """복합키 리소스가 key 오브젝트로 조회되는지 확인한다."""
+    seq = client.send_json(
+        {"type": "admin_list", "resource": "faction_relations", "page_size": 1}
+    )
+
+    try:
+        listed = client.wait_for("admin_list_result", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("복합키 상세 조회", str(exc))
+        return
+
+    rows = listed.get("rows") or []
+
+    if not rows:
+        result.skip("복합키 상세 조회", "faction_relations 행이 없다")
+        return
+
+    key = {
+        "faction_a_id": rows[0]["faction_a_id"],
+        "faction_b_id": rows[0]["faction_b_id"],
+    }
+
+    seq = client.send_json(
+        {"type": "admin_get", "resource": "faction_relations", "key": key}
+    )
+
+    try:
+        got = client.wait_for("admin_get_result", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("복합키 상세 조회", str(exc))
+        return
+
+    if got.get("key") != key:
+        result.fail("복합키 상세 조회", f"key 가 {got.get('key')!r}")
+        return
+
+    if not isinstance(got.get("row"), dict):
+        result.fail("복합키 상세 조회", f"row 가 {got.get('row')!r}")
+        return
+
+    result.ok("복합키 상세 조회", f"{key}")
+
+
+def _check_composite_key_rejects_id(
+    result: ScenarioResult, client: HarnessClient
+) -> None:
+    """복합키 리소스에 id 를 보내면 거절하는지 확인한다."""
+    seq = client.send_json(
+        {"type": "admin_get", "resource": "faction_relations", "id": "wild"}
+    )
+
+    try:
+        rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("복합키 id 거절", str(exc))
+        return
+
+    if rejected.get("reason_code") != "INVALID_PARAMS":
+        result.fail("복합키 id 거절", f"reason_code 가 {rejected.get('reason_code')!r}")
+        return
+
+    result.ok("복합키 id 거절", "key 오브젝트를 요구한다")
+
+
+def _check_unknown_column(result: ScenarioResult, client: HarnessClient) -> None:
+    """존재하지 않는 정렬 컬럼을 거절하는지 확인한다.
+
+    컬럼 이름은 SQL 에 직접 들어가므로 실제 테이블과 대조해야 한다.
+    """
+    seq = client.send_json(
+        {
+            "type": "admin_list",
+            "resource": "rooms",
+            "sort": {"field": "name; DROP TABLE rooms", "order": "asc"},
+        }
+    )
+
+    try:
+        rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("알 수 없는 컬럼 거절", str(exc))
+        return
+
+    if rejected.get("reason_code") != "INVALID_PARAMS":
+        result.fail("알 수 없는 컬럼 거절", f"reason_code 가 {rejected.get('reason_code')!r}")
+        return
+
+    result.ok("알 수 없는 컬럼 거절", "정렬 컬럼을 실제 테이블과 대조한다")
+
+
+def _check_readonly_column(result: ScenarioResult, client: HarnessClient) -> None:
+    """비밀번호 해시 직접 수정을 거절하는지 확인한다."""
+    seq = client.send_json(
+        {
+            "type": "admin_update",
+            "resource": "players",
+            "id": "does-not-matter",
+            "values": {"password_hash": "injected"},
+        }
+    )
+
+    try:
+        rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("쓰기 금지 컬럼 거절", str(exc))
+        return
+
+    if rejected.get("reason_code") != "VALIDATION_FAILED":
+        result.fail("쓰기 금지 컬럼 거절", f"reason_code 가 {rejected.get('reason_code')!r}")
+        return
+
+    result.ok("쓰기 금지 컬럼 거절", "password_hash 는 이 경로로 쓸 수 없다")
+
+
+def _check_crud_roundtrip(result: ScenarioResult, client: HarnessClient) -> None:
+    """생성·수정·삭제가 왕복하는지 확인한다.
+
+    프로덕션 데이터를 건드리지 않도록 하니스가 만든 방만 다룬다.
+    """
+    seq = client.send_json(
+        {
+            "type": "admin_create",
+            "resource": "rooms",
+            "values": {
+                "description_en": "Harness scratch room.",
+                "description_ko": "하니스 임시 방.",
+                "x": -9999,
+                "y": -9999,
+                "room_type": "harness",
+            },
+        }
+    )
+
+    try:
+        created = client.wait_for("admin_mutate_result", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("CRUD 왕복", f"생성 실패: {exc}")
+        return
+
+    room_id = (created.get("key") or {}).get("id")
+
+    if not isinstance(room_id, str):
+        result.fail("CRUD 왕복", f"생성 응답의 key 가 {created.get('key')!r}")
+        return
+
+    try:
+        seq = client.send_json(
+            {
+                "type": "admin_update",
+                "resource": "rooms",
+                "id": room_id,
+                "values": {"description_ko": "수정된 하니스 임시 방."},
+            }
+        )
+        updated = client.wait_for("admin_mutate_result", seq=seq, timeout_ms=5000)
+
+        row = updated.get("row") or {}
+        if row.get("description_ko") != "수정된 하니스 임시 방.":
+            result.fail("CRUD 왕복", f"수정 결과가 {row.get('description_ko')!r}")
+            return
+    except HarnessError as exc:
+        result.fail("CRUD 왕복", f"수정 실패: {exc}")
+        return
+    finally:
+        _delete_room(client, room_id)
+
+    seq = client.send_json({"type": "admin_get", "resource": "rooms", "id": room_id})
+
+    try:
+        rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
+    except HarnessError as exc:
+        result.fail("CRUD 왕복", f"삭제 후 조회 실패: {exc}")
+        return
+
+    if rejected.get("reason_code") != "NOT_FOUND":
+        result.fail("CRUD 왕복", f"삭제 후 reason_code 가 {rejected.get('reason_code')!r}")
+        return
+
+    result.ok("CRUD 왕복", "생성·수정·삭제 후 NOT_FOUND 확인")
+
+
+def _delete_room(client: HarnessClient, room_id: str) -> None:
+    """하니스가 만든 방을 지운다. 실패해도 시나리오를 멈추지 않는다."""
+    try:
+        seq = client.send_json(
+            {"type": "admin_delete", "resource": "rooms", "id": room_id}
+        )
+        client.wait_for("admin_mutate_result", seq=seq, timeout_ms=5000)
+    except HarnessError:
+        pass
 
 
 def _check_no_session_transfer(
@@ -306,8 +579,15 @@ def run(
 
             if _check_admin_login(result, client):
                 _check_unimplemented(result, client)
+                _check_list(result, client)
+                _check_password_hash_hidden(result, client)
+                _check_composite_key(result, client)
+                _check_composite_key_rejects_id(result, client)
+                _check_unknown_column(result, client)
+                _check_readonly_column(result, client)
+                _check_crud_roundtrip(result, client)
             else:
-                result.skip("미등록 메시지 거절", "관리자 인증에 실패해 확인할 수 없다")
+                result.skip("리소스 CRUD", "관리자 인증에 실패해 확인할 수 없다")
     except HarnessError as exc:
         result.fail("어드민 채널 접속", str(exc))
         return

@@ -191,6 +191,56 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
 
 `rows`의 각 항목은 DB 컬럼을 그대로 담는다. 게임 채널의 엔티티 스키마와 달리 언어별 dict로 묶지 않고 `name_en`, `name_ko`처럼 원본 컬럼명을 유지한다. 어드민은 데이터를 편집하는 도구이므로 원본 구조가 그대로 보여야 한다.
 
+`page`는 1부터 시작한다. `page_size`의 기본값은 50이고 상한은 200이다. 한 라인의 최대 길이가 256KB이므로 상한 없이 열어두면 응답이 프레이밍 한계를 넘을 수 있다. 상한을 넘는 값은 200으로 낮춰 처리하며 거절하지 않는다.
+
+`filter`는 컬럼별 동등 비교만 지원한다. `sort.field`와 `filter`의 키는 SQL에 직접 들어가므로 서버가 실제 테이블 컬럼과 대조한 뒤에만 사용한다. 없는 컬럼이면 `INVALID_PARAMS`로 거절한다. `sort.order`는 `asc` 또는 `desc`다.
+
+정렬을 지정하지 않으면 기본키로 오름차순 정렬한다. 페이지네이션이 안정적으로 동작하려면 순서가 결정적이어야 한다.
+
+### 노출하지 않는 컬럼
+
+| 리소스 | 컬럼 | 사유 |
+|---|---|---|
+| `players` | `password_hash` | 목록·상세 응답에서 제거하고 `admin_create`/`admin_update`로 쓸 수도 없다. 비밀번호 변경은 어드민 액션으로 처리한다 |
+
+### 기본키
+
+계약의 `id`는 기본키가 단일 컬럼인 리소스에만 성립한다. 실제 스키마의 기본키는 다음과 같다.
+
+| 리소스 | 기본키 | 서버가 생성 |
+|---|---|---|
+| `players`, `rooms`, `room_connections`, `monsters`, `objects` | `id` | 예 (uuid) |
+| `item_prices` | `template_id` | 아니오 |
+| `factions` | `id` | 아니오 |
+| `faction_relations` | `faction_a_id` + `faction_b_id` | 아니오 |
+
+`item_prices`의 기본키는 아이템 템플릿 식별자이고 `factions`의 `id`는 `ash_knights`처럼 사람이 정하는 값이라 서버가 만들 수 없다. `admin_create`의 `values`에 담아 보낸다. uuid를 생성하는 리소스는 요청에 기본키를 담아도 무시하고 서버가 새로 만든다.
+
+`faction_relations`는 단일 id 컬럼이 없다. `admin_get`, `admin_update`, `admin_delete`는 `id` 대신 `key` 오브젝트를 받는다.
+
+```json
+{
+  "type": "admin_get",
+  "seq": 11,
+  "resource": "faction_relations",
+  "key": { "faction_a_id": "ash_knights", "faction_b_id": "wild" }
+}
+```
+
+`key`는 기본키가 단일 컬럼인 리소스에도 쓸 수 있고 `id`와 같은 결과를 낸다. 기본키 컬럼이 하나라도 빠지거나 기본키가 아닌 컬럼이 섞이면 `INVALID_PARAMS`로 거절한다.
+
+응답의 `key`는 항상 오브젝트다. 단일키 리소스도 `{"id": "..."}` 형태로 돌려준다.
+
+```json
+{
+  "type": "admin_get_result",
+  "seq": 11,
+  "resource": "faction_relations",
+  "key": { "faction_a_id": "ash_knights", "faction_b_id": "wild" },
+  "row": {}
+}
+```
+
 ### admin_get
 
 ```json
@@ -222,10 +272,15 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
   "type": "admin_mutate_result",
   "seq": 12,
   "resource": "rooms",
-  "id": "0a1b2c3d-...",
-  "success": true
+  "key": { "id": "0a1b2c3d-..." },
+  "success": true,
+  "row": {}
 }
 ```
+
+`row`는 생성과 수정 응답에만 담긴다. 삭제 응답에는 없다.
+
+`values`에 쓰기가 금지된 컬럼이 있으면 `VALIDATION_FAILED`로 거절한다. 기본키는 생성에서만 쓸 수 있고 수정에서는 금지된다. `created_at`과 `updated_at`도 금지된다.
 
 `admin_delete`는 참조 무결성을 검사한다. 다른 레코드가 참조하는 행은 `reason_code: REFERENCED`로 거절하고 참조 목록을 함께 돌려준다.
 

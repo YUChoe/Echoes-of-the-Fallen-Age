@@ -65,6 +65,67 @@ def service_login_result(
     return build("service_login_result", seq=seq, **payload)
 
 
+def admin_list_result(
+    seq: Optional[int],
+    resource: str,
+    page: int,
+    page_size: int,
+    total: int,
+    rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """리소스 목록 응답을 만든다.
+
+    `rows` 의 각 항목은 DB 컬럼을 그대로 담는다. 게임 채널의 엔티티 스키마와
+    달리 언어별 dict 로 묶지 않는다. 어드민은 데이터를 편집하는 도구이므로
+    원본 구조가 그대로 보여야 한다.
+    """
+    return build(
+        "admin_list_result",
+        seq=seq,
+        resource=resource,
+        page=page,
+        page_size=page_size,
+        total=total,
+        rows=rows,
+    )
+
+
+def admin_get_result(
+    seq: Optional[int],
+    resource: str,
+    key: dict[str, Any],
+    row: dict[str, Any],
+) -> dict[str, Any]:
+    """리소스 상세 응답을 만든다.
+
+    Args:
+        key: 기본키 컬럼과 값. 복합키면 항목이 둘 이상이다
+        row: DB 컬럼을 그대로 담은 행
+    """
+    return build("admin_get_result", seq=seq, resource=resource, key=key, row=row)
+
+
+def admin_mutate_result(
+    seq: Optional[int],
+    resource: str,
+    key: dict[str, Any],
+    success: bool,
+    row: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    """생성·수정·삭제 응답을 만든다.
+
+    Args:
+        key: 대상 행의 기본키
+        row: 생성·수정 결과 행. 삭제에는 담지 않는다
+    """
+    payload: dict[str, Any] = {"resource": resource, "key": key, "success": success}
+
+    if row is not None:
+        payload["row"] = row
+
+    return build("admin_mutate_result", seq=seq, **payload)
+
+
 def admin_rejected(
     seq: Optional[int],
     action: str,

@@ -162,8 +162,18 @@
   - 진입 안내를 추가했다. 어드민 권한 계정이 게임 채널에 로그인하면 `login_result` 에 `admin_channel`(`available`, `channel`, `requires_reauth`)을 담는다. `available` 은 권한만이 아니라 어드민 서버가 실제로 떠 있는지를 반영하므로, 어드민 채널 없이 띄운 배포에서 클라이언트가 진입 버튼을 노출하지 않는다. `is_admin` 이 거짓이면 필드를 담지 않는다. `main.py` 는 어드민 서버를 먼저 띄우고 `telnet_server.admin_server` 에 배선한다.
   - 검증: `tests/unit/test_admin_auth.py` 19건, `test_admin_channel_info.py` 5건, 하니스 `scenario_admin` 9건(welcome·인증 전 거절·게임 메시지 거절·ping·잘못된 자격·잘못된 토큰·관리자 인증·미등록 거절·게임 세션 비전이). `scenario_auth` 에 `channel` 검증, 어드민 메시지 거절, 어드민 채널 안내 확인을 추가했다.
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
-- [ ] 7.2 리소스 CRUD
+- [x] 7.2 리소스 CRUD
   - `resources.py`와 `queries.py`에 8개 리소스(players, rooms, room_connections, monsters, objects, item_prices, factions, faction_relations)의 목록·상세·생성·수정·삭제를 구현한다. SQL을 새로 쓰지 않고 기존 리포지토리를 재사용한다. 페이지네이션, 필터, 정렬을 지원한다.
+  - 리포지토리 재사용은 절반만 가능했다. 8개 중 4개(players, rooms, monsters, game_objects)만 리포지토리가 있고 나머지는 매니저에 흩어진 SQL로 접근하고 있었다. 또 `BaseRepository` 는 기본키가 `id` 단일 컬럼이라 가정하고 모델 인스턴스를 돌려주는데, 어드민은 계약상 DB 행을 원본 컬럼명으로 그대로 돌려줘야 한다.
+  - 대신 `database/table_gateway.py` 를 만들어 SQL 을 한곳에 모았다. 기본키를 인자로 받으므로 8개 리소스가 같은 경로를 쓴다. 리포지토리를 수정하지 않았고 어드민 계층에 SQL 이 흩어지지도 않는다.
+  - 컬럼 이름은 SQL 에 직접 들어가므로 `PRAGMA table_info` 결과와 대조한 뒤에만 사용한다. 값은 항상 바인딩 파라미터다. 없는 컬럼이면 `INVALID_PARAMS` 로 거절한다.
+  - 기본키는 실제 스키마에서 확인했다. `item_prices` 는 `template_id`, `faction_relations` 는 `(faction_a_id, faction_b_id)` 복합키다. 복합키 리소스는 `id` 대신 `key` 오브젝트를 받으며, 단일키에도 `key` 를 쓸 수 있다. 응답의 `key` 는 항상 오브젝트다.
+  - uuid 를 서버가 만드는 리소스는 5개다. `item_prices`, `factions`, `faction_relations` 는 사람이 정하는 식별자라 요청의 `values` 에 담아야 한다.
+  - `players.password_hash` 는 응답에서 제거하고 이 경로로 쓸 수 없게 막았다. 비밀번호 변경은 어드민 액션으로 다룬다. 기본키는 생성에서만 쓸 수 있고 수정에서는 `VALIDATION_FAILED` 다.
+  - `page_size` 기본 50, 상한 200. 한 라인이 256KB 를 넘지 않게 하기 위한 값이며 초과 요청은 거절하지 않고 상한으로 낮춘다. 정렬을 지정하지 않으면 기본키 오름차순이다.
+  - 참조 무결성 검사와 캐시 갱신은 Task 7.3 이다. 그때까지는 참조가 있어도 삭제된다. 감사 로그는 Task 7.7 까지 로그로만 남긴다.
+  - `scripts/dump_admin_schema.py` 를 추가했다. 어드민이 컬럼과 기본키를 그대로 노출하므로 문서가 아니라 DB 파일에서 확인해야 한다.
+  - 검증: `tests/unit/test_admin_resources.py` 26건, 하니스 `scenario_admin` 에 7건 추가(목록·해시 비노출·복합키 조회·복합키 id 거절·없는 컬럼 거절·쓰기 금지 컬럼 거절·CRUD 왕복). CRUD 왕복은 하니스가 만든 방만 다루고 끝나면 지운다.
   - _Requirements: 7.7_
 - [ ] 7.3 참조 무결성과 캐시 갱신
   - 삭제 시 참조를 검사해 `REFERENCED`로 거절하고 참조 목록을 반환한다. 변경이 게임 상태에 영향을 주면 매니저 캐시를 무효화하고 영향받는 플레이어에게 갱신 상태를 송신한다.

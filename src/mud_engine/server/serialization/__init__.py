@@ -7,7 +7,14 @@
 프로토콜 계약: docs/protocol/
 """
 
-from .admin import admin_login_result, admin_rejected, service_login_result
+from .admin import (
+    admin_get_result,
+    admin_list_result,
+    admin_login_result,
+    admin_mutate_result,
+    admin_rejected,
+    service_login_result,
+)
 from .combat import build_combat_state, serialize_combatant
 from .dialogue import build_dialogue, ensure_farewell_choice, serialize_choices
 from .entity import (
@@ -51,7 +58,10 @@ __all__ = [
     "PROTOCOL_VERSION",
     "UNKNOWN_ROOM_TYPE",
     "action_rejected",
+    "admin_get_result",
+    "admin_list_result",
     "admin_login_result",
+    "admin_mutate_result",
     "admin_rejected",
     "build",
     "build_chat",
