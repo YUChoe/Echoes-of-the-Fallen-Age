@@ -92,10 +92,15 @@ class AdminSession:
         reason_code: str,
         detail: str = "",
         seq: Optional[int] = None,
+        references: Optional[list[dict[str, Any]]] = None,
     ) -> bool:
-        """어드민 요청 거절을 알린다."""
+        """어드민 요청 거절을 알린다.
+
+        Args:
+            references: `REFERENCED` 거절에서 삭제를 막은 참조 목록
+        """
         return await self.send_message(
-            admin_rejected(seq, action, reason_code, detail)
+            admin_rejected(seq, action, reason_code, detail, references)
         )
 
     async def read_message(

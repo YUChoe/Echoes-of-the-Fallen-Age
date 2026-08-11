@@ -503,6 +503,94 @@ def _check_crud_roundtrip(result: ScenarioResult, client: HarnessClient) -> None
     result.ok("CRUD 왕복", "생성·수정·삭제 후 NOT_FOUND 확인")
 
 
+def _check_referenced_delete(result: ScenarioResult, client: HarnessClient) -> None:
+    """참조되는 종족 삭제가 REFERENCED 로 거절되는지 확인한다.
+
+    프로덕션 데이터의 종족은 플레이어와 몬스터가 가리키므로 지워지면 안 된다.
+    거절이 성립해야 이 검증 자체가 데이터를 훼손하지 않는다.
+    """
+    seq = client.send_json(
+        {"type": "admin_delete", "resource": "factions", "id": "ash_knights"}
+    )
+
+    try:
+        rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("참조 삭제 거절", str(exc))
+        return
+
+    if rejected.get("reason_code") != "REFERENCED":
+        result.fail("참조 삭제 거절", f"reason_code 가 {rejected.get('reason_code')!r}")
+        return
+
+    references = rejected.get("references")
+
+    if not isinstance(references, list) or not references:
+        result.fail("참조 삭제 거절", f"references 가 {references!r}")
+        return
+
+    resources = {item.get("resource") for item in references}
+
+    # monsters 는 외래키가 선언돼 있지 않아 규칙으로만 잡힌다
+    if "players" not in resources or "monsters" not in resources:
+        result.fail("참조 삭제 거절", f"참조 목록이 {sorted(resources)}")
+        return
+
+    total = sum(item.get("count", 0) for item in references)
+    result.ok("참조 삭제 거절", f"{sorted(resources)} 에서 {total}건")
+
+
+def _check_unreferenced_delete(
+    result: ScenarioResult, client: HarnessClient
+) -> None:
+    """참조가 없는 행은 삭제되는지 확인한다.
+
+    참조 검사가 모든 삭제를 막아버리면 기능이 죽는다. 하니스가 만든 방만 쓴다.
+    """
+    seq = client.send_json(
+        {
+            "type": "admin_create",
+            "resource": "rooms",
+            "values": {
+                "description_en": "Harness reference room.",
+                "description_ko": "하니스 참조 검사 방.",
+                "x": -9998,
+                "y": -9998,
+                "room_type": "harness",
+            },
+        }
+    )
+
+    try:
+        created = client.wait_for("admin_mutate_result", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("비참조 삭제 허용", f"생성 실패: {exc}")
+        return
+
+    room_id = (created.get("key") or {}).get("id")
+
+    if not isinstance(room_id, str):
+        result.fail("비참조 삭제 허용", f"생성 응답의 key 가 {created.get('key')!r}")
+        return
+
+    seq = client.send_json(
+        {"type": "admin_delete", "resource": "rooms", "id": room_id}
+    )
+
+    try:
+        deleted = client.wait_for("admin_mutate_result", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("비참조 삭제 허용", f"삭제 실패: {exc}")
+        _delete_room(client, room_id)
+        return
+
+    if deleted.get("success") is not True:
+        result.fail("비참조 삭제 허용", f"success 가 {deleted.get('success')!r}")
+        return
+
+    result.ok("비참조 삭제 허용", "참조가 없는 방은 삭제된다")
+
+
 def _delete_room(client: HarnessClient, room_id: str) -> None:
     """하니스가 만든 방을 지운다. 실패해도 시나리오를 멈추지 않는다."""
     try:
@@ -586,6 +674,8 @@ def run(
                 _check_unknown_column(result, client)
                 _check_readonly_column(result, client)
                 _check_crud_roundtrip(result, client)
+                _check_referenced_delete(result, client)
+                _check_unreferenced_delete(result, client)
             else:
                 result.skip("리소스 CRUD", "관리자 인증에 실패해 확인할 수 없다")
     except HarnessError as exc:

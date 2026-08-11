@@ -282,9 +282,55 @@ Godot 어드민 패널 ──ws /admin──▶ 게이트웨이 ──TCP 4001�
 
 `values`에 쓰기가 금지된 컬럼이 있으면 `VALIDATION_FAILED`로 거절한다. 기본키는 생성에서만 쓸 수 있고 수정에서는 금지된다. `created_at`과 `updated_at`도 금지된다.
 
+### 참조 무결성
+
 `admin_delete`는 참조 무결성을 검사한다. 다른 레코드가 참조하는 행은 `reason_code: REFERENCED`로 거절하고 참조 목록을 함께 돌려준다.
 
-변경이 실행 중인 게임 상태에 영향을 주는 경우 서버는 메모리 캐시를 갱신하고 해당 방의 플레이어에게 `room_info`를 재전송한다. 기존 Node 웹어드민이 DB를 직접 수정해 서버 캐시와 어긋났던 문제를 해소하기 위한 규약이다.
+```json
+{
+  "type": "admin_rejected",
+  "seq": 13,
+  "action": "admin_delete",
+  "reason_code": "REFERENCED",
+  "detail": "factions is referenced by 46 row(s)",
+  "references": [
+    {
+      "resource": "players",
+      "columns": ["faction_id"],
+      "count": 9,
+      "samples": [{ "id": "cf65f7f3-..." }]
+    }
+  ]
+}
+```
+
+`samples`는 참조하는 행의 기본키만 담으며 최대 5건이다. `count`는 전체 건수다.
+
+선언된 외래키는 셋뿐이라(`players.faction_id`, `faction_relations`의 두 컬럼) SQLite의 강제만으로는 부족하다. 서버가 실제 참조 관계를 규칙으로 검사한다.
+
+| 삭제 대상 | 참조하는 쪽 |
+|---|---|
+| `factions` | `players.faction_id`, `monsters.faction_id`, `faction_relations`의 두 컬럼 |
+| `rooms` | `objects.location_id`(`location_type`이 room), `room_connections`의 좌표 양쪽, `monsters`의 좌표 |
+| `players` | `objects.location_id`(`location_type`이 inventory) |
+| `monsters` | `objects.location_id`(`location_type`이 inventory) |
+| `objects` | `objects.location_id`(`location_type`이 container) |
+
+`room_connections`, `item_prices`, `faction_relations`를 가리키는 참조는 없다.
+
+`monsters.faction_id`는 외래키가 선언돼 있지 않다. 이미 `factions`에 없는 값을 가진 몬스터가 존재한다.
+
+`game_objects.location_type`은 `room`과 `ROOM`처럼 대소문자가 섞여 저장돼 있어 비교를 대소문자 무시로 한다.
+
+`room_connections`와 `monsters`는 방 id가 아니라 좌표로 방을 가리킨다. 좌표가 같은 방이 둘 이상이면 하나를 지워도 참조가 끊기지 않으므로 참조로 세지 않는다.
+
+### 게임 상태 재동기화
+
+변경이 실행 중인 게임 상태에 영향을 주는 경우 서버는 해당 방의 플레이어에게 `room_info`를 재전송한다. 기존 Node 웹어드민이 DB를 직접 수정해 서버 캐시와 어긋났던 문제를 해소하기 위한 규약이다.
+
+대상은 `rooms`, `monsters`, `objects` 세 리소스다. 그 밖의 리소스는 방 화면을 바꾸지 않는다. `objects`는 `location_type`이 방일 때만 해당한다. `admin_update`는 변경 전후의 방을 모두 갱신하므로, 몬스터를 다른 좌표로 옮기면 떠난 방과 도착한 방의 플레이어가 모두 갱신된 방 정보를 받는다.
+
+무효화할 매니저 캐시는 없다. DB 행을 메모리에 들고 있는 매니저가 없으며, `MonsterManager`의 스폰 설정은 JSON에서 읽은 값이고 `PriceResolver`는 요청마다 DB를 조회한다.
 
 ## 통계와 맵
 

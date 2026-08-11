@@ -103,16 +103,34 @@ class TableGateway:
         return clause, values
 
     async def _filter_clause(
-        self, filters: Optional[dict[str, Any]]
+        self,
+        filters: Optional[dict[str, Any]] = None,
+        ci_filters: Optional[dict[str, Any]] = None,
     ) -> tuple[str, list[Any]]:
-        """동등 비교 WHERE 절을 만든다. 필터가 없으면 빈 절을 돌려준다."""
-        if not filters:
+        """동등 비교 WHERE 절을 만든다. 조건이 없으면 빈 절을 돌려준다.
+
+        Args:
+            filters: 대소문자를 구분하는 동등 비교
+            ci_filters: 대소문자를 무시하는 동등 비교. `game_objects.location_type`
+                처럼 같은 값이 대소문자만 다르게 저장된 컬럼에 쓴다
+        """
+        conditions: list[str] = []
+        values: list[Any] = []
+
+        if filters:
+            await self._validate_columns(list(filters))
+            conditions += [f"{column} = ?" for column in filters]
+            values += [_bind_value(value) for value in filters.values()]
+
+        if ci_filters:
+            await self._validate_columns(list(ci_filters))
+            conditions += [f"LOWER({column}) = LOWER(?)" for column in ci_filters]
+            values += [_bind_value(value) for value in ci_filters.values()]
+
+        if not conditions:
             return "", []
 
-        await self._validate_columns(list(filters))
-
-        clause = " WHERE " + " AND ".join(f"{column} = ?" for column in filters)
-        return clause, [_bind_value(value) for value in filters.values()]
+        return " WHERE " + " AND ".join(conditions), values
 
     async def list_rows(
         self,
@@ -121,6 +139,7 @@ class TableGateway:
         sort_order: str = "asc",
         limit: int = 50,
         offset: int = 0,
+        ci_filters: Optional[dict[str, Any]] = None,
     ) -> list[dict[str, Any]]:
         """행 목록을 조회한다.
 
@@ -146,7 +165,7 @@ class TableGateway:
         else:
             order_columns = list(self._primary_key)
 
-        where, values = await self._filter_clause(filters)
+        where, values = await self._filter_clause(filters, ci_filters)
         order_by = ", ".join(f"{column} {sort_order.upper()}" for column in order_columns)
 
         query = (
@@ -156,9 +175,13 @@ class TableGateway:
 
         return await self._db.fetch_all(query, tuple(values + [limit, offset]))
 
-    async def count_rows(self, filters: Optional[dict[str, Any]] = None) -> int:
+    async def count_rows(
+        self,
+        filters: Optional[dict[str, Any]] = None,
+        ci_filters: Optional[dict[str, Any]] = None,
+    ) -> int:
         """조건에 맞는 행 수를 센다."""
-        where, values = await self._filter_clause(filters)
+        where, values = await self._filter_clause(filters, ci_filters)
         query = f"SELECT COUNT(*) AS total FROM {self._table}{where}"
 
         result = await self._db.fetch_one(query, tuple(values))

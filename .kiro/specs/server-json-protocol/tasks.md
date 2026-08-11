@@ -175,8 +175,17 @@
   - `scripts/dump_admin_schema.py` 를 추가했다. 어드민이 컬럼과 기본키를 그대로 노출하므로 문서가 아니라 DB 파일에서 확인해야 한다.
   - 검증: `tests/unit/test_admin_resources.py` 26건, 하니스 `scenario_admin` 에 7건 추가(목록·해시 비노출·복합키 조회·복합키 id 거절·없는 컬럼 거절·쓰기 금지 컬럼 거절·CRUD 왕복). CRUD 왕복은 하니스가 만든 방만 다루고 끝나면 지운다.
   - _Requirements: 7.7_
-- [ ] 7.3 참조 무결성과 캐시 갱신
+- [x] 7.3 참조 무결성과 캐시 갱신
   - 삭제 시 참조를 검사해 `REFERENCED`로 거절하고 참조 목록을 반환한다. 변경이 게임 상태에 영향을 주면 매니저 캐시를 무효화하고 영향받는 플레이어에게 갱신 상태를 송신한다.
+  - 참조 규칙은 `admin/references.py` 에 선언했다. 실제 DB 에서 확인한 관계이며 선언된 외래키만으로는 부족하다. FK 는 `players.faction_id` 와 `faction_relations` 의 두 컬럼뿐이고, `monsters.faction_id` 와 `game_objects.location_id` 는 FK 없이 운영된다.
+  - 확인한 데이터 문제 두 가지를 규칙에 반영했다. `game_objects.location_type` 이 `room`/`ROOM`, `container`/`CONTAINER` 로 섞여 있어 비교를 대소문자 무시로 한다. `rooms` 에 좌표가 같은 행이 1쌍 있어, 좌표 기반 참조(`room_connections`, `monsters`)는 대상 방이 그 좌표로 유일할 때만 참조로 센다.
+  - `monsters.faction_id = 'townspeople'` 1건이 이미 `factions` 에 없는 값을 가리킨다. 이번 작업으로 고치지 않았다. 데이터 정리 대상이며 `consistency.md` 에 기록했다.
+  - 거절 응답에 `references` 를 추가했다. 참조하는 리소스 이름, 컬럼, 전체 건수, 기본키 표본 최대 5건을 담는다.
+  - 캐시 무효화는 대상이 없었다. DB 행을 메모리에 들고 있는 매니저가 없다. `MonsterManager._spawn_points` 와 `_global_spawn_limits` 는 JSON 설정이고 `PriceResolver` 는 요청마다 조회하며 `faction_rules` 는 테이블을 읽지 않는 정적 규칙이다. 따라서 재동기화는 세션 송신만 구현했다.
+  - `admin/refresh.py` 가 `rooms`·`monsters`·`objects` 변경 후 해당 방의 세션에 `movement_manager.send_room_info_to_player()` 로 방 정보를 다시 보낸다. `admin_update` 는 변경 전후의 행을 모두 처리하므로 좌표 이동이 떠난 방과 도착한 방을 모두 갱신한다.
+  - `TableGateway` 에 대소문자 무시 필터(`ci_filters`)를 추가했다. `location_type` 비교에 필요하다.
+  - `scripts/dump_admin_references.py` 를 추가했다. 참조 관계는 문서가 아니라 실제 데이터에서 확인해야 한다.
+  - 검증: `tests/unit/test_admin_references.py` 18건, 하니스에 2건 추가(참조 삭제 거절·비참조 삭제 허용). 참조 삭제 거절은 프로덕션 종족을 대상으로 하므로 거절이 성립해야 데이터가 보존된다.
   - _Requirements: 7.8, 7.9_
 - [ ] 7.4 admin_action 구현
   - `actions.py`에 14종 액션을 구현하고 `AdminManager`에 위임한다. 기존에 노출되지 않았던 `validate_and_repair_world()`를 포함한다. `goto`는 대상 플레이어의 게임 세션이 없으면 `PLAYER_NOT_ONLINE`으로 거절한다.

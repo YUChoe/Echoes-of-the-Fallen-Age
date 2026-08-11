@@ -23,6 +23,8 @@ from ..serialization import (
     admin_mutate_result,
 )
 from .admin_session import AdminSession
+from .references import ReferenceChecker
+from .refresh import GameStateRefresher
 from .resources import AdminResource, get_resource, redact
 
 logger = logging.getLogger(__name__)
@@ -36,9 +38,18 @@ MAX_PAGE_SIZE = 200
 class AdminQueryHandlers:
     """8개 리소스의 목록·상세·생성·수정·삭제를 처리한다."""
 
-    def __init__(self, db_manager: Any) -> None:
+    def __init__(
+        self, db_manager: Any, game_engine: Optional[Any] = None
+    ) -> None:
         self._db = db_manager
         self._gateways: dict[str, TableGateway] = {}
+        self._references = ReferenceChecker(db_manager)
+        self._refresher = GameStateRefresher(game_engine)
+
+    @property
+    def refresher(self) -> GameStateRefresher:
+        """게임 상태 재동기화기. main.py 가 게임 엔진을 나중에 배선한다."""
+        return self._refresher
 
     def register_all(self, server: Any) -> None:
         """어드민 서버에 처리기를 등록한다."""
@@ -206,6 +217,7 @@ class AdminQueryHandlers:
             return
 
         self._audit(session, "create", resource, key, values)
+        await self._refresher.after_mutation(resource.name, row)
 
         await session.send_message(
             admin_mutate_result(
@@ -249,8 +261,13 @@ class AdminQueryHandlers:
             )
             return
 
+        gateway = self._gateway(resource)
+
+        # 이동을 포함한 변경이면 떠난 방과 도착한 방 모두 갱신해야 한다
+        previous = await gateway.get_row(key)
+
         try:
-            row = await self._gateway(resource).update_row(key, dict(values))
+            row = await gateway.update_row(key, dict(values))
         except TableGatewayError as e:
             await session.send_rejected(
                 "admin_update", "VALIDATION_FAILED", str(e), seq
@@ -264,6 +281,8 @@ class AdminQueryHandlers:
             return
 
         self._audit(session, "update", resource, key, values)
+        await self._refresher.after_mutation(resource.name, previous)
+        await self._refresher.after_mutation(resource.name, row)
 
         await session.send_message(
             admin_mutate_result(
@@ -276,8 +295,8 @@ class AdminQueryHandlers:
     ) -> None:
         """`admin_delete` 를 처리한다.
 
-        참조 무결성 검사는 Task 7.3 에서 붙인다. 그때까지는 참조가 있어도
-        삭제된다.
+        다른 레코드가 참조하는 행은 `REFERENCED` 로 거절하고 참조 목록을 함께
+        돌려준다. 선언된 외래키만으로는 부족해 실제 참조를 규칙으로 검사한다.
         """
         seq = message.get("seq")
         resource = get_resource(message.get("resource"))
@@ -291,8 +310,35 @@ class AdminQueryHandlers:
             await self._reject_key(session, "admin_delete", resource, seq)
             return
 
+        gateway = self._gateway(resource)
+
         try:
-            deleted = await self._gateway(resource).delete_row(key)
+            row = await gateway.get_row(key)
+        except TableGatewayError as e:
+            await session.send_rejected("admin_delete", "INVALID_PARAMS", str(e), seq)
+            return
+
+        if row is None:
+            await session.send_rejected(
+                "admin_delete", "NOT_FOUND", f"{resource.name} not found: {key}", seq
+            )
+            return
+
+        references = await self._references.find_references(resource, row)
+
+        if references:
+            total = sum(item["count"] for item in references)
+            await session.send_rejected(
+                "admin_delete",
+                "REFERENCED",
+                f"{resource.name} is referenced by {total} row(s)",
+                seq,
+                references,
+            )
+            return
+
+        try:
+            deleted = await gateway.delete_row(key)
         except TableGatewayError as e:
             await session.send_rejected("admin_delete", "INVALID_PARAMS", str(e), seq)
             return
@@ -304,6 +350,7 @@ class AdminQueryHandlers:
             return
 
         self._audit(session, "delete", resource, key, None)
+        await self._refresher.after_mutation(resource.name, row)
 
         await session.send_message(admin_mutate_result(seq, resource.name, key, True))
 

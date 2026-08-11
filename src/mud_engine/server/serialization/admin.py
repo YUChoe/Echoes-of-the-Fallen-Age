@@ -131,6 +131,7 @@ def admin_rejected(
     action: str,
     reason_code: str,
     detail: str = "",
+    references: Optional[list[dict[str, Any]]] = None,
 ) -> dict[str, Any]:
     """어드민 요청 거절 메시지를 만든다.
 
@@ -139,11 +140,15 @@ def admin_rejected(
         action: 거절된 메시지 타입 또는 `admin_action` 의 action 이름
         reason_code: 사유 코드
         detail: 개발자용 영문 설명
+        references: `REFERENCED` 거절에서 삭제를 막은 참조 목록
     """
-    return build(
-        "admin_rejected",
-        seq=seq,
-        action=action,
-        reason_code=reason_code,
-        detail=detail,
-    )
+    payload: dict[str, Any] = {
+        "action": action,
+        "reason_code": reason_code,
+        "detail": detail,
+    }
+
+    if references is not None:
+        payload["references"] = references
+
+    return build("admin_rejected", seq=seq, **payload)
