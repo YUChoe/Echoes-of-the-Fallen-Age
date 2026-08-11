@@ -19,7 +19,13 @@ import argparse
 import socket
 import sys
 
-from . import scenario_action, scenario_admin, scenario_auth, scenario_framing
+from . import (
+    coverage,
+    scenario_action,
+    scenario_admin,
+    scenario_auth,
+    scenario_framing,
+)
 from .client import DEFAULT_ADMIN_PORT, DEFAULT_PORT
 from .result import RunSummary, ScenarioResult
 
@@ -48,6 +54,11 @@ def _parse_args() -> argparse.Namespace:
         help=f"어드민 서버 포트 (기본 {DEFAULT_ADMIN_PORT})",
     )
     parser.add_argument(
+        "--require-coverage",
+        action="store_true",
+        help="검증하지 않은 verb 나 거절 코드가 있으면 실패로 처리",
+    )
+    parser.add_argument(
         "--unit-only",
         action="store_true",
         help="서버가 필요한 시나리오를 건너뛰고 단위 검증만 실행",
@@ -58,6 +69,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     summary = RunSummary()
+    recorder = coverage.activate()
 
     print("=" * 60)
     print("JSON 라인 프로토콜 하니스")
@@ -116,7 +128,7 @@ def main() -> int:
             f"{args.host}:{args.port} 에 접속할 수 없다. 서버를 먼저 기동하십시오",
         )
     else:
-        scenario_action.run(action, port=args.port)
+        scenario_action.run(action, port=args.port, admin_port=args.admin_port)
     summary.add(action)
 
     # 5. 어드민 채널
@@ -136,6 +148,14 @@ def main() -> int:
     summary.add(admin)
 
     summary.report()
+
+    # 커버리지는 서버를 대상으로 돌렸을 때만 의미가 있다
+    gaps = 0 if args.unit_only else coverage.report(recorder)
+
+    if gaps and args.require_coverage:
+        print(f"판정: 커버리지 미달 ({gaps}건)")
+        return 1
+
     return summary.exit_code
 
 

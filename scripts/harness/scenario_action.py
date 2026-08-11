@@ -10,7 +10,8 @@
 
 from typing import Any, Optional
 
-from .client import DEFAULT_PORT, HarnessClient, HarnessError
+from .client import DEFAULT_ADMIN_PORT, DEFAULT_PORT, HarnessClient, HarnessError
+from .fixture import Fixture
 from .result import ScenarioResult
 
 TEST_USERNAME = "player5426"
@@ -300,7 +301,11 @@ def _check_move(
     result.ok("방향 이동", f"{direction} 으로 이동 확인")
 
 
-def run(result: ScenarioResult, port: int = DEFAULT_PORT) -> None:
+def run(
+    result: ScenarioResult,
+    port: int = DEFAULT_PORT,
+    admin_port: int = DEFAULT_ADMIN_PORT,
+) -> None:
     """액션 시나리오를 실행한다."""
     try:
         with HarnessClient(port=port, verbose=False) as client:
@@ -324,9 +329,9 @@ def run(result: ScenarioResult, port: int = DEFAULT_PORT) -> None:
             _check_equip_cycle(result, client)
             _check_partial_quantity_rejected(result, client)
             _check_not_readable_rejected(result, client)
-            _check_read(result, client)
-            _check_container_cycle(result, client)
 
+            # 읽기와 컨테이너는 준비 단계에서 검사한다. 프로덕션 방에는 해당
+            # 아이템이 없어 건너뛰기만 했다
             _check_dialogue_cycle(result, client)
 
             _check_who(result, client)
@@ -338,13 +343,70 @@ def run(result: ScenarioResult, port: int = DEFAULT_PORT) -> None:
 
             _check_move(result, client, room_info)
 
-            # 전투는 마지막에 검사한다. 전투 진입이 세션 상태를 크게 바꾼다.
-            _check_combat_cycle(result, client)
+            # 전제 조건이 필요한 검사는 어드민 채널로 환경을 만들어 수행한다.
+            # 프로덕션 방에 의존하면 몬스터 로밍 때문에 실행마다 결과가 달라진다
+            _run_with_fixture(result, client, room_info, admin_port)
 
             client.send_json({"type": "logout"})
 
     except HarnessError as exc:
         result.skip("액션 시나리오", str(exc))
+
+
+def _run_with_fixture(
+    result: ScenarioResult,
+    client: HarnessClient,
+    room_info: dict[str, Any],
+    admin_port: int,
+) -> None:
+    """전용 방을 만들어 전제 조건이 필요한 검사를 수행한다.
+
+    끝나면 플레이어를 원래 좌표로 돌려보내고 만든 것을 지운다. 방을 지우기 전에
+    플레이어를 빼내야 사라진 방에 갇히지 않는다.
+    """
+    origin = room_info.get("room") or {}
+    origin_x, origin_y = origin.get("x"), origin.get("y")
+
+    fixture = Fixture(admin_port)
+
+    if not fixture.open(TEST_USERNAME, TEST_PASSWORD):
+        for label in ("읽기", "컨테이너 왕복", "전투 왕복"):
+            result.skip(label, fixture.reason or "검증용 방을 준비할 수 없다")
+        return
+
+    try:
+        if not fixture.send_player(TEST_USERNAME):
+            for label in ("읽기", "컨테이너 왕복", "전투 왕복"):
+                result.skip(label, "검증용 방으로 이동할 수 없다")
+            return
+
+        client.read_json(800)  # goto 로 밀려온 방 정보를 비운다
+
+        # 읽기와 컨테이너 검사는 인벤토리를 본다. 방에 만든 뒤 주워 넣는다
+        if _take_into_inventory(client, fixture.create_readable()):
+            _check_read(result, client)
+        else:
+            result.skip("읽기", "읽을 수 있는 아이템을 인벤토리에 넣을 수 없다")
+
+        if _take_into_inventory(client, fixture.create_container()):
+            _check_container_cycle(result, client)
+        else:
+            result.skip("컨테이너 왕복", "컨테이너를 인벤토리에 넣을 수 없다")
+
+        _check_usable(result, client, fixture)
+        _check_unequip_all(result, client)
+        _check_inventory_full(result, client, fixture)
+        _check_enter(result, client, fixture, origin_x, origin_y)
+
+        if fixture.spawn_hostile() is not None:
+            _check_combat_cycle(result, client)
+        else:
+            result.skip("전투 왕복", "적대 몬스터를 스폰할 수 없다")
+    finally:
+        # 방을 지우기 전에 플레이어를 빼낸다
+        if isinstance(origin_x, int) and isinstance(origin_y, int):
+            fixture.send_player_to(TEST_USERNAME, origin_x, origin_y)
+        fixture.close()
 
 
 # 아이템과 컨테이너 --------------------------------------------------------
@@ -470,6 +532,168 @@ def _check_equip_cycle(result: ScenarioResult, client: HarnessClient) -> None:
     result.ok(
         "장착·해제 왕복",
         f"슬롯 {item.get('equipment_slot')} 에 {first}→{second} 확인",
+    )
+
+
+def _take_into_inventory(
+    client: HarnessClient, object_id: Optional[str]
+) -> bool:
+    """방에 만든 오브젝트를 인벤토리로 옮긴다.
+
+    읽기와 컨테이너 검사는 인벤토리를 훑으므로 바닥에 있으면 찾지 못한다.
+    """
+    if object_id is None:
+        return False
+
+    seq = _send_action(client, "get", target=object_id)
+    replies = client.read_json(1200)
+
+    rejected = [
+        m for m in replies
+        if m.get("type") == "action_rejected" and m.get("seq") == seq
+    ]
+
+    if rejected:
+        return False
+
+    # 인벤토리에 실제로 들어갔는지 확인한다
+    seq = _send_action(client, "request_inventory")
+
+    try:
+        inventory = client.wait_for("inventory", seq=seq, timeout_ms=3000)
+    except HarnessError:
+        return False
+
+    return any(item.get("id") == object_id for item in inventory.get("items", []))
+
+
+def _check_enter(
+    result: ScenarioResult,
+    client: HarnessClient,
+    fixture: Fixture,
+    origin_x: Any,
+    origin_y: Any,
+) -> None:
+    """통로 진입이 동작하는지 확인한다.
+
+    `enter` 는 대상이 없는 verb 다. 현재 좌표의 `room_connections` 항목을 조회해
+    이동하므로 통로를 먼저 만들어야 한다.
+    """
+    if not isinstance(origin_x, int) or not isinstance(origin_y, int):
+        result.skip("통로 진입", "원래 좌표를 알 수 없다")
+        return
+
+    if not fixture.create_passage(origin_x, origin_y):
+        result.skip("통로 진입", "통로를 만들 수 없다")
+        return
+
+    seq = _send_action(client, "enter")
+    replies = client.read_json(1500)
+
+    rejected = [
+        m for m in replies
+        if m.get("type") == "action_rejected" and m.get("seq") == seq
+    ]
+
+    if rejected:
+        result.fail("통로 진입", f"거절됨: {rejected[0].get('reason_code')}")
+        return
+
+    moved = [m for m in replies if m.get("type") == "room_info"]
+
+    if not moved:
+        result.fail("통로 진입", "room_info 를 받지 못했다")
+        return
+
+    # 다시 검증용 방으로 돌아온다. 이후 검사가 그 방을 전제한다
+    fixture.send_player(TEST_USERNAME)
+    client.read_json(800)
+
+    result.ok("통로 진입", f"({origin_x}, {origin_y}) 로 진입 확인")
+
+
+def _check_usable(
+    result: ScenarioResult, client: HarnessClient, fixture: Fixture
+) -> None:
+    """사용 가능한 아이템의 use 가 동작하는지 확인한다."""
+    object_id = fixture.create_usable()
+
+    if object_id is None:
+        result.skip("아이템 사용", "사용 가능한 아이템을 만들 수 없다")
+        return
+
+    seq = _send_action(client, "get", target=object_id)
+
+    try:
+        client.wait_for("inventory", seq=seq, timeout_ms=3000)
+    except HarnessError:
+        # 줍기 응답이 inventory 가 아닐 수도 있다. 사용 시도로 넘어간다
+        client.read_json(400)
+
+    seq = _send_action(client, "use", target=object_id)
+
+    try:
+        replies = client.read_json(1200)
+    except HarnessError as exc:
+        result.fail("아이템 사용", str(exc))
+        return
+
+    rejected = [
+        m for m in replies
+        if m.get("type") == "action_rejected" and m.get("seq") == seq
+    ]
+
+    if rejected:
+        result.fail("아이템 사용", f"거절됨: {rejected[0].get('reason_code')}")
+        return
+
+    result.ok("아이템 사용", "use 수행")
+
+
+def _check_unequip_all(result: ScenarioResult, client: HarnessClient) -> None:
+    """전체 해제가 동작하는지 확인한다.
+
+    장착한 것이 없으면 `WRONG_STATE` 로 거절하는 것이 정상 동작이다. 앞선
+    장착 왕복 검사가 해제로 끝나므로 이 경로를 지나는 경우가 많다.
+    """
+    seq = _send_action(client, "unequip_all")
+
+    replies = client.read_json(1200)
+    rejected = [
+        m for m in replies
+        if m.get("type") == "action_rejected" and m.get("seq") == seq
+    ]
+
+    if not rejected:
+        result.ok("전체 해제", "unequip_all 수행")
+        return
+
+    code = rejected[0].get("reason_code")
+
+    if code == "WRONG_STATE":
+        result.ok("전체 해제", "장착한 것이 없어 WRONG_STATE. 정상 동작이다")
+        return
+
+    result.fail("전체 해제", f"거절됨: {code}")
+
+
+def _check_inventory_full(
+    result: ScenarioResult, client: HarnessClient, fixture: Fixture
+) -> None:
+    """무게 초과를 INVENTORY_FULL 로 거절하는지 확인한다."""
+    object_id = fixture.create_heavy()
+
+    if object_id is None:
+        result.skip("무게 초과 거절", "무거운 아이템을 만들 수 없다")
+        return
+
+    _expect_rejection(
+        result,
+        client,
+        "무게 초과 거절",
+        "get",
+        "INVENTORY_FULL",
+        target=object_id,
     )
 
 

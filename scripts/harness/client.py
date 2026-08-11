@@ -18,6 +18,7 @@ import sys
 import time
 from typing import Any
 
+from . import coverage
 from .framing import LineReader, TelnetFilter
 
 DEFAULT_HOST = "127.0.0.1"
@@ -136,6 +137,10 @@ class HarnessClient:
         elif "seq" in payload:
             seq = payload["seq"]
 
+        recorder = coverage.active()
+        if recorder is not None:
+            recorder.record_sent(payload)
+
         # ensure_ascii=False 로 한국어를 그대로 보내 왕복을 검증한다
         line = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
         self.send_line(line)
@@ -235,7 +240,11 @@ class HarnessClient:
 
 
 def _try_parse(line: str) -> dict[str, Any] | None:
-    """라인을 JSON 오브젝트로 파싱한다. 실패하면 None."""
+    """라인을 JSON 오브젝트로 파싱한다. 실패하면 None.
+
+    파싱에 성공한 메시지는 커버리지에 기록한다. 수신 경로가 이 함수 하나로
+    모이므로 여기서 한 번만 기록하면 된다.
+    """
     stripped = line.strip()
     if not stripped or stripped[0] != "{":
         return None
@@ -243,7 +252,15 @@ def _try_parse(line: str) -> dict[str, Any] | None:
         parsed = json.loads(stripped)
     except json.JSONDecodeError:
         return None
-    return parsed if isinstance(parsed, dict) else None
+
+    if not isinstance(parsed, dict):
+        return None
+
+    recorder = coverage.active()
+    if recorder is not None:
+        recorder.record_received(parsed)
+
+    return parsed
 
 
 def _preview(text: str, limit: int = 120) -> str:

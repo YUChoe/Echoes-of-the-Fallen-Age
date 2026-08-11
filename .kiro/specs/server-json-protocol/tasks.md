@@ -243,7 +243,7 @@
   - 검증: `tests/unit/test_admin_account.py` 20건, 하니스에 3건 추가(서비스 권한 범위·검증 3건·중복 거절). 하니스는 계정을 만들지 않고 거절 경로만 본다. 성공 경로는 별도로 실측해 DB 저장 값(bcrypt 해시, `is_admin=0`, email, locale), 만든 계정으로 게임 채널 로그인, 감사 기록, 정리까지 확인했다.
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7_
 
-- [ ] 9. 잔여 제거 및 최종 검증
+- [x] 9. 잔여 제거 및 최종 검증
 - [x] 9.1 텔넷 테스트 자산 폐기
   - `telnet/telnet_client.py`(telnetlib 의존으로 이미 동작하지 않음), `telnet/capture_baseline.py`, `telnet_test.sh`를 제거한다. `docs/telnet_test_guide.md`를 하니스 기준으로 갱신하거나 폐기한다.
   - `telnet/` 디렉터리 전체(`telnet_client.py`, `capture_baseline.py`), `telnet_test.sh`, `docs/telnet_test_guide.md` 를 삭제했다. 가이드는 갱신 대신 폐기했다. 대상 프로토콜이 텍스트 명령어에서 JSON 라인으로 바뀌어 내용이 전부 무효였다. 절차는 `.kiro/steering/harness-test.md` 로 옮겼다.
@@ -255,8 +255,16 @@
   - `script-execution.md` 를 다시 썼다. `script_test.sh` 자체가 `mud_engine_env` 를 활성화해 동작하지 않았으므로 스크립트도 함께 고쳤다.
   - `work-best-practice.md` 의 `mud_engine_env`, 8080 브라우저 테스트, `sqlite3` CLI, `black`/`flake8` 기술을 정정했다.
   - _Requirements: 10.1, 10.2, 10.3_
-- [ ] 9.3 하니스 전체 시나리오 확장
+- [x] 9.3 하니스 전체 시나리오 확장
   - 인증, 방 정보, 액션, 거절, 프레이밍 시나리오를 완성한다. 액션 verb 전체와 거절 코드 전체를 커버한다.
+  - 커버리지를 grep 으로 추정하지 않고 실행 중에 기록한다. `scripts/harness/coverage.py` 가 클라이언트의 송수신을 받아 적고, 기준 목록은 `build_handlers()` 와 계약 문서에서 읽는다. verb 가 늘어나면 커버리지가 자동으로 낮아진다.
+  - 커버리지가 실행마다 달라지던 것이 본질적 문제였다. 적대 몬스터·컨테이너·읽을 수 있는 아이템이 테스트 계정 사거리에 있어야 하고 몬스터는 로밍한다. `scripts/harness/fixture.py` 가 어드민 채널로 전용 방(좌표 -9990)을 만들고 필요한 것을 직접 배치한 뒤 지운다. 방을 지우기 전에 플레이어를 원래 좌표로 빼낸다.
+  - 컨테이너와 읽기·사용 아이템은 템플릿으로 만들 수 없었다. `configs/items/` 의 어떤 템플릿도 `is_container` 를 설정하지 않으며 직렬화 계층은 그 키만 본다. `admin_create` 로 properties 를 직접 지정해 만든다. 어드민 CRUD 가 하니스의 도구가 됐다.
+  - 결과: 액션 verb 16/31 → 27/31, 건너뜀 4 → 0, 통과 75 → 87. 미검증 항목이 없고 제외 항목마다 이유가 붙는다.
+  - `--require-coverage` 를 주면 미검증 항목이 있을 때 실패로 처리한다.
+  - 발견한 계약·구현 불일치: `INSUFFICIENT_QUANTITY` 를 서버 어디에서도 발생시키지 않는다. 계약에만 있는 코드이며 부분 수량 요청은 `INVALID_PARAMS` 로 거절한다.
+  - 제외로 기록한 것: `give`·`follow`(다른 플레이어 필요), `end_turn`·`use_item`(전투가 한두 턴에 끝난다), `NOT_YOUR_TURN`(같은 이유), `INTERNAL_ERROR`(의도적 재현은 결함 주입이다), `OUT_OF_RANGE`·`INSUFFICIENT_FUNDS`·`SLOT_OCCUPIED`·`COOLDOWN`(해당 규칙이 구현되지 않았다), `SESSION_EXPIRED`(2시간).
+  - `unequip_all` 은 장착한 것이 없으면 `WRONG_STATE` 로 거절하는 것이 정상 동작이다. 앞선 장착 왕복 검사가 해제로 끝나므로 이 경로를 지난다.
   - _Requirements: 9.2, 9.3, 9.4_
 - [x] 9.4 최종 정합성 검증
   - `docs/protocol/`의 계약과 구현이 일치하는지 확인한다. 서버가 송신하는 모든 메시지 타입이 계약에 정의되어 있고, 계약의 모든 클라이언트 메시지가 처리되는지 점검한다. mypy + ruff + 하니스 전체 통과.
