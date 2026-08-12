@@ -192,6 +192,23 @@ class TelnetSession:
             f"Telnet 세션 {short_session_id}에 플레이어 '{player.username}' 인증 완료"
         )
 
+    def deauthenticate(self) -> None:
+        """인증과 게임 도메인 상태만 해제한다. 연결은 유지한다.
+
+        계약(`docs/protocol/client-to-server.md` logout)이 `logout` 을 연결 종료가
+        아니라 인증 해제로 정의한다. 클라이언트는 로그인 화면으로 돌아가 같은
+        연결에서 다른 계정으로 접속할 수 있다.
+
+        상태 컨테이너를 새로 만든다. 필드를 하나씩 되돌리면 나중에 추가된 필드가
+        남는다.
+        """
+        username = self.state.player.username if self.state.player else None
+        self.state = SessionState()
+        self.update_activity()
+        logger.info(
+            f"Telnet 세션 {_short_id(self.session_id)} 인증 해제: {username}"
+        )
+
     def update_activity(self) -> None:
         """마지막 활동 시간 업데이트"""
         self.last_activity = datetime.now()

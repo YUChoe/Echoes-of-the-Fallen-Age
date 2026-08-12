@@ -220,7 +220,12 @@ class TelnetServer:
                 continue
 
             if msg_type == "client_info":
-                logger.info(f"클라이언트 정보: {message.get('client')}")
+                logger.info(
+                    "클라이언트 정보: version=%s, platform=%s, locale=%s",
+                    message.get("client_version"),
+                    message.get("platform"),
+                    message.get("locale"),
+                )
                 continue
 
             if msg_type in ADMIN_ONLY_TYPES:
@@ -277,9 +282,10 @@ class TelnetServer:
             await self._send_login_failure(session, seq)
             return False
 
-        # 같은 계정의 기존 세션이 있으면 종료한다
-        if player.id in self.player_sessions:
-            old_session_id = self.player_sessions[player.id]
+        # 같은 계정의 기존 세션이 있으면 종료한다. 자기 자신은 제외한다.
+        # 같은 연결에서 로그아웃 후 다시 들어오는 경우가 있다.
+        old_session_id = self.player_sessions.get(player.id)
+        if old_session_id is not None and old_session_id != session.session_id:
             old_session = self.sessions.get(old_session_id)
             if old_session:
                 await old_session.send_event("system.duplicate_login")
@@ -319,11 +325,65 @@ class TelnetServer:
 
         if self.game_engine:
             await self.game_engine.add_player_session(session, player)
+            await self._send_login_snapshots(session)
 
             if await self.game_engine.try_rejoin_combat(session):
                 logger.info(f"플레이어 {username} 전투 복귀 성공")
 
         return True
+
+    async def _handle_logout(
+        self, session: TelnetSession, seq: Optional[int]
+    ) -> None:
+        """인증을 해제하되 연결은 유지한다.
+
+        계약(`docs/protocol/client-to-server.md` logout)이 "연결은 유지되므로
+        클라이언트는 로그인 화면으로 전환한다" 를 규정한다. 연결을 닫으면
+        클라이언트가 재접속 백오프에 들어가고 자동 로그인이 다시 걸린다.
+
+        게임 상태 정리는 접속 종료 경로와 같다. 위치 저장과 따라가기 해제가
+        필요하고 다른 플레이어에게 퇴장을 알려야 한다.
+        """
+        player = session.player
+
+        if self.game_engine is not None and player is not None:
+            await self.game_engine.remove_player_session(
+                session, "클라이언트 로그아웃"
+            )
+            self.game_engine.session_manager.remove_session(session.session_id)
+
+        # 서버가 따로 들고 있는 계정→세션 매핑도 지운다. 남겨 두면 같은 연결에서
+        # 다시 로그인할 때 자기 자신을 중복 로그인으로 판정해 끊는다.
+        if (
+            player is not None
+            and self.player_sessions.get(player.id) == session.session_id
+        ):
+            del self.player_sessions[player.id]
+
+        session.deauthenticate()
+        await session.send_message(
+            build("logout_result", seq=seq, success=True)
+        )
+
+    async def _send_login_snapshots(self, session: TelnetSession) -> None:
+        """로그인 직후 초기 스냅샷을 보낸다.
+
+        계약(`docs/protocol/README.md` 연결 수명주기 4항)이 `login_result` 성공
+        후 `room_info`, `player_state`, `inventory` 세 메시지를 보내도록 한다.
+        클라이언트는 셋을 모두 받은 뒤에 게임 화면을 표시한다.
+
+        `room_info` 는 `add_player_session` 의 방 이동이 이미 보냈다. 나머지 둘을
+        재요청 verb 로 보낸다. 같은 스냅샷을 만드는 코드가 이미 있으므로 별도
+        경로를 만들지 않는다. `seq` 는 담지 않는다. 클라이언트 요청에 대한 응답이
+        아니라 서버가 자발적으로 보내는 것이기 때문이다.
+        """
+        if self.game_engine is None:
+            return
+
+        for verb in ("request_state", "request_inventory"):
+            await self.game_engine.command_manager.handle_action(
+                session, {"type": "action", "verb": verb}
+            )
 
     def _admin_channel_info(self, player: Any) -> Optional[Dict[str, Any]]:
         """어드민 권한 계정에게 어드민 채널 사용 가능 여부를 알린다.
@@ -444,15 +504,31 @@ class TelnetServer:
             await self._reject_wrong_channel(session, msg_type, seq)
             return True
 
+        if msg_type == "login":
+            # 로그아웃 뒤 같은 연결에서 다른 계정으로 들어올 수 있다. 계약이
+            # 로그아웃에서 연결을 유지하도록 정하므로 인증 루프가 아니라 이곳이
+            # 재로그인을 받는 자리다.
+            if session.is_authenticated:
+                await session.send_protocol_error(
+                    "WRONG_STATE",
+                    "already authenticated; send logout first",
+                    seq,
+                )
+                return True
+            await self.handle_login(session, message)
+            return True
+
         if msg_type == "logout":
-            await session.send_message(
-                build("logout_result", seq=seq, success=True)
-            )
-            await session.close("클라이언트 요청으로 로그아웃")
-            return False
+            await self._handle_logout(session, seq)
+            return True
 
         if msg_type == "client_info":
-            logger.info(f"클라이언트 정보: {message.get('client')}")
+            logger.info(
+                "클라이언트 정보: version=%s, platform=%s, locale=%s",
+                message.get("client_version"),
+                message.get("platform"),
+                message.get("locale"),
+            )
             return True
 
         if msg_type == "action":
