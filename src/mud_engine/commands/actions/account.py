@@ -49,8 +49,12 @@ class ChangeNameHandler(ActionHandler):
 
         if not player.is_admin and not player.can_change_name():
             hours_left = self._hours_until_next_change(player)
+            # message_key 가 없으면 action_rejected 가 params 를 싣지 않는다.
+            # 계약(entities.md)이 COOLDOWN 에 잔여 시간을 담도록 정하므로 키를
+            # 함께 준다.
             return rejected(
                 "COOLDOWN",
+                message_key="account.name_change_cooldown",
                 params={"hours_left": round(hours_left, 1)},
                 message="Name can be changed once per day",
             )
