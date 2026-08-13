@@ -381,8 +381,11 @@ class TelnetServer:
             return
 
         for verb in ("request_state", "request_inventory"):
+            # `type` 은 담지 않는다. `build_context` 가 verb, target, params,
+            # seq 만 읽고, 담아 두면 계약 정합성 검사가 이 내부 합성 메시지를
+            # 서버가 내보내는 타입으로 오인한다.
             await self.game_engine.command_manager.handle_action(
-                session, {"type": "action", "verb": verb}
+                session, {"verb": verb}
             )
 
     def _admin_channel_info(self, player: Any) -> Optional[Dict[str, Any]]:
