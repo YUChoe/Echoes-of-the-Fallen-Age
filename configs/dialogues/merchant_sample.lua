@@ -6,20 +6,19 @@
 
 function get_dialogue(ctx)
     local player_name = ctx.player.display_name
-    local npc_name = ctx.npc.name
-    local locale = ctx.session.locale
-    local npc_display = npc_name[locale] or npc_name.en or "Merchant"
+    -- 이름은 언어별 dict 그대로 넘긴다. 언어 선택은 클라이언트가 한다.
+    local npc_display = ctx.npc.name
 
     return {
         text = {
             {
-                en = "Welcome, " .. player_name .. "! I'm " .. npc_display .. ". Browse my wares or sell me something.",
-                ko = "어서 오세요, " .. player_name .. "님! 저는 " .. npc_display .. "입니다. 물건을 구경하시거나 팔 것이 있으면 말씀하세요."
+                key = "npc.town_merchant.intro",
+                params = {player_name = player_name, npc_display = npc_display}
             }
         },
         choices = {
-            [1] = {en = "Buy", ko = "구매"},
-            [2] = {en = "Sell", ko = "판매"}
+            [1] = {key = "npc.town_merchant.choice.buy", params = {}},
+            [2] = {key = "npc.town_merchant.choice.sell", params = {}}
         }
     }
 end
@@ -80,56 +79,52 @@ function get_sellable_items(ctx)
 end
 
 function show_buy_menu(ctx)
-    local locale = ctx.session.locale
     local buyable = get_buyable_items(ctx)
     local choices = {}
 
     for idx, entry in ipairs(buyable) do
         local item = entry.obj
         local price = entry.price
-        local item_name = item.name[locale] or item.name.en or "Unknown"
         local mark = item.is_equipped and " [E]" or ""
         choices[100 + idx] = {
-            en = item_name .. mark .. " (" .. price .. " silver, " .. string.format("%.1f", item.weight) .. "kg)",
-            ko = item_name .. mark .. " (" .. price .. " 실버, " .. string.format("%.1f", item.weight) .. "kg)"
+            key = "npc.town_merchant.item_buy",
+            params = {item = item.name, mark = mark, price = price, weight = string.format("%.1f", item.weight)}
         }
     end
 
-    choices[1] = {en = "Back", ko = "돌아가기"}
+    choices[1] = {key = "npc.town_merchant.choice.back", params = {}}
 
     local silver = ctx.player.silver or 0
     return {
         text = {{
-            en = "Here's what I have. Take your time.",
-            ko = "제가 가진 물건입니다. 천천히 보세요."
+            key = "npc.town_merchant.buy_menu",
+            params = {}
         }},
         choices = choices
     }
 end
 
 function show_sell_menu(ctx)
-    local locale = ctx.session.locale
     local sellable = get_sellable_items(ctx)
     local choices = {}
 
     for idx, entry in ipairs(sellable) do
         local item = entry.obj
         local price = entry.price
-        local item_name = item.name[locale] or item.name.en or "Unknown"
         local mark = item.is_equipped and " [E]" or ""
         choices[200 + idx] = {
-            en = item_name .. mark .. " (" .. price .. " silver)",
-            ko = item_name .. mark .. " (" .. price .. " 실버)"
+            key = "npc.town_merchant.item_sell",
+            params = {item = item.name, mark = mark, price = price}
         }
     end
 
-    choices[2] = {en = "Back", ko = "돌아가기"}
+    choices[2] = {key = "npc.town_merchant.choice.back", params = {}}
 
     local npc_silver = ctx.npc.silver or 0
     return {
         text = {{
-            en = "What would you like to sell? Let me have a look.",
-            ko = "무엇을 파시겠어요? 한번 보여주세요."
+            key = "npc.town_merchant.sell_menu",
+            params = {}
         }},
         choices = choices
     }
@@ -142,20 +137,18 @@ function handle_buy(item_idx, ctx)
 
     local item = entry.obj
     local price = entry.price
-    local locale = ctx.session.locale
-    local item_name = item.name[locale] or item.name.en or "Unknown"
 
     local result = exchange.buy_from_npc(ctx.player.id, ctx.npc.id, item.id, price)
 
     if result and result.success then
         return {
             text = {{
-                en = "You bought " .. item_name .. " for " .. price .. " silver. A fine choice!",
-                ko = item_name .. "을(를) " .. price .. " 실버에 구매했습니다. 좋은 선택이에요!"
+                key = "npc.town_merchant.buy_done",
+                params = {item = item.name, price = price}
             }},
             choices = {
-                [1] = {en = "Buy more", ko = "더 구매"},
-                [2] = {en = "Sell", ko = "판매"}
+                [1] = {key = "npc.town_merchant.choice.buy_more", params = {}},
+                [2] = {key = "npc.town_merchant.choice.sell", params = {}}
             }
         }
     end
@@ -164,26 +157,26 @@ function handle_buy(item_idx, ctx)
     if error_code == "insufficient_silver" then
         return {
             text = {{
-                en = "You don't have enough silver for that.",
-                ko = "실버가 부족합니다."
+                key = "npc.town_merchant.no_silver",
+                params = {}
             }},
-            choices = {[1] = {en = "Buy", ko = "구매"}, [2] = {en = "Sell", ko = "판매"}}
+            choices = {[1] = {key = "npc.town_merchant.choice.buy", params = {}}, [2] = {key = "npc.town_merchant.choice.sell", params = {}}}
         }
     elseif error_code == "weight_exceeded" then
         return {
             text = {{
-                en = "You can't carry any more. You're already weighed down.",
-                ko = "더 이상 들 수 없습니다. 이미 짐이 너무 무겁습니다."
+                key = "npc.town_merchant.too_heavy",
+                params = {}
             }},
-            choices = {[1] = {en = "Buy", ko = "구매"}, [2] = {en = "Sell", ko = "판매"}}
+            choices = {[1] = {key = "npc.town_merchant.choice.buy", params = {}}, [2] = {key = "npc.town_merchant.choice.sell", params = {}}}
         }
     else
         return {
             text = {{
-                en = "Sorry, that didn't work out. Try something else.",
-                ko = "죄송합니다, 거래가 성사되지 않았습니다."
+                key = "npc.town_merchant.buy_failed",
+                params = {}
             }},
-            choices = {[1] = {en = "Buy", ko = "구매"}, [2] = {en = "Sell", ko = "판매"}}
+            choices = {[1] = {key = "npc.town_merchant.choice.buy", params = {}}, [2] = {key = "npc.town_merchant.choice.sell", params = {}}}
         }
     end
 end
@@ -195,20 +188,18 @@ function handle_sell(item_idx, ctx)
 
     local item = entry.obj
     local price = entry.price
-    local locale = ctx.session.locale
-    local item_name = item.name[locale] or item.name.en or "Unknown"
 
     local result = exchange.sell_to_npc(ctx.player.id, ctx.npc.id, item.id, price)
 
     if result and result.success then
         return {
             text = {{
-                en = "You sold " .. item_name .. " for " .. price .. " silver. Pleasure doing business!",
-                ko = item_name .. "을(를) " .. price .. " 실버에 판매했습니다. 좋은 거래였어요!"
+                key = "npc.town_merchant.sell_done",
+                params = {item = item.name, price = price}
             }},
             choices = {
-                [1] = {en = "Buy", ko = "구매"},
-                [2] = {en = "Sell more", ko = "더 판매"}
+                [1] = {key = "npc.town_merchant.choice.buy", params = {}},
+                [2] = {key = "npc.town_merchant.choice.sell_more", params = {}}
             }
         }
     end
@@ -217,26 +208,26 @@ function handle_sell(item_idx, ctx)
     if error_code == "npc_insufficient_silver" then
         return {
             text = {{
-                en = "I'm afraid I don't have enough silver to buy that from you.",
-                ko = "죄송합니다, 그것을 살 만큼 실버가 충분하지 않습니다."
+                key = "npc.town_merchant.npc_no_silver",
+                params = {}
             }},
-            choices = {[1] = {en = "Buy", ko = "구매"}, [2] = {en = "Sell", ko = "판매"}}
+            choices = {[1] = {key = "npc.town_merchant.choice.buy", params = {}}, [2] = {key = "npc.town_merchant.choice.sell", params = {}}}
         }
     elseif error_code == "item_not_owned" then
         return {
             text = {{
-                en = "It seems you no longer have that item.",
-                ko = "그 물건을 더 이상 가지고 있지 않은 것 같습니다."
+                key = "npc.town_merchant.item_gone",
+                params = {}
             }},
-            choices = {[1] = {en = "Buy", ko = "구매"}, [2] = {en = "Sell", ko = "판매"}}
+            choices = {[1] = {key = "npc.town_merchant.choice.buy", params = {}}, [2] = {key = "npc.town_merchant.choice.sell", params = {}}}
         }
     else
         return {
             text = {{
-                en = "Sorry, that didn't work out. Try something else.",
-                ko = "죄송합니다, 거래가 성사되지 않았습니다."
+                key = "npc.town_merchant.buy_failed",
+                params = {}
             }},
-            choices = {[1] = {en = "Buy", ko = "구매"}, [2] = {en = "Sell", ko = "판매"}}
+            choices = {[1] = {key = "npc.town_merchant.choice.buy", params = {}}, [2] = {key = "npc.town_merchant.choice.sell", params = {}}}
         }
     end
 end

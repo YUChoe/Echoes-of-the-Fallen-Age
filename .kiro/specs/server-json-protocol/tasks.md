@@ -286,19 +286,29 @@
   - 검증: `tests/unit/test_shutdown_signal.py` 8건.
   - _Requirements: 10.6_
 
-- [ ] 10. 대화 대사의 번역 키 전환
+- [x] 10. 대화 대사의 번역 키 전환
   - 선행 조건: Task 4.4(대화 핸들러)와 Task 6(번역 키 송출 전환) 완료
-- [ ] 10.1 대사 번역 키 체계 설계
+- [x] 10.1 대사 번역 키 체계 설계
   - `configs/dialogues/*.lua` 19개 스크립트의 대사와 선택지에 부여할 키 규칙을 정한다. NPC id 가 인스턴스 id 이므로 키를 인스턴스에 묶으면 재생성 시 깨진다. 템플릿 id 기반 키 체계를 검토한다.
+  - 파일명(인스턴스 uuid) 대신 NPC 이름에서 만든 슬러그를 접두어로 쓴다. 정적 대사는 위치로 키를 붙였다: `npc.<슬러그>.<분기>.text.<i>`, `npc.<슬러그>.<분기>.choice.<n>`. 분기는 `intro` 와 `c<선택지번호>` 다.
+  - 거래 스크립트(밀수업자, 상인 샘플)는 뜻으로 붙였다. 대사가 도우미 함수로 갈라져 위치 기반 키가 성립하지 않고 같은 문장이 여러 자리에 되풀이된다: `npc.smuggler.item_buy`, `npc.town_merchant.no_silver` 형태다.
+  - 서버가 붙이는 대화 종료 선택지는 `npc.dialogue.farewell` 하나를 공유한다.
   - _Requirements: 3.1, 3.2_
-- [ ] 10.2 Lua 스크립트 대사를 키로 교체
+- [x] 10.2 Lua 스크립트 대사를 키로 교체
   - 각 스크립트가 언어별 완성 문장 대신 번역 키와 파라미터를 반환하도록 바꾼다. `lua_script_loader.py`의 `execute_get_dialogue`, `execute_on_choice` 반환 규약을 함께 갱신한다.
+  - 19개 스크립트 전부를 바꿨다. `_lua_table_to_dict` 는 `{key, params}` 를 돌려주고 키가 없으면 경고를 남긴다. `params` 값이 Lua 테이블이면 dict 로 변환해(`_lua_params`, `_lua_value`) 아이템 이름 같은 이중언어 값이 그대로 실린다.
+  - 스크립트가 `ctx.session.locale` 로 아이템 이름을 고르던 코드를 없앴다. 언어 선택은 클라이언트 몫이므로 `DialogueContext` 도 `session.locale` 을 더 넘기지 않는다.
   - _Requirements: 3.1_
-- [ ] 10.3 대사를 클라이언트 번역 파일로 이관
+- [x] 10.3 대사를 클라이언트 번역 파일로 이관
   - 추출한 대사를 Godot 저장소의 번역 파일에 넣는다. Task 6.5의 번역 파일 이관과 같은 경로를 쓴다.
+  - 클라이언트 저장소 `godot/resources/translations/dialogue.json` 에 키 277개를 넣었다. `Translator` 가 디렉터리를 훑으므로 별도 등록이 필요하지 않다.
+  - 클라이언트 테스트 2건을 더했다. 모든 번역 파일의 키가 두 언어를 갖는지, `{자리표시자}` 집합이 두 언어에서 같은지 확인한다. 기계 이관이라 한쪽 누락이 조용히 지나갈 수 있다.
   - _Requirements: 3.3_
-- [ ] 10.4 dialogue 페이로드를 키 방식으로 전환
+- [x] 10.4 dialogue 페이로드를 키 방식으로 전환
   - `serialization/dialogue.py`의 `lines[]`와 `choices[].text`가 언어별 dict 대신 `{key, params}`를 담도록 바꾼다. 과도기 주석을 제거한다.
+  - 종료 선택지 판별을 문장(`"Bye."`)에서 키로 바꿨다. `FAREWELL_KEY` 를 `game/dialogue.py` 에 두고 직렬화 계층이 가져다 쓰므로 두 판정이 갈라지지 않는다.
+  - 문장 판별은 거래 메뉴에서 깨졌다. 밀수업자 물건 목록의 종료 번호(104)가 아이템 인덱스와 이어지므로 판별에 실패하면 `handle_buy(4)` 로 흘러가 대화가 끝나지 않는다. 실제 서버로 눌러 `is_active: false` 를 확인했다.
+  - 검증: 19개 스크립트를 실행해 키 231개를 얻고 전부 번역 파일에 있음을 확인했다. 실제 서버 대화로 정적 NPC(대사·선택지·종료)와 밀수업자 물건 목록(이름이 언어별 dict 로 실림)을 확인했다.
   - _Requirements: 3.1, 3.2_
 
 ## Task Dependency Graph

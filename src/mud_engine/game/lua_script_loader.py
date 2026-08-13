@@ -138,12 +138,12 @@ class LuaScriptLoader:
 
     def execute_get_dialogue(
         self, npc_id: str, context: dict[str, Any]
-    ) -> tuple[list[dict[str, str]], OrderedDict[int, dict[str, str]]] | None:
+    ) -> tuple[list[dict[str, Any]], OrderedDict[int, dict[str, Any]]] | None:
         """Lua 스크립트의 get_dialogue(ctx) 함수를 실행.
 
         반환: (dialogue_texts, choice_entity) 또는 None (실패 시)
-        - dialogue_texts: [{"en": "...", "ko": "..."}, ...]
-        - choice_entity: OrderedDict {1: {"en": "...", "ko": "..."}, ...}
+        - dialogue_texts: [{"key": "...", "params": {...}}, ...]
+        - choice_entity: OrderedDict {1: {"key": "...", "params": {...}}, ...}
         """
         if not self._available or self._lua is None:
             return None
@@ -173,7 +173,7 @@ class LuaScriptLoader:
 
     def execute_on_choice(
         self, npc_id: str, choice: int, context: dict[str, Any]
-    ) -> tuple[list[dict[str, str]], OrderedDict[int, dict[str, str]]] | None:
+    ) -> tuple[list[dict[str, Any]], OrderedDict[int, dict[str, Any]]] | None:
         """Lua 스크립트의 on_choice(choice_number, ctx) 함수를 실행.
 
         반환: (dialogue_texts, choice_entity) 또는 None (실패 시)
@@ -258,15 +258,16 @@ class LuaScriptLoader:
 
     def _convert_lua_result(
         self, lua_result: LuaTable_T
-    ) -> tuple[list[dict[str, str]], OrderedDict[int, dict[str, str]]]:
+    ) -> tuple[list[dict[str, Any]], OrderedDict[int, dict[str, Any]]]:
         """Lua 반환값(테이블)을 Python 자료구조로 변환.
 
-        Lua 테이블 {en = "...", ko = "..."} → Python dict {"en": "...", "ko": "..."}
+        Lua 테이블 {key = "...", params = {...}} → Python dict 로 바꾼다.
+        서버는 문장을 만들지 않고 키와 치환 파라미터만 내보낸다.
 
         반환: (dialogue_texts, choice_entity)
         """
-        dialogue_texts: list[dict[str, str]] = []
-        choice_entity: OrderedDict[int, dict[str, str]] = OrderedDict()
+        dialogue_texts: list[dict[str, Any]] = []
+        choice_entity: OrderedDict[int, dict[str, Any]] = OrderedDict()
 
         # text 배열 변환
         lua_text = lua_result.text
@@ -285,18 +286,51 @@ class LuaScriptLoader:
 
         return dialogue_texts, choice_entity
 
-    def _lua_table_to_dict(self, lua_table: LuaTable_T) -> dict[str, str]:
-        """단일 Lua 테이블 {en = "...", ko = "..."}을 Python dict로 변환."""
-        result: dict[str, str] = {}
+    def _lua_table_to_dict(self, lua_table: LuaTable_T) -> dict[str, Any]:
+        """대사 한 줄이나 선택지 하나를 `{key, params}` 로 변환.
+
+        Lua 스크립트는 `{key = "npc.x.y", params = {name = value}}` 를 돌려준다.
+        `params` 값이 Lua 테이블이면 언어별 dict 로 변환한다. 아이템 이름처럼
+        원본이 이중언어인 값이 그렇게 온다.
+        """
         if lua_table is None:
-            return result
+            return {}
+
         try:
-            for key, value in lua_table.items():
-                result[str(key)] = str(value)
+            items = dict(lua_table.items())
         except (AttributeError, TypeError):
-            # Lua 테이블이 아닌 경우 빈 dict 반환
-            pass
-        return result
+            # Lua 테이블이 아니면 다룰 수 없다
+            return {}
+
+        key = items.get("key")
+        if key is None:
+            logger.warning("대사에 key 가 없습니다: %s", sorted(items))
+            return {}
+
+        return {
+            "key": str(key),
+            "params": self._lua_params(items.get("params")),
+        }
+
+    def _lua_params(self, lua_params: Any) -> dict[str, Any]:
+        """params 테이블을 Python dict 로 변환한다."""
+        if lua_params is None:
+            return {}
+        try:
+            entries = list(lua_params.items())
+        except (AttributeError, TypeError):
+            return {}
+        return {str(name): self._lua_value(value) for name, value in entries}
+
+    def _lua_value(self, value: Any) -> Any:
+        """params 의 값 하나를 변환한다. 중첩 테이블은 dict 가 된다."""
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        try:
+            return {str(name): self._lua_value(item)
+                    for name, item in value.items()}
+        except (AttributeError, TypeError):
+            return str(value)
 
     # ── Exchange API 등록 ──────────────────────────────────
 

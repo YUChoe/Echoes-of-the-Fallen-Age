@@ -6,14 +6,14 @@ function get_dialogue(ctx)
     return {
         text = {
             {
-                en = "You there, " .. player_name .. "! You look like someone who can handle themselves. Ever thought about joining the Ash Knights?",
-                ko = "이봐, " .. player_name .. "! 제법 자신을 지킬 줄 아는 사람처럼 보이는군. 잿빛 기사단에 입단할 생각은 없나?"
+                key = "npc.knight_recruiter.intro.text.1",
+                params = {player_name = player_name}
             }
         },
         choices = {
-            [1] = {en = "What does joining the Ash Knights entail?", ko = "잿빛 기사단에 입단하면 어떻게 되나요?"},
-            [2] = {en = "What is the situation beyond the walls?", ko = "성벽 밖 상황은 어떤가요?"},
-            [3] = {en = "Not interested.", ko = "관심 없습니다."}
+            [1] = {key = "npc.knight_recruiter.intro.choice.1", params = {}},
+            [2] = {key = "npc.knight_recruiter.intro.choice.2", params = {}},
+            [3] = {key = "npc.knight_recruiter.intro.choice.3", params = {}}
         }
     }
 end
@@ -23,13 +23,13 @@ function on_choice(choice_number, ctx)
         return {
             text = {
                 {
-                    en = "We stand for justice in a world gone mad. Mind you, justice here means keeping order — and order sometimes demands a firm hand. But without us, these people would have nothing. Think on it.",
-                    ko = "우리는 미쳐버린 세상에서 정의를 지킨다. 물론, 여기서 정의란 질서를 유지하는 것이고 — 질서는 때로 강경한 손길을 요구하지. 하지만 우리가 없으면 이 사람들에겐 아무것도 남지 않아. 생각해 보게."
+                    key = "npc.knight_recruiter.c1.text.1",
+                    params = {}
                 }
             },
             choices = {
-                [2] = {en = "What about beyond the walls?", ko = "성벽 밖은 어떤가요?"},
-                [3] = {en = "I will think about it.", ko = "생각해 보겠습니다."}
+                [2] = {key = "npc.knight_recruiter.c1.choice.2", params = {}},
+                [3] = {key = "npc.knight_recruiter.c1.choice.3", params = {}}
             }
         }
     end
@@ -38,13 +38,13 @@ function on_choice(choice_number, ctx)
         return {
             text = {
                 {
-                    en = "Beyond the walls? Creatures roam freely — goblins, beasts, worse things. The folk out there have been ordered to relocate, but most of them resent us for it. Inside, we have our own troubles with goblins nesting in the brush. Nowhere is truly safe.",
-                    ko = "성벽 밖이라고? 괴물들이 자유롭게 돌아다닌다 — 고블린, 짐승, 더 나쁜 것들도. 밖의 사람들에게 이주 명령을 내렸지만 대부분 우리를 원망하고 있지. 안에서도 수풀에 고블린이 둥지를 틀어서 문제야. 어디도 진정으로 안전하지 않다."
+                    key = "npc.knight_recruiter.c2.text.1",
+                    params = {}
                 }
             },
             choices = {
-                [1] = {en = "Tell me about joining.", ko = "입단에 대해 알려주세요."},
-                [3] = {en = "I see. Farewell.", ko = "알겠습니다. 안녕히."}
+                [1] = {key = "npc.knight_recruiter.c2.choice.1", params = {}},
+                [3] = {key = "npc.knight_recruiter.c2.choice.3", params = {}}
             }
         }
     end

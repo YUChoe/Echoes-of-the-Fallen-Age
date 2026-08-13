@@ -15,6 +15,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# 대화 종료 선택지의 번역 키. 선택지가 없는 스크립트에도 나갈 길을 주려고 서버가
+# 붙인다. 직렬화 계층(`server/serialization/dialogue.py`)이 같은 값을 쓴다.
+FAREWELL_KEY = "npc.dialogue.farewell"
+
 
 @dataclass
 class DialogueInstance:
@@ -73,7 +77,7 @@ class DialogueInstance:
 
     async def get_new_dialogue(
         self,
-    ) -> list[dict[str, str]] | List[str]:
+    ) -> list[dict[str, Any]] | List[str]:
         """해당 session에 있는 NPC 대화 내용 가져오기.
 
         LuaScriptLoader가 있고 사용 가능하면 Lua 스크립트를 실행하여
@@ -115,12 +119,15 @@ class DialogueInstance:
 
     async def get_dialogueby_choice(
         self, choice: int
-    ) -> list[dict[str, str]] | List[str]:
+    ) -> list[dict[str, Any]] | List[str]:
         """선택지에 따른 후속 대화 가져오기.
 
         LuaScriptLoader가 있으면 execute_on_choice를 호출한다.
         on_choice가 nil(None) 반환 시 대화 종료 처리.
-        기존 Bye 판별 로직도 하위 호환성을 위해 유지.
+
+        종료 선택지는 번역 키로 판별한다. 문장으로 판별하면 서버가 문장을 갖지
+        않는 규약과 어긋나고, 거래 메뉴처럼 번호가 아이템 인덱스와 겹치는
+        스크립트에서 종료가 매수 시도로 잘못 흘러간다.
         """
         if choice not in self.choice_entity:
             logger.error(
@@ -132,16 +139,15 @@ class DialogueInstance:
             f"choice_entity[{choice}]: {self.choice_entity[choice]}"
         )
 
-        # 자동 추가된 Bye 선택지 확인 → on_bye 콜백 호출 후 대화 종료
+        # 종료 선택지 확인 → on_bye 콜백 호출 후 대화 종료
         choice_val = self.choice_entity[choice]
-        is_bye = False
-        if isinstance(choice_val, dict) and choice_val.get("en") == "Bye.":
-            is_bye = True
-        elif choice_val == "Bye.":
-            is_bye = True
+        is_bye = (
+            isinstance(choice_val, dict)
+            and choice_val.get("key") == FAREWELL_KEY
+        )
 
         if is_bye:
-            logger.info("Bye 선택지 선택 → 대화 종료")
+            logger.info("종료 선택지 선택 → 대화 종료")
             # Lua on_bye 콜백 호출 (선택적)
             if (
                 self.lua_loader is not None
@@ -194,8 +200,5 @@ class DialogueInstance:
             except Exception as e:
                 logger.error(f"Lua on_choice 실행 실패: {e}")
 
-        # 기존 Bye 판별 로직 (하위 호환성)
-        if self.choice_entity[choice] == 'Bye.':  # TODO: locale
-            self.is_active = False
-            self.ended_at = datetime.now()
+        # Lua 경로를 쓸 수 없으면 후속 대사가 없다. 종료 판정은 위에서 끝냈다.
         return []
