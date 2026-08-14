@@ -142,7 +142,7 @@
   - 서버 종료·중복 로그인은 신규 키 `system.server_shutdown`, `system.duplicate_login` 으로 보낸다. 세션 핸들러의 미처리 예외는 `send_protocol_error("INTERNAL_ERROR", str(e))` 로 바꿨다. `command_manager` 의 ERROR 경로와 같은 처리다.
   - 공지 방송은 기능째 제거했다. `_send_announcements()` 와 `data/announcements.txt` 경로가 사라졌다. 파일이 존재하지 않았고 계약의 어떤 메시지 타입에도 대응되지 않았다.
   - `player_movement_manager` 의 "존재하지 않는 방입니다."는 신규 키 `movement.room_not_found` 다.
-  - `command_manager` 의 `result.message` 직송은 제거하고 로그로 대체했다. 유일한 공급처는 Lua `use`/`consume` 콜백(`actions/items.py:395`·`479`)이며, 그 번역 키 전환은 Task 10 이다. 그때까지 아이템 사용 결과 문장은 클라이언트에 표시되지 않는다.
+  - `command_manager` 의 `result.message` 직송은 제거하고 로그로 대체했다. 유일한 공급처는 Lua `use`/`read` 콜백(`actions/items.py`)이었다. 그 전환은 Task 11 에서 끝냈다. 아이템 사용 결과 문장은 이제 `event`(`category: "item"`)로 나간다.
   - `admin_manager` 14건은 `TelnetSession.send_admin_notice(text, severity)` 로 옮겼다. 어드민 전용임이 이름에 드러나고 Task 7.6 에서 통째로 사라진다.
   - 신규 키 3종을 클라이언트 저장소 `godot/resources/translations/` 에 추가했다(`system.json` 2건, `moving.json` 1건).
   - `game/tutorial_announcer.py`는 제거했다. `preferred_locale` 로 분기해 완성 문장과 이모지를 만들고, 계약에 없는 `tutorial_announcement` 타입으로 보내며, 사라진 텍스트 명령어(`east`, `go east`)를 안내했다. 트리거 조건인 `current_room_id == 'town_square'` 도 방 id가 uuid이므로 성립하지 않았다. 튜토리얼 안내는 Lua 스크립트로 NPC에 주입한다.
@@ -310,6 +310,16 @@
   - 문장 판별은 거래 메뉴에서 깨졌다. 밀수업자 물건 목록의 종료 번호(104)가 아이템 인덱스와 이어지므로 판별에 실패하면 `handle_buy(4)` 로 흘러가 대화가 끝나지 않는다. 실제 서버로 눌러 `is_active: false` 를 확인했다.
   - 검증: 19개 스크립트를 실행해 키 231개를 얻고 전부 번역 파일에 있음을 확인했다. 실제 서버 대화로 정적 NPC(대사·선택지·종료)와 밀수업자 물건 목록(이름이 언어별 dict 로 실림)을 확인했다.
   - _Requirements: 3.1, 3.2_
+
+- [x] 11. 아이템 Lua 콜백 문장의 번역 키 전환
+  - 선행 조건: Task 6.7(생문장 제거)과 Task 10(대사 키 전환) 완료
+  - `configs/items/*.lua` 의 `on_use`·`on_read` 가 언어별 완성 문장 대신 번역 키와 파라미터를 돌려준다. 대상은 `health_potion.lua` 와 `forgotten_scripture.lua` 두 건이다.
+  - 전달 경로를 정했다. `ActionResult.message` 는 개발자용이므로 사용자 문장은 `event` 로 나간다. `category` 는 계약이 정한 여섯 가지 중 `item` 이다. `ActionResult` 에 `category` 를 두고 기본값을 `system` 으로 뒀다. 이전에는 성공 알림이 항상 `system` 으로 나갔다.
+  - Task 10 이 이 경로를 깨뜨린 것을 함께 고쳤다. `LuaScriptLoader._lua_table_to_dict` 를 `{key, params}` 전용으로 바꾸면서 아이템 콜백 결과(`{message, consume}`)가 빈 dict 가 됐고, `consume` 이 사라져 체력 물약이 소모되지 않았다. 아이템 핸들러가 바깥 테이블을 직접 읽고 `message` 만 `message_payload` 로 넘긴다. 그 함수는 대사와 아이템 문장이 함께 쓰므로 공개 이름으로 바꿨다.
+  - 스크립트가 `ctx.session.locale` 을 읽지 않으므로 아이템 콜백 컨텍스트에서도 그 필드를 없앴다. 아이템 이름은 언어별 dict 그대로 params 에 실린다.
+  - 검증: `test_item_actions.py` 에 변환 테스트 5건 추가(서버 353건). 실제 서버로 물약을 사용해 `event`(`category: "item"`, `obj.health_potion.use`, 이름이 언어별 dict)를 받고 소모를 확인했다.
+  - 소모 뒤 `inventory` 스냅샷은 밀지 않는다. `get`·`drop` 도 마찬가지이며 클라이언트가 필요할 때 요청한다. 결정: 서버는 그대로 두고 클라이언트가 화면에서만 감춘다. 서버 데이터가 언제나 우선이므로 정확한 동기화가 목적이 아니다. 클라이언트는 소모품에 `use` 를 보낼 때 목록에서 지우고, 거절되면 되돌리며, `inventory` 가 오면 그 값으로 덮는다.
+  - _Requirements: 3.1, 5.1_
 
 ## Task Dependency Graph
 

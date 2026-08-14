@@ -273,7 +273,7 @@ class LuaScriptLoader:
         lua_text = lua_result.text
         if lua_text is not None:
             for item in lua_text.values():
-                text_dict = self._lua_table_to_dict(item)
+                text_dict = self.message_payload(item)
                 dialogue_texts.append(text_dict)
 
         # choices 테이블 변환
@@ -281,17 +281,19 @@ class LuaScriptLoader:
         if lua_choices is not None:
             items = sorted(lua_choices.items(), key=lambda x: int(x[0]))
             for key, value in items:
-                choice_dict = self._lua_table_to_dict(value)
+                choice_dict = self.message_payload(value)
                 choice_entity[int(key)] = choice_dict
 
         return dialogue_texts, choice_entity
 
-    def _lua_table_to_dict(self, lua_table: LuaTable_T) -> dict[str, Any]:
-        """대사 한 줄이나 선택지 하나를 `{key, params}` 로 변환.
+    def message_payload(self, lua_table: LuaTable_T) -> dict[str, Any]:
+        """Lua 가 돌려준 문장 하나를 `{key, params}` 로 변환.
 
         Lua 스크립트는 `{key = "npc.x.y", params = {name = value}}` 를 돌려준다.
         `params` 값이 Lua 테이블이면 언어별 dict 로 변환한다. 아이템 이름처럼
         원본이 이중언어인 값이 그렇게 온다.
+
+        대사와 선택지, 아이템 콜백 문장이 모두 이 형태를 쓴다.
         """
         if lua_table is None:
             return {}

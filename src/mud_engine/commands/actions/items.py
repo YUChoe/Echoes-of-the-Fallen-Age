@@ -392,8 +392,11 @@ class UseHandler(ActionHandler):
                 await _consume_item(ctx, obj)
             _spend_stamina(ctx, in_combat)
 
+            message = lua_result.get("message") or {}
             return success(
-                message=lua_result.get("message", ""),
+                message_key=message.get("key"),
+                params=message.get("params"),
+                category="item",
                 data={"object_id": obj.id, "lua_callback": True},
             )
 
@@ -476,8 +479,11 @@ class ReadHandler(ActionHandler):
 
         lua_result = _run_lua_callback(ctx, obj, "read")
         if lua_result is not None:
+            message = lua_result.get("message") or {}
             return success(
-                message=lua_result.get("message", ""),
+                message_key=message.get("key"),
+                params=message.get("params"),
+                category="item",
                 data={"object_id": obj.id, "lua_callback": True},
             )
 
@@ -640,9 +646,6 @@ def _run_lua_callback(
             "name": localized_dict(obj.name),
             "properties": properties,
         },
-        # Lua 아이템 스크립트가 아직 언어별 완성 문장을 반환한다. 세션이
-        # locale 을 소유하지 않으므로 플레이어 설정에서 읽는다.
-        "session": {"locale": player.preferred_locale},
     }
 
     return handler.execute_verb_callback(template_id, verb, context)

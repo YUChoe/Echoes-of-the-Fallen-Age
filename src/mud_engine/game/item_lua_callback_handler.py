@@ -63,16 +63,16 @@ class ItemLuaCallbackHandler:
     def _convert_callback_result(
         self,
         lua_result: Any,
-        locale: str,
     ) -> dict[str, Any] | None:
         """Lua 콜백 반환값(테이블)을 Python dict로 변환
 
-        message 필드가 다국어 dict인 경우 locale에 맞게 선택하고,
-        consume 필드를 boolean으로 변환한다.
+        콜백은 `{message = {key = ..., params = {...}}, consume = true}` 를
+        돌려준다. 서버는 문장을 만들지 않으므로 키와 치환 파라미터만 옮긴다.
+        아이템 이름처럼 원본이 이중언어인 값은 params 에 dict 로 실려 나가고
+        클라이언트가 현재 locale 을 고른다.
 
         Args:
             lua_result: Lua 콜백 함수의 반환값 (Lua 테이블 또는 None)
-            locale: 플레이어 로케일 (예: "ko", "en")
 
         Returns:
             변환된 결과 dict 또는 None (lua_result가 None인 경우)
@@ -80,35 +80,23 @@ class ItemLuaCallbackHandler:
         if lua_result is None:
             return None
 
-        # Lua 테이블 → Python dict 변환
-        result_dict = self._lua_loader._lua_table_to_dict(lua_result)
+        try:
+            fields = dict(lua_result.items())
+        except (AttributeError, TypeError):
+            logger.warning("아이템 콜백이 테이블이 아닌 값을 돌려줬습니다")
+            return None
 
-        # message 필드 처리: 다국어 dict → locale 선택
-        message = result_dict.get("message", "")
-        if isinstance(message, dict):
-            # 폴백 체인: 요청 locale → en → ko → 아무 값
-            if locale in message and message[locale]:
-                message = str(message[locale])
-            elif "en" in message and message["en"]:
-                message = str(message["en"])
-            elif "ko" in message and message["ko"]:
-                message = str(message["ko"])
-            else:
-                # 아무 값이라도 반환
-                for val in message.values():
-                    if val:
-                        message = str(val)
-                        break
-                else:
-                    message = ""
-
-        # consume 필드 처리: boolean 변환 (기본값 False)
-        consume_raw = result_dict.get("consume")
-        consume = bool(consume_raw) if consume_raw is not None else False
+        message = fields.get("message")
+        payload = (
+            self._lua_loader.message_payload(message)
+            if message is not None
+            else {}
+        )
 
         return {
-            "message": str(message),
-            "consume": consume,
+            # 키가 없으면 문장 없이 진행한다. 소모 여부는 그대로 따른다
+            "message": payload if payload.get("key") else None,
+            "consume": bool(fields.get("consume", False)),
         }
 
     def execute_verb_callback(
@@ -175,11 +163,8 @@ class ItemLuaCallbackHandler:
                 )
                 return None
 
-            # locale 추출
-            locale = context.get("session", {}).get("locale", "en")
-
             # 결과 변환
-            converted = self._convert_callback_result(lua_result, locale)
+            converted = self._convert_callback_result(lua_result)
 
             logger.debug(
                 "아이템 Lua 콜백 실행 완료 [%s.%s]",

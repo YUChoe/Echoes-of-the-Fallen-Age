@@ -143,7 +143,7 @@ NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 
 
 ```json
 {
-  "key": "combat.damage_dealt",
+  "key": "combat.hit",
   "params": {
     "target": { "en": "Ash Raider", "ko": "재의 약탈자" },
     "damage": 12

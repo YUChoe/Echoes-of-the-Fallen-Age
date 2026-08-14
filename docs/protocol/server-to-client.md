@@ -266,18 +266,19 @@
   "seq": null,
   "total_weight": 12.0,
   "max_weight": 20.0,
+  "gold": 1240,
   "items": [],
   "equipped": {
-    "HEAD": null,
-    "BODY": "b8593baf-...",
-    "WEAPON": "c277fa85-...",
-    "SHIELD": null,
-    "FEET": null
+    "right_hand": "b8593baf-..."
   }
 }
 ```
 
-`items`는 인벤토리와 장착 중인 아이템을 모두 포함한다. 장착 여부는 각 아이템의 `is_equipped`로 판별한다. `equipped`는 슬롯별 uuid 매핑이며 빈 슬롯은 `null`이다.
+`items`는 인벤토리와 장착 중인 아이템을 모두 포함한다. 장착 여부는 각 아이템의 `is_equipped`로 판별한다.
+
+`equipped`는 슬롯별 uuid 매핑이며 채워진 슬롯만 담는다. 서버는 슬롯 이름을 확정하지 않는다. 허용값이 16종이고 `accessory`나 대문자 `RING` 같은 레거시가 섞여 있어서다. 클라이언트가 표시할 슬롯 목록을 자체 보유하고 없는 키를 빈 슬롯으로 처리한다.
+
+`gold`는 `CurrencyManager`가 집계한 화폐 합계다. 이 매니저는 `properties.template_id`가 `silver_coin`인 스택만 세므로 필드 이름과 구현이 어긋나 있다. 그 정리는 consistency.md의 화폐 항목에서 다룬다.
 
 서버는 아이템을 묶지 않고 개별 엔티티로 보낸다. 같은 종류가 여럿이면 uuid가 다른 항목 여러 개가 온다. `stack_count`는 `properties.quantity` 값이며 현재 화폐만 1을 초과한다. 클라이언트가 표시할 때 같은 `template_id`끼리 묶을 수 있으나 액션의 `target`은 개별 uuid를 사용한다.
 
@@ -345,16 +346,19 @@
   "seq": null,
   "dialogue_id": "9c4e1a55-...",
   "speaker": {
-    "id": "2be3c315-...",
-    "name": { "en": "Town Merchant", "ko": "마을 상인" }
+    "id": "3914fbe8-...",
+    "name": { "en": "Brother Marcus", "ko": "마르쿠스 수사" }
   },
   "lines": [
-    { "key": "npc.merchant.greeting", "params": {} }
+    {
+      "key": "npc.brother_marcus.intro.text.1",
+      "params": { "player_name": "player5426" }
+    }
   ],
   "choices": [
-    { "index": 1, "text": { "key": "npc.merchant.who_are_you", "params": {} } },
-    { "index": 2, "text": { "key": "npc.merchant.where_is_this", "params": {} } },
-    { "index": 3, "text": { "key": "npc.merchant.show_goods", "params": {} } },
+    { "index": 1, "text": { "key": "npc.brother_marcus.intro.choice.1", "params": {} } },
+    { "index": 2, "text": { "key": "npc.brother_marcus.intro.choice.2", "params": {} } },
+    { "index": 3, "text": { "key": "npc.brother_marcus.intro.choice.3", "params": {} } },
     { "index": 4, "text": { "key": "npc.dialogue.farewell", "params": {} } }
   ],
   "is_active": true
@@ -432,7 +436,7 @@
   "type": "event",
   "category": "combat",
   "message": {
-    "key": "combat.damage_dealt",
+    "key": "combat.hit",
     "params": {
       "target": { "en": "Ash Raider", "ko": "재의 약탈자" },
       "damage": 12
@@ -453,12 +457,28 @@
   "seq": 43,
   "verb": "talk",
   "target": "2ff6700d-...",
-  "reason_code": "NOT_APPLICABLE",
-  "message": { "key": "action.cannot_talk_to_target", "params": {} }
+  "reason_code": "NOT_APPLICABLE"
 }
 ```
 
 클라이언트가 낙관적으로 구성한 버튼이 실제로는 적용 불가할 때의 응답이다. `seq`로 어느 요청이 거절됐는지 판별하고 `reason_code`로 처리를 분기한다. 사유 코드 목록은 entities.md에 정의한다.
+
+`message`는 선택 항목이다. 사유 코드만으로 화면을 구성할 수 없을 때만 담는다. 거절 사유 자체는 코드로 전달되며 개발자용 설명은 서버 로그에만 남는다.
+
+```json
+{
+  "type": "action_rejected",
+  "seq": 44,
+  "verb": "changename",
+  "reason_code": "COOLDOWN",
+  "message": {
+    "key": "account.name_change_cooldown",
+    "params": { "hours_left": 5.2 }
+  }
+}
+```
+
+이름 변경의 재시도 대기가 그런 경우다. 남은 시간을 실어야 하므로 키와 파라미터를 함께 보낸다.
 
 ## error
 

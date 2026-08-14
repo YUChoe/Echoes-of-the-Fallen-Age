@@ -1,14 +1,14 @@
 -- 체력 물약 아이템 Lua 콜백 스크립트
--- on_use(ctx): 사용 시 다국어 메시지 반환, 아이템 소모
+-- on_use(ctx): 사용 시 번역 키와 치환 파라미터 반환, 아이템 소모
+--
+-- 서버는 문장을 만들지 않는다. 아이템 이름은 언어별 dict 그대로 params 에
+-- 실리고 클라이언트가 현재 locale 을 고른다.
 
 function on_use(ctx)
-    local player = ctx.player
-    local item = ctx.item
-
     return {
         message = {
-            en = player.display_name .. " drinks the " .. item.name.en .. ". A warm feeling spreads through your body.",
-            ko = player.display_name .. "이(가) " .. item.name.ko .. "을(를) 마셨습니다. 따뜻한 기운이 온몸에 퍼집니다.",
+            key = "obj.health_potion.use",
+            params = {player = ctx.player.display_name, item = ctx.item.name}
         },
         consume = true,
     }

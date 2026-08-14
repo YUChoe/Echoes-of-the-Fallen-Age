@@ -98,10 +98,11 @@ class ActionResult:
         rejection_code: REJECTED 인 경우의 사유 코드
         broadcast: 주변에 알릴 내용
         data: 응답에 실을 부가 데이터
+        category: `message_key` 를 실어 보낼 `event` 의 분류. 클라이언트가 로그
+            채널을 가르는 데 쓴다. 값은 계약이 정한 여섯 가지다
         message: 개발자용 영문 사유. 사용자에게 표시하지 않는다.
             REJECTED 는 서버 로그에만 남고, ERROR 는 `error.detail` 로 나간다.
-            SUCCESS 에 쓰이는 경우는 Lua 스크립트가 만든 대사뿐이며
-            그 전환은 Task 10 에서 다룬다
+            SUCCESS 에서는 쓰지 않는다
     """
 
     result_type: ActionResultType
@@ -110,6 +111,7 @@ class ActionResult:
     rejection_code: Optional[str] = None
     broadcast: Optional[BroadcastSpec] = None
     data: dict[str, Any] = field(default_factory=dict)
+    category: str = "system"
     message: Optional[str] = None
 
     @property
@@ -123,6 +125,7 @@ def success(
     params: Optional[dict[str, Any]] = None,
     broadcast: Optional[BroadcastSpec] = None,
     data: Optional[dict[str, Any]] = None,
+    category: str = "system",
     message: Optional[str] = None,
 ) -> ActionResult:
     """성공 결과를 만든다."""
@@ -132,6 +135,7 @@ def success(
         params=params or {},
         broadcast=broadcast,
         data=data or {},
+        category=category,
         message=message,
     )
 

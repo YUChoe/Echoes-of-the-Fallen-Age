@@ -100,12 +100,11 @@ class CommandManager:
             return
 
         # 성공 알림. 표시할 내용이 없으면 아무것도 보내지 않는다.
-        # result.message 는 개발자용 사유이므로 전송하지 않는다. Lua 콜백이 만든
-        # 완성 문장이 여기 실려 오며, 번역 키 전환은 Task 10 에서 다룬다.
+        # result.message 는 개발자용 사유이므로 전송하지 않는다.
         if result.message_key:
             await session.send_message({
                 "type": "event",
-                "category": "system",
+                "category": result.category,
                 "message": message_payload(result.message_key, result.params),
             })
         elif result.message:

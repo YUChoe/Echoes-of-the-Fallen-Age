@@ -266,3 +266,84 @@ class TestReadHandler:
 
         assert result.succeeded
         assert result.data["content"]["ko"] == "본문"
+
+
+class TestLuaCallbackResult:
+    """아이템 Lua 콜백 결과 변환
+
+    콜백은 `{message = {key, params}, consume = bool}` 을 돌려준다. 서버는
+    문장을 만들지 않으므로 키와 치환 파라미터만 옮긴다.
+    """
+
+    def _handler(self):
+        from src.mud_engine.game.item_lua_callback_handler import (
+            ItemLuaCallbackHandler,
+        )
+        from src.mud_engine.game.lua_script_loader import LuaScriptLoader
+
+        loader = LuaScriptLoader()
+        if not loader.is_available():
+            pytest.skip("lupa 를 쓸 수 없다")
+        return ItemLuaCallbackHandler(loader), loader
+
+    def _table(self, loader, source: str):
+        """Lua 소스가 돌려주는 테이블을 얻는다"""
+        loader._lua.execute("function _probe() return %s end" % source)
+        return loader._lua.globals()._probe()
+
+    def test_키와_파라미터를_옮긴다(self):
+        handler, loader = self._handler()
+        table = self._table(
+            loader,
+            '{message = {key = "obj.x.use", params = {who = "tester"}},'
+            " consume = true}",
+        )
+
+        result = handler._convert_callback_result(table)
+
+        assert result == {
+            "message": {"key": "obj.x.use", "params": {"who": "tester"}},
+            "consume": True,
+        }
+
+    def test_이름은_언어별_dict_그대로_실린다(self):
+        # 클라이언트가 현재 locale 을 고른다. 서버는 고르지 않는다
+        handler, loader = self._handler()
+        table = self._table(
+            loader,
+            '{message = {key = "obj.x.use",'
+            ' params = {item = {en = "Potion", ko = "물약"}}}}',
+        )
+
+        result = handler._convert_callback_result(table)
+
+        assert result["message"]["params"]["item"] == {
+            "en": "Potion",
+            "ko": "물약",
+        }
+
+    def test_consume_기본값은_거짓이다(self):
+        handler, loader = self._handler()
+        table = self._table(loader, '{message = {key = "obj.x.read"}}')
+
+        result = handler._convert_callback_result(table)
+
+        assert result["consume"] is False
+
+    def test_키가_없으면_문장을_버리고_소모는_따른다(self):
+        # 예전 형태(언어별 완성 문장)를 돌려주는 스크립트가 남아 있어도
+        # 소모 여부는 지켜야 한다
+        handler, loader = self._handler()
+        table = self._table(
+            loader, '{message = {en = "You drink it."}, consume = true}'
+        )
+
+        result = handler._convert_callback_result(table)
+
+        assert result == {"message": None, "consume": True}
+
+    def test_테이블이_아니면_폴백한다(self):
+        handler, _ = self._handler()
+
+        assert handler._convert_callback_result("문장") is None
+        assert handler._convert_callback_result(None) is None
