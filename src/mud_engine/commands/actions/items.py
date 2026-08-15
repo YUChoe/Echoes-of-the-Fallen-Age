@@ -536,23 +536,55 @@ class ReadHandler(ActionHandler):
                     params={"total": len(pages)},
                     message=f"page out of range (total {len(pages)})",
                 )
-            content = pages[index]
-            return success(
-                data={
-                    "object_id": obj.id,
-                    "page": index + 1,
-                    "total_pages": len(pages),
-                    "content": _localized_content(content),
-                    "readable_type": readable.get("type", "note"),
-                }
+            return await self._send_content(
+                ctx,
+                obj,
+                readable,
+                _localized_content(pages[index]),
+                page=index + 1,
+                total_pages=len(pages),
             )
+
+        return await self._send_content(
+            ctx,
+            obj,
+            readable,
+            _localized_content(readable.get("content", {})),
+        )
+
+    async def _send_content(
+        self,
+        ctx: ActionContext,
+        obj: Any,
+        readable: dict[str, Any],
+        content: dict[str, str],
+        page: int = 1,
+        total_pages: int = 1,
+    ) -> ActionResult:
+        """본문을 `readable_content` 로 보낸다.
+
+        본문은 번역 키가 아니라 콘텐츠라 `event` 로 보낼 수 없다. `open` 이
+        `container_contents` 를 보내는 것과 같은 규약이다.
+        """
+        from ...server.serialization import build_readable_content
+
+        await ctx.session.send_message(
+            build_readable_content(
+                obj.id,
+                content,
+                page=page,
+                total_pages=total_pages,
+                readable_type=str(readable.get("type", "note")),
+                seq=ctx.seq,
+            )
+        )
 
         return success(
             data={
                 "object_id": obj.id,
-                "page": 1,
-                "total_pages": 1,
-                "content": _localized_content(readable.get("content", {})),
+                "page": page,
+                "total_pages": total_pages,
+                "content": content,
                 "readable_type": readable.get("type", "note"),
             }
         )

@@ -78,3 +78,30 @@ def build_container_contents(
         container_id=str(container_id),
         items=[serialize_object(obj) for obj in objects],
     )
+
+
+def build_readable_content(
+    object_id: str,
+    content: dict[str, str],
+    page: int = 1,
+    total_pages: int = 1,
+    readable_type: str = "note",
+    seq: Optional[int] = None,
+) -> dict[str, Any]:
+    """readable_content 메시지를 만든다.
+
+    `content` 는 언어별 dict 이며 번역 키가 아니다. 책과 두루마리의 본문은 DB
+    의 이중언어 컬럼에 담긴 콘텐츠이므로 클라이언트 번역 파일로 옮기지 않는다.
+    엔티티 이름·설명과 같은 성질이다.
+    """
+    from .envelope import build
+
+    return build(
+        "readable_content",
+        seq=seq,
+        object_id=str(object_id),
+        readable_type=str(readable_type),
+        page=int(page),
+        total_pages=int(total_pages),
+        content=dict(content),
+    )

@@ -15,6 +15,7 @@
 | `player_state` | 조건부 | 플레이어 상태 |
 | `inventory` | 조건부 | 인벤토리 전체 |
 | `container_contents` | 있음 | 컨테이너 내용 |
+| `readable_content` | 있음 | 읽을 수 있는 물건의 본문 |
 | `combat_state` | 조건부 | 전투 전체 상태 |
 | `dialogue` | 조건부 | 대화 상태 |
 | `shop` | 있음 | 상점 목록 |
@@ -294,6 +295,31 @@
 ```
 
 컨테이너 내부 아이템도 `entities.md`의 오브젝트 스키마를 따른다. 기존 구현에는 컨테이너 내부 목록을 배열 인덱스로 지정하는 경로가 있었으나 폐기되고 uuid로 통일된다.
+
+## readable_content
+
+```json
+{
+  "type": "readable_content",
+  "seq": 52,
+  "object_id": "98355bcf-...",
+  "readable_type": "scroll",
+  "page": 1,
+  "total_pages": 1,
+  "content": {
+    "en": "Hear us, O Alva, whose name means 'white' and 'bright'...",
+    "ko": "들으소서, 알바여. 당신의 이름은 우리 선조의 말로 '희다', '밝다'를 뜻하나이다..."
+  }
+}
+```
+
+`read` verb의 응답이다. `content`는 언어별 dict이며 번역 키가 아니다. 책과 두루마리의 본문은 DB의 이중언어 컬럼에 담긴 콘텐츠이므로 클라이언트 번역 파일로 옮기지 않는다. 엔티티 이름·설명과 같은 성질이다.
+
+여러 쪽이면 `total_pages`가 1보다 크고 클라이언트가 `read`에 `params.page`를 붙여 다음 쪽을 요청한다. 범위를 벗어난 쪽은 `INVALID_PARAMS`로 거절하며 `params.total`에 전체 쪽수를 담는다.
+
+`readable_type`은 표시 형태를 고르는 힌트다. 값은 `book`, `scroll`, `note`다.
+
+Lua `on_read` 콜백이 있는 물건은 분위기 문장이 `event`(`category: "item"`)로 먼저 오고 본문이 이 메시지로 온다. 콜백만 있고 `readable` 속성이 없으면 이 메시지 없이 `event`만 간다.
 
 ## combat_state
 

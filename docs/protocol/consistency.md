@@ -34,6 +34,7 @@
 | `player_state` | Task 2.3 | Task 5.1, 10 |
 | `inventory` | Task 2.3 | Task 7.1 |
 | `container_contents` | Task 2.3 | Task 7.4 |
+| `readable_content` | 서버 Task 11 이후 신설 | 읽기 화면 |
 | `combat_state` | Task 2.3 | Task 8 |
 | `dialogue` | Task 4.4 | Task 9.1 |
 | `shop` | Task 4.4 | Task 9.2 |
@@ -240,7 +241,7 @@ flowchart TD
 | `event` 과도기 필드 제거 | 서버 Task 6.7 완료. `TelnetSession.send_event()`는 `key`/`params`/`category`/`seq`를 받아 `build_event()`에 위임한다. 계약 밖 필드 `text`·`severity`는 게임 채널에서 사라졌다. `send_error`·`send_success`·`send_info`는 삭제했다. 남은 사용처는 어드민 전용 `send_admin_notice()` 하나이며 `category: "admin"`으로 나가고 Task 7.6에서 어드민 채널로 옮기며 사라진다 |
 | 어드민 생문장 경로 제거 | 서버 Task 7.6 완료. `AdminManager` 가 세션에 완성 문장을 보내던 14건을 없애고 결과 dict 반환과 `AdminOperationError` 로 바꿨다. `TelnetSession.send_admin_notice()`, `manager_bridge.py`, `game_engine` 의 관리자 위임 래퍼 4개, 도달 불가였던 `create_object_realtime()` 을 삭제했다. 계약 밖 타입 `object_created` 와 추방 시 `system_message` 브로드캐스트가 사라졌고 `kicked` 만 남았다. 추방 통보를 담을 메시지가 계약에 없기 때문이다 |
 | Lua 아이템 콜백 문장 미전달 | 서버 Task 11 완료. `configs/items/health_potion.lua` 와 `forgotten_scripture.lua` 가 번역 키와 파라미터를 돌려주고 문장은 클라이언트의 `item.json` 으로 옮겼다. 전달은 `event` 이며 `category` 는 `item` 이다. `ActionResult` 에 `category` 를 두고 기본값을 `system` 으로 뒀다. 이전에는 성공 알림이 항상 `system` 으로 나갔다. Task 10 이 이 경로를 함께 깨뜨렸던 것도 고쳤다. `_lua_table_to_dict` 를 `{key, params}` 전용으로 바꾸면서 아이템 콜백 결과가 빈 dict 가 됐고 `consume` 이 사라져 체력 물약이 소모되지 않았다 |
-| 읽기 본문을 담을 메시지가 없다 | 미해결. `read` 는 `readable.content` 를 산출해 `ActionResult.data` 에 담지만 `command_manager` 는 `data` 를 전송하지 않는다. 계약에도 책 본문을 담을 메시지가 없다. 그래서 경전을 읽어도 클라이언트는 분위기 문장만 받는다. 본문은 번역 키가 아니라 데이터이므로 `event` 로 보낼 수 없다. 전용 메시지 타입을 두거나 `container_contents` 처럼 요청-응답 쌍을 만들어야 한다 |
+| 읽기 본문을 담을 메시지가 없다 | 해결. 계약에 `readable_content` 를 추가했다. `open` → `container_contents` 와 같은 규약이며 요청 `seq` 를 되돌려준다. 본문은 번역 키가 아니라 언어별 dict 다. 책과 두루마리의 본문은 DB 의 이중언어 컬럼에 담긴 콘텐츠이므로 클라이언트 번역 파일로 옮기지 않는다. 엔티티 이름·설명과 같은 성질이다. Lua `on_read` 콜백이 있으면 분위기 문장이 `event` 로 먼저 가고 본문이 이 메시지로 간다 |
 | 계약 예시와 구현 불일치 | 정정 완료. 클라이언트를 예시대로 구현하다 드러난 것들이다. ① `event`·`entities.md` 의 `combat.damage_dealt` 는 존재하지 않는 키였다. 같은 params 를 쓰는 실제 키는 `combat.hit` 다. ② `inventory` 예시에 `gold` 가 빠져 있었다. `build_inventory` 가 항상 담는다. ③ `equipped` 예시가 `HEAD`·`BODY`·`WEAPON` 같은 대문자 슬롯을 쓰고 빈 슬롯을 `null` 로 담았다. 실제 값은 `right_hand` 같은 소문자이고 채워진 슬롯만 담는다. ④ `dialogue` 예시의 `npc.merchant.*` 는 지어낸 키였다. Task 10 이 정한 실제 규칙(`npc.<slug>.<분기>.text.<i>`)을 쓰는 예시로 바꿨다. ⑤ `action_rejected` 예시가 없는 키 `action.cannot_talk_to_target` 을 담고 있었다. `message` 는 선택 항목이며 서버가 그 자리에 키를 담는 경우는 `account.name_change_cooldown` 하나뿐이라 그것으로 바꿨다. `scripts/check_doc_keys.py` 가 문서 예시의 키가 실재하는지 확인한다 |
 | `gold` 필드와 화폐 구현 불일치 | 범위 외. 경제 규칙 변경을 수반한다. `player_state.gold`와 `inventory.gold`는 `CurrencyManager.get_balance()`가 채우는데, 이 매니저는 `properties.template_id == "silver_coin"`인 스택만 집계한다(`currency_manager.py:19,37`). 테스트 계정 player5426은 Gold Coin 2개를 보유하지만 `template_id`가 달라 잔액이 0으로 보고된다. 계약 필드명은 `gold`인데 구현된 화폐는 실버뿐이므로, 필드명을 화폐 종류에 맞게 정정하거나 화폐를 다종으로 확장해야 한다. 어느 쪽이든 상점·교환 로직에 영향이 있어 화폐 설계를 정리할 때 함께 처리한다 |
 | `combat_state.is_over` 기준 | 기존 동작 유지로 결정. `build_combat_state`는 `not combat.is_active`를 보내며, 이는 `combat.is_combat_over()`(한쪽 전멸 판정)와 다른 개념이다. 한쪽이 전멸했으나 `end_combat()`이 아직 호출되지 않은 짧은 구간에서는 `is_over: false`가 나간다. 클라이언트는 전투 종료를 `is_over` 대신 `combat_state` 수신 중단과 `room_info` 재수신으로도 판별할 수 있으므로 현재 동작을 바꾸지 않는다. 전투 종료 처리를 정리할 때 재검토한다 |

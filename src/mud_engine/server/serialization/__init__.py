@@ -46,6 +46,7 @@ from .envelope import (
 )
 from .inventory import (
     build_container_contents,
+    build_readable_content,
     build_inventory,
     serialize_equipped_slots,
 )
@@ -75,6 +76,7 @@ __all__ = [
     "build_chat",
     "build_combat_state",
     "build_container_contents",
+    "build_readable_content",
     "build_dialogue",
     "build_entity_enter",
     "build_entity_leave",

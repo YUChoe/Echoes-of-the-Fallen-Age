@@ -30,7 +30,16 @@ def _make_object(properties: dict | str | None = None, name: dict | None = None)
 
 
 def _make_ctx(params: dict | None = None, entity=None) -> ActionContext:
-    """핸들러 호출에 필요한 최소 컨텍스트"""
+    """핸들러 호출에 필요한 최소 컨텍스트
+
+    보낸 메시지는 `ctx.session.sent` 에 쌓인다. `read` 가 본문을 별도 메시지로
+    보내므로 대역이 필요하다.
+    """
+    sent: list[dict] = []
+
+    async def send_message(payload: dict) -> None:
+        sent.append(payload)
+
     session = SimpleNamespace(
         session_id="session-1",
         is_authenticated=True,
@@ -40,6 +49,8 @@ def _make_ctx(params: dict | None = None, entity=None) -> ActionContext:
         current_room_id="room-1",
         stamina=5.0,
         max_stamina=5.0,
+        send_message=send_message,
+        sent=sent,
     )
     return ActionContext(
         session=session,
@@ -528,8 +539,9 @@ class TestReadWithCallback:
         result = await ReadHandler().handle(ctx)
 
         assert result.succeeded
-        assert result.data["content"]["ko"] == "들으소서"
-        assert [m["message"]["key"] for m in sent] == ["obj.z.read"]
+        assert [m["type"] for m in sent] == ["event", "readable_content"]
+        assert sent[0]["message"]["key"] == "obj.z.read"
+        assert sent[1]["content"]["ko"] == "들으소서"
 
     @pytest.mark.asyncio
     async def test_본문이_없으면_콜백_문장만_남는다(self):
@@ -543,3 +555,70 @@ class TestReadWithCallback:
         assert result.succeeded
         assert result.message_key == "obj.z.read"
         assert sent == []
+
+
+class TestReadableContentMessage:
+    """읽기 응답 메시지
+
+    본문은 번역 키가 아니라 콘텐츠라 `event` 로 보낼 수 없다. `open` 이
+    `container_contents` 를 보내는 것과 같은 규약으로 전용 메시지를 쓴다.
+    """
+
+    @pytest.mark.asyncio
+    async def test_본문을_전용_메시지로_보낸다(self):
+        ctx = _make_ctx(
+            entity=ResolvedEntity(
+                kind=EntityKind.OBJECT,
+                entity=_make_object(
+                    {"readable": {"type": "scroll", "content": {"ko": "본문"}}}
+                ),
+                source="inventory",
+            )
+        )
+
+        await ReadHandler().handle(ctx)
+
+        assert len(ctx.session.sent) == 1
+        payload = ctx.session.sent[0]
+        assert payload["type"] == "readable_content"
+        assert payload["object_id"] == "obj-1"
+        assert payload["readable_type"] == "scroll"
+        assert payload["page"] == 1
+        assert payload["total_pages"] == 1
+        assert payload["content"]["ko"] == "본문"
+
+    @pytest.mark.asyncio
+    async def test_여러_쪽이면_쪽수를_담는다(self):
+        ctx = _make_ctx(
+            params={"page": 2},
+            entity=ResolvedEntity(
+                kind=EntityKind.OBJECT,
+                entity=_make_object(
+                    {"readable": {"pages": [{"ko": "첫"}, {"ko": "둘"}]}}
+                ),
+                source="inventory",
+            ),
+        )
+
+        await ReadHandler().handle(ctx)
+
+        payload = ctx.session.sent[0]
+        assert payload["page"] == 2
+        assert payload["total_pages"] == 2
+        assert payload["content"]["ko"] == "둘"
+
+    @pytest.mark.asyncio
+    async def test_요청_seq_를_되돌려준다(self):
+        # 클라이언트가 어느 요청의 응답인지 알아야 한다
+        ctx = _make_ctx(
+            entity=ResolvedEntity(
+                kind=EntityKind.OBJECT,
+                entity=_make_object({"readable": {"content": {"ko": "본문"}}}),
+                source="inventory",
+            )
+        )
+        ctx.seq = 52
+
+        await ReadHandler().handle(ctx)
+
+        assert ctx.session.sent[0]["seq"] == 52
