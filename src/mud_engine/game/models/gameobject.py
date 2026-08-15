@@ -43,16 +43,9 @@ class GameObject(BaseModel):
         if not self.location_type:
             raise ValueError("위치 타입은 필수입니다")
 
-        valid_location_types = {
-            "room",
-            "inventory",
-            "container",
-            "template",
-            "ROOM",
-            "INVENTORY",
-            "CONTAINER",
-            "TEMPLATE",
-        }
+        # 저장 값은 소문자로 통일한다. 대소문자가 섞이면 필터 조회가 한쪽만
+        # 얻는다. 예전 데이터가 대문자로 남아 있어 두 벌로 조회하던 코드가 있었다
+        valid_location_types = {"room", "inventory", "container", "template"}
         if self.location_type not in valid_location_types:
             raise ValueError(f"올바르지 않은 위치 타입입니다: {self.location_type}")
 

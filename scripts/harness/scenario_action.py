@@ -179,7 +179,7 @@ def _check_request_state(result: ScenarioResult, client: HarnessClient) -> None:
             "max_hp",
             "stamina",
             "max_stamina",
-            "gold",
+            "silver",
             "stats",
             "equipment_bonuses",
             "temporary_effects",
@@ -228,7 +228,7 @@ def _check_request_inventory(result: ScenarioResult, client: HarnessClient) -> N
         problems.append(f"items 가 {inventory.get('items')!r}")
     if not isinstance(inventory.get("equipped"), dict):
         problems.append(f"equipped 가 {inventory.get('equipped')!r}")
-    for field in ("total_weight", "max_weight", "gold"):
+    for field in ("total_weight", "max_weight", "silver"):
         if field not in inventory:
             problems.append(f"{field} 누락")
 
@@ -238,7 +238,7 @@ def _check_request_inventory(result: ScenarioResult, client: HarnessClient) -> N
 
     result.ok(
         "request_inventory",
-        f"아이템 {len(inventory['items'])}개, 골드 {inventory['gold']}",
+        f"아이템 {len(inventory['items'])}개, 실버 {inventory['silver']}",
     )
 
 

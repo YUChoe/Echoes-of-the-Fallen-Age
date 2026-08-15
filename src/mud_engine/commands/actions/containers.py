@@ -16,8 +16,8 @@ from ...server.serialization import build_container_contents, coerce_properties,
 
 logger = logging.getLogger(__name__)
 
-# 컨테이너에서 꺼낼 때의 목적지 위치 종류
-INVENTORY_LOCATION = "INVENTORY"
+# 컨테이너에서 꺼낼 때의 목적지 위치 종류. 저장 값은 소문자로 통일한다
+INVENTORY_LOCATION = "inventory"
 
 
 async def _resolve_container(

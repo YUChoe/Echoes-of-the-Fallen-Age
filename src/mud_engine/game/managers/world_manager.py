@@ -428,7 +428,7 @@ class WorldManager:
 
             # 아이템의 위치를 컨테이너로 변경
             updated_item = await self._object_manager._object_repo.update(item_id, {
-                'location_type': 'CONTAINER',
+                'location_type': 'container',
                 'location_id': container_id
             })
 
@@ -450,7 +450,7 @@ class WorldManager:
 
             # 아이템의 위치를 새 위치로 변경
             updated_item = await self._object_manager._object_repo.update(item_id, {
-                'location_type': target_location_type.upper(),
+                'location_type': target_location_type.lower(),
                 'location_id': target_location_id
             })
 

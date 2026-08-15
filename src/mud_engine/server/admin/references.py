@@ -4,11 +4,10 @@
 선언된 외래키만으로는 부족하다. 실제 DB 에서 확인한 참조는 다음과 같다.
 
 - `players.faction_id`, `faction_relations.faction_a_id/b_id` 만 FK 로 선언돼 있다
-- `monsters.faction_id` 는 FK 가 없다. 이미 `factions` 에 없는 `townspeople` 을
-  가리키는 몬스터가 1건 있다
+- `monsters.faction_id` 는 FK 가 없다. 끊어진 참조는 현재 없다
 - `game_objects.location_id` 는 `location_type` 에 따라 방·소유자·컨테이너를
-  가리킨다. FK 가 없고 `location_type` 값이 `room`/`ROOM` 처럼 대소문자가
-  섞여 있어 비교를 대소문자 무시로 해야 한다
+  가리킨다. FK 가 없다. `location_type` 은 소문자로 통일했으나 비교는 대소문자
+  무시로 둔다. 예전 데이터가 다시 섞여 들어와도 검사가 성립해야 한다
 - `room_connections` 와 `monsters` 는 방 id 가 아니라 좌표로 방을 가리킨다.
   좌표가 같은 방이 둘 있으므로(현재 1쌍) 하나를 지워도 참조가 끊기지 않는다
 

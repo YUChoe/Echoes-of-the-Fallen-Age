@@ -106,7 +106,7 @@ class MonsterRepository(BaseRepository):
         """객체를 컨테이너로 이동"""
         try:
             return await self.update(object_id, {
-                'location_type': 'CONTAINER',
+                'location_type': 'container',
                 'location_id': container_id
             })
         except Exception as e:

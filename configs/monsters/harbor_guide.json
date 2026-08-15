@@ -10,7 +10,7 @@
   },
   "monster_type": "NEUTRAL",
   "behavior": "STATIONARY",
-  "faction_id": "townspeople",
+  "faction_id": "ash_knights",
   "stats": {
     "strength": 10,
     "dexterity": 10,

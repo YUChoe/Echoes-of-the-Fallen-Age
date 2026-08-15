@@ -25,7 +25,7 @@ _CODE_ROW = re.compile(r"^\|\s*`([A-Z][A-Z_]+)`\s*\|")
 # 빠진 것으로 세지 않되 이유를 남긴다
 UNREACHABLE_CODES: dict[str, str] = {
     "OUT_OF_RANGE": "거리 개념이 구현되지 않았다. 같은 방 안에서만 대상 지정이 성립한다",
-    "INSUFFICIENT_FUNDS": "상점 미구현. 화폐를 소비하는 경로가 없다",
+    "INSUFFICIENT_FUNDS": "서버가 보내는 경로가 없다. 거래는 대화 안에서 이루어지고 실버 부족은 대사로 안내한다",
     "SLOT_OCCUPIED": "장비 교체가 기존 장비를 자동 해제한다. 슬롯 충돌이 발생하지 않는다",
     "COOLDOWN": "재사용 대기 시간을 쓰는 액션이 없다",
     "SESSION_EXPIRED": "어드민 세션 만료는 2시간이라 하니스 한 번에 재현할 수 없다",

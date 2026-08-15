@@ -10,7 +10,7 @@
   },
   "monster_type": "NEUTRAL",
   "behavior": "STATIONARY",
-  "faction_id": "townspeople",
+  "faction_id": "ash_knights",
   "stats": {
     "strength": 10,
     "dexterity": 12,
@@ -42,10 +42,6 @@
     {"template_id": "bread", "slot": null},
     {"template_id": "bread", "slot": null}
   ],
-  "exchange_config": {
-    "initial_silver": 500,
-    "buy_margin": 0.5
-  },
   "exchange_config": {
     "initial_silver": 500,
     "buy_margin": 0.5
