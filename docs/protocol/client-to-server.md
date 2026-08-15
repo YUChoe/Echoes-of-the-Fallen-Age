@@ -100,16 +100,15 @@
 | `use_item` | uuid | 없음 | 전투 중 아이템 사용 |
 | `end_turn` | 없음 | 없음 | 턴 종료 |
 
-대화와 상점:
+대화:
 
 | verb | target | params | 설명 |
 |---|---|---|---|
 | `talk` | uuid | 없음 | 대화 시작 |
 | `dialogue_choice` | 없음 | `{"choice": 2}` | 선택지 선택. 대화 인스턴스 로컬 번호 |
 | `dialogue_end` | 없음 | 없음 | 대화 종료 |
-| `shop_open` | uuid | 없음 | 상점 목록 요청 |
-| `shop_buy` | 없음 | `{"template_id": "health_potion", "quantity": 2}` | 구매. 상점 재고는 템플릿 단위이므로 uuid가 아니다 |
-| `shop_sell` | uuid | `{"quantity": 1}` | 판매. 인벤토리 실물이므로 uuid |
+
+거래는 대화 안에서 이루어진다. 전용 verb 를 두지 않는다. 상인은 선택지로 물건을 늘어놓고 플레이어는 `dialogue_choice` 로 고른다. 상점을 별도 개념으로 두면 같은 재고를 두 경로가 보게 되고 진실의 출처가 갈라진다.
 
 사회:
 

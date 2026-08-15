@@ -63,7 +63,7 @@ NOT_MESSAGE_TYPES = frozenset(
         "unequip", "unequip_all", "give", "put", "take_from", "open",
         "attack", "defend", "flee", "talk", "dialogue_choice", "follow",
         "unfollow", "emote", "who", "players_here", "changename", "read",
-        "shop_open", "shop_buy", "shop_sell", "whisper", "goto", "kick",
+        "whisper", "goto", "kick",
         "spawn_monster", "spawn_item", "terminate", "create_room",
         "update_room", "create_exit", "validate_world",
         "list_monster_templates", "list_item_templates", "scheduler",

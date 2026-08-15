@@ -18,7 +18,6 @@
 | `readable_content` | 있음 | 읽을 수 있는 물건의 본문 |
 | `combat_state` | 조건부 | 전투 전체 상태 |
 | `dialogue` | 조건부 | 대화 상태 |
-| `shop` | 있음 | 상점 목록 |
 | `who_result` | 있음 | 접속자 목록 |
 | `chat` | 없음 | 채팅 수신 |
 | `event` | 없음 | 번역 키 기반 알림 |
@@ -394,29 +393,6 @@ Lua `on_read` 콜백이 있는 물건은 분위기 문장이 `event`(`category: 
 `choices[].index`는 대화 인스턴스 안에서만 유효한 로컬 번호다. 클라이언트는 이 값을 `dialogue_choice` 액션의 params로 되돌려 보낸다. uuid 규약의 예외이며, 선택지는 엔티티가 아니라 대화 트리의 분기이므로 uuid를 갖지 않는다.
 
 `is_active`가 false면 대화가 종료됐다는 뜻이다. 클라이언트는 대화 창을 닫는다.
-
-## shop
-
-```json
-{
-  "type": "shop",
-  "seq": 51,
-  "merchant_id": "2be3c315-...",
-  "items": [
-    {
-      "template_id": "health_potion",
-      "name": { "en": "Health Potion", "ko": "체력 물약" },
-      "description": { "en": "Restores 25 health.", "ko": "체력을 25 회복한다." },
-      "category": "consumable",
-      "buy_price": 50,
-      "sell_price": 20,
-      "stock": null
-    }
-  ]
-}
-```
-
-상점 재고는 `item_prices` 테이블의 `template_id` 단위다. 실물 아이템이 아니므로 uuid가 없고 구매는 `template_id`로 지정한다. `stock`이 `null`이면 무제한이다. `buy_price`나 `sell_price`가 0이면 해당 방향 거래가 불가하며 클라이언트는 그 버튼을 숨긴다.
 
 ## who_result
 

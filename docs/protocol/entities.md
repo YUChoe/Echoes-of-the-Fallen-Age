@@ -22,11 +22,11 @@
 
 `name`과 `description`은 언어를 고르지 않은 dict 그대로 전달된다. 서버 모델에 이미 이 형태가 존재하므로 언어 선택 단계만 제거하면 된다. 클라이언트가 현재 locale로 값을 고르고, 없으면 `en`으로 폴백한다.
 
-`id`는 인스턴스 단위다. 몬스터는 스폰마다 고유 uuid를 갖는다. 템플릿 식별자(`template_id`)는 별개이며 상점 거래에만 쓰인다.
+`id`는 인스턴스 단위다. 몬스터는 스폰마다 고유 uuid를 갖는다. 템플릿 식별자(`template_id`)는 별개이며 가격 조회에 쓰인다.
 
 ## monster
 
-NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 테이블은 없다. 구분은 `disposition`과 `is_merchant`로 이뤄진다.
+NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 테이블은 없다. 구분은 `disposition`과 `can_talk`으로 이뤄진다.
 
 ```json
 {
@@ -69,8 +69,6 @@ NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 
 
 `monster_type`과 `disposition`은 다른 개념이다. `monster_type`은 몬스터 자체의 성향(선공 여부)이고 `disposition`은 요청자와의 종족 관계다. 같은 몬스터가 플레이어의 종족에 따라 다른 `disposition`을 갖는다.
 
-`is_merchant`와 `can_talk`은 `properties` JSON에서 파생된 boolean이다. 클라이언트가 상점 버튼과 대화 버튼을 구성하는 근거다.
-
 ## object
 
 ```json
@@ -101,7 +99,7 @@ NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 
 | `is_container` | boolean | 다른 아이템을 담을 수 있는지 |
 | `is_readable` | boolean | 읽을 수 있는지 |
 | `is_usable` | boolean | 사용할 수 있는지 |
-| `template_id` | string 또는 null | 템플릿 식별자. 상점 가격 조회 기준 |
+| `template_id` | string 또는 null | 템플릿 식별자. `item_prices` 조회 기준 |
 
 `weight`는 개당 무게이므로 총 무게는 `weight × stack_count`다. 인벤토리의 `total_weight`는 서버가 계산한 값이다.
 
@@ -113,7 +111,7 @@ NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 
 
 `max_stack`은 제공하지 않는다. DB에 컬럼이 있고 값이 설정되어 있지만 서버가 그에 따라 아무 동작도 하지 않는다. 스택 병합 로직이 `CurrencyManager`에만 있고 일반 아이템에는 없으며 `_group_stackable_objects`도 무력화된 상태다. 클라이언트가 이 값으로 판단할 수 있는 것이 없으므로 전달하지 않는다.
 
-수량 지정 액션(`drop`, `put`, `shop_sell`)의 `quantity` params는 화폐처럼 `stack_count`가 1을 초과하는 경우에만 의미가 있다. 그 밖의 아이템은 개별 uuid로 처리한다.
+수량 지정 액션(`drop`, `put`)의 `quantity` params는 화폐처럼 `stack_count`가 1을 초과하는 경우에만 의미가 있다. 그 밖의 아이템은 개별 uuid로 처리한다.
 
 파생 boolean(`is_container`, `is_readable`, `is_usable`)은 `properties` JSON과 `category`에서 서버가 계산해 내보낸다. 클라이언트가 `properties` 원본을 해석하지 않도록 하기 위한 것이다. 이는 가용 동사 목록을 서버가 결정하는 것과는 다르다. 서버는 대상의 성질만 알려주고, 그 성질로 어떤 버튼을 만들지는 클라이언트가 판단한다.
 
@@ -177,7 +175,7 @@ NPC와 몬스터는 같은 테이블(`monsters`)로 표현된다. 별도의 NPC 
 | `WRONG_STATE` | 현재 상태에서 불가 | 안내 표시 |
 | `NOT_YOUR_TURN` | 전투 턴이 아님 | 턴 대기 표시 |
 | `OUT_OF_RANGE` | 거리 초과 | 안내 표시 |
-| `INSUFFICIENT_FUNDS` | 골드 부족 | 상점 UI에 부족액 표시 |
+| `INSUFFICIENT_FUNDS` | 화폐 부족 | 부족액 표시 |
 | `INSUFFICIENT_QUANTITY` | 수량 부족 | 수량 입력 상한 조정 |
 | `INVENTORY_FULL` | 무게 초과 | 안내 표시 |
 | `SLOT_OCCUPIED` | 장비 슬롯 사용 중 | 교체 확인 제안 |

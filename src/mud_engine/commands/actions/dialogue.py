@@ -158,8 +158,8 @@ class DialogueEndHandler(ActionHandler):
 def handlers() -> list[ActionHandler]:
     """이 카테고리의 핸들러 목록
 
-    상점 verb(shop_open, shop_buy, shop_sell)는 등록하지 않는다. 계약이 요구하는
-    `item_prices` 기반 상점이 서버에 구현되어 있지 않고, 거래는 대화 안의 Lua
-    exchange API 로만 이루어진다. 자세한 사유는 docs/protocol/consistency.md 참조.
+    거래는 대화 안에서 이루어진다. 상인은 선택지로 물건을 늘어놓고 플레이어는
+    `dialogue_choice` 로 고르며, 실제 이동은 Lua exchange API 가 맡는다. 상점을
+    별도 개념으로 두지 않기로 했고 계약에서도 뺐다(consistency.md 참조).
     """
     return [TalkHandler(), DialogueChoiceHandler(), DialogueEndHandler()]

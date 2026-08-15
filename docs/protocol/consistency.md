@@ -37,7 +37,6 @@
 | `readable_content` | 서버 Task 11 이후 신설 | 읽기 화면 |
 | `combat_state` | Task 2.3 | Task 8 |
 | `dialogue` | Task 4.4 | Task 9.1 |
-| `shop` | Task 4.4 | Task 9.2 |
 | `who_result` | Task 4.4 | Task 5.8 |
 | `chat` | Task 4.5 | Task 5.7 |
 | `event` | Task 6.1, 6.2 | Task 5.9 |
@@ -70,9 +69,6 @@
 | `talk` | actions/dialogue.py | Task 6 대상 동사 |
 | `dialogue_choice` | actions/dialogue.py | Task 9.1 |
 | `dialogue_end` | actions/dialogue.py | Task 9.1 |
-| `shop_open` | actions/shop.py | Task 6 대상 동사 |
-| `shop_buy` | actions/shop.py | Task 9.2 |
-| `shop_sell` | actions/shop.py | Task 9.2 |
 | `follow` | actions/social.py | Task 6 대상 동사 |
 | `unfollow` | actions/social.py | Task 5.10 |
 | `emote` | actions/social.py | Task 5.10 |
@@ -96,7 +92,7 @@
 | `WRONG_STATE` | Task 4.2 상태 게이팅 | Task 4.2 안내 |
 | `NOT_YOUR_TURN` | actions/combat.py | Task 8 턴 대기 표시 |
 | `OUT_OF_RANGE` | 각 액션 핸들러 | Task 4.2 안내 |
-| `INSUFFICIENT_FUNDS` | actions/shop.py | Task 9.2 부족액 표시 |
+| `INSUFFICIENT_FUNDS` | Lua exchange API | 대화 화면 안내 |
 | `INSUFFICIENT_QUANTITY` | actions/items.py | Task 4.2 상한 조정 |
 | `INVENTORY_FULL` | actions/items.py | Task 4.2 안내 |
 | `SLOT_OCCUPIED` | actions/items.py | Task 4.2 교체 확인 |
@@ -236,7 +232,7 @@ flowchart TD
 | max_stack 데이터 정리 | 범위 외. 부피 있는 물건에 스택이 붙어 있다(건초 더미 5kg=3, 밧줄 1.5kg=5, 횃불 0.5kg=10, 빈 병 5, 말굽 5). 체력 물약은 5와 20으로 불일치하고 무게도 0.30/0.60으로 갈린다. 어드민 기능 준비 후 정리 |
 | category 분류 정리 | 범위 외. 101건 중 97건이 `misc`이며 `consumable` 1건, `currency` 2건, `readable` 1건뿐이다. 클라이언트 카테고리 필터가 실질적으로 동작하려면 분류가 필요하다 |
 | room_connections 조회를 매니저로 이전 | 차후 개발. 현재 `commands/Basic/enter.py::_get_room_connection()`이 매니저를 거치지 않고 `SELECT to_x, to_y FROM room_connections`를 직접 실행한다. `has_passage` 산출에도 같은 조회가 필요해 중복이 생긴다. `RoomManager`에 조회 메서드를 만들어 양쪽이 공유하는 것이 구조상 맞으며, 명령어를 액션 핸들러로 옮기는 Task 4 시점에 함께 정리한다. 그때까지는 호출부가 조회해 직렬화 계층에 인자로 전달한다 |
-| 계약 밖 메시지 타입 정리 | 서버 Task 9.4 완료. 계약에 없는 `type` 이 0종이다. `scripts/check_protocol_consistency.py` 로 확인한다. 계약이 정의했으나 서버가 보내지 않던 `entity_enter`·`entity_leave` 도 함께 구현했다. 두 문제는 같은 사안의 양면이었다. 서버는 방 인원 변화를 계약 밖 `room_players_update` 로 전체 목록을 매번 다시 보내고 있었다. 미구현으로 남은 계약 타입은 `shop` 하나이며 상점 미구현 결정에 따른 것이다 |
+| 계약 밖 메시지 타입 정리 | 서버 Task 9.4 완료. 계약에 없는 `type` 이 0종이다. `scripts/check_protocol_consistency.py` 로 확인한다. 계약이 정의했으나 서버가 보내지 않던 `entity_enter`·`entity_leave` 도 함께 구현했다. 두 문제는 같은 사안의 양면이었다. 서버는 방 인원 변화를 계약 밖 `room_players_update` 로 전체 목록을 매번 다시 보내고 있었다. 미구현으로 남은 계약 타입은 없다. `shop` 은 계약에서 제거했다 |
 | 감지 능력 기반 이동 알림 | 제거. `broadcast_to_room_by_detection_ability()` 가 계약 밖 타입 `"moving message"`(공백 포함)로 완성된 영어 문장을 보냈다. 플레이어가 센스가 떨어지면 몬스터 이동을 알아채지 못한다는 규칙은 지능·민첩을 로그로만 찍고 실제로는 모두에게 보냈으므로 구현되지 않은 상태였다. 몬스터 로밍은 `entity_enter`·`entity_leave` 로 알린다. 감지 판정을 도입하려면 규칙을 새로 설계해야 한다 |
 | `event` 과도기 필드 제거 | 서버 Task 6.7 완료. `TelnetSession.send_event()`는 `key`/`params`/`category`/`seq`를 받아 `build_event()`에 위임한다. 계약 밖 필드 `text`·`severity`는 게임 채널에서 사라졌다. `send_error`·`send_success`·`send_info`는 삭제했다. 남은 사용처는 어드민 전용 `send_admin_notice()` 하나이며 `category: "admin"`으로 나가고 Task 7.6에서 어드민 채널로 옮기며 사라진다 |
 | 어드민 생문장 경로 제거 | 서버 Task 7.6 완료. `AdminManager` 가 세션에 완성 문장을 보내던 14건을 없애고 결과 dict 반환과 `AdminOperationError` 로 바꿨다. `TelnetSession.send_admin_notice()`, `manager_bridge.py`, `game_engine` 의 관리자 위임 래퍼 4개, 도달 불가였던 `create_object_realtime()` 을 삭제했다. 계약 밖 타입 `object_created` 와 추방 시 `system_message` 브로드캐스트가 사라졌고 `kicked` 만 남았다. 추방 통보를 담을 메시지가 계약에 없기 때문이다 |
@@ -246,7 +242,7 @@ flowchart TD
 | `gold` 필드와 화폐 구현 불일치 | 범위 외. 경제 규칙 변경을 수반한다. `player_state.gold`와 `inventory.gold`는 `CurrencyManager.get_balance()`가 채우는데, 이 매니저는 `properties.template_id == "silver_coin"`인 스택만 집계한다(`currency_manager.py:19,37`). 테스트 계정 player5426은 Gold Coin 2개를 보유하지만 `template_id`가 달라 잔액이 0으로 보고된다. 계약 필드명은 `gold`인데 구현된 화폐는 실버뿐이므로, 필드명을 화폐 종류에 맞게 정정하거나 화폐를 다종으로 확장해야 한다. 어느 쪽이든 상점·교환 로직에 영향이 있어 화폐 설계를 정리할 때 함께 처리한다 |
 | `combat_state.is_over` 기준 | 기존 동작 유지로 결정. `build_combat_state`는 `not combat.is_active`를 보내며, 이는 `combat.is_combat_over()`(한쪽 전멸 판정)와 다른 개념이다. 한쪽이 전멸했으나 `end_combat()`이 아직 호출되지 않은 짧은 구간에서는 `is_over: false`가 나간다. 클라이언트는 전투 종료를 `is_over` 대신 `combat_state` 수신 중단과 `room_info` 재수신으로도 판별할 수 있으므로 현재 동작을 바꾸지 않는다. 전투 종료 처리를 정리할 때 재검토한다 |
 | 대화 대사의 번역 키 전환 | 서버 Task 10 완료. `configs/dialogues/*.lua` 19개 스크립트의 언어별 완성 문장을 번역 키로 바꿨고 문장은 클라이언트 저장소의 `godot/resources/translations/dialogue.json`(키 277개)으로 옮겼다. `lines[]`와 `choices[].text`가 계약대로 `{key, params}`를 담는다. 정적 대사는 위치로 키를 붙였고(`npc.<slug>.<분기>.text.<i>`), 거래 스크립트는 도우미 함수로 갈라져 위치 기반 키가 성립하지 않아 뜻으로 붙였다(`npc.smuggler.item_buy`). 스크립트가 `ctx.session.locale`을 읽어 아이템 이름을 고르던 코드는 없앴다. 이름은 언어별 dict를 그대로 `params`에 실어 클라이언트가 고른다. 종료 선택지 판별도 문장(`"Bye."`)에서 키(`npc.dialogue.farewell`)로 바꿨다. 문장 판별은 거래 메뉴에서 종료 번호가 아이템 인덱스와 겹쳐 매수 시도로 흘러갔다 |
-| 상점 verb 미구현 | 범위 외. `shop_open`/`shop_buy`/`shop_sell`을 등록하지 않는다. 계약이 요구하는 `item_prices` 기반 상점이 서버에 없다. `shop_command.py`는 폐기 표시가 붙어 있고 등록되지 않으며 `item_prices`가 아니라 몬스터 properties의 `shop_items`를 쓴다. 살아 있는 거래 경로는 대화 안의 Lua exchange API뿐이므로 기능 손실이 없다. 계약을 만족시키려면 세 가지가 필요하다: `shop_buy`의 `template_id`를 NPC 인벤토리 실물 uuid로 해석하는 계층(현재 Lua 래퍼에만 존재), `ExchangeManager`의 수량 처리(현재 없음), `stock` 의미 재정의(`exchange_config`에 판매 목록이 없고 `initial_silver`와 `buy_margin`만 있어 실제 재고는 NPC 인벤토리 실물 개수다). 데이터 스키마 변경을 수반하므로 페이즈2 이후 별도 작업 |
+| 상점을 계약에서 제거 | 결정 완료(2026-08-15). `shop` 메시지와 `shop_open`/`shop_buy`/`shop_sell` verb 를 계약에서 뺐다. 누구와도 대화로 거래할 수 있으므로 상점을 특별한 개념으로 둘 이유가 없다. 계약의 상점 모델은 데이터와도 어긋나 있었다. `item_prices` 는 `template_id`·`buy_price`·`sell_price` 세 컬럼뿐이라 `stock` 에 대응하는 데이터가 없고, 상인의 `exchange_config` 는 `initial_silver` 와 `buy_margin` 만 담아 판매 목록이라는 개념이 없다. 실제 재고는 NPC 인벤토리의 실물이며 대화 안 Lua exchange API 가 그것을 그대로 다룬다. 상점을 따로 두면 같은 재고를 두 경로가 보게 되고 진실의 출처가 갈라진다 |
 | `monsters.faction_id` 끊어진 참조 | 데이터 정리. `townspeople` 을 가리키는 몬스터가 1건 있으나 `factions` 에 그 행이 없다(현재 `ash_knights`, `goblins`, `animals` 3개). `monsters.faction_id` 에는 외래키가 선언돼 있지 않아 DB 가 막지 못했다. 어드민 채널의 참조 검사(Task 7.3)는 이 값을 참조로 세지만 기존 행을 고치지는 않는다. `townspeople` 종족을 만들거나 해당 몬스터의 종족을 바꿔야 한다 |
 | `game_objects.location_type` 대소문자 혼재 | 데이터 정리. `room` 45건과 `ROOM` 10건, `container` 1건과 `CONTAINER` 5건이 함께 있다. 어드민 참조 검사와 재동기화는 대소문자를 무시해 비교하므로 동작에 문제는 없으나, 필터로 조회하는 클라이언트가 한쪽만 얻게 된다. 한쪽으로 통일해야 한다 |
 | `rooms` 좌표 중복 | 데이터 정리. 좌표 (-20,-1) 에 방이 2개 있다. `room_connections` 와 `monsters` 가 방을 좌표로 가리키므로 어느 방을 뜻하는지 결정되지 않는다. 어드민 삭제의 참조 검사는 좌표가 유일할 때만 참조로 세는 방식으로 우회했다 |
