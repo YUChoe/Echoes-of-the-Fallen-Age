@@ -317,7 +317,8 @@
   - 전달 경로를 정했다. `ActionResult.message` 는 개발자용이므로 사용자 문장은 `event` 로 나간다. `category` 는 계약이 정한 여섯 가지 중 `item` 이다. `ActionResult` 에 `category` 를 두고 기본값을 `system` 으로 뒀다. 이전에는 성공 알림이 항상 `system` 으로 나갔다.
   - Task 10 이 이 경로를 깨뜨린 것을 함께 고쳤다. `LuaScriptLoader._lua_table_to_dict` 를 `{key, params}` 전용으로 바꾸면서 아이템 콜백 결과(`{message, consume}`)가 빈 dict 가 됐고, `consume` 이 사라져 체력 물약이 소모되지 않았다. 아이템 핸들러가 바깥 테이블을 직접 읽고 `message` 만 `message_payload` 로 넘긴다. 그 함수는 대사와 아이템 문장이 함께 쓰므로 공개 이름으로 바꿨다.
   - 스크립트가 `ctx.session.locale` 을 읽지 않으므로 아이템 콜백 컨텍스트에서도 그 필드를 없앴다. 아이템 이름은 언어별 dict 그대로 params 에 실린다.
-  - 검증: `test_item_actions.py` 에 변환 테스트 5건 추가(서버 353건). 실제 서버로 물약을 사용해 `event`(`category: "item"`, `obj.health_potion.use`, 이름이 언어별 dict)를 받고 소모를 확인했다.
+  - Lua 콜백이 효과를 가로막던 것도 고쳤다. `use`·`read` 는 콜백이 있으면 거기서 끝나 템플릿 속성을 보지 않았다. 체력 물약은 `hp_restore: 10` 을 두고도 체력이 오르지 않았고, 경전은 `readable.content` 를 두고도 본문이 산출되지 않았다. 콜백은 문장과 소모 여부만 정하고 효과와 본문은 템플릿에서 온다. 콜백 문장은 `event` 로 먼저 나가고 수치가 담긴 효과 문장이 액션 결과로 남는다.
+  - 검증: `test_item_actions.py` 에 변환 5건, 사용 4건, 읽기 2건 추가(서버 357건). 실제 서버로 체력 5에서 물약을 마셔 15로 오르는 것과 문장 두 줄(`obj.health_potion.use`, `obj.use.hp_restored` 회복량 10)을 확인했다. 아이템은 `after_use` 규칙대로 빈 병이 됐다.
   - 소모 뒤 `inventory` 스냅샷은 밀지 않는다. `get`·`drop` 도 마찬가지이며 클라이언트가 필요할 때 요청한다. 결정: 서버는 그대로 두고 클라이언트가 화면에서만 감춘다. 서버 데이터가 언제나 우선이므로 정확한 동기화가 목적이 아니다. 클라이언트는 소모품에 `use` 를 보낼 때 목록에서 지우고, 거절되면 되돌리며, `inventory` 가 오면 그 값으로 덮는다.
   - _Requirements: 3.1, 5.1_
 

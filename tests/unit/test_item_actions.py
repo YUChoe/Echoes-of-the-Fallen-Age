@@ -347,3 +347,199 @@ class TestLuaCallbackResult:
 
         assert handler._convert_callback_result("문장") is None
         assert handler._convert_callback_result(None) is None
+
+
+class TestUseHandler:
+    """사용 처리
+
+    Lua 콜백은 문장과 소모 여부만 정하고 효과는 템플릿 속성에서 온다. 예전에는
+    콜백이 있으면 효과 적용을 건너뛰어 체력 물약을 마셔도 체력이 그대로였다.
+
+    소모 경로는 세계 데이터를 만지므로 여기서는 `consume = false` 로 둔다.
+    회복 효과는 세션 상태만 바꾸는 `stamina_restore` 를 쓴다.
+    """
+
+    def _ctx(self, properties: dict, lua_result: dict | None):
+        from src.mud_engine.commands.actions.items import UseHandler  # noqa: F401
+
+        sent: list[dict] = []
+
+        async def send_message(payload: dict) -> None:
+            sent.append(payload)
+
+        session = SimpleNamespace(
+            session_id="session-1",
+            is_authenticated=True,
+            player=SimpleNamespace(
+                id="player-1",
+                username="tester",
+                is_admin=False,
+                preferred_locale="ko",
+                get_display_name=lambda: "tester",
+            ),
+            in_combat=False,
+            combat_id=None,
+            current_room_id="room-1",
+            stamina=1.0,
+            max_stamina=5.0,
+            send_message=send_message,
+        )
+
+        handler_stub = SimpleNamespace(
+            execute_verb_callback=lambda *_args, **_kwargs: lua_result
+        )
+        obj = _make_object(properties)
+
+        ctx = ActionContext(
+            session=session,
+            game_engine=SimpleNamespace(  # type: ignore[arg-type]
+                item_lua_callback_handler=handler_stub
+            ),
+            verb="use",
+            target="obj-1",
+            params={},
+            entity=ResolvedEntity(
+                kind=EntityKind.OBJECT, entity=obj, source="inventory"
+            ),
+        )
+        return ctx, sent
+
+    @pytest.mark.asyncio
+    async def test_콜백이_있어도_효과를_적용한다(self):
+        from src.mud_engine.commands.actions.items import UseHandler
+
+        ctx, sent = self._ctx(
+            {"stamina_restore": 2.0, "template_id": "stamina_potion"},
+            {"message": {"key": "obj.x.use", "params": {}}, "consume": False},
+        )
+
+        result = await UseHandler().handle(ctx)
+
+        assert result.succeeded
+        # 회복 2.0 에서 사용 비용을 뺀 값이 남는다
+        assert ctx.session.stamina > 1.0
+        # 수치를 담은 효과 문장이 액션 결과로 남는다
+        assert result.message_key == "obj.use.stamina_restored"
+        assert result.category == "item"
+
+    @pytest.mark.asyncio
+    async def test_콜백_문장은_별도_event_로_먼저_나간다(self):
+        from src.mud_engine.commands.actions.items import UseHandler
+
+        ctx, sent = self._ctx(
+            {"stamina_restore": 2.0, "template_id": "stamina_potion"},
+            {"message": {"key": "obj.x.use", "params": {"who": "tester"}},
+             "consume": False},
+        )
+
+        await UseHandler().handle(ctx)
+
+        assert len(sent) == 1
+        assert sent[0]["type"] == "event"
+        assert sent[0]["category"] == "item"
+        assert sent[0]["message"]["key"] == "obj.x.use"
+
+    @pytest.mark.asyncio
+    async def test_효과가_없으면_콜백_문장을_쓴다(self):
+        # 잊혀진 경전처럼 회복 속성이 없는 아이템이다
+        from src.mud_engine.commands.actions.items import UseHandler
+
+        ctx, sent = self._ctx(
+            {"template_id": "forgotten_scripture"},
+            {"message": {"key": "obj.y.use", "params": {}}, "consume": False},
+        )
+
+        result = await UseHandler().handle(ctx)
+
+        assert result.succeeded
+        assert result.message_key == "obj.y.use"
+        assert sent == []
+
+    @pytest.mark.asyncio
+    async def test_콜백도_효과도_없으면_거절한다(self):
+        from src.mud_engine.commands.actions.items import UseHandler
+
+        ctx, _ = self._ctx({"template_id": "smooth_stone"}, None)
+
+        result = await UseHandler().handle(ctx)
+
+        assert result.rejection_code == "NOT_APPLICABLE"
+
+
+class TestReadWithCallback:
+    """콜백이 있는 읽기
+
+    콜백 문장은 분위기를, `readable.content` 는 본문을 담는다. 예전에는 콜백이
+    있으면 본문이 클라이언트에 닿지 않았다.
+    """
+
+    def _ctx(self, properties: dict, lua_result: dict | None):
+        sent: list[dict] = []
+
+        async def send_message(payload: dict) -> None:
+            sent.append(payload)
+
+        session = SimpleNamespace(
+            session_id="session-1",
+            is_authenticated=True,
+            player=SimpleNamespace(
+                id="player-1",
+                username="tester",
+                is_admin=False,
+                preferred_locale="ko",
+                get_display_name=lambda: "tester",
+            ),
+            in_combat=False,
+            combat_id=None,
+            current_room_id="room-1",
+            stamina=5.0,
+            max_stamina=5.0,
+            send_message=send_message,
+        )
+
+        ctx = ActionContext(
+            session=session,
+            game_engine=SimpleNamespace(  # type: ignore[arg-type]
+                item_lua_callback_handler=SimpleNamespace(
+                    execute_verb_callback=lambda *_a, **_k: lua_result
+                )
+            ),
+            verb="read",
+            target="obj-1",
+            params={},
+            entity=ResolvedEntity(
+                kind=EntityKind.OBJECT,
+                entity=_make_object(properties),
+                source="inventory",
+            ),
+        )
+        return ctx, sent
+
+    @pytest.mark.asyncio
+    async def test_본문과_콜백_문장이_모두_나간다(self):
+        ctx, sent = self._ctx(
+            {
+                "template_id": "forgotten_scripture",
+                "readable": {"content": {"en": "Hear us", "ko": "들으소서"}},
+            },
+            {"message": {"key": "obj.z.read", "params": {}}},
+        )
+
+        result = await ReadHandler().handle(ctx)
+
+        assert result.succeeded
+        assert result.data["content"]["ko"] == "들으소서"
+        assert [m["message"]["key"] for m in sent] == ["obj.z.read"]
+
+    @pytest.mark.asyncio
+    async def test_본문이_없으면_콜백_문장만_남는다(self):
+        ctx, sent = self._ctx(
+            {"template_id": "rumour_note"},
+            {"message": {"key": "obj.z.read", "params": {}}},
+        )
+
+        result = await ReadHandler().handle(ctx)
+
+        assert result.succeeded
+        assert result.message_key == "obj.z.read"
+        assert sent == []

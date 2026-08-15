@@ -386,32 +386,50 @@ class UseHandler(ActionHandler):
             return rejected("WRONG_STATE", message="Stamina exhausted")
 
         lua_result = _run_lua_callback(ctx, obj, "use")
-
-        if lua_result is not None:
-            if lua_result.get("consume", False):
-                await _consume_item(ctx, obj)
-            _spend_stamina(ctx, in_combat)
-
-            message = lua_result.get("message") or {}
-            return success(
-                message_key=message.get("key"),
-                params=message.get("params"),
-                category="item",
-                data={"object_id": obj.id, "lua_callback": True},
-            )
-
         properties = coerce_properties(obj.properties)
-        if not is_usable(properties):
+
+        # Lua 콜백은 문장과 소모 여부만 정한다. 효과는 템플릿 속성에서 온다.
+        # 예전에는 콜백이 있으면 효과 적용을 건너뛰어, 체력 물약을 마셔도
+        # `hp_restore` 가 쓰이지 않고 체력이 그대로였다.
+        if lua_result is None and not is_usable(properties):
             return rejected("NOT_APPLICABLE", message="Item is not usable")
 
-        effect = await self._apply_effect(ctx, obj, properties)
-        await _consume_item(ctx, obj)
+        effect = (
+            await self._apply_effect(ctx, obj, properties)
+            if is_usable(properties)
+            else None
+        )
+
+        # 콜백이 있으면 그 뜻을 따르고, 없으면 종전대로 항상 소모한다
+        consume = (
+            bool(lua_result.get("consume", False))
+            if lua_result is not None
+            else True
+        )
+        if consume:
+            await _consume_item(ctx, obj)
         _spend_stamina(ctx, in_combat)
 
+        # 콜백 문장은 분위기를, 효과 문장은 수치를 전한다. 둘 다 있으면 콜백
+        # 문장을 먼저 내보내고 효과 문장을 액션 결과로 남긴다
+        flavour = (lua_result.get("message") or {}) if lua_result is not None else {}
+        if flavour.get("key") and effect is not None:
+            from ...server.serialization import build_event
+
+            await ctx.session.send_message(
+                build_event(
+                    str(flavour["key"]),
+                    flavour.get("params"),
+                    category="item",
+                )
+            )
+
+        shown = effect if effect is not None else flavour
         return success(
-            message_key=effect["key"],
-            params=effect["params"],
-            data={"object_id": obj.id},
+            message_key=shown.get("key"),
+            params=shown.get("params"),
+            category="item",
+            data={"object_id": obj.id, "lua_callback": lua_result is not None},
         )
 
     async def _apply_effect(
@@ -478,17 +496,30 @@ class ReadHandler(ActionHandler):
             return rejected("INVALID_PARAMS", message="page must be a positive integer")
 
         lua_result = _run_lua_callback(ctx, obj, "read")
-        if lua_result is not None:
-            message = lua_result.get("message") or {}
-            return success(
-                message_key=message.get("key"),
-                params=message.get("params"),
-                category="item",
-                data={"object_id": obj.id, "lua_callback": True},
+        properties = coerce_properties(obj.properties)
+
+        # 콜백 문장은 읽는 순간의 분위기를, `readable.content` 는 본문을 담는다.
+        # 예전에는 콜백이 있으면 여기서 끝나 본문이 클라이언트에 닿지 않았다.
+        flavour = (lua_result.get("message") or {}) if lua_result is not None else {}
+        if flavour.get("key") and is_readable(properties):
+            from ...server.serialization import build_event
+
+            await ctx.session.send_message(
+                build_event(
+                    str(flavour["key"]),
+                    flavour.get("params"),
+                    category="item",
+                )
             )
 
-        properties = coerce_properties(obj.properties)
         if not is_readable(properties):
+            if flavour.get("key"):
+                return success(
+                    message_key=str(flavour["key"]),
+                    params=flavour.get("params"),
+                    category="item",
+                    data={"object_id": obj.id, "lua_callback": True},
+                )
             return rejected("NOT_APPLICABLE", message="Item is not readable")
 
         readable = properties.get("readable", {})
