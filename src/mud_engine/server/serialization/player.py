@@ -40,7 +40,7 @@ def build_player_state(
     room_id: Optional[str] = None,
     stamina: float = 0.0,
     max_stamina: float = 0.0,
-    gold: int = 0,
+    silver: int = 0,
     in_combat: bool = False,
     in_dialogue: bool = False,
     following: Optional[str] = None,
@@ -53,7 +53,7 @@ def build_player_state(
         room_id: 현재 방 id. 세션이 보유하므로 호출부가 전달한다
         stamina: 현재 스태미나. 세션 값이다
         max_stamina: 최대 스태미나. 세션 값이다
-        gold: 화폐 합계. CurrencyManager 가 계산한 값이다
+        silver: 실버 잔액. CurrencyManager 가 계산한 값이다
         in_combat: 전투 중 여부. 세션 상태다
         in_dialogue: 대화 중 여부. 세션 상태다
         following: 따라가는 대상 id. 세션 상태다
@@ -75,7 +75,7 @@ def build_player_state(
         "max_hp": stats.get_secondary_stat(StatType.HP) if stats else 0,
         "stamina": round(float(stamina), 2),
         "max_stamina": round(float(max_stamina), 2),
-        "gold": int(gold),
+        "silver": int(silver),
         "stats": serialize_stats(player),
         "equipment_bonuses": dict(stats.equipment_bonuses) if stats else {},
         "temporary_effects": dict(stats.temporary_effects) if stats else {},

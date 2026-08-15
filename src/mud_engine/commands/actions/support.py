@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def get_gold(ctx: "ActionContext") -> int:
-    """플레이어의 화폐 합계를 조회한다.
+async def get_silver(ctx: "ActionContext") -> int:
+    """플레이어의 실버 잔액을 조회한다.
 
     `CurrencyManager` 는 현재 `DialogueManager` 가 소유한다. 교환 시스템과 함께
     초기화되므로 없을 수 있어 방어적으로 접근한다.

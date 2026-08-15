@@ -9,7 +9,7 @@
 
 import logging
 
-from .support import get_carried_objects, get_gold
+from .support import get_carried_objects, get_silver
 from ..base import ActionHandler
 from ..context import ActionContext, ActionResult, rejected, success
 from ...server.serialization import (
@@ -37,7 +37,7 @@ class RequestStateHandler(ActionHandler):
                 room_id=ctx.room_id,
                 stamina=getattr(ctx.session, "stamina", 0.0),
                 max_stamina=getattr(ctx.session, "max_stamina", 0.0),
-                gold=await get_gold(ctx),
+                silver=await get_silver(ctx),
                 in_combat=getattr(ctx.session, "in_combat", False),
                 in_dialogue=getattr(ctx.session, "in_dialogue", False),
                 following=getattr(ctx.session, "following_player", None),
@@ -64,7 +64,7 @@ class RequestInventoryHandler(ActionHandler):
             build_inventory(
                 player,
                 objects,
-                gold=await get_gold(ctx),
+                silver=await get_silver(ctx),
                 seq=ctx.seq,
             )
         )

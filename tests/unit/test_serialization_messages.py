@@ -267,12 +267,12 @@ class TestBuildInventory:
         player = _make_player()
         objects = [_make_object(), _make_object(weight=2.0)]
 
-        message = ser.build_inventory(player, objects, gold=1240)
+        message = ser.build_inventory(player, objects, silver=1240)
 
         assert message["type"] == "inventory"
         assert message["total_weight"] == 3.5
         assert message["max_weight"] > 0
-        assert message["gold"] == 1240
+        assert message["silver"] == 1240
         assert len(message["items"]) == 2
 
     def test_equipped_slots(self):
@@ -309,7 +309,7 @@ class TestBuildPlayerState:
             room_id="room-1",
             stamina=3.5,
             max_stamina=5.0,
-            gold=1240,
+            silver=1240,
             in_combat=True,
         )
         payload = message["player"]
@@ -319,7 +319,7 @@ class TestBuildPlayerState:
         assert payload["room_id"] == "room-1"
         assert payload["stamina"] == 3.5
         assert payload["max_stamina"] == 5.0
-        assert payload["gold"] == 1240
+        assert payload["silver"] == 1240
         assert payload["in_combat"] is True
         assert payload["in_dialogue"] is False
         assert payload["following"] is None

@@ -234,7 +234,7 @@
     "max_hp": 50,
     "stamina": 30,
     "max_stamina": 50,
-    "gold": 1240,
+    "silver": 1240,
     "stats": {
       "strength": 10,
       "dexterity": 14,
@@ -254,7 +254,7 @@
 
 `stats`는 `players` 테이블의 `stat_strength` 계열 6개 컬럼에 대응한다. `hp`는 `stat_current` JSON에서, `equipment_bonuses`와 `temporary_effects`는 각각 `stat_equipment_bonuses`, `stat_temporary_effects` JSON에서 온다.
 
-`gold`는 별도 컬럼이 아니라 인벤토리의 화폐 아이템 합계다. 서버가 계산해서 보낸다.
+`silver`는 별도 컬럼이 아니라 인벤토리의 실버 코인 스택 합계다. 서버가 계산해서 보낸다.
 
 상태가 바뀌면 서버가 자발적으로 다시 보낸다. 전투 중에는 `combat_state`가 HP를 포함하므로 중복 전송을 피하기 위해 `player_state`를 매 턴 보내지 않는다.
 
@@ -266,7 +266,7 @@
   "seq": null,
   "total_weight": 12.0,
   "max_weight": 20.0,
-  "gold": 1240,
+  "silver": 1240,
   "items": [],
   "equipped": {
     "right_hand": "b8593baf-..."
@@ -278,7 +278,9 @@
 
 `equipped`는 슬롯별 uuid 매핑이며 채워진 슬롯만 담는다. 서버는 슬롯 이름을 확정하지 않는다. 허용값이 16종이고 `accessory`나 대문자 `RING` 같은 레거시가 섞여 있어서다. 클라이언트가 표시할 슬롯 목록을 자체 보유하고 없는 키를 빈 슬롯으로 처리한다.
 
-`gold`는 `CurrencyManager`가 집계한 화폐 합계다. 이 매니저는 `properties.template_id`가 `silver_coin`인 스택만 세므로 필드 이름과 구현이 어긋나 있다. 그 정리는 consistency.md의 화폐 항목에서 다룬다.
+`silver`는 `CurrencyManager`가 집계한 실버 잔액이다. `properties.template_id`가 `silver_coin`인 스택의 수량 합이다.
+
+화폐는 실버 하나다. 골드는 화폐가 아니라 아이템이며 잔액에 잡히지 않는다. 1골드는 10실버의 값을 가지므로 NPC에게 팔아 실버로 바꿀 수 있다. 두 동전의 무게는 같다.
 
 서버는 아이템을 묶지 않고 개별 엔티티로 보낸다. 같은 종류가 여럿이면 uuid가 다른 항목 여러 개가 온다. `stack_count`는 `properties.quantity` 값이며 현재 화폐만 1을 초과한다. 클라이언트가 표시할 때 같은 `template_id`끼리 묶을 수 있으나 액션의 `target`은 개별 uuid를 사용한다.
 

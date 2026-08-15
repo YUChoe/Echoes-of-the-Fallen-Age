@@ -33,7 +33,7 @@ def serialize_equipped_slots(objects: Iterable[GameObject]) -> dict[str, Optiona
 def build_inventory(
     player: Player,
     objects: list[GameObject],
-    gold: int = 0,
+    silver: int = 0,
     seq: Optional[int] = None,
 ) -> dict[str, Any]:
     """inventory 메시지를 만든다.
@@ -41,7 +41,7 @@ def build_inventory(
     Args:
         player: 소유 플레이어. 최대 소지 무게 계산에 쓴다
         objects: 인벤토리 오브젝트 목록. 장착 중인 것도 포함한다
-        gold: 화폐 합계. CurrencyManager 가 계산한 값을 호출부가 전달한다
+        silver: 실버 잔액. CurrencyManager 가 계산한 값을 호출부가 전달한다
         seq: 클라이언트 요청에 대한 응답이면 그 번호
     """
     from .entity import serialize_object
@@ -52,7 +52,7 @@ def build_inventory(
         seq=seq,
         total_weight=round(player.get_current_carry_weight(objects), 2),
         max_weight=round(player.get_max_carry_weight(), 2),
-        gold=int(gold),
+        silver=int(silver),
         items=[serialize_object(obj) for obj in objects],
         equipped=serialize_equipped_slots(objects),
     )
