@@ -1,0 +1,8 @@
+# 개발과 검사 도구. 실행 이미지에는 담지 않는다.
+#
+#   pip install -r requirements.txt -r requirements-dev.txt
+
+mypy==1.15.0
+pytest>=9.1.0
+pytest-asyncio>=1.4.0
+ruff>=0.16.0

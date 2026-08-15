@@ -1,60 +1,51 @@
-# Python
+# 컨테이너에 담지 않는 것
+#
+# 소스와 configs 만 담는다. 데이터와 로그는 볼륨으로 붙이고, .git 은 넣지 않는다.
+# 버전 정보는 빌드 인자로 받는다.
+
+# 파이썬 산출물
 __pycache__/
 *.py[cod]
-*$py.class
 *.so
-.Python
 *.egg-info/
 dist/
 build/
-*.egg
 
 # 가상환경
-mud_engine_env/
+.venv/
 venv/
 env/
-ENV/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Git (버전 정보 생성을 위해 .git은 포함, .gitignore만 제외)
+# 버전 관리
+.git/
 .gitignore
+.gitattributes
 
-# 데이터 및 로그 (volumes로 관리)
+# 데이터와 로그. 볼륨으로 붙인다
 data/
 logs/
 volumes/
 
-# 백업 파일
+# 검사 캐시
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 개발 전용
+tests/
+scripts/
+docs/
+.kiro/
+*.md
+.env
+.env.*
+!.env.example
+
+# 백업과 산출물
 *.tar.gz
 *.zip
 *.bak
 *_backup.*
-
-# 테스트
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-
-# 환경 설정
-.env
-.env.local
-
-# 문서
-docs/
-*.md
-README.md
-
-# 스크립트 (버전 생성 스크립트는 포함)
-scripts/
-!scripts/generate_version_info.py
-export_map.sh
-
-# 기타
-world_map_unified.html
+world_map*.html

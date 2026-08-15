@@ -1,16 +1,16 @@
-# Core runtime packages
-aiohttp>=3.8.0
-aiosqlite>=0.17.0
-bcrypt>=4.0.0
-lupa>=2.0
-pydantic>=1.10.0
-python-dotenv>=0.19.0
+# 실행에 필요한 것만 담는다. 개발 도구는 requirements-dev.txt 에 있다.
+#
+# 하한은 실제로 검증한 버전이다. 예전에는 pydantic>=1.10.0 처럼 실물과 두 세대
+# 벌어진 하한이 적혀 있어 새 환경에서 다른 메이저가 깔릴 수 있었다.
+#
+# aiohttp 는 3.10 이상을 요구한다. 프로덕션 파이썬이 3.9 라 서버를 컨테이너로
+# 돌리는 이유 중 하나다. 자세한 것은 README.Docker.md 참조.
 
-# Development tools
-pytest>=7.0.0
-pytest-asyncio>=0.20.0
-ruff>=0.15.0
-mypy==1.15.0
-
-# Additional utilities
-colorama>=0.4.0
+aiohttp>=3.14.0
+aiosqlite>=0.22.0
+bcrypt>=5.0.0
+lupa>=2.8
+python-dotenv>=1.2.0
+# exchange_manager 가 TypedDict 를 여기서 가져온다. 3.14 표준에도 있지만
+# 임포트 경로가 typing_extensions 라 명시한다
+typing-extensions>=4.16.0
