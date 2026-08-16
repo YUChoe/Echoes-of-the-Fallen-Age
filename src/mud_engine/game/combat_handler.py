@@ -728,6 +728,8 @@ class CombatHandler:
             session: 플레이어 세션
             combat: 떠나는 전투 인스턴스
         """
+        from ..server.serialization import build_combat_state
+
         original_room_id = getattr(session, "original_room_id", None)
         if original_room_id:
             session.current_room_id = original_room_id
@@ -745,6 +747,18 @@ class CombatHandler:
             logger.info(f"전투 {combat.id} 종료 - 모든 플레이어 이탈")
         else:
             logger.info(f"전투 {combat.id} 유지 - 남은 플레이어 {len(remaining)}명")
+
+        # 떠나는 당사자에게 끝났음을 알린다. 계약이 요구하는 마지막 신호이며
+        # 클라이언트는 이것으로 전투 화면을 닫는다. 참가자 목록에서 이미
+        # 빠졌으므로 아래 브로드캐스트로는 닿지 않는다
+        if session.player:
+            await session.send_message(
+                build_combat_state(combat, session.player.id, is_over=True)
+            )
+
+        # 남은 참가자는 턴 순서가 바뀌었다
+        if remaining:
+            await self.broadcast_combat_state(combat)
 
     async def start_combat(self, player: Player, monster: Monster, room_id: str, broadcast_callback=None, aggresive=False) -> CombatInstance:
         """

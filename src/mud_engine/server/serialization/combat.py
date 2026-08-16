@@ -42,6 +42,7 @@ def build_combat_state(
     combat: "CombatInstance",
     viewer_id: str,
     seq: Optional[int] = None,
+    is_over: Optional[bool] = None,
 ) -> dict[str, Any]:
     """combat_state 메시지를 만든다.
 
@@ -49,6 +50,9 @@ def build_combat_state(
         combat: 전투 인스턴스
         viewer_id: 요청 플레이어의 id. is_my_turn 판정과 아군 분류에 쓴다
         seq: 클라이언트 요청에 대한 응답이면 그 번호
+        is_over: 종료 여부를 직접 정한다. 기본은 인스턴스의 활성 상태다.
+            전투를 떠나는 당사자에게는 참을 준다. 다른 참가자가 남아 인스턴스가
+            살아 있어도 떠난 사람에게는 끝난 것이다
     """
     from .envelope import build
 
@@ -78,7 +82,7 @@ def build_combat_state(
         turn_order=[str(cid) for cid in combat.turn_order],
         allies=allies,
         enemies=enemies,
-        is_over=not combat.is_active,
+        is_over=(not combat.is_active) if is_over is None else is_over,
     )
 
 

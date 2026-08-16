@@ -16,11 +16,12 @@ import random
 from typing import Any, Optional
 
 from .items import UseHandler
+from .support import get_silver
 from ..base import ActionHandler
 from ..context import ActionContext, ActionResult, error, rejected, success
 from ..resolver import EntityKind
 from ...game.combatant import CombatAction
-from ...server.serialization import build_combat_state
+from ...server.serialization import build_combat_state, build_player_state
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,10 @@ async def _push_combat_state(ctx: ActionContext, combat: Any) -> None:
 
 
 async def _finish_if_over(ctx: ActionContext, combat: Any) -> bool:
-    """전투가 끝났으면 정리하고 방 정보를 보낸다.
+    """전투가 끝났으면 정리하고 뒷정리 메시지를 보낸다.
+
+    계약이 정한 순서는 `combat_state`(is_over) → `room_info` → `player_state`
+    다. 첫 번째는 `leave_combat` 이 보낸다.
 
     Returns:
         전투가 끝났으면 True
@@ -83,14 +87,39 @@ async def _finish_if_over(ctx: ActionContext, combat: Any) -> bool:
         return False
 
     await ctx.game_engine.combat_handler.leave_combat(ctx.session, combat)
+    await _send_aftermath(ctx)
 
+    return True
+
+
+async def _send_aftermath(ctx: ActionContext) -> None:
+    """전투 후 방 정보와 플레이어 상태를 보낸다.
+
+    상태를 함께 보내는 것은 전투로 HP 가 바뀌었기 때문이다. 보내지 않으면
+    클라이언트가 전투 직전 값을 계속 보여 준다.
+    """
     room_id = getattr(ctx.session, "current_room_id", None)
     if room_id:
         await ctx.game_engine.movement_manager.send_room_info_to_player(
             ctx.session, room_id
         )
 
-    return True
+    player = ctx.session.player
+    if player is None:
+        return
+
+    await ctx.session.send_message(
+        build_player_state(
+            player,
+            room_id=room_id,
+            stamina=getattr(ctx.session, "stamina", 0.0),
+            max_stamina=getattr(ctx.session, "max_stamina", 0.0),
+            silver=await get_silver(ctx),
+            in_combat=False,
+            in_dialogue=getattr(ctx.session, "in_dialogue", False),
+            following=getattr(ctx.session, "following_player", None),
+        )
+    )
 
 
 class AttackHandler(ActionHandler):
