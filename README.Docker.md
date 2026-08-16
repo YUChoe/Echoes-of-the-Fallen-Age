@@ -85,6 +85,10 @@ SELinux 가 켜져 있으면 볼륨에 `:Z` 를 붙여야 한다. OL7 기본값�
 sudo chown -R 10001:10001 data logs configs
 ```
 
+이것을 빠뜨리면 컨테이너가 `PermissionError: [Errno 13] ... '/app/logs/mud_engine-*.log'` 로 죽고 `restart: unless-stopped` 때문에 재시작을 반복한다. `docker ps` 의 STATUS 가 `Restarting` 이면 이 경우를 먼저 본다.
+
+uid 10001 은 관례일 뿐 요구사항이 아니다. 호스트 사용자와 겹치지 않게 높은 번호를 잡았다. 파일 소유자를 호스트 사용자로 두고 싶으면 `chown` 대신 compose 의 서비스에 `user: "1000:1000"` 을 넣는다.
+
 ## 종료
 
 `SIGTERM` 을 받으면 `ShutdownSignal` 이 처리한다. WAL 체크포인트와 세션 종료 알림까지 끝내고 내려간다. 강제 종료하면 그 절차가 빠진다.
