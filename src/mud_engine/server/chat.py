@@ -12,6 +12,7 @@
 import logging
 from typing import Any, Optional
 
+from .player_session_logger import log_chat
 from .serialization import build_chat, error as protocol_error
 from ..core.types import SessionType
 
@@ -97,9 +98,17 @@ class ChatRouter:
             return
 
         if channel == CHANNEL_WHISPER:
-            await self._whisper(session, message.get("to"), body, seq)
+            recipient = message.get("to")
+            log_chat(
+                session.player.id,
+                CHANNEL_WHISPER,
+                body,
+                target=recipient if isinstance(recipient, str) else None,
+            )
+            await self._whisper(session, recipient, body, seq)
             return
 
+        log_chat(session.player.id, CHANNEL_ROOM, body)
         await self._room(session, body, seq)
 
     async def _room(

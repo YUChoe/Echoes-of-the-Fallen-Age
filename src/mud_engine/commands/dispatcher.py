@@ -23,6 +23,7 @@ from .context import ActionContext, ActionResult, error, rejected
 from .resolver import EntityResolver
 from ..core.event_bus import Event, EventBus, EventType
 from ..core.types import SessionType
+from ..server.player_session_logger import log_action
 
 if TYPE_CHECKING:
     from ..core.game_engine import GameEngine
@@ -80,12 +81,22 @@ class ActionDispatcher:
     async def dispatch(self, ctx: ActionContext) -> ActionResult:
         """액션 한 건을 처리한다.
 
+        결과가 무엇이든 플레이어 로그에 한 줄을 남긴다. 앞 단계에서 거절된
+        것도 남겨야 한다. 대상이 사라져 NOT_FOUND 가 나는 경우처럼 사후에
+        가장 궁금한 것들이 핸들러에 닿기 전에 걸린다.
+
         Args:
             ctx: 액션 컨텍스트. `entity` 는 이 메서드가 채운다
 
         Returns:
             처리 결과. 거절도 정상 반환이며 예외를 던지지 않는다
         """
+        result = await self._dispatch(ctx)
+        self._log_to_player(ctx, result)
+        return result
+
+    async def _dispatch(self, ctx: ActionContext) -> ActionResult:
+        """검증 단계를 거쳐 핸들러를 부른다."""
         # 1. 인증 검사
         if not ctx.session.is_authenticated or not ctx.session.player:
             return rejected(
@@ -170,6 +181,24 @@ class ActionDispatcher:
         logger.info(f"액션 실행: {username} -> {ctx.verb} -> {result.result_type.value}")
 
         return result
+
+    @staticmethod
+    def _log_to_player(ctx: ActionContext, result: ActionResult) -> None:
+        """플레이어별 로그에 액션 한 줄을 남긴다.
+
+        통합 로그의 한 줄은 대상을 담지 않아 사후에 무엇을 했는지 되짚을 수
+        없다. 거절도 남긴다. 사유 코드가 재현에 쓸모가 있다.
+        """
+        if ctx.session.player is None:
+            return
+
+        outcome = result.result_type.value
+        if result.rejection_code:
+            outcome = f"{outcome}({result.rejection_code})"
+
+        log_action(
+            ctx.session.player.id, ctx.verb, ctx.target, ctx.params, outcome
+        )
 
     async def _publish_action_event(self, ctx: ActionContext) -> None:
         """액션 수신을 이벤트로 알린다."""
