@@ -41,30 +41,6 @@ def admin_login_result(
     return build("admin_login_result", seq=seq, **payload)
 
 
-def service_login_result(
-    seq: Optional[int],
-    success: bool,
-    service: Optional[str] = None,
-    expires_at: Optional[str] = None,
-    reason_code: Optional[str] = None,
-) -> dict[str, Any]:
-    """서비스 인증 결과를 만든다.
-
-    랜딩 백엔드가 계정 생성을 위해 쓴다. 성공해도 `account_create` 외의
-    어드민 메시지는 `PERMISSION_DENIED` 로 거절된다.
-    """
-    payload: dict[str, Any] = {"success": success}
-
-    if service is not None:
-        payload["service"] = service
-    if expires_at is not None:
-        payload["expires_at"] = expires_at
-    if reason_code is not None:
-        payload["reason_code"] = reason_code
-
-    return build("service_login_result", seq=seq, **payload)
-
-
 def admin_list_result(
     seq: Optional[int],
     resource: str,

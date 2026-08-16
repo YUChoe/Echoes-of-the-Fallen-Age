@@ -16,7 +16,6 @@ from .admin import (
     admin_mutate_result,
     admin_rejected,
     admin_stats_result,
-    service_login_result,
 )
 from .combat import build_combat_state, serialize_combatant
 from .dialogue import build_dialogue, ensure_farewell_choice, serialize_choices
@@ -105,6 +104,5 @@ __all__ = [
     "serialize_player_summary",
     "serialize_room",
     "serialize_stats",
-    "service_login_result",
     "stack_count",
 ]

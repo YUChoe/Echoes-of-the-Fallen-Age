@@ -1,23 +1,24 @@
 """
 계정 생성 경로 단위 테스트
 
-입력 검증, 사용자명 중복, 서비스 토큰 미설정 시 경로 비활성화를 확인한다.
-계약: docs/protocol/admin.md
+입력 검증과 사용자명 중복을 확인한다. 규칙은 게임 채널의 `register` 와 함께
+`server/accounts.py` 에 있고 두 경로가 같은 것을 쓴다.
+
+계약: docs/protocol/admin.md, docs/protocol/client-to-server.md
 """
 
 import pytest
 
-from src.mud_engine.server.admin.account import (
+from src.mud_engine.server.accounts import (
     EMAIL_MAX_LENGTH,
     PASSWORD_MAX_BYTES,
     PASSWORD_MIN_LENGTH,
     SUPPORTED_LOCALES,
     USERNAME_MAX_LENGTH,
     USERNAME_MIN_LENGTH,
-    AccountHandlers,
-    _validate,
-    is_enabled,
+    validate as _validate,
 )
+from src.mud_engine.server.admin.account import AccountHandlers
 from src.mud_engine.utils.exceptions import AuthenticationError
 
 
@@ -172,25 +173,17 @@ def test_locale_is_optional():
 # 경로 활성화 ----------------------------------------------------------------
 
 
-def test_path_is_disabled_without_service_token(monkeypatch):
-    """토큰이 없으면 처리기를 등록하지 않는다"""
-    monkeypatch.delenv("LANDING_SERVICE_TOKEN", raising=False)
+def test_path_is_always_registered():
+    """어드민 경로는 조건 없이 등록한다
+
+    예전에는 서비스 토큰이 있을 때만 등록했다. 랜딩 백엔드가 그 토큰으로
+    붙었기 때문이다. 계정 생성이 게임 채널로 옮겨가 서비스 주체가 사라졌고,
+    이 경로는 관리자 전용으로 남았다.
+    """
     server = _StubServer()
 
     AccountHandlers(_StubPlayerManager()).register_all(server)
 
-    assert is_enabled() is False
-    assert "account_create" not in server.registered
-
-
-def test_path_is_enabled_with_service_token(monkeypatch):
-    """토큰이 있으면 등록한다"""
-    monkeypatch.setenv("LANDING_SERVICE_TOKEN", "s3cr3t")
-    server = _StubServer()
-
-    AccountHandlers(_StubPlayerManager()).register_all(server)
-
-    assert is_enabled() is True
     assert "account_create" in server.registered
 
 
@@ -272,3 +265,89 @@ async def test_failure_response_omits_player_id():
     )
 
     assert "player_id" not in session.sent[0]
+
+
+# 게임 채널 register ---------------------------------------------------------
+
+
+class _StubSessionMessages:
+    """보낸 메시지를 모으는 세션 대역"""
+
+    def __init__(self) -> None:
+        self.sent: list = []
+
+    async def send_message(self, payload: dict) -> None:
+        self.sent.append(payload)
+
+
+def _server_with(player_manager):
+    """`handle_register` 만 쓰는 최소 서버를 만든다"""
+    from src.mud_engine.server.telnet_server import TelnetServer
+
+    server = TelnetServer.__new__(TelnetServer)
+    server.player_manager = player_manager
+    return server
+
+
+@pytest.mark.asyncio
+async def test_register_creates_account():
+    """게임 채널에서 계정을 만든다"""
+    session = _StubSessionMessages()
+    server = _server_with(_StubPlayerManager())
+
+    await server.handle_register(session, {
+        "type": "register", "seq": 7,
+        "username": "newplayer", "password": "longenough",
+    })
+
+    assert len(session.sent) == 1
+    reply = session.sent[0]
+    assert reply["type"] == "register_result"
+    assert reply["seq"] == 7
+    assert reply["success"] is True
+    assert reply["player_id"]
+
+
+@pytest.mark.asyncio
+async def test_register_rejects_bad_input():
+    """검증 실패는 VALIDATION_FAILED 다"""
+    session = _StubSessionMessages()
+    server = _server_with(_StubPlayerManager())
+
+    await server.handle_register(session, {
+        "type": "register", "seq": 8, "username": "ab", "password": "longenough",
+    })
+
+    reply = session.sent[0]
+    assert reply["success"] is False
+    assert reply["reason_code"] == "VALIDATION_FAILED"
+    assert "player_id" not in reply
+
+
+@pytest.mark.asyncio
+async def test_register_reports_duplicate_username():
+    """중복 사용자명은 USERNAME_TAKEN 이다"""
+    session = _StubSessionMessages()
+    server = _server_with(_StubPlayerManager(taken=("player5426",)))
+
+    await server.handle_register(session, {
+        "type": "register", "seq": 9,
+        "username": "player5426", "password": "longenough",
+    })
+
+    reply = session.sent[0]
+    assert reply["success"] is False
+    assert reply["reason_code"] == "USERNAME_TAKEN"
+
+
+@pytest.mark.asyncio
+async def test_register_does_not_leak_detail():
+    """거절 사유의 개발자용 설명은 응답에 담지 않는다"""
+    session = _StubSessionMessages()
+    server = _server_with(_StubPlayerManager())
+
+    await server.handle_register(session, {
+        "type": "register", "username": "ab", "password": "short",
+    })
+
+    assert set(session.sent[0]) <= {"type", "seq", "success", "reason_code"}

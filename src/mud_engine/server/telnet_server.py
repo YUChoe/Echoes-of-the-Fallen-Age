@@ -15,6 +15,7 @@ from .channels import (
     CHANNEL_GAME,
     wrong_channel_detail,
 )
+from . import accounts
 from .chat import ChatRouter
 from .serialization import PROTOCOL_VERSION, build, message_payload
 from ..core.game_engine import GameEngine
@@ -232,6 +233,12 @@ class TelnetServer:
                 await self._reject_wrong_channel(session, msg_type, seq)
                 continue
 
+            if msg_type == "register":
+                # 계정 생성은 인증 전에 쓰는 경로다. 성공해도 로그인되지 않으며
+                # 시도 횟수에 세지 않는다. 로그인 실패 상한과 목적이 다르다
+                await self.handle_register(session, message)
+                continue
+
             if msg_type != "login":
                 # 인증 전에는 login 외의 메시지를 허용하지 않는다
                 await session.send_protocol_error(
@@ -250,6 +257,55 @@ class TelnetServer:
             f"세션 {session.session_id}: 로그인 실패 {MAX_LOGIN_ATTEMPTS}회로 연결 종료"
         )
         return False
+
+    async def handle_register(
+        self, session: TelnetSession, message: dict[str, Any]
+    ) -> None:
+        """`register` 메시지를 받아 계정을 만든다.
+
+        게임 클라이언트의 회원가입 경로다. 인증 전에 받으며 성공해도 세션은
+        인증되지 않는다. 만든 계정으로 다시 `login` 을 보내야 한다. 두 단계를
+        합치면 실패 처리가 뒤섞이고, 계정만 만들고 나중에 접속하는 흐름을 막는다.
+
+        남용 제한은 두지 않았다. 2차 인증으로 다루기로 했다.
+        """
+        seq = message.get("seq")
+
+        username = message.get("username")
+        password = message.get("password")
+        email = message.get("email") or None
+        locale = message.get("preferred_locale") or None
+
+        detail = accounts.validate(username, password, email, locale)
+
+        if detail is not None:
+            logger.info(f"계정 생성 거절 (VALIDATION_FAILED): {detail}")
+            await session.send_message(
+                build("register_result", seq=seq, success=False,
+                      reason_code="VALIDATION_FAILED")
+            )
+            return
+
+        assert isinstance(username, str) and isinstance(password, str)
+
+        player, reason_code, detail = await accounts.create(
+            self.player_manager, username, password, email, locale
+        )
+
+        if reason_code is not None:
+            logger.info(f"계정 생성 거절 ({reason_code}): {detail}")
+            await session.send_message(
+                build("register_result", seq=seq, success=False,
+                      reason_code=reason_code)
+            )
+            return
+
+        logger.info(f"계정 생성: {username} (게임 채널)")
+
+        await session.send_message(
+            build("register_result", seq=seq, success=True,
+                  player_id=player.id)
+        )
 
     async def handle_login(
         self, session: TelnetSession, message: Dict[str, Any]

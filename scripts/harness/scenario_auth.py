@@ -3,7 +3,8 @@
 """인증과 봉투 검증 시나리오
 
 JSON 송신 전환(server-json-protocol Task 3)이 계약대로 동작하는지 확인한다.
-검증 대상은 welcome 송신, 메시지 기반 로그인, ping/pong, 봉투 위반 처리다.
+검증 대상은 welcome 송신, 인증 전 회원가입, 메시지 기반 로그인, ping/pong,
+봉투 위반 처리다.
 
 기대값은 구현에서 가져오지 않고 계약 문서(docs/protocol/)의 값을 그대로 적는다.
 구현과 계약이 어긋나면 드러나야 하기 때문이다.
@@ -150,6 +151,68 @@ def _check_admin_message_rejected(
         return
 
     result.ok("어드민 메시지 거절", "admin_login 을 NOT_APPLICABLE 로 거절하고 채널을 알린다")
+
+
+def _check_register(result: ScenarioResult, client: HarnessClient) -> None:
+    """인증 전에 register 가 열려 있고 검증이 도는지 확인한다.
+
+    계정을 실제로 만들지 않는다. 거절 경로만 확인해 DB 를 바꾸지 않는다.
+    성공 경로까지 보려면 매 실행마다 계정이 쌓인다.
+    """
+    cases = (
+        ("짧은 사용자명", {"username": "ab", "password": "test1234"}),
+        ("짧은 비밀번호", {"username": "harnessnew", "password": "short"}),
+        (
+            "잘못된 이메일",
+            {
+                "username": "harnessnew",
+                "password": "test1234",
+                "email": "not-an-email",
+            },
+        ),
+    )
+
+    for label, payload in cases:
+        seq = client.send_json({"type": "register", **payload})
+
+        try:
+            reply = client.wait_for("register_result", seq=seq, timeout_ms=5000)
+        except HarnessError as exc:
+            result.fail(f"회원가입 검증 - {label}", str(exc))
+            return
+
+        if reply.get("success") is not False:
+            result.fail(f"회원가입 검증 - {label}", f"success 가 {reply.get('success')!r}")
+            return
+
+        if reply.get("reason_code") != "VALIDATION_FAILED":
+            result.fail(
+                f"회원가입 검증 - {label}",
+                f"reason_code 가 {reply.get('reason_code')!r}",
+            )
+            return
+
+        if "player_id" in reply:
+            result.fail(f"회원가입 검증 - {label}", "실패 응답에 player_id 가 있다")
+            return
+
+    # 이미 있는 계정으로 중복 판정을 본다
+    seq = client.send_json(
+        {"type": "register", "username": TEST_USERNAME, "password": "test1234"}
+    )
+
+    try:
+        reply = client.wait_for("register_result", seq=seq, timeout_ms=5000)
+    except HarnessError as exc:
+        result.fail("회원가입 중복 거절", str(exc))
+        return
+
+    if reply.get("reason_code") != "USERNAME_TAKEN":
+        result.fail("회원가입 중복 거절", f"reason_code 가 {reply.get('reason_code')!r}")
+        return
+
+    result.ok("회원가입 검증", "인증 전 경로에서 길이·문자·이메일 3건 거절")
+    result.ok("회원가입 중복 거절", f"{TEST_USERNAME} 은 USERNAME_TAKEN")
 
 
 def _check_login_failure(result: ScenarioResult, client: HarnessClient) -> None:
@@ -349,6 +412,7 @@ def run(result: ScenarioResult, port: int = DEFAULT_PORT) -> None:
             _check_type_required(result, client)
             _check_action_before_login(result, client)
             _check_admin_message_rejected(result, client)
+            _check_register(result, client)
             _check_login_failure(result, client)
 
             if _check_login_success(result, client) is None:

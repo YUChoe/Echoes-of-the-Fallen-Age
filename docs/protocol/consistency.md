@@ -12,6 +12,7 @@
 
 | 메시지 | 서버 처리 | 클라이언트 송신 |
 |---|---|---|
+| `register` | 회원가입 이전 | 회원가입 화면 |
 | `login` | Task 3.5 | Task 3 |
 | `logout` | Task 3.5 | Task 3 |
 | `action` | Task 4.2 | Task 1.5 |
@@ -24,6 +25,7 @@
 | 메시지 | 서버 송신 | 클라이언트 처리 |
 |---|---|---|
 | `welcome` | Task 3.5 | Task 1.2, 1.6 |
+| `register_result` | 회원가입 이전 | 회원가입 화면 |
 | `login_result` | Task 3.5 | Task 3 |
 | `logout_result` | Task 3.5 | Task 3 |
 | `pong` | Task 3.4 | Task 1.3 |
@@ -108,8 +110,7 @@
 | 메시지 | 서버 | 클라이언트 |
 |---|---|---|
 | `admin_login` / `admin_login_result` | Task 7.1 | Task 11.1 |
-| `service_login` | Task 7.1 | 게이트웨이 Task 5.3 |
-| `account_create` | Task 8 | 게이트웨이 Task 5.4 |
+| `account_create` | Task 8 | 어드민 전용 |
 | `admin_list` / `admin_get` | Task 7.2 | Task 11.3 |
 | `admin_create` / `admin_update` / `admin_delete` | Task 7.2, 7.3 | Task 11.4 |
 | `admin_stats` | Task 7.4 | Task 11.5 |
@@ -125,7 +126,7 @@
 | Telnet IAC 협상 | 유지 (Req 10.7) | Task 2.3 필터 유지 | 해당 없음 |
 | 게임 채널 | TCP 4000 | `/ws` → 4000 | `ws://host/ws` |
 | 어드민 채널 | TCP 4001 (Task 7.1) | `/admin` → 4001 (Task 3.2) | `ws://host/admin` (Task 11.1) |
-| 계정 생성 | TCP 4001 (Task 8) | `POST /api/register` (Task 5.4) | 해당 없음 (랜딩) |
+| 계정 생성 | TCP 4000 `register` | `/ws` 그대로 통과 | 회원가입 화면 |
 | ANSI 제거 | Task 3.2 | sanitizer 제거 (Task 3.3) | 해당 없음 |
 
 ## 저장소 간 의존 그래프
@@ -174,8 +175,8 @@ flowchart TD
        └ Godot:     Task 11
 
 7단계  계정 생성과 랜딩
-       ├ 서버:      Task 8
-       └ 게이트웨이: Task 5
+       ├ 서버:      Task 8 (어드민 경로) + 게임 채널 `register`
+       └ 게이트웨이: Task 5 (랜딩은 소개 페이지만)
 
 8단계  정리와 검증
        ├ 서버:      Task 9
@@ -223,7 +224,7 @@ flowchart TD
 | 감사 로그를 DB 테이블로 저장할지 | 서버 Task 7.7 |
 | `resize` 메시지 타입 존속 여부 | 게이트웨이 Task 3.4 |
 | `sanitizer.ts` 제거 또는 연결 | 게이트웨이 Task 3.3 |
-| 랜딩 정적 서빙 주체(게이트웨이 vs nginx) | 게이트웨이 Task 5.2 |
+| 랜딩 정적 서빙 주체(게이트웨이 vs nginx) | 게이트웨이 Task 5.2. nginx 로 결정 |
 | 랜딩 한국어 병기 여부 | 게이트웨이 Task 5.1 |
 | GDScript 테스트 프레임워크 선택 | Godot Task 12.3 |
 | 대상 선택 UI 방식(팝오버 vs 고정 패널) | Godot Task 6 |
@@ -252,6 +253,7 @@ flowchart TD
 | 이관된 번역 파일의 사용처 없는 키 | Godot Task 5.2. 서버에서 이관한 9개 파일에는 명령어 도움말, 어드민 명령어 안내처럼 페이즈2 에서 사라진 기능의 키가 남아 있다. 클라이언트가 i18n 계층을 만들 때 실제 사용 키만 남기고 정리한다 |
 | `SessionState.last_command` 제거 | 서버 Task 9. 텍스트 프로토콜의 `.` 반복 입력에 쓰였고 참조하는 코드가 사라졌다. 필드만 남아 있으며 잔여 정리 단계에서 제거한다 |
 | 전투 알림의 번역 키 전환 | 서버 Task 6. `combat_handler`의 공격·명중·사망·시체 생성 알림이 아직 완성 문장을 `combat_message` 타입으로 보낸다. 전투 상태표와 턴 안내, 행동 메뉴는 Task 5에서 `combat_state` 브로드캐스트로 대체해 제거했다 |
+| 회원가입을 게임 채널로 이전 | 결정 완료(2026-08-16). 랜딩 사이트는 소개 페이지만 두고 계정 생성은 Godot 클라이언트가 게임 채널의 `register` 로 직접 한다. 게이트웨이는 WebSocket 을 TCP 로 옮기는 일만 맡는다. 이에 따라 어드민 채널의 서비스 주체 인증(`service_login`, `ALLOWED_SERVICES`, `SERVICE_ALLOWED_TYPES`, `LANDING_SERVICE_TOKEN`)을 없앴다. 토큰을 두 저장소가 같은 값으로 유지해야 했고, 계정 생성이라는 공개 경로를 어드민 포트에 붙여 둔 구조였다. 검증 규칙은 `server/accounts.py` 한 곳에 두고 `register` 와 `account_create` 가 함께 쓴다. `account_create` 는 관리자 전용으로 남는다. `register` 에는 시도 횟수 제한을 두지 않는다. 남용은 다음 페이즈의 2차 인증으로 다룬다 |
 | 역할 기반 어드민 권한 | 범위 외. 향후 확장 |
 | 한국어 조사 자동 선택 | 범위 외. 향후 개선 |
 | Telnet IAC 협상 제거 | 범위 외. 향후 후보 |

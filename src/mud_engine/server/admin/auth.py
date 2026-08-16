@@ -10,7 +10,6 @@
 프로토콜 계약: docs/protocol/admin.md
 """
 
-import hmac
 import logging
 import os
 from dataclasses import dataclass
@@ -27,19 +26,12 @@ logger = logging.getLogger(__name__)
 # 어드민 세션 유효 기간. 만료되면 이후 요청을 SESSION_EXPIRED 로 거절한다
 SESSION_LIFETIME = timedelta(hours=2)
 
-# 토큰으로 접속할 수 있는 서비스 주체. 각각 환경변수 `{이름}_SERVICE_TOKEN` 을 읽는다
-ALLOWED_SERVICES = ("landing",)
-
-# 서비스 주체가 호출할 수 있는 메시지 타입
-SERVICE_ALLOWED_TYPES = ("account_create",)
-
-
 @dataclass
 class AdminPrincipal:
     """인증된 어드민 채널 주체
 
     Attributes:
-        kind: `admin` 또는 `service`
+        kind: 언제나 `admin`
         name: 관리자 사용자명 또는 서비스 이름
         expires_at: 세션 만료 시각
         player_id: 관리자인 경우의 플레이어 uuid
@@ -56,14 +48,13 @@ class AdminPrincipal:
         """세션이 만료됐는지"""
         return (now or datetime.now()) >= self.expires_at
 
-    def may_send(self, message_type: str) -> bool:
+    def may_send(self, _message_type: str) -> bool:
         """이 주체가 해당 메시지 타입을 호출할 수 있는지
 
-        서비스 주체는 계정 생성만 할 수 있다. 관리자는 제한이 없다.
-        역할 기반 세분화는 범위 밖이다.
+        관리자는 제한이 없다. 역할 기반 세분화는 범위 밖이다. 토큰으로 붙는
+        서비스 주체는 없앴다. 계정 생성이 게임 채널의 `register` 로 옮겨가
+        토큰을 들고 붙는 프로그램이 사라졌다.
         """
-        if self.kind == "service":
-            return message_type in SERVICE_ALLOWED_TYPES
         return True
 
 
@@ -107,31 +98,3 @@ class AdminAuthenticator:
             player_id=player.id,
             display_name=player.get_display_name(),
         )
-
-    def authenticate_service(self, service: str, token: str) -> AdminPrincipal:
-        """서비스 주체를 인증한다.
-
-        Args:
-            service: 서비스 이름. `ALLOWED_SERVICES` 에 있어야 한다
-            token: 환경변수에 설정한 토큰
-
-        Returns:
-            인증된 주체
-
-        Raises:
-            AuthenticationError: 알 수 없는 서비스이거나 토큰이 틀린 경우
-        """
-        if service not in ALLOWED_SERVICES:
-            raise AuthenticationError(f"unknown service: {service}")
-
-        expected = os.getenv(f"{service.upper()}_SERVICE_TOKEN", "")
-
-        if not expected:
-            logger.error(f"서비스 토큰이 설정되지 않았습니다: {service.upper()}_SERVICE_TOKEN")
-            raise AuthenticationError(f"service token not configured: {service}")
-
-        # 타이밍 공격을 막기 위해 상수 시간 비교를 쓴다
-        if not hmac.compare_digest(expected, token):
-            raise AuthenticationError(f"invalid service token: {service}")
-
-        return AdminPrincipal(kind="service", name=service, expires_at=_expiry())

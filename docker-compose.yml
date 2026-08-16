@@ -1,6 +1,6 @@
 # MUD 서버만 컨테이너로 돌린다.
 #
-# 게이트웨이와 랜딩은 호스트에서 Node 로 띄운다. 프로덕션(Oracle Linux 7)의
+# 게이트웨이는 호스트에서 Node 로 띄우고 랜딩은 nginx 가 정적으로 준다. 프로덕션(Oracle Linux 7)의
 # 파이썬이 3.9 라 서버를 맨몸으로 올릴 수 없어서 나온 구성이다. `aiohttp` 가
 # 3.10 이상을 요구하고 코드가 PEP 604 유니온을 쓴다.
 #
@@ -42,9 +42,6 @@ services:
       TELNET_PORT: 4000
       ADMIN_HOST: 0.0.0.0
       ADMIN_PORT: 4001
-      # 랜딩 회원가입용 서비스 토큰. 게이트웨이의 같은 이름 값과 같아야 한다.
-      # 비우면 계정 생성 경로를 등록하지 않는다
-      LANDING_SERVICE_TOKEN: ${LANDING_SERVICE_TOKEN:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
 
     # 종료는 SIGTERM 이다. WAL 체크포인트와 세션 종료 알림이 끝날 시간을 준다

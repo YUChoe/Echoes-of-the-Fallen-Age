@@ -1,15 +1,37 @@
 # 클라이언트 → 서버 메시지
 
-클라이언트가 보낼 수 있는 메시지는 6종이다. 게임 상호작용은 전부 `action` 하나로 수렴하고, verb와 params가 세부를 결정한다.
+클라이언트가 보낼 수 있는 메시지는 7종이다. 게임 상호작용은 전부 `action` 하나로 수렴하고, verb와 params가 세부를 결정한다.
 
 | type | 인증 필요 | 설명 |
 |---|---|---|
+| `register` | 아니오 | 계정 생성 |
 | `login` | 아니오 | 계정 인증 |
 | `logout` | 예 | 인증 해제. 연결은 유지 |
 | `action` | 예 | 게임 액션 |
 | `chat` | 예 | 채팅 |
 | `ping` | 아니오 | 유휴 유지 |
 | `client_info` | 아니오 | 클라이언트 정보 통지 |
+
+## register
+
+```json
+{
+  "type": "register",
+  "seq": 1,
+  "username": "newplayer",
+  "password": "<평문>",
+  "email": "user@example.com",
+  "preferred_locale": "ko"
+}
+```
+
+게임 클라이언트가 계정을 만든다. 인증 전에 보내며 성공해도 세션은 인증되지 않는다. 만든 계정으로 `login`을 다시 보내야 한다. 두 단계를 합치지 않는 것은 실패 처리가 뒤섞이지 않게 하고, 계정만 만들어 두고 나중에 접속하는 흐름을 막지 않기 위해서다.
+
+`email`과 `preferred_locale`은 선택 항목이다. 응답은 `register_result`다. 검증 규칙은 어드민 채널의 `account_create`와 같으며 admin.md에 정리돼 있다.
+
+로그인 시도 횟수에 세지 않는다. 로그인 실패 상한과 목적이 다르다.
+
+남용 제한은 두지 않는다. 2차 인증으로 다룬다.
 
 ## login
 

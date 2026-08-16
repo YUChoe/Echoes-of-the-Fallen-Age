@@ -18,7 +18,7 @@ PROTOCOL_DIR = Path("docs/protocol")
 
 # 계약 문서의 거절 코드 표. 첫 칸이 대문자 코드다.
 # 표를 헤더로 구분해 첫 칸이 `코드` 인 표만 읽는다. 모든 대문자 첫 칸을 긁으면
-# 환경변수 표의 `ADMIN_HOST`, `LANDING_SERVICE_TOKEN` 이 섞인다
+# 환경변수 표의 `ADMIN_HOST`, `ADMIN_PORT` 가 섞인다
 _CODE_ROW = re.compile(r"^\|\s*`([A-Z][A-Z_]+)`\s*\|")
 
 # 서버가 상황에 따라 만들 수 없어 하니스로 재현하기 어려운 코드.

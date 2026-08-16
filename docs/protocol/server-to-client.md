@@ -5,6 +5,7 @@
 | type | seq | 설명 |
 |---|---|---|
 | `welcome` | 없음 | 접속 직후 서버 정보 |
+| `register_result` | 있음 | 계정 생성 결과 |
 | `login_result` | 있음 | 인증 결과 |
 | `logout_result` | 있음 | 인증 해제 결과 |
 | `pong` | 있음 | ping 응답 |
@@ -54,10 +55,40 @@
 
 | 수신 채널 | 대상 메시지 | 응답 |
 |---|---|---|
-| game | `admin_login`, `service_login`, `account_create`, `admin_*` | `error`, `reason_code: NOT_APPLICABLE` |
+| game | `admin_login`, `account_create`, `admin_*` | `error`, `reason_code: NOT_APPLICABLE` |
 | admin | `login`, `logout`, `action`, `chat`, `client_info` | `admin_rejected`, `reason_code: NOT_APPLICABLE` |
 
 `detail`에 기대 채널과 현재 채널을 모두 담는다. `ping`은 두 채널 모두에서 허용된다.
+
+## register_result
+
+성공:
+
+```json
+{
+  "type": "register_result",
+  "seq": 1,
+  "success": true,
+  "player_id": "a1b2c3d4-..."
+}
+```
+
+실패:
+
+```json
+{
+  "type": "register_result",
+  "seq": 1,
+  "success": false,
+  "reason_code": "USERNAME_TAKEN"
+}
+```
+
+`register`의 응답이다. 사유는 `USERNAME_TAKEN`, `VALIDATION_FAILED`, `INTERNAL_ERROR`뿐이다. 어느 항목이 문제인지는 응답에 담지 않고 서버 로그에만 남긴다. 클라이언트가 같은 규칙으로 미리 검증하므로 서버까지 온 검증 실패는 클라이언트 버그이거나 조작된 요청이다.
+
+실패 응답에는 `player_id`를 담지 않는다.
+
+성공해도 세션은 인증되지 않는다. 클라이언트는 이어서 `login`을 보낸다.
 
 ## login_result
 

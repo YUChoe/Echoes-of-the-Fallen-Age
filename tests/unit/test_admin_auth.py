@@ -61,13 +61,17 @@ class _StubPlayerManager:
 # 주체 권한 ------------------------------------------------------------------
 
 
-def test_service_principal_may_only_create_accounts():
-    """서비스 주체는 계정 생성만 할 수 있다"""
-    principal = _principal("service")
+def test_admin_principal_has_no_type_restriction():
+    """관리자 주체는 메시지 타입 제한이 없다
+
+    토큰으로 붙는 서비스 주체는 없앴다. 계정 생성이 게임 채널의 `register` 로
+    옮겨가 그 주체가 필요 없어졌다.
+    """
+    principal = _principal("admin")
 
     assert principal.may_send("account_create") is True
-    assert principal.may_send("admin_list") is False
-    assert principal.may_send("admin_action") is False
+    assert principal.may_send("admin_list") is True
+    assert principal.may_send("admin_action") is True
 
 
 def test_admin_principal_has_no_type_restriction():
@@ -126,47 +130,6 @@ async def test_admin_login_rejects_wrong_password():
         await auth.authenticate_admin("player5426", "wrong")
 
 
-# 서비스 인증 ----------------------------------------------------------------
-
-
-def test_service_login_succeeds_with_configured_token(monkeypatch):
-    """환경변수 토큰과 일치하면 인증에 성공한다"""
-    monkeypatch.setenv("LANDING_SERVICE_TOKEN", "s3cr3t")
-    auth = AdminAuthenticator(_StubPlayerManager(None))
-
-    principal = auth.authenticate_service("landing", "s3cr3t")
-
-    assert principal.kind == "service"
-    assert principal.name == "landing"
-
-
-def test_service_login_rejects_wrong_token(monkeypatch):
-    """토큰이 다르면 거절한다"""
-    monkeypatch.setenv("LANDING_SERVICE_TOKEN", "s3cr3t")
-    auth = AdminAuthenticator(_StubPlayerManager(None))
-
-    with pytest.raises(AuthenticationError):
-        auth.authenticate_service("landing", "wrong")
-
-
-def test_service_login_rejects_unconfigured_token(monkeypatch):
-    """토큰이 설정되지 않았으면 빈 문자열과 일치시키지 않는다"""
-    monkeypatch.delenv("LANDING_SERVICE_TOKEN", raising=False)
-    auth = AdminAuthenticator(_StubPlayerManager(None))
-
-    with pytest.raises(AuthenticationError):
-        auth.authenticate_service("landing", "")
-
-
-def test_service_login_rejects_unknown_service(monkeypatch):
-    """허용 목록에 없는 서비스는 거절한다"""
-    monkeypatch.setenv("BILLING_SERVICE_TOKEN", "s3cr3t")
-    auth = AdminAuthenticator(_StubPlayerManager(None))
-
-    with pytest.raises(AuthenticationError):
-        auth.authenticate_service("billing", "s3cr3t")
-
-
 # 메시지 봉투 ----------------------------------------------------------------
 
 
@@ -195,17 +158,6 @@ def test_admin_login_result_failure_omits_admin():
     assert message["reason_code"] == "PERMISSION_DENIED"
     assert "admin" not in message
     assert "expires_at" not in message
-
-
-def test_service_login_result_shape():
-    """서비스 인증 응답 형식"""
-    message = ser.service_login_result(
-        3, True, service="landing", expires_at="2026-08-10T18:45:00"
-    )
-
-    assert message["type"] == "service_login_result"
-    assert message["service"] == "landing"
-    assert message["success"] is True
 
 
 def test_channel_type_sets_do_not_overlap():

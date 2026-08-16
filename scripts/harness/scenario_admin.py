@@ -3,14 +3,13 @@
 """어드민 채널 시나리오 (TCP 4001)
 
 server-json-protocol Task 7.1 이 계약대로 동작하는지 확인한다. 검증 대상은
-IAC 협상 없는 프레이밍, 인증 전 거절, 관리자 인증, 서비스 인증, 게임 세션
-인증 상태의 비전이다.
+IAC 협상 없는 프레이밍, 인증 전 거절, 관리자 인증, 게임 세션 인증 상태의
+비전이다.
 
 기대값은 구현에서 가져오지 않고 계약 문서(docs/protocol/admin.md)의 값을
 그대로 적는다.
 """
 
-import os
 
 from .client import (
     DEFAULT_ADMIN_PORT,
@@ -151,25 +150,6 @@ def _check_bad_password(result: ScenarioResult, client: HarnessClient) -> None:
         return
 
     result.ok("잘못된 자격 거절", "NOT_AUTHENTICATED 응답")
-
-
-def _check_bad_service_token(result: ScenarioResult, client: HarnessClient) -> None:
-    """잘못된 서비스 토큰이 거절되는지 확인한다."""
-    seq = client.send_json(
-        {"type": "service_login", "service": "landing", "token": "wrong-token"}
-    )
-
-    try:
-        login = client.wait_for("service_login_result", seq=seq, timeout_ms=3000)
-    except HarnessError as exc:
-        result.fail("잘못된 서비스 토큰 거절", str(exc))
-        return
-
-    if login.get("success") is not False:
-        result.fail("잘못된 서비스 토큰 거절", f"success 가 {login.get('success')!r}")
-        return
-
-    result.ok("잘못된 서비스 토큰 거절", f"reason_code {login.get('reason_code')}")
 
 
 def _check_admin_login(result: ScenarioResult, client: HarnessClient) -> bool:
@@ -813,55 +793,13 @@ def _delete_room(client: HarnessClient, room_id: str) -> None:
         pass
 
 
-def _check_service_scope(result: ScenarioResult, port: int) -> None:
-    """서비스 주체가 계정 생성만 할 수 있는지 확인한다.
-
-    토큰은 하니스가 알 수 없으므로 환경변수에서 읽는다. 없으면 건너뛴다.
-    """
-    token = os.getenv("LANDING_SERVICE_TOKEN")
-
-    if not token:
-        result.skip("서비스 권한 범위", "LANDING_SERVICE_TOKEN 이 설정되지 않았다")
-        return
-
-    try:
-        with _admin_client(port) as client:
-            client.connect()
-            client.wait_for("welcome", timeout_ms=3000)
-
-            seq = client.send_json(
-                {"type": "service_login", "service": "landing", "token": token}
-            )
-            login = client.wait_for("service_login_result", seq=seq, timeout_ms=5000)
-
-            if login.get("success") is not True:
-                result.fail("서비스 권한 범위", f"서비스 인증 실패: {login!r}")
-                return
-
-            # 서비스 주체는 리소스 조회를 할 수 없다
-            seq = client.send_json({"type": "admin_list", "resource": "players"})
-            rejected = client.wait_for("admin_rejected", seq=seq, timeout_ms=3000)
-
-            if rejected.get("reason_code") != "PERMISSION_DENIED":
-                result.fail(
-                    "서비스 권한 범위",
-                    f"admin_list reason_code 가 {rejected.get('reason_code')!r}",
-                )
-                return
-
-            result.ok("서비스 권한 범위", "서비스는 계정 생성만 호출할 수 있다")
-
-            _check_account_validation(result, client)
-    except HarnessError as exc:
-        result.fail("서비스 권한 범위", str(exc))
-
-
 def _check_account_validation(
     result: ScenarioResult, client: HarnessClient
 ) -> None:
-    """계정 생성 검증이 동작하는지 확인한다.
+    """어드민 채널의 계정 생성 검증이 동작하는지 확인한다.
 
     계정을 실제로 만들지 않는다. 거절 경로만 확인해 DB 를 바꾸지 않는다.
+    같은 규칙을 게임 채널의 `register` 도 쓴다. 그쪽은 게임 시나리오가 본다.
     """
     cases = (
         ("짧은 비밀번호", {"username": "harnessnew", "password": "short"}),
@@ -978,10 +916,10 @@ def run(
             _check_game_message_rejected(result, client)
             _check_ping(result, client)
             _check_bad_password(result, client)
-            _check_bad_service_token(result, client)
 
             if _check_admin_login(result, client):
                 _check_unimplemented(result, client)
+                _check_account_validation(result, client)
                 _check_list(result, client)
                 _check_password_hash_hidden(result, client)
                 _check_composite_key(result, client)
@@ -1005,5 +943,4 @@ def run(
         result.fail("어드민 채널 접속", str(exc))
         return
 
-    _check_service_scope(result, port)
     _check_no_session_transfer(result, port, game_port)

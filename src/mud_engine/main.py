@@ -249,7 +249,7 @@ async def main():
         logger.info("게임 엔진 시작 완료.")
 
         # 어드민 서버 초기화 및 시작. 기본 바인드가 루프백인 것은 의도적이며,
-        # 게이트웨이와 랜딩 백엔드만 도달할 수 있어야 한다.
+        # 게이트웨이만 도달할 수 있어야 한다.
         # 게임 채널이 로그인 응답에 사용 가능 여부를 담으므로 먼저 띄운다
         admin_host = os.getenv("ADMIN_HOST", "127.0.0.1")
         admin_port = int(os.getenv("ADMIN_PORT", "4001"))

@@ -46,14 +46,6 @@ PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe -m scripts.harness.
 PYTHONIOENCODING=utf-8 PYTHONPATH=. .venv/Scripts/python.exe -m scripts.harness.run_all --unit-only
 ```
 
-어드민 계정 생성 경로까지 검증하려면 `LANDING_SERVICE_TOKEN` 을 서버와 하니스
-양쪽에 같은 값으로 준다. 없으면 해당 항목이 건너뜀으로 빠진다.
-
-```bash
-LANDING_SERVICE_TOKEN=harness-test-token PYTHONIOENCODING=utf-8 PYTHONPATH=. \
-  .venv/Scripts/python.exe -m scripts.harness.run_all
-```
-
 ## 판정 기준
 
 실패 0만 확인한다. 건너뜀 수가 흔들리는 것은 정상이다. 읽을 수 있는 아이템,
@@ -69,7 +61,7 @@ LANDING_SERVICE_TOKEN=harness-test-token PYTHONIOENCODING=utf-8 PYTHONPATH=. \
 |---|---|
 | `framing (unit)` | 라인 분할, IAC 필터. 서버 불필요 |
 | `framing (server)` | 서버 왕복 프레이밍 |
-| `auth` | `welcome`, 로그인, `ping`/`pong`, 봉투 위반, 채널 구별 |
+| `auth` | `welcome`, 회원가입, 로그인, `ping`/`pong`, 봉투 위반, 채널 구별 |
 | `action` | 액션 디스패처, 거절 코드, 채팅, 대화, 전투 |
 | `admin` | 어드민 인증, 리소스 CRUD, 참조 무결성, 액션 14종, 통계, 맵, 계정 생성 |
 

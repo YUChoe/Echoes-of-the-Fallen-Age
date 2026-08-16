@@ -5,7 +5,7 @@
 게임 세션에서 `is_admin` 이 참이어도 어드민 기능을 쓸 수 없다.
 
 이 포트는 외부에 노출하지 않는다. 기본 바인드 주소가 루프백인 이유이며,
-게이트웨이와 랜딩 백엔드만 도달할 수 있게 구성한다.
+게이트웨이만 도달할 수 있게 구성한다.
 
 프로토콜 계약: docs/protocol/admin.md
 """
@@ -27,7 +27,6 @@ from ..serialization import (
     PROTOCOL_VERSION,
     admin_login_result,
     build,
-    service_login_result,
 )
 from .admin_session import AdminSession
 from .auth import AdminAuthenticator
@@ -41,7 +40,7 @@ logger = logging.getLogger(__name__)
 AUTH_TIMEOUT = 60.0
 
 # 인증 전에 허용하는 메시지 타입
-PREAUTH_TYPES = ("admin_login", "service_login", "ping")
+PREAUTH_TYPES = ("admin_login", "ping")
 
 # 메시지 타입 → 처리기. 리소스 CRUD 와 액션은 Task 7.2~7.5 에서 등록한다
 AdminHandler = Callable[[AdminSession, dict[str, Any]], Awaitable[None]]
@@ -147,7 +146,7 @@ class AdminServer:
     async def _authenticate(self, session: AdminSession) -> bool:
         """인증 메시지를 받아 주체를 확정한다.
 
-        인증 전에는 `admin_login`, `service_login`, `ping` 만 허용한다. 실패해도
+        인증 전에는 `admin_login` 과 `ping` 만 허용한다. 실패해도
         연결을 끊지 않고 다음 시도를 기다린다. 유휴 상태가 `AUTH_TIMEOUT` 을
         넘으면 연결이 끝난다.
 
@@ -183,10 +182,6 @@ class AdminServer:
             if msg_type == "admin_login":
                 if await self._handle_admin_login(session, message):
                     return True
-                continue
-
-            if await self._handle_service_login(session, message):
-                return True
 
     async def _handle_admin_login(
         self, session: AdminSession, message: dict[str, Any]
@@ -232,44 +227,6 @@ class AdminServer:
                     "username": principal.name,
                     "display_name": principal.display_name,
                 },
-                expires_at=principal.expires_at.isoformat(),
-            )
-        )
-        return True
-
-    async def _handle_service_login(
-        self, session: AdminSession, message: dict[str, Any]
-    ) -> bool:
-        """`service_login` 을 처리하고 결과를 응답한다."""
-        seq = message.get("seq")
-        service = message.get("service")
-        token = message.get("token")
-
-        if not isinstance(service, str) or not isinstance(token, str):
-            await session.send_message(
-                service_login_result(seq, False, reason_code="VALIDATION_FAILED")
-            )
-            return False
-
-        try:
-            principal = self.authenticator.authenticate_service(service, token)
-        except AuthenticationError:
-            logger.warning(
-                f"서비스 인증 실패: service={service}, IP={session.ip_address}"
-            )
-            await session.send_message(
-                service_login_result(seq, False, reason_code="NOT_AUTHENTICATED")
-            )
-            return False
-
-        session.principal = principal
-        logger.info(f"서비스 인증 성공: {service} (세션 {session.short_id})")
-
-        await session.send_message(
-            service_login_result(
-                seq,
-                True,
-                service=service,
                 expires_at=principal.expires_at.isoformat(),
             )
         )

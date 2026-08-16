@@ -29,7 +29,6 @@ GAME_ONLY_TYPES = frozenset(
 ADMIN_ONLY_TYPES = frozenset(
     {
         "admin_login",
-        "service_login",
         "account_create",
         "admin_list",
         "admin_get",

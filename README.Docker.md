@@ -18,7 +18,7 @@
    └─ MUD 서버  127.0.0.1:4000 게임, 127.0.0.1:4001 어드민
 ```
 
-두 포트를 `127.0.0.1` 에 묶는다. 플레이어는 게이트웨이를 통해서만 들어오고 게이트웨이는 같은 호스트에 있다. 어드민 포트는 계정 생성 경로를 갖고 있으므로 특히 밖으로 열지 않는다.
+두 포트를 `127.0.0.1` 에 묶는다. 플레이어는 게이트웨이를 통해서만 들어오고 게이트웨이는 같은 호스트에 있다. 어드민 포트는 세계 데이터를 직접 고치는 경로이므로 특히 밖으로 열지 않는다.
 
 ## 요구 사항
 
@@ -28,7 +28,6 @@
 ## 빌드와 실행
 
 ```bash
-export LANDING_SERVICE_TOKEN=<게이트웨이와 같은 값>
 export VERSION=$(git describe --tags --always)
 export VCS_REF=$(git rev-parse --short HEAD)
 export BUILD_DATE=$(date -Iseconds)
@@ -51,7 +50,6 @@ podman run -d --name mud-engine \
   -v ./data:/app/data:Z \
   -v ./logs:/app/logs:Z \
   -v ./configs:/app/configs:Z \
-  -e LANDING_SERVICE_TOKEN="$LANDING_SERVICE_TOKEN" \
   --stop-timeout 30 \
   mud-engine
 ```
@@ -90,11 +88,10 @@ Windows 개발 환경의 `scripts/run_server.py` 런처는 컨테이너에서 �
 
 ```bash
 TELNET_HOST=localhost TELNET_PORT=4000 ADMIN_PORT=4001 \
-LANDING_SERVICE_TOKEN=<같은 값> \
 node dist/server/server/start.js
 ```
 
-`LANDING_SERVICE_TOKEN` 은 서버와 게이트웨이가 같아야 한다. 다르면 회원가입이 502 로 떨어지고 사유는 게이트웨이 로그에만 남는다. 비우면 양쪽 모두 그 경로를 등록하지 않는다.
+게이트웨이는 WebSocket 을 TCP 로 옮기는 일만 한다. 계정 생성은 게임 채널의 `register` 로 클라이언트가 직접 하므로 게이트웨이에 별도 설정이 필요 없다.
 
 게이트웨이 배포 절차는 클라이언트 저장소의 `DEPLOYMENT.md` 에 있다.
 
