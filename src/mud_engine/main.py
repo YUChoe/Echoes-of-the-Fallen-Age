@@ -29,7 +29,10 @@ def setup_logging():
     import logging.handlers
     from datetime import datetime
 
-    log_level = os.getenv("LOG_LEVEL", "INFO")
+    # 빈 값도 미설정으로 본다. compose 가 `LOG_LEVEL: ${LOG_LEVEL}` 로 넘기므로
+    # 셸에 그 변수가 없으면 빈 문자열이 들어온다. getenv 의 기본값은 그 경우를
+    # 걸러주지 않아 기동 중에 죽는다
+    log_level = os.getenv("LOG_LEVEL") or "INFO"
 
     # 로그 디렉토리 생성
     os.makedirs('logs', exist_ok=True)
@@ -201,7 +204,12 @@ def setup_logging():
 
     # 루트 로거 설정
     root_logger = logging.getLogger()
-    root_logger.setLevel(getattr(logging, log_level))
+    # 모르는 이름이면 INFO 로 떨어진다. 오타 하나로 서버가 뜨지 않는 것보다 낫다
+    level = getattr(logging, log_level.upper(), None)
+    if not isinstance(level, int):
+        print(f"LOG_LEVEL 값을 알 수 없어 INFO 로 시작합니다: {log_level!r}")
+        level = logging.INFO
+    root_logger.setLevel(level)
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
 
