@@ -27,14 +27,27 @@
 
 ## 빌드와 실행
 
+네 변수를 셸에서 내보낸 뒤 빌드한다. `docker-compose.yml` 이 `${VAR}` 로 받는다.
+
 ```bash
 export VERSION=$(git describe --tags --always)
 export VCS_REF=$(git rev-parse --short HEAD)
 export BUILD_DATE=$(date -Iseconds)
+export LOG_LEVEL=INFO
 
 docker compose up -d --build
 docker compose logs -f
 ```
+
+`${VAR:-기본값}` 문법을 쓰지 않는다. docker-compose 1.11 미만이 파싱하지 못한다. 같은 이유로 파일 첫머리에 `version: "2.1"` 을 둔다. 그 키가 없으면 옛 버전이 파일을 v1 레거시 형식으로 읽어 `Invalid interpolation format ... in service "services"` 로 실패한다.
+
+프로덕션의 바이너리가 오래됐는지는 이렇게 본다.
+
+```bash
+docker-compose --version
+```
+
+1.11 미만이면 위 방식이 필요하고, 그 이상이면 그대로도 돈다. compose 를 쓰지 않고 아래 podman 절차로 가도 된다.
 
 `podman` 만 있는 환경에서 compose 없이:
 

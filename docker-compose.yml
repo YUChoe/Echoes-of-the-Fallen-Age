@@ -12,14 +12,22 @@
 # 두 포트를 127.0.0.1 에 묶는다. 플레이어는 게이트웨이를 통해서만 들어오고,
 # 게이트웨이는 같은 호스트에서 돈다. 어드민 포트는 특히 밖으로 열지 않는다.
 
+# `version` 키가 없으면 옛 docker-compose 가 파일을 v1 레거시 형식으로 읽는다.
+# 그러면 최상위 키를 서비스 이름으로 해석해 파싱 자체가 실패한다. 새 Compose 는
+# 이 키를 무시하고 경고만 낸다
+version: "2.1"
+
 services:
   mud:
     build:
       context: .
+      # 셸에서 export 해서 넘긴다. `${VAR:-기본값}` 은 docker-compose 1.11
+      # 이상에서만 통해 프로덕션의 옛 바이너리가 파싱하지 못한다.
+      # 비우면 이미지 라벨과 welcome 의 server_version 이 빈 값이 된다
       args:
-        VERSION: ${VERSION:-dev}
-        VCS_REF: ${VCS_REF:-unknown}
-        BUILD_DATE: ${BUILD_DATE:-unknown}
+        VERSION: ${VERSION}
+        VCS_REF: ${VCS_REF}
+        BUILD_DATE: ${BUILD_DATE}
     container_name: mud-engine
     restart: unless-stopped
 
@@ -42,7 +50,7 @@ services:
       TELNET_PORT: 4000
       ADMIN_HOST: 0.0.0.0
       ADMIN_PORT: 4001
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_LEVEL: ${LOG_LEVEL}
 
     # 종료는 SIGTERM 이다. WAL 체크포인트와 세션 종료 알림이 끝날 시간을 준다
     stop_grace_period: 30s
