@@ -5,8 +5,11 @@
 관련 스펙:
 
 - 서버: `Echoes-of-the-Fallen-Age/.kiro/specs/server-json-protocol/`
-- 게이트웨이와 랜딩: `KarnasChronicles-DividedDominio-client/.kiro/specs/gateway-landing/`
+- 게이트웨이와 랜딩: `karnas-gateway/.kiro/specs/gateway-landing/`
 - Godot 클라이언트: `KarnasChronicles-DividedDominio-client/.kiro/specs/godot-client/`
+
+저장소는 셋이다. 2026-08-18 에 게이트웨이가 클라이언트 저장소에서 갈라져
+나왔다. 클라이언트 저장소는 이름을 유지하며 Godot 클라이언트만 담는다.
 
 ## 클라이언트 → 서버 메시지
 
