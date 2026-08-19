@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 # 선택 가능한 감정 표현. 계약이 목록에서 고르도록 규정하므로 자유 입력을 받지 않는다.
 EMOTE_IDS = (
+    # action
     "wave",
     "bow",
     "nod",
@@ -36,6 +37,55 @@ EMOTE_IDS = (
     "clap",
     "dance",
     "salute",
+    # report
+    "path_cleared",
+    "enemy_weakened",
+    "all_clear",
+    "incoming",
+    "fire_set",
+    "holding",
+    "advancing",
+    "under_attack",
+    "traps_cleared",
+    "enemy_disguised",
+    # request
+    "need_healing",
+    "need_arrows",
+    "need_help",
+    "need_smith",
+    "cover_me",
+    "hold",
+    "where_to",
+    "need_scout",
+    # order
+    "follow_me",
+    "lets_go",
+    "make_way",
+    "clear_path",
+    "defend_here",
+    "disarm_trap",
+    "reinforce_attack",
+    "reinforce_defence",
+    # reply
+    "yes",
+    "no",
+    "thanks",
+    "welcome",
+    "sorry",
+    "oops",
+    "hail",
+    "farewell",
+    "well_struck",
+    "cheer",
+    "well_fought",
+    "acknowledged",
+    "declined",
+    "done",
+    # role
+    "i_will_fight",
+    "i_will_heal",
+    "i_will_scout",
+    "i_will_carry",
 )
 
 
